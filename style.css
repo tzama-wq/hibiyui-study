@@ -163,3 +163,98 @@ input{width:100%;margin:4px 0}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 @media(max-width:380px){.q{font-size:25px}.choice{font-size:18px}.pc-ava{font-size:70px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ================= 動き・演出・追加パーツ ================= */
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
+.floaty{position:fixed;z-index:31;transform:translate(-50%,0);font-weight:900;font-size:26px;font-style:italic;color:var(--gold);
+  text-shadow:0 2px 0 #3a2600,0 0 12px rgba(255,201,60,.8);pointer-events:none;animation:floatUp .95s ease-out forwards}
+@keyframes floatUp{0%{opacity:0;transform:translate(-50%,10px) scale(.6)}20%{opacity:1;transform:translate(-50%,0) scale(1.15)}100%{opacity:0;transform:translate(-50%,-70px) scale(1)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes popIn{0%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+@keyframes glowPulse{0%,100%{filter:drop-shadow(0 0 0 rgba(255,201,60,0))}50%{filter:drop-shadow(0 0 14px rgba(255,201,60,.65))}}
+@keyframes sweep{0%{transform:translateX(-120%)}60%,100%{transform:translateX(120%)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes spinIn{from{opacity:0;transform:rotate(-30deg) scale(.3)}to{opacity:1;transform:none}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* 画面を ひらいたとき(タブ移動・次の問題など)だけ ふわっと */
+body.enter main>*,body.enter .hero,body.enter .kid-select{animation:fadeUp .5s both}
+body.enter main>*:nth-child(2){animation-delay:.06s}body.enter main>*:nth-child(3){animation-delay:.12s}
+body.enter main>*:nth-child(4){animation-delay:.18s}body.enter main>*:nth-child(5){animation-delay:.24s}
+body.enter main>*:nth-child(n+6){animation-delay:.3s}
+body.enter .kid-select:nth-of-type(2){animation-delay:.1s}
+
+/* ボタンを おすと ぷにっと */
+.btn,.choice,.match-btn,.event-btn,.kid-select,.nav button{transition:transform .14s cubic-bezier(.3,1.7,.5,1),box-shadow .14s,filter .2s}
+.match-btn,.event-btn{animation:glowPulse 2.6s ease-in-out infinite}
+.match-btn::after{animation:bob 2.2s ease-in-out infinite}
+.pcard{transform:perspective(700px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s ease-out;animation:popIn .6s both}
+.pc-shine{animation:sweep 4.5s ease-in-out infinite}
+.pc-ava{animation:bob 3.4s ease-in-out infinite}
+.nav button.on span{animation:popIn .4s both}
+
+/* 正解・まちがい */
+.choice.ok{animation:popIn .45s both}
+.choice.ng{animation:shake .45s both}
+.fb{animation:fadeUp .35s both}
+.pitch .ball{transition:left .7s cubic-bezier(.3,1.4,.5,1),transform .7s ease-out}
+.dots{display:flex;justify-content:center;gap:8px;margin:4px 0 2px}
+.dots i{width:26px;height:8px;background:#1a2752;border:1px solid var(--line);clip-path:polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)}
+.dots i.ok{background:var(--ok);border-color:var(--ok)}.dots i.ng{background:var(--ng);border-color:var(--ng)}
+.dots i.cur{background:var(--gold);border-color:var(--gold);animation:blink 1.1s ease-in-out infinite}
+
+/* スコアボード風の上バー */
+.scoreboard{display:flex;align-items:stretch;background:#050913;border:1px solid var(--line);font-weight:900;
+  clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+.scoreboard span{padding:5px 14px;display:flex;align-items:baseline;gap:4px}
+.sb-l{background:linear-gradient(90deg,#5a4300,#2e2300);color:var(--gold)}.sb-l b{font-size:20px;font-style:italic}
+.sb-m{font-size:20px;font-style:italic}.sb-m small{font-size:12px;color:var(--mute)}
+.sb-r{color:var(--cyan);font-size:13px;align-items:center!important}
+.quiz-top .link{padding-left:0}.quiz-top .clock{min-width:40px}
+
+/* リング・ミッション・1週間 */
+.rg-bg{fill:none;stroke:#1a2752;stroke-width:4}
+.rg-fg{fill:none;stroke:var(--cyan);stroke-width:4;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)}
+.rg-fg.gold{stroke:var(--gold)}
+.tb-ava-wrap{position:relative;width:50px;height:50px;display:grid;place-items:center}
+.tb-ring{position:absolute;inset:0;width:100%;height:100%}
+.tb-ava-wrap .tb-ava{width:38px;height:38px;font-size:22px}
+.mission{display:flex;gap:14px;align-items:center;margin:12px 0;padding:14px;background:linear-gradient(160deg,#16224a,#101a3a);border:1px solid var(--line);
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+.ring-box{position:relative;width:68px;height:68px;flex:none;display:grid;place-items:center}
+.ring-box .ring{position:absolute;inset:0;width:100%;height:100%}.ring-ic{font-size:26px}
+.ms-main{flex:1;min-width:0}.ms-main b{font-size:16px}.ms-main small{display:block;color:var(--mute);margin:2px 0 8px}
+.week{display:flex;gap:6px}
+.wd{flex:1;text-align:center}.wd i{display:grid;place-items:center;width:100%;aspect-ratio:1;max-width:30px;margin:0 auto;font-style:normal;font-size:14px;
+  background:#0a1230;border:1px solid var(--line);border-radius:50%}
+.wd.on i{background:linear-gradient(135deg,var(--gold),var(--gold2));border-color:var(--gold)}
+.wd.today i{box-shadow:0 0 0 2px var(--cyan)}
+.wd small{display:block;font-size:11px;color:var(--mute);margin-top:2px}
+
+/* メダル */
+.medals{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.medal{text-align:center}.medal span{display:grid;place-items:center;width:100%;aspect-ratio:1;font-size:26px;border-radius:50%;
+  background:#0a1230;border:2px solid #22305f;filter:grayscale(1) brightness(.6)}
+.medal small{display:block;font-size:10px;line-height:1.25;color:var(--mute);margin-top:4px}
+.medal.got span{filter:none;border-color:var(--gold);background:radial-gradient(circle at 35% 30%,#fff2b3,#c8932a 70%);box-shadow:0 0 12px rgba(255,201,60,.35)}
+.medal.got small{color:var(--text)}
+.medal-new{text-align:center;animation:popIn .6s both}.medal-new .big{animation:spinIn .8s .1s both}
+
+/* 星 */
+.stars{display:flex;justify-content:center;gap:10px;margin-bottom:4px}
+.star{font-size:46px;color:#26376b;transform:scale(.4);opacity:.4}
+.star.on{color:var(--gold);text-shadow:0 0 16px rgba(255,201,60,.7);animation:popIn .6s both}
+
+/* ガラス風 */
+.panel,.mission{backdrop-filter:blur(6px)}
+.gear{transition:transform .2s}.gear:active{transform:rotate(30deg) scale(.9)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .star{transform:none;opacity:1}
+}
+
+.tb-name{min-width:0}.tb-name small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gear{padding:6px 4px}
+@media(max-width:420px){.tb-chips .chip:nth-child(2){display:none}}

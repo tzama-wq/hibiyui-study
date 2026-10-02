@@ -15,7 +15,7 @@ const MAX_BONUS = 3;
 
 // ---- 保存 -----------------------------------------------------------------
 const KEY = 'hibiyui.v1';
-const newKid = () => ({ seen: [], xp: 0, goals: 0, days: [], lastDate: null, units: {}, tags: {}, ask: [], today: { date: null, sets: 0, bonusTotal: 0, bonusDone: 0 } });
+const newKid = () => ({ badges: [], seen: [], xp: 0, goals: 0, days: [], lastDate: null, units: {}, tags: {}, ask: [], today: { date: null, sets: 0, bonusTotal: 0, bonusDone: 0 } });
 const init = () => ({ kids: Object.fromEntries(KIDS.map((k) => [k.id, newKid()])), override: {} });
 let S;
 try { S = JSON.parse(localStorage.getItem(KEY)) || init(); } catch { S = init(); }
@@ -149,8 +149,107 @@ function speak(text) {
   try { const u = new SpeechSynthesisUtterance(speakText(text)); u.lang = 'ja-JP'; u.rate = 0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch { /* 非対応 */ }
 }
 
+// ---- 動き・音・ふるえ ---------------------------------------------------------
+const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let lastTap = { x: innerWidth / 2, y: innerHeight / 2 };
+function vibrate(p) { try { if (!S.mute && navigator.vibrate) navigator.vibrate(p); } catch { /* 非対応 */ } }
+let actx;
+const SND = { ok: [[660, 0.09], [880, 0.16]], ng: [[260, 0.12], [200, 0.2]], win: [[523, 0.1], [659, 0.1], [784, 0.1], [1047, 0.3]] };
+function beep(name) {
+  if (S.mute) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    let t = actx.currentTime;
+    for (const [f, d] of SND[name]) {
+      const o = actx.createOscillator(); const g = actx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + d + 0.02);
+      t += d * 0.85;
+    }
+  } catch { /* 音が出なくても動く */ }
+}
+// 紙ふぶき(動きを減らす設定のときは出さない)
+function confetti(x, y, n = 36, spread = 1) {
+  if (reduceMotion) return;
+  const cv = document.getElementById('fx'); if (!cv) return;
+  cv.width = innerWidth; cv.height = innerHeight;
+  const ctx = cv.getContext('2d');
+  const colors = ['#ffc93c', '#27d8ff', '#2f7bff', '#19d68a', '#ff4d5e', '#ffffff'];
+  const ps = Array.from({ length: n }, () => ({
+    x, y, vx: (Math.random() - 0.5) * 12 * spread, vy: -Math.random() * 11 * spread - 3, g: 0.35,
+    r: Math.random() * 6.3, vr: (Math.random() - 0.5) * 0.4, s: 5 + Math.random() * 6, c: colors[(Math.random() * colors.length) | 0], life: 70 + Math.random() * 30,
+  }));
+  let frames = 0;
+  const step = () => {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    let alive = 0;
+    for (const p of ps) {
+      if (p.life-- <= 0) continue;
+      alive++; p.vy += p.g; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.globalAlpha = Math.min(1, p.life / 30); ctx.fillStyle = p.c;
+      ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore();
+    }
+    if (alive && frames++ < 200) requestAnimationFrame(step); else ctx.clearRect(0, 0, cv.width, cv.height);
+  };
+  requestAnimationFrame(step);
+}
+// 「+10」が ふわっと うかぶ
+function floaty(text, x, y) {
+  if (reduceMotion) return;
+  const d = document.createElement('div');
+  d.className = 'floaty'; d.textContent = text; d.style.left = `${x}px`; d.style.top = `${y}px`;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 1000);
+}
+// 数字のカウントアップと、リングの伸び
+const lastCount = {};
+function animateCounts() {
+  document.querySelectorAll('[data-count]').forEach((el) => {
+    const key = el.dataset.key; const to = Number(el.dataset.count);
+    const from = reduceMotion ? to : (lastCount[key] ?? 0);
+    lastCount[key] = to;
+    if (from === to) { el.textContent = to; return; }
+    const t0 = performance.now();
+    const tick = (now) => {
+      const k = Math.min(1, (now - t0) / 700);
+      el.textContent = Math.round(from + (to - from) * (1 - (1 - k) ** 3));
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const fillRings = () => document.querySelectorAll('[data-ring]').forEach((el) => {
+    el.style.strokeDashoffset = String(113.1 * (1 - Math.max(0, Math.min(1, Number(el.dataset.ring)))));
+  });
+  requestAnimationFrame(() => requestAnimationFrame(fillRings));
+  setTimeout(fillRings, 120); // 画面が見えていない間も、リングが空のままにならないように
+}
+const ringSvg = (cls, pct) => `<svg class="${cls}" viewBox="0 0 44 44"><circle class="rg-bg" cx="22" cy="22" r="18"/><circle class="rg-fg" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="113.1" data-ring="${pct}"/></svg>`;
+
 // ---- きょうだい共有 ---------------------------------------------------------
 const summary = (k) => { const p = S.kids[k.id]; return { name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null }; };
+// ---- メダル(実績) -------------------------------------------------------------
+const masterCount = (p, k, sj) => skillsUpTo(k.grade).filter((u) => u.subject === sj && ['ok', 'sprout'].includes(status(p, u.id)) && (p.units[u.id] || {}).ok >= 3).length;
+const BADGES = [
+  { id: 'goal1', icon: '⚽', name: 'はじめての ゴール', cond: (p) => p.goals >= 1 },
+  { id: 'goal10', icon: '🔟', name: '10ゴール', cond: (p) => p.goals >= 10 },
+  { id: 'goal50', icon: '🥉', name: '50ゴール', cond: (p) => p.goals >= 50 },
+  { id: 'goal100', icon: '🥈', name: '100ゴール', cond: (p) => p.goals >= 100 },
+  { id: 'goal300', icon: '🥇', name: '300ゴール', cond: (p) => p.goals >= 300 },
+  { id: 'day3', icon: '📅', name: '3日 れんしゅう', cond: (p) => p.days.length >= 3 },
+  { id: 'day7', icon: '🗓️', name: '7日 れんしゅう', cond: (p) => p.days.length >= 7 },
+  { id: 'day30', icon: '🏅', name: '30日 れんしゅう', cond: (p) => p.days.length >= 30 },
+  { id: 'hat', icon: '🎩', name: 'ハットトリック', cond: (p) => (p.hat || 0) >= 1 },
+  { id: 'perfect', icon: '✨', name: 'パーフェクトゲーム', cond: (p) => (p.perfect || 0) >= 1 },
+  { id: 'comeback', icon: '🌟', name: 'おかえり ステージ クリア', cond: (p) => !!p.callup },
+  { id: 'time', icon: '⏪', name: 'タイムマシンに のった', cond: (p) => (p.backRuns || 0) >= 1 },
+  { id: 'rank2', icon: '🚀', name: 'ユースの エース', cond: (p) => rankOf(p.xp).i >= 2 },
+  { id: 'rank4', icon: '🏟️', name: 'Jリーガー', cond: (p) => rankOf(p.xp).i >= 4 },
+  { id: 'rank5', icon: '🇯🇵', name: 'にほんだいひょう', cond: (p) => rankOf(p.xp).i >= 5 },
+  ...[['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱']].map(([sj, icon]) => (
+    { id: `m_${sj}`, icon, name: `${sj}の プロ`, cond: (p, k) => masterCount(p, k, sj) >= 3 })),
+];
+
 // ---- 日本代表の選出 ---------------------------------------------------------
 // 直近7日で need 日以上 れんしゅうすると 選出。かくれステージを クリアすると 追加招集(3日間)。
 const WINDOW = 7;
@@ -206,7 +305,7 @@ function playerCard(k, p) {
   const ab = ability(k, p); const r = rankOf(p.xp);
   return `<section class="pcard tier-${ab.tier}">
     <div class="pc-shine"></div>
-    <div class="pc-left"><div class="pc-ovr">${ab.ovr}</div><div class="pc-ovr-l">OVR</div><div class="pc-grade">${k.grade}ねん</div></div>
+    <div class="pc-left"><div class="pc-ovr"><b data-count="${ab.ovr}" data-key="ovr">${ab.ovr}</b></div><div class="pc-ovr-l">OVR</div><div class="pc-grade">${k.grade}ねん</div></div>
     <div class="pc-ava">${k.em}</div>
     <div class="pc-name">${k.name}</div>
     <div class="pc-rank">${r.name}</div>
@@ -247,7 +346,11 @@ function render() {
   document.body.dataset.view = view;
   const needLock = view === 'kid' && kidId && S.kidPins[kidId] && !unlocked;
   (needLock ? vLock : { setup: vSetup, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa }[view])();
-  if (toTop) { window.scrollTo(0, 0); toTop = false; }
+  if (toTop) {
+    window.scrollTo(0, 0); toTop = false;
+    document.body.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => document.body.classList.remove('enter'), 900);
+  }
+  animateCounts();
 }
 
 // このスマホは だれの? (さいしょの 1回だけ。パパが やる)
@@ -267,8 +370,10 @@ function vLock() {
 
 function topBar(k, p) {
   const r = rankOf(p.xp);
-  return `<header class="topbar"><div class="tb-ava">${k.em}</div><div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
-    <div class="tb-chips"><span class="chip gold">⚽ ${p.goals}</span><span class="chip">XP ${p.xp}</span></div>
+  return `<header class="topbar"><div class="tb-ava-wrap">${ringSvg('tb-ring', r.pct / 100)}<div class="tb-ava">${k.em}</div></div>
+    <div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
+    <div class="tb-chips"><span class="chip gold">⚽ <b data-count="${p.goals}" data-key="goals">${p.goals}</b></span><span class="chip">XP <b data-count="${p.xp}" data-key="xp">${p.xp}</b></span></div>
+    <button class="gear" data-act="mute" aria-label="おと">${S.mute ? '🔇' : '🔊'}</button>
     ${S.kidPins[k.id] || S.shared ? '<button class="gear" data-act="lock" aria-label="ロック">🔒</button>' : ''}<button class="gear" data-act="papa" aria-label="パパの へや">⚙</button></header>`;
 }
 function navBar() {
@@ -284,6 +389,22 @@ function repChip(k) {
       : '<div class="rep-chip out">🪑 いまは ひかえ ― かんたんに もどれるよ(チームを みてね)</div>';
 }
 
+function missionCard(k, p) {
+  const done = p.today.sets > 0;
+  const set = new Set(dataFor(k).recent);
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return { ds: dstr(d), w: '日月火水木金土'[d.getDay()], today: i === 6 }; });
+  return `<section class="mission"><div class="ring-box">${ringSvg('ring', done ? 1 : 0)}<span class="ring-ic">${done ? '✅' : '⚽'}</span></div>
+    <div class="ms-main"><b>きょうの ミッション</b><small>${done ? 'キックオフ クリア! ナイス!' : 'キックオフを 1かい やろう'}</small>
+      <div class="week">${days.map((x) => `<span class="wd ${set.has(x.ds) ? 'on' : ''} ${x.today ? 'today' : ''}"><i>${set.has(x.ds) ? '⚽' : ''}</i><small>${x.w}</small></span>`).join('')}</div></div></section>`;
+}
+
+function medalShelf(k, p) {
+  const have = (b) => (p.badges || []).includes(b.id) || b.cond(p, k);
+  const n = BADGES.filter(have).length;
+  return `<section class="panel"><h2 class="sec">MEDALS <small>メダル ${n}/${BADGES.length}</small></h2>
+    <div class="medals">${BADGES.map((b) => `<div class="medal ${have(b) ? 'got' : ''}" title="${b.name}"><span>${have(b) ? b.icon : '🔒'}</span><small>${b.name}</small></div>`).join('')}</div></section>`;
+}
+
 function homeTab(k, p) {
   const cur = currentUnits(k.grade, new Date().getMonth() + 1, S.override[k.id]);
   const left = p.today.bonusTotal - p.today.bonusDone;
@@ -292,10 +413,12 @@ function homeTab(k, p) {
     : p.today.sets > 0 ? `${k.name}、きょうも ナイスプレー!` : `${k.name}、きょうも キックオフ!`;
   return `${playerCard(k, p)}
     <div class="welcome">${welcome}</div>
+    ${missionCard(k, p)}
     ${repChip(k)}
     <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? 'もういっかい キックオフ!' : 'キックオフ!'}</b>
       <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : '5もん ・ '}${cur.map((u) => u.name).join('、')}</span></button>
-    ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}`;
+    ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}
+    ${medalShelf(k, p)}`;
 }
 
 function repCard(k, p) {
@@ -363,9 +486,10 @@ function vQuiz() {
   const locked = !a && Date.now() < Q.lockUntil;
   $app.innerHTML = `
     <div class="quiz-top"><button class="link" data-act="quit">✕ やめる</button>
-      <span class="mode">${Q.mode === 'bonus' ? '🌟 かくれステージ' : Q.mode === 'back' ? '⏪ タイムマシン' : it.retry ? '🔁 おなじ ところ(かずが ちがうよ)' : '🏟️ しあい'}</span>
-      <span class="clock">${Q.i + 1}/${Q.items.length}</span></div>
-    <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px)">⚽</span><span class="goal">🥅</span></div>
+      <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${Q.i + 1}<small>/${Q.items.length}</small></span>
+        <span class="sb-r">${Q.mode === 'bonus' ? '🌟 かくれ' : Q.mode === 'back' ? '⏪ タイム' : it.retry ? '🔁 もういちど' : '🏟️ しあい'}</span></div><span class="clock"></span></div>
+    <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>
+    <div class="dots">${Q.items.map((x, i) => `<i class="${x.res || ''} ${i === Q.i ? 'cur' : ''}"></i>`).join('')}</div>
     <main><section class="panel qpanel">
       <div class="q ${q.text.length > 40 ? 'long' : ''}">${q.text}</div>
       <div style="text-align:center"><button class="btn small gray" data-act="speak">🔊 よみあげ</button></div>
@@ -422,8 +546,10 @@ function vResult() {
     <p class="muted">だれでも あるよ。ここを なおせば つぎの たんげんも ぐんと かんたんになるよ。</p>
     ${lower.map((u) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${u.grade}ねん:${u.name} を れんしゅう</button>`).join('')}</section>` : '';
   $app.innerHTML = `<div class="hero small"><h1>${R.good >= 4 ? '🏆 ナイスゲーム!' : '👏 おつかれさま!'}</h1></div>
-    <main><section class="panel score"><div class="big">⚽ × ${R.good}</div>
+    <main><section class="panel score"><div class="stars">${[1, 2, 3].map((n) => `<span class="star ${n <= (R.good / R.total >= 1 ? 3 : R.good / R.total >= 0.6 ? 2 : R.good / R.total >= 0.3 ? 1 : 0) ? 'on' : ''}" style="animation-delay:${0.3 + n * 0.25}s">★</span>`).join('')}</div>
+      <div class="big">⚽ × <b data-count="${R.good}" data-key="score">${R.good}</b></div>
       <p class="center">${R.total}もん中 ${R.good}ゴール ・ +${R.xp}ポイント ${R.hat ? '・🎩 ハットトリック!' : ''}</p></section>
+    ${R.newBadges.map((b) => `<section class="panel gold medal-new"><div class="big">${b.icon}</div><h2 class="center">NEW MEDAL!<br>${b.name}</h2></section>`).join('')}
     ${call}${ranked}${found}${weak}
     <button class="btn gold" data-act="kid">ホームに もどる</button></main>`;
 }
@@ -518,8 +644,9 @@ function answer(idx, unknown) {
     let xp = 10 * (Q.mode === 'bonus' ? 2 : 1);
     if (Q.combo === 3) { xp += 10; Q.hat = true; }
     const rep = repBonus(k); xp += rep;
-    Q.xp += xp; p.goals++;
+    Q.xp += xp; p.goals++; it.res = 'ok';
     Q.answered = { ok, idx, xp, rep };
+    beep('ok'); vibrate(25); confetti(lastTap.x, lastTap.y, Q.combo >= 3 ? 70 : 26, Q.combo >= 3 ? 1.3 : 0.8); floaty(`+${xp}`, lastTap.x, lastTap.y - 24);
   } else {
     u.ng++; Q.combo = 0;
     p.tags[tag] = (p.tags[tag] || 0) + 1; Q.missTags[tag] = (Q.missTags[tag] || 0) + 1;
@@ -528,7 +655,8 @@ function answer(idx, unknown) {
       let nq; for (let t = 0; t < 8; t++) { nq = makeQuestion(it.unit); if (nq.text !== q.text) break; }
       Q.items.splice(Q.i + 1, 0, { unit: it.unit, q: nq, retry: true });
     }
-    Q.answered = { ok, idx, tag };
+    Q.answered = { ok, idx, tag }; it.res = 'ng';
+    beep('ng'); vibrate([40, 40, 40]);
   }
   save(); render();
 }
@@ -544,11 +672,20 @@ function finish() {
   if (Q.mode === 'bonus') { p.today.bonusDone++; p.callup = t; } else p.today.sets++;
   if (!p.days.includes(t)) p.days.push(t);
   p.lastDate = t;
+  if (Q.hat) p.hat = (p.hat || 0) + 1;
+  if (Q.good === Q.items.length && !Object.keys(Q.missTags).length) p.perfect = (p.perfect || 0) + 1;
+  if (Q.mode === 'back') p.backRuns = (p.backRuns || 0) + 1;
+  const newly = BADGES.filter((b) => !(p.badges || []).includes(b.id) && b.cond(p, k));
+  p.badges = [...(p.badges || []), ...newly.map((b) => b.id)];
   save();
   const selAfter = dataFor(k).sel.state;
   const tags = Object.entries(Q.missTags).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([x]) => x).filter((x) => x !== 'unknown' || Object.keys(Q.missTags).length === 1);
-  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in' };
-  view = 'result'; render();
+  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })) };
+  lastCount.score = 0;
+  view = 'result'; toTop = true; render();
+  if (Q.result.good >= Math.ceil(Q.result.total * 0.6) || Q.result.rankUp || Q.result.callup || Q.result.newBadges.length) {
+    setTimeout(() => { confetti(innerWidth / 2, innerHeight * 0.32, 110, 1.5); beep('win'); vibrate([60, 40, 60, 40, 120]); }, 400);
+  }
   syncNow();
 }
 
@@ -563,6 +700,7 @@ function askPapa() {
 }
 
 document.addEventListener('click', (e) => {
+  lastTap = { x: e.clientX || innerWidth / 2, y: e.clientY || innerHeight / 2 };
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
   if (a === 'bind' && S.shared) {
@@ -602,6 +740,7 @@ document.addEventListener('click', (e) => {
     if (S.shared) { kidId = null; unlocked = false; } else { kidId = S.bound || null; unlocked = false; }
     toast(S.shared ? '2人で つかう モードに したよ' : '1人ずつの スマホに もどしたよ');
   }
+  else if (a === 'mute') { S.mute = !S.mute; save(); if (!S.mute) beep('ok'); }
   else if (a === 'setpin') { if (!askPin()) return; }
   else if (a === 'tab') { tab = el.dataset.tab; view = 'kid'; toTop = true; }
   else if (a === 'home' || a === 'kid') { view = kidId ? 'kid' : 'setup'; tab = 'home'; toTop = true; if (a === 'home') syncNow(); }
@@ -626,6 +765,16 @@ document.addEventListener('click', (e) => {
   else if (a === 'askdone') { S.kids[el.dataset.id].ask.splice(Number(el.dataset.i), 1); save(); }
   render();
 });
+// 選手カードが 指に ついて すこし かたむく
+document.addEventListener('pointermove', (e) => {
+  const c = e.target.closest && e.target.closest('.pcard');
+  if (!c || reduceMotion) return;
+  const r = c.getBoundingClientRect();
+  c.style.setProperty('--ry', `${((e.clientX - r.left) / r.width - 0.5) * 16}deg`);
+  c.style.setProperty('--rx', `${-((e.clientY - r.top) / r.height - 0.5) * 16}deg`);
+});
+document.addEventListener('pointerup', () => document.querySelectorAll('.pcard').forEach((c) => { c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg'); }));
+
 document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-act="override"],[data-act="need"]'); if (!el) return;
   if (el.dataset.act === 'need') { S.need = Number(el.value); save(); toast('日数を かえたよ'); return render(); }
