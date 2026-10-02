@@ -300,7 +300,15 @@ function repCard(k, p) {
     <div style="font-size:22px;margin:6px 0">${dots}</div>${msg}</section>`;
 }
 
+// PINが まだ きまっていない スマホ(リンクで ひらいた とき)は、さいしょに パパが PINを きめる
+function vPinGate() {
+  $app.innerHTML = `<div class="hero"><div class="logo">⚽ HIBIYUI FC</div><h1>パパの PINを きめよう</h1>
+    <p class="sub">この スマホの「パパの へや」や、もちぬしの へんこうに つかう 4けたの すうじです。<br>パパが きめてね(子どもには ひみつ)</p></div>
+    <button class="btn gold" data-act="setpin">🔒 PINを きめる</button>`;
+}
+
 function vKid() {
+  if (!S.pin) return vPinGate();
   const k = kidOf(); const p = S.kids[k.id]; refreshDay(p);
   let body;
   if (tab === 'train') body = practiceCard(k, p);
@@ -545,6 +553,7 @@ document.addEventListener('click', (e) => {
     if (!confirm(`この スマホを「${KIDS.find((x) => x.id === el.dataset.id).name}」の スマホに かえる?`)) return;
     S.bound = el.dataset.id; kidId = S.bound; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
   }
+  else if (a === 'setpin') { if (!askPin()) return; }
   else if (a === 'tab') { tab = el.dataset.tab; view = 'kid'; toTop = true; }
   else if (a === 'home' || a === 'kid') { view = kidId ? 'kid' : 'setup'; tab = 'home'; toTop = true; if (a === 'home') syncNow(); }
   else if (a === 'papa') { if (!askPin()) return; view = 'papa'; toTop = true; }
