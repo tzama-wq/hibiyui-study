@@ -129,8 +129,11 @@ function buildSet(kid, mode, unitId) {
 }
 
 // ---- 画面状態 -------------------------------------------------------------
-let kidId = S.bound || null;
+S.kidPins = S.kidPins || {};
+// 2人で1台を使うモード(S.shared)では、さいしょは「だれが つかう?」から
+let kidId = S.shared ? null : (S.bound || null);
 let view = kidId ? 'kid' : 'setup';
+let unlocked = false; // その子のPINを いれたか(アプリを ひらくたびに リセット)
 let Q = null; // クイズ中の状態
 const kidOf = () => KIDS.find((k) => k.id === kidId);
 const $app = document.getElementById('app');
@@ -242,22 +245,31 @@ function render() {
   const k = kidId && kidOf();
   document.documentElement.style.setProperty('--kid', k ? k.color : '#2f7bff');
   document.body.dataset.view = view;
-  ({ setup: vSetup, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa })[view]();
+  const needLock = view === 'kid' && kidId && S.kidPins[kidId] && !unlocked;
+  (needLock ? vLock : { setup: vSetup, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa }[view])();
   if (toTop) { window.scrollTo(0, 0); toTop = false; }
 }
 
 // このスマホは だれの? (さいしょの 1回だけ。パパが やる)
 function vSetup() {
-  $app.innerHTML = `<div class="hero"><div class="logo">⚽ HIBIYUI FC</div><h1>このスマホは だれの?</h1>
-    <p class="sub">えらぶと、この スマホには その子の がめんだけが でるよ。<br>(かえるときは パパの PINが いるよ)</p></div>
+  $app.innerHTML = `<div class="hero"><div class="logo">⚽ HIBIYUI FC</div><h1>${S.shared ? 'だれが つかう?' : 'このスマホは だれの?'}</h1>
+    <p class="sub">${S.shared ? 'じぶんの なまえを えらんで、じぶんの PINを いれてね。' : 'えらぶと、この スマホには その子の がめんだけが でるよ。<br>(かえるときは パパの PINが いるよ)'}</p></div>
     ${KIDS.map((k) => `<button class="kid-select" style="--kid:${k.color}" data-act="bind" data-id="${k.id}"><span class="ks-ava">${k.em}</span><span class="ks-name">${k.name}</span><span class="ks-sub">${k.grade}ねんせい</span></button>`).join('')}`;
+}
+
+function vLock() {
+  const k = kidOf();
+  $app.innerHTML = `<div class="hero"><div class="logo">⚽ HIBIYUI FC</div><div class="pc-ava" style="margin:8px 0">${k.em}</div><h1>${k.name}の PINを いれてね</h1>
+    <p class="sub">${k.name}だけの 4けたの すうじだよ</p></div>
+    <button class="btn gold" data-act="unlock">🔓 PINを いれる</button>
+    <div class="center">${S.shared ? '<button class="link" data-act="lock">← べつの 子</button> ' : ''}<button class="link" data-act="papa">👨 パパの へや</button></div>`;
 }
 
 function topBar(k, p) {
   const r = rankOf(p.xp);
   return `<header class="topbar"><div class="tb-ava">${k.em}</div><div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
     <div class="tb-chips"><span class="chip gold">⚽ ${p.goals}</span><span class="chip">XP ${p.xp}</span></div>
-    <button class="gear" data-act="papa" aria-label="パパの へや">⚙</button></header>`;
+    ${S.kidPins[k.id] || S.shared ? '<button class="gear" data-act="lock" aria-label="ロック">🔒</button>' : ''}<button class="gear" data-act="papa" aria-label="パパの へや">⚙</button></header>`;
 }
 function navBar() {
   const items = [['home', '🏠', 'ホーム'], ['train', '🎯', 'れんしゅう'], ['team', '🤝', 'チーム'], ['time', '⏪', 'タイム']];
@@ -449,10 +461,18 @@ function vPapa() {
     <button class="btn small" data-act="syncsave">💾 ほぞん</button>
     <p class="muted">下の リンクを それぞれの スマホで ひらくと、その子の スマホに なって、おなじ せっていが はいります。</p>
     ${KIDS.map((k) => `<button class="btn small gold" data-act="synccopy" data-id="${k.id}">📋 ${k.name}用リンクを コピー</button>`).join('')}</div>`;
+  const pinCard = `<div class="card"><h2>🔐 PIN</h2>
+    <p class="muted">子どもの PINは、その子の がめんを ひらくときの かぎです(パパの PINで かんりします)。きめると アプリを ひらくたびに PINを きかれます。</p>
+    ${KIDS.map((k) => `<div class="row"><b>${k.name}</b> <span class="chip ${S.kidPins[k.id] ? 'gold' : ''}">${S.kidPins[k.id] ? '設定ずみ' : 'なし'}</span>
+      <button class="btn small gray" data-act="setkidpin" data-id="${k.id}">${S.kidPins[k.id] ? 'かえる' : 'きめる'}</button>
+      ${S.kidPins[k.id] ? `<button class="btn small gray" data-act="clearkidpin" data-id="${k.id}">けす</button>` : ''}</div>`).join('')}
+    <div class="row" style="margin-top:8px"><button class="btn small gray" data-act="changepin">🔑 パパの PINを かえる</button>
+      <button class="btn small ${S.shared ? 'gold' : 'gray'}" data-act="toggleshared">${S.shared ? '✅ 2人で つかう モード(おす とやめる)' : '2人で 1台を つかう モードに する'}</button></div>
+    ${S.shared && KIDS.some((k) => !S.kidPins[k.id]) ? '<p class="muted">⚠ 2人で つかう ときは、2人とも PINを きめてね(PINが ない子は だれでも ひらけます)。</p>' : ''}</div>`;
   const ownerCard = `<div class="card"><h2>📱 この スマホの もちぬし</h2>
     <p>いまは「<b>${S.bound ? KIDS.find((k) => k.id === S.bound).name : 'きまっていません'}</b>」の スマホです。ほかの子の もんだいは ひらけません。</p>
     ${KIDS.filter((k) => k.id !== S.bound).map((k) => `<button class="btn small gray" data-act="rebind" data-id="${k.id}">${k.name}の スマホに かえる</button>`).join('')}</div>`;
-  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${ownerCard}${repAdmin}${syncCard}${tagRows}
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${pinCard}${ownerCard}${repAdmin}${syncCard}${tagRows}
     <p class="muted">学校の すすみ具合が ちがう ときは、「いまの たんげん」を えらんでね。</p></main>`;
 }
 
@@ -545,13 +565,42 @@ function askPapa() {
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
-  if (a === 'bind') {
+  if (a === 'bind' && S.shared) {
+    kidId = el.dataset.id; unlocked = false; tab = 'home'; view = 'kid'; toTop = true; syncNow();
+  }
+  else if (a === 'bind') {
     if (!askPin()) return;
     S.bound = el.dataset.id; kidId = S.bound; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
   }
   else if (a === 'rebind') {
     if (!confirm(`この スマホを「${KIDS.find((x) => x.id === el.dataset.id).name}」の スマホに かえる?`)) return;
-    S.bound = el.dataset.id; kidId = S.bound; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
+    S.bound = el.dataset.id; kidId = S.bound; unlocked = false; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
+  }
+  else if (a === 'unlock') {
+    const pw = prompt(`${kidOf().name}の PINを いれてね`);
+    if (pw === null) return;
+    if (pinHash(pw) !== S.kidPins[kidId]) { toast('PINが ちがうよ'); return; }
+    unlocked = true; toTop = true;
+  }
+  else if (a === 'lock') { unlocked = false; if (S.shared) { kidId = null; view = 'setup'; } toTop = true; }
+  else if (a === 'setkidpin') {
+    const who = KIDS.find((x) => x.id === el.dataset.id);
+    const p1 = prompt(`${who.name}の PINを きめてください(4けたの すうじ)`);
+    if (p1 === null) return;
+    if (!/^\d{4}$/.test(p1)) { toast('4けたの すうじで いれてね'); return; }
+    S.kidPins[who.id] = pinHash(p1); save(); toast(`${who.name}の PINを きめたよ`);
+  }
+  else if (a === 'clearkidpin') { delete S.kidPins[el.dataset.id]; save(); toast('PINを けしたよ'); }
+  else if (a === 'changepin') {
+    const p1 = prompt('あたらしい パパの PINを いれてね(4けた)');
+    if (p1 === null) return;
+    if (!/^\d{4}$/.test(p1)) { toast('4けたの すうじで いれてね'); return; }
+    S.pin = pinHash(p1); save(); toast('パパの PINを かえたよ');
+  }
+  else if (a === 'toggleshared') {
+    S.shared = !S.shared; save();
+    if (S.shared) { kidId = null; unlocked = false; } else { kidId = S.bound || null; unlocked = false; }
+    toast(S.shared ? '2人で つかう モードに したよ' : '1人ずつの スマホに もどしたよ');
   }
   else if (a === 'setpin') { if (!askPin()) return; }
   else if (a === 'tab') { tab = el.dataset.tab; view = 'kid'; toTop = true; }
