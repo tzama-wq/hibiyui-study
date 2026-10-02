@@ -1,0 +1,24 @@
+{
+ "date": "2026-10-03",
+ "model": "gemini-3.8-flash",
+ "grades": {
+  "1": {
+   "error": "HTTP 503"
+  },
+  "2": {
+   "asked": 8,
+   "returned": 8,
+   "rejected": {
+    "wrong-kanji-out-of-grade": 4
+   },
+   "unverified": 0,
+   "accepted": 4
+  },
+  "3": {
+   "error": "HTTP 503"
+  },
+  "4": {
+   "error": "HTTP 503"
+  }
+ }
+}
