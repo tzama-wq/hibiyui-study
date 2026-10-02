@@ -53,6 +53,16 @@ export const TAGS = {
   kaki_similar_kanji: ['形の にた 漢字と まちがえたよ', 'にた 形の 漢字が あるよ。ぶぶんごとに 見くらべよう。'],
   kaki_similar_sound: ['同じ 読みの 漢字と まちがえたよ', '同じ 読みでも 意味が ちがう 漢字が あるよ。文の 意味から えらぼう。'],
   kaki_other: ['漢字を まちがえたよ', 'もういちど 漢字の 形を よく 見て えらぼう。'],
+  time_60: ['60分で 1時間 だよ', '時間や 分は 60ずつで くり上がるよ(60分=1時間、60秒=1分)。100ではないよ。'],
+  unit_zero: ['0の 数を まちがえたよ', '1m=100cm、1L=10dL など、たんいの 関係を もういちど たしかめよう。'],
+  area_perim: ['まわりの 長さと まちがえたよ', '面積は「たて×よこ」。まわりの 長さは「たて+よこ」を 2つ ぶん だよ。'],
+  angle_straight: ['一直線の 角は 180°だよ', '一直線の 角は 180°。90°や 360°と まざらないように しよう。'],
+  angle_sum: ['三角形の 角の 和は 180°だよ', '三角形の 3つの 角を あわせると 180°。のこりの 角は 180から ひくよ。'],
+  frac_swap: ['ぶんしと ぶんぼが ぎゃくだよ', '「4分の1」は 下の数(4)が わけた 数、上の数(1)が とった 数だよ。'],
+  frac_improper: ['仮分数と 帯分数の 直しかたを まちがえたよ', '仮分数→帯分数は わり算(7÷4=1あまり3 → 1と4分の3)。あまりが ぶんしに なるよ。'],
+  order_ltr: ['計算の じゅんばんを まちがえたよ', 'かけ算・わり算が さき。( ) の 中は もっと さき。左から じゅんに とは かぎらないよ。'],
+  radius_diam: ['半径と 直径を まちがえたよ', '直径は 半径の 2ばい。半径は 直径の 半分だよ。'],
+  know_mixup: ['ちかい ことと まちがえたよ', 'えらんだ ものの せつめいを よんで、せいかいと くらべてみよう。'],
   unknown: ['わからなかったね', 'だいじょうぶ!「わからない」って おしえてくれて ありがとう。いっしょに 見てみよう。'],
 };
 
@@ -259,6 +269,266 @@ function dec3() {
   ], `0.1が 10こで 1。${n}こは ${n}÷10 だから ${fmtD(n * 10)}`);
 }
 
+// ---- 追加の算数(2年〜4年) ----------------------------------------------------
+const hm = (h, m) => `${h}時${m}分`;
+
+function time2() {
+  if (Math.random() < 0.5) {
+    const h = rnd(1, 9), m = pick([10, 15, 20, 25, 30, 35, 40, 45, 50]), d = pick([20, 30, 40, 45, 50, 60, 70, 80]);
+    const t = h * 60 + m + d, ch = Math.floor(t / 60), cm = t % 60;
+    return build(`${hm(h, m)}から ${d}分たつと、なん時なん分?`, hm(ch, cm), [
+      [hm(h, m + d), 'time_60'], [hm(ch, (cm + 10) % 60), 'calc_slip'], [hm(ch + 1, cm), 'calc_slip'], [hm(ch - 1, cm), 'calc_slip'],
+      [hm(h, Math.abs(m - d)), 'sign_mix'],
+    ], `${hm(h, m)}の ${d}分あとは、60分で 1時間と 考えて ${hm(ch, cm)}`);
+  }
+  const h = rnd(1, 3), m = pick([10, 15, 20, 30, 40, 45, 50]), c = h * 60 + m;
+  return build(`${h}時間${m}分は なん分?`, S(c), [
+    [S(h * 100 + m), 'time_60'], [S(h + m), 'unit_add'], [S(c + 10), 'calc_slip'], [S(c - 10), 'calc_slip'], [S(h * 10 + m), 'unit_concat'],
+  ], `1時間=60分 だから ${h}時間=${h * 60}分。${h * 60}+${m}=${c}分`);
+}
+
+function len2() {
+  if (Math.random() < 0.5) {
+    const m = rnd(1, 5), c = pick([10, 20, 25, 30, 40, 50, 60, 75, 80, 90]), a = m * 100 + c;
+    return build(`${m}m ${c}cm は なんcm?`, S(a), [
+      [S(m + c), 'unit_add'], [S(m * 1000 + c), 'unit_concat'], [S(m * 10 + c), 'unit_zero'], [S(a + 10), 'calc_slip'], [S(a - 10), 'calc_slip'],
+    ], `1m=100cm だから ${m}m=${m * 100}cm。${m * 100}+${c}=${a}cm`);
+  }
+  const cm = pick([120, 135, 150, 160, 175, 205, 230, 240, 250, 280, 315, 340]), m = Math.floor(cm / 100), r = cm % 100;
+  return build(`${cm}cm は なんm なんcm?`, `${m}m ${r}cm`, [
+    [`${r}m ${m}cm`, 'unit_swap'], [`${m * 10}m ${r}cm`, 'unit_zero'], [`${m + 1}m ${r}cm`, 'calc_slip'], [`${m}m ${r + 10}cm`, 'calc_slip'], [`${cm}m`, 'unit_concat'],
+  ], `100cm で 1m。${cm}cm は 100cm が ${m}こ と ${r}cm だから ${m}m ${r}cm`);
+}
+
+function liter() {
+  if (Math.random() < 0.5) {
+    const l = rnd(1, 5), d = rnd(1, 9), a = l * 10 + d;
+    return build(`${l}L ${d}dL は なんdL?`, S(a), [
+      [S(l + d), 'unit_add'], [S(l * 100 + d), 'unit_concat'], [S(d * 10 + l), 'unit_swap'], [S(a + 10), 'calc_slip'], [S(a - 1), 'calc_slip'],
+    ], `1L=10dL だから ${l}L=${l * 10}dL。${l * 10}+${d}=${a}dL`);
+  }
+  const l = rnd(1, 4);
+  return build(`${l}L は なんmL?`, S(l * 1000), [
+    [S(l * 100), 'zero_slip'], [S(l * 10000), 'zero_slip'], [S(l * 10), 'zero_slip'], [S(l * 1000 + 100), 'calc_slip'],
+  ], `1L=1000mL だから ${l}L=${l * 1000}mL`);
+}
+
+function add3() {
+  if (Math.random() < 0.5) {
+    let a, b;
+    do { a = rnd(120, 780); b = rnd(35, 299); } while ((a % 10) + (b % 10) < 10 || a + b > 999);
+    const c = a + b;
+    return build(`${a} + ${b} = ?`, S(c), [
+      [S(c - 10), 'carry_forget'], [S(c - 100), 'carry_forget'], [S(c + 10), 'carry_double'], [S(c + 1), 'calc_slip'], [S(c - 1), 'calc_slip'],
+    ], `くらいを そろえて 一のくらいから。くり上がりの 1を わすれずに たして ${c}`);
+  }
+  let a, b;
+  do { a = rnd(230, 950); b = rnd(35, 289); } while ((a % 10) >= (b % 10) || a <= b);
+  const c = a - b;
+  return build(`${a} − ${b} = ?`, S(c), [
+    [S(c + 10), 'borrow_forget'], [S(c + 100), 'borrow_forget'], [S(c - 10), 'borrow_double'], [S(c + 1), 'calc_slip'], [S(c - 1), 'calc_slip'],
+  ], `一のくらいが ひけないときは となりから 10 かりて、かりた ぶんを へらして ${c}`);
+}
+
+function frac2() {
+  const n = pick([2, 3, 4, 8]);
+  return build(`同じ 大きさに ${n}つに わけた 1つ分を、分数で いうと?`, `${n}分の1`, [
+    [`1分の${n}`, 'frac_swap'], [`${n}分の${n}`, 'frac_swap'], [`${n + 1}分の1`, 'calc_slip'], [`${Math.max(n - 1, 2)}分の1`, 'calc_slip'], [`${n}分の2`, 'calc_slip'],
+  ], `${n}つに わけた 1つ分は「${n}分の1」。下の数が わけた 数だよ`);
+}
+
+function mul2() {
+  const a = rnd(12, 48), b = rnd(12, 39), c = a * b;
+  return build(`${a} × ${b} = ?`, S(c), [
+    [S(a * (b % 10) + a * Math.floor(b / 10)), 'mul_place'], [S(c + 10), 'calc_slip'], [S(c - 10), 'calc_slip'], [S(c + 100), 'calc_slip'], [S(c - 100), 'calc_slip'],
+  ], `${a}×${b % 10}=${a * (b % 10)}、${a}×${Math.floor(b / 10)}0=${a * Math.floor(b / 10) * 10}。あわせて ${c}`);
+}
+
+function divr() {
+  const b = rnd(3, 9), q = rnd(2, 9), r = rnd(1, b - 1), a = b * q + r;
+  return build(`${a} ÷ ${b} = ?`, `${q}あまり${r}`, [
+    [`${q}あまり${r + b}`, 'rem_too_big'], [`${q - 1}あまり${r + b}`, 'rem_too_big'], [`${q}`, 'forgot_rem'], [`${r}あまり${q}`, 'quot_rem_swap'],
+    [`${q + 1}あまり${r}`, 'calc_slip'], [`${q}あまり${Math.max(b - r, 1)}`, 'calc_slip'],
+  ], `${b}×${q}=${b * q}、${a}−${b * q}=${r}。あまり ${r} は わる数 ${b} より 小さいね`);
+}
+
+function time3() {
+  const m = rnd(1, 5), s = pick([10, 15, 20, 25, 30, 40, 45, 50]), c = m * 60 + s;
+  return build(`${m}分${s}秒は なん秒?`, S(c), [
+    [S(m * 100 + s), 'time_60'], [S(m + s), 'unit_add'], [S(c + 10), 'calc_slip'], [S(c - 10), 'calc_slip'], [S(m * 10 + s), 'unit_concat'],
+  ], `1分=60秒 だから ${m}分=${m * 60}秒。${m * 60}+${s}=${c}秒`);
+}
+
+function len3() {
+  const t = rnd(0, 2);
+  if (t === 0) {
+    const k = rnd(1, 6), m = pick([100, 200, 250, 300, 400, 500, 600, 750]), c = k * 1000 + m;
+    return build(`${k}km ${m}m は なんm?`, S(c), [
+      [S(k * 100 + m), 'zero_slip'], [S(k + m), 'unit_add'], [S(k * 10000 + m), 'zero_slip'], [S(c + 100), 'calc_slip'],
+    ], `1km=1000m だから ${k}km=${k * 1000}m。${k * 1000}+${m}=${c}m`);
+  }
+  if (t === 1) {
+    const k = rnd(1, 5), g = pick([100, 200, 250, 300, 400, 500, 600, 750]), c = k * 1000 + g;
+    return build(`${k}kg ${g}g は なんg?`, S(c), [
+      [S(k * 100 + g), 'zero_slip'], [S(k + g), 'unit_add'], [S(k * 10000 + g), 'zero_slip'], [S(c + 100), 'calc_slip'],
+    ], `1kg=1000g だから ${k}kg=${k * 1000}g。${k * 1000}+${g}=${c}g`);
+  }
+  const k = rnd(1, 9);
+  return build(`${k}000m は なんkm?`, `${k}km`, [
+    [`${k}00km`, 'zero_slip'], [`${k}0km`, 'zero_slip'], [`${k * 10}km`, 'zero_slip'], [`${k}m`, 'unit_swap'],
+  ], `1000m=1km だから ${k}000m=${k}km`);
+}
+
+function addsub4() {
+  if (Math.random() < 0.5) {
+    let a, b;
+    do { a = rnd(1200, 7800); b = rnd(1100, 2900); } while ((a % 100) + (b % 100) < 100);
+    const c = a + b;
+    return build(`${a} + ${b} = ?`, S(c), [
+      [S(c - 100), 'carry_forget'], [S(c - 10), 'carry_forget'], [S(c + 100), 'carry_double'], [S(c + 10), 'calc_slip'], [S(c - 1000), 'carry_forget'],
+    ], `一のくらいから じゅんに。くり上がりの 1を わすれずに たして ${c}`);
+  }
+  let a, b;
+  do { a = rnd(3500, 9800); b = rnd(1100, 2900); } while ((a % 100) >= (b % 100) || a <= b);
+  const c = a - b;
+  return build(`${a} − ${b} = ?`, S(c), [
+    [S(c + 100), 'borrow_forget'], [S(c + 10), 'borrow_forget'], [S(c - 100), 'borrow_double'], [S(c + 1000), 'borrow_forget'], [S(c - 10), 'calc_slip'],
+  ], `ひけない くらいは となりから 10 かりて、かりた ぶんを へらして ${c}`);
+}
+
+function circle() {
+  const r = rnd(2, 9);
+  if (Math.random() < 0.5) {
+    return build(ruby(`{半径|はんけい}が ${r}cmの 円の {直径|ちょっけい}は なんcm?`), S(r * 2), [
+      [S(r), 'radius_diam'], [S(r * r), 'calc_slip'], [S(r + 2), 'calc_slip'], [S(r * 3), 'calc_slip'], [S(r * 2 + 2), 'calc_slip'], [S(r * 2 + 1), 'calc_slip'], [S(r * 2 - 1), 'calc_slip'], [S(r * 4), 'calc_slip'],
+    ], ruby(`{直径|ちょっけい}は {半径|はんけい}の 2ばい。${r}×2=${r * 2}cm`));
+  }
+  return build(ruby(`{直径|ちょっけい}が ${r * 2}cmの 円の {半径|はんけい}は なんcm?`), S(r), [
+    [S(r * 2), 'radius_diam'], [S(r * 4), 'radius_diam'], [S(r + 1), 'calc_slip'], [S(r - 1), 'calc_slip'], [S(r * 2 - 2), 'calc_slip'], [S(r + 2), 'calc_slip'], [S(r + 3), 'calc_slip'],
+  ], ruby(`{半径|はんけい}は {直径|ちょっけい}の 半分。${r * 2}÷2=${r}cm`));
+}
+
+function dec2() {
+  const add = Math.random() < 0.5;
+  let x, y;
+  if (add) { x = rnd(3, 9); y = rnd(3, 9); } else { x = rnd(11, 29); y = rnd(2, 9); }
+  const c = add ? x + y : x - y;
+  const sign = add ? '+' : '−';
+  return build(`${fmtD(x * 10)} ${sign} ${fmtD(y * 10)} = ?`, fmtD(c * 10), [
+    [fmtD(c), 'point_slip'], [S(c), 'point_slip'], [fmtD(c * 10 + 10), 'calc_slip'], [fmtD(c * 10 - 10), 'calc_slip'], [fmtD(c * 10 + 20), 'calc_slip'],
+  ], `0.1が ${x}こ ${add ? 'と' : 'から'} ${y}こ ${add ? 'で' : 'とって'} 0.1が ${c}こ → ${fmtD(c * 10)}`);
+}
+
+function angle() {
+  const t = rnd(0, 2);
+  if (t === 0) {
+    const a = pick([30, 40, 50, 60, 70, 110, 120, 130, 140, 150]);
+    return build(`一直線の 上で、一方の 角が ${a}°の とき、もう一方の 角は なん°?`, `${180 - a}°`, [
+      [`${Math.abs(90 - a)}°`, 'angle_straight'], [`${360 - a}°`, 'angle_straight'], [`${180 + a}°`, 'angle_straight'], [`${180 - a + 10}°`, 'calc_slip'], [`${180 - a - 10}°`, 'calc_slip'],
+    ], `一直線の 角は 180°。180−${a}=${180 - a}°`);
+  }
+  const a = pick([30, 40, 45, 50, 60, 70]), b = pick([30, 40, 50, 60, 70, 80]);
+  if (t === 1) {
+    return build(`三角形の 2つの 角が ${a}°と ${b}°の とき、のこりの 角は なん°?`, `${180 - a - b}°`, [
+      [`${a + b}°`, 'angle_sum'], [`${360 - a - b}°`, 'angle_sum'], [`${Math.abs(90 - a - b)}°`, 'angle_sum'], [`${180 - a - b + 10}°`, 'calc_slip'], [`${180 - a - b - 10}°`, 'calc_slip'],
+    ], `三角形の 3つの 角を あわせると 180°。180−${a}−${b}=${180 - a - b}°`);
+  }
+  const k = pick([90, 180, 270, 360]);
+  return build(`${k}° は 直角 いくつ分?`, S(k / 90), [
+    [S(k / 45), 'angle_straight'], [S(k / 180), 'angle_straight'], [S(k / 90 + 1), 'calc_slip'], [S(k / 90 + 2), 'calc_slip'],
+  ], `直角は 90°。${k}÷90=${k / 90}こ分`);
+}
+
+function area() {
+  const t = rnd(0, 2);
+  if (t === 0) {
+    let a, b;
+    do { a = rnd(3, 12); b = rnd(3, 12); } while (a === b);
+    return build(`たて ${a}cm、よこ ${b}cm の 長方形の 面積は なんcm²?`, S(a * b), [
+      [S(2 * (a + b)), 'area_perim'], [S(a + b), 'plus_instead'], [S(a * b + a), 'calc_slip'], [S(a * b - b), 'calc_slip'], [S(a * 2 * b), 'calc_slip'],
+    ], `長方形の 面積は「たて×よこ」。${a}×${b}=${a * b}cm²`);
+  }
+  if (t === 1) {
+    const a = rnd(3, 12);
+    return build(`1辺が ${a}cm の 正方形の 面積は なんcm²?`, S(a * a), [
+      [S(a * 4), 'area_perim'], [S(a * 2), 'plus_instead'], [S(a * a + a), 'calc_slip'], [S(a * a - a), 'calc_slip'], [S(a * a + 1), 'calc_slip'], [S(a * a - 1), 'calc_slip'],
+    ], `正方形の 面積は「1辺×1辺」。${a}×${a}=${a * a}cm²`);
+  }
+  const m = rnd(2, 6);
+  return build(`${m}m² は なんcm²?`, S(m * 10000), [
+    [S(m * 100), 'zero_slip'], [S(m * 1000), 'zero_slip'], [S(m * 100000), 'zero_slip'], [S(m * 10000 + 100), 'calc_slip'],
+  ], `1m=100cm だから 1m²=100×100=10000cm²。${m}m²=${m * 10000}cm²`);
+}
+
+function decmul() {
+  const n = rnd(2, 6);
+  if (Math.random() < 0.5) {
+    const x = rnd(12, 49), c = x * n;
+    return build(`${fmtD(x * 10)} × ${n} = ?`, fmtD(c * 10), [
+      [S(c), 'point_slip'], [fmtD(c), 'point_slip'], [fmtD(c * 10 + 10), 'calc_slip'], [fmtD(c * 10 - 10), 'calc_slip'], [fmtD(c * 100), 'point_slip'],
+    ], `0.1が ${x}こ の ${n}ばい だから 0.1が ${c}こ → ${fmtD(c * 10)}`);
+  }
+  let q, c;
+  do { q = rnd(12, 49); c = q * n; } while (c % 10 === 0); // 割り切れる「小数÷整数」だけ(整数÷整数が小数になる問題は出さない)
+  return build(`${fmtD(c * 10)} ÷ ${n} = ?`, fmtD(q * 10), [
+    [S(q), 'point_slip'], [fmtD(q), 'point_slip'], [fmtD(q * 10 + 10), 'calc_slip'], [fmtD(q * 10 - 10), 'calc_slip'], [fmtD(q * 100), 'point_slip'],
+  ], `0.1が ${c}こ を ${n}つに わけると 0.1が ${q}こ → ${fmtD(q * 10)}`);
+}
+
+function frac4() {
+  const d = rnd(3, 8), w = rnd(1, 3), n = rnd(1, d - 1), imp = w * d + n;
+  if (Math.random() < 0.5) {
+    return build(`${d}分の${imp} を 帯分数に すると?`, `${w}と${d}分の${n}`, [
+      [`${w}と${d}分の${imp}`, 'frac_improper'], [`${w + 1}と${d}分の${n}`, 'frac_improper'], [`${n}と${d}分の${w}`, 'frac_improper'], [`${w}と${d}分の${n + 1}`, 'calc_slip'],
+    ], `${imp}÷${d}=${w}あまり${n}。だから ${w}と${d}分の${n}`);
+  }
+  return build(`${w}と${d}分の${n} を 仮分数に すると?`, `${d}分の${imp}`, [
+    [`${d}分の${w + n}`, 'frac_improper'], [`${d}分の${w * n + d}`, 'frac_improper'], [`${d}分の${imp + 1}`, 'calc_slip'], [`${d}分の${imp - 1}`, 'calc_slip'], [`${d * w}分の${n}`, 'frac_improper'],
+  ], `${w}×${d}+${n}=${imp}。だから ${d}分の${imp}`);
+}
+
+function order() {
+  const t = rnd(0, 2);
+  const a = rnd(2, 9), b = rnd(2, 9), c = rnd(2, 9);
+  if (t === 0) {
+    const v = a + b * c;
+    return build(`${a} + ${b} × ${c} = ?`, S(v), [
+      [S((a + b) * c), 'order_ltr'], [S(a * b + c), 'calc_slip'], [S(v + 1), 'calc_slip'], [S(v - 1), 'calc_slip'], [S(a + b + c), 'plus_instead'], [S(v + 2), 'calc_slip'], [S(v - 2), 'calc_slip'],
+    ], `かけ算が さき。${b}×${c}=${b * c}、${a}+${b * c}=${v}`);
+  }
+  if (t === 1) {
+    const v = (a + b) * c;
+    return build(`(${a} + ${b}) × ${c} = ?`, S(v), [
+      [S(a + b * c), 'order_ltr'], [S(a * c + b), 'order_ltr'], [S(v + c), 'calc_slip'], [S(v - c), 'calc_slip'], [S(a + b + c), 'plus_instead'], [S(v + 1), 'calc_slip'], [S(v - 1), 'calc_slip'], [S(v + 2), 'calc_slip'],
+    ], `( )の 中が さき。${a}+${b}=${a + b}、${a + b}×${c}=${v}`);
+  }
+  const bb = rnd(2, 6), cc = rnd(2, 6), aa = bb * cc + rnd(3, 20), v = aa - bb * cc;
+  return build(`${aa} − ${bb} × ${cc} = ?`, S(v), [
+    [S((aa - bb) * cc), 'order_ltr'], [S(v + 1), 'calc_slip'], [S(v - 1), 'calc_slip'], [S(aa - bb - cc), 'order_ltr'], [S(aa + bb * cc), 'sign_mix'],
+  ], `かけ算が さき。${bb}×${cc}=${bb * cc}、${aa}−${bb * cc}=${v}`);
+}
+
+function big2() {
+  if (Math.random() < 0.5) {
+    const k = rnd(2, 9);
+    return build(`${k}億 は 1万の なんこ分?`, S(k * 10000), [
+      [S(k * 1000), 'zero_slip'], [S(k * 100000), 'zero_slip'], [S(k * 100), 'zero_slip'], [S(k * 10000 + 1), 'calc_slip'],
+    ], `1億=1万の 10000こ分。${k}億=${k * 10000}こ分`);
+  }
+  const a = rnd(2, 9), b = rnd(1, 9);
+  const ans = `${a}${b}0000000`;
+  return build(`${a}億 ${b}000万 を 数字で かくと?`, ans, [
+    [`${a}${b}000000`, 'zero_slip'], [`${a}${b}00000000`, 'zero_slip'], [`${a}0${b}000000`, 'place_zero'], [`${a}${b}000`, 'zero_slip'],
+  ], `${a}億=${a}00000000、${b}000万=${b}0000000。あわせて ${ans}`);
+}
+
+function mul3b() {
+  const a = rnd(112, 499), b = rnd(12, 48), c = a * b;
+  return build(`${a} × ${b} = ?`, S(c), [
+    [S(a * (b % 10) + a * Math.floor(b / 10)), 'mul_place'], [S(c + 100), 'calc_slip'], [S(c - 100), 'calc_slip'], [S(c + 10), 'calc_slip'], [S(c - 10), 'calc_slip'],
+  ], `${a}×${b % 10}=${a * (b % 10)}、${a}×${Math.floor(b / 10)}0=${a * Math.floor(b / 10) * 10}。あわせて ${c}`);
+}
+
 // ---- 単元表(学年・学校の進度の目安。months は学校の学期の目安) ---------------
 export const UNITS = {
   1: [
@@ -274,6 +544,13 @@ export const UNITS = {
     { id: 'g3_div', name: 'わり算(九九)', months: [], gen: div3 },
     { id: 'g3_frac', name: '分数の たし算・ひき算', months: [], gen: frac3 },
     { id: 'g3_dec', name: '小数(0.1)', months: [], gen: dec3 },
+    { id: 'g3_dec2', name: '小数の たし算・ひき算(0.1)', months: [], gen: dec2 },
+    { id: 'g3_mul2', name: '2けた × 2けた', months: [], gen: mul2 },
+    { id: 'g3_divr', name: 'あまりのある わり算', months: [], gen: divr },
+    { id: 'g3_time', name: '時間と 秒', months: [], gen: time3 },
+    { id: 'g3_len', name: '長さ・重さ(km・kg・g)', months: [], gen: len3 },
+    { id: 'g3_addsub4', name: '4けたの たし算・ひき算', months: [], gen: addsub4 },
+    { id: 'g3_circle', name: '円と 半径・直径', months: [], gen: circle },
   ],
   2: [
     { id: 'g2_add', name: 'たし算の ひっ算', months: [4, 5, 6], gen: add2 },
@@ -281,12 +558,24 @@ export const UNITS = {
     { id: 'g2_len', name: '長さ(cm と mm)', months: [7, 9, 10], gen: len },
     { id: 'g2_place', name: '3けたの 数', months: [9, 10], gen: place },
     { id: 'g2_kuku', name: 'かけ算(九九)', months: [10, 11, 12, 1, 2], gen: kuku },
+    { id: 'g2_time', name: '時こくと 時間', months: [9, 10], gen: time2 },
+    { id: 'g2_len2', name: '長さ(m と cm)', months: [10, 11], gen: len2 },
+    { id: 'g2_liter', name: 'かさ(L・dL・mL)', months: [11, 12], gen: liter },
+    { id: 'g2_add3', name: '3けたの たし算・ひき算', months: [11, 12, 1], gen: add3 },
+    { id: 'g2_frac', name: '分数(2分の1など)', months: [2, 3], gen: frac2 },
   ],
   4: [
     { id: 'g4_big', name: '大きな 数', months: [4, 5, 6], gen: bignum },
     { id: 'g4_div', name: 'わり算の ひっ算', months: [6, 7, 10, 11], gen: div },
     { id: 'g4_round', name: 'がい数', months: [9, 10], gen: gaisu },
     { id: 'g4_dec', name: '小数の たし算・ひき算', months: [10, 11, 12], gen: decimal },
+    { id: 'g4_big2', name: '億・兆の 数', months: [4, 5], gen: big2 },
+    { id: 'g4_mul3', name: '3けた × 2けた', months: [5, 6, 7, 9], gen: mul3b },
+    { id: 'g4_angle', name: '角の 大きさ', months: [6, 7, 10], gen: angle },
+    { id: 'g4_area', name: '面積', months: [11, 12], gen: area },
+    { id: 'g4_frac', name: '分数(仮分数・帯分数)', months: [11, 12], gen: frac4 },
+    { id: 'g4_order', name: '計算の きまり', months: [12, 1], gen: order },
+    { id: 'g4_decmul', name: '小数 × 整数・÷ 整数', months: [1, 2, 3], gen: decmul },
   ],
 };
 
@@ -294,8 +583,12 @@ export const UNITS = {
 const PRE = {
   g1_addc: ['g1_add'], g1_subc: ['g1_sub'],
   g2_add: ['g1_addc', 'g1_num'], g2_sub: ['g1_subc', 'g1_num'], g2_place: ['g1_num'], g2_len: ['g2_place'], g2_kuku: ['g2_add'],
+  g2_time: ['g1_num'], g2_len2: ['g2_len'], g2_liter: ['g2_place'], g2_add3: ['g2_add', 'g2_sub'], g2_frac: ['g2_kuku'],
   g3_big: ['g2_place'], g3_mul: ['g2_kuku', 'g2_add'], g3_div: ['g2_kuku'], g3_frac: ['g2_add', 'g2_sub'], g3_dec: ['g2_place'],
-  g4_big: ['g3_big'], g4_div: ['g3_div', 'g3_mul', 'g2_sub'], g4_round: ['g3_big'], g4_dec: ['g3_dec', 'g2_add', 'g2_sub'],
+  g3_dec2: ['g3_dec'], g3_mul2: ['g3_mul'], g3_divr: ['g3_div'], g3_time: ['g2_time'], g3_len: ['g2_len2'], g3_addsub4: ['g2_add3'], g3_circle: ['g2_len2'],
+  g4_big: ['g3_big'], g4_div: ['g3_div', 'g3_divr', 'g3_mul', 'g2_sub'], g4_round: ['g3_big'], g4_dec: ['g3_dec', 'g2_add', 'g2_sub'],
+  g4_big2: ['g4_big'], g4_mul3: ['g3_mul2'], g4_angle: ['g3_circle'], g4_area: ['g3_mul'], g4_frac: ['g3_frac', 'g3_divr'],
+  g4_order: ['g3_mul', 'g3_div'], g4_decmul: ['g3_dec2', 'g3_mul'],
 };
 for (const [g, us] of Object.entries(UNITS)) for (const u of us) { u.grade = Number(g); u.pre = PRE[u.id] || []; u.subject = u.subject || '算数'; }
 
@@ -313,6 +606,32 @@ function fromPool(unit) {
   const it = pick(fresh.length ? fresh : unit.pool); // 全部 見たら くりかえし
   const choices = shuffle([{ label: it.correct, ok: true }, ...it.wrong.map((w) => ({ label: w.label, ok: false, tag: w.tag }))]);
   return { text: sanitize(it.text), why: String(it.why).replace(/[<>&]/g, ''), choices, id: it.id };
+}
+
+// ---- 理科・社会・生活(人が確かめた「事実リスト」から出題) -----------------------------
+// ルビ記法 {漢字|かな} → <ruby>
+const RUBY = /\{([^|{}]+)\|([^{}]+)\}/g;
+export const ruby = (s) => String(s).replace(/[<>&"]/g, '').replace(RUBY, '<ruby>$1<rt>$2</rt></ruby>');
+
+function fromKnowledge(unit) {
+  const fresh = unit.items.filter((p) => !seenIds.has(p.id));
+  const it = pick(fresh.length ? fresh : unit.items);
+  const choices = shuffle([
+    { label: ruby(it.correct), ok: true },
+    ...it.wrong.map((w) => ({ label: ruby(w.label), ok: false, tag: 'know_mixup', note: ruby(w.note) })),
+  ]);
+  return { text: ruby(it.q), why: ruby(it.why), choices, id: it.id };
+}
+
+export function registerKnowledge(list) {
+  for (const k of list) {
+    if (!k.items || !k.items.length || byId[k.id]) continue;
+    const unit = { id: k.id, name: k.name, subject: k.subject, grade: k.grade, months: k.months || [], pre: k.pre || [],
+      items: k.items.map((it, i) => ({ ...it, id: `${k.id}:${i}` })), gen: () => fromKnowledge(unit) };
+    (UNITS[k.grade] = UNITS[k.grade] || []).push(unit);
+    byId[k.id] = unit;
+  }
+  for (const u of Object.values(byId)) u.pre = u.pre.filter((x) => byId[x]);
 }
 
 export function registerKokugo(items) {
@@ -334,7 +653,7 @@ export function registerKokugo(items) {
 export const skillsUpTo = (grade) => Object.keys(UNITS).map(Number).filter((g) => g <= grade).sort().flatMap((g) => UNITS[g]);
 
 export function currentUnits(grade, month, overrideId) {
-  const all = unitsOf(grade).filter((u) => u.subject !== '国語');
+  const all = unitsOf(grade).filter((u) => u.subject === '算数');
   const ov = all.find((u) => u.id === overrideId);
   if (ov) return [ov];
   const cur = all.filter((u) => u.months.includes(month));

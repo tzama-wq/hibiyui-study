@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { UNITS, TAGS, makeQuestion, registerKokugo } from '../gen.js';
+import { UNITS, TAGS, makeQuestion, registerKokugo, registerKnowledge } from '../gen.js';
 
 // 同梱の国語プールも、算数と同じ検査にかける
 registerKokugo(JSON.parse(readFileSync(new URL('../data/kokugo-pool.json', import.meta.url), 'utf8')).items);
+registerKnowledge(JSON.parse(readFileSync(new URL('../data/knowledge.json', import.meta.url), 'utf8')).units);
 
 let n = 0;
 for (const units of Object.values(UNITS)) {
@@ -12,10 +13,12 @@ for (const units of Object.values(UNITS)) {
       const q = makeQuestion(u);
       n++;
       const ctx = `${u.id}: ${q.text}`;
-      assert.equal(q.choices.length, 4, `choices!=4 ${ctx}`);
-      assert.ok(!/<(?!\/?small>|br>)/.test(q.text), `unsafe html ${ctx}`);
+      const know = ['理科', '社会', '生活'].includes(u.subject);
+      if (know) assert.ok(q.choices.length === 3 || q.choices.length === 4, `choices ${ctx}`);
+      else assert.equal(q.choices.length, 4, `choices!=4 ${ctx}`);
+      assert.ok(!/<(?!\/?(small|br|ruby|rt)>)/.test(q.text), `unsafe html ${ctx}`);
       assert.equal(q.choices.filter((c) => c.ok).length, 1, `ok count ${ctx}`);
-      assert.equal(new Set(q.choices.map((c) => c.label)).size, 4, `dup labels ${ctx}`);
+      assert.equal(new Set(q.choices.map((c) => c.label)).size, q.choices.length, `dup labels ${ctx}`);
       for (const c of q.choices) if (!c.ok) assert.ok(TAGS[c.tag], `bad tag ${c.tag} ${ctx}`);
       assert.ok(q.why && q.text, `empty text ${ctx}`);
     }

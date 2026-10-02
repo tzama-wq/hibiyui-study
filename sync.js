@@ -5,14 +5,15 @@ const LS = 'hibiyui.sync';
 let cfg = {};
 try { cfg = JSON.parse(localStorage.getItem(LS)) || {}; } catch { cfg = {}; }
 
-// 子ども用の設定リンク(#db=...&fc=...)を開いたら自動で設定する
+// 子ども用の設定リンク(#kid=...&db=...&fc=...)を開いたら、自動で設定する
+const hash = new URLSearchParams(typeof location !== 'undefined' ? location.hash.slice(1) : '');
+export const hashKid = hash.get('kid') || null; // このスマホの持ち主(ひびと/ゆいと)の指定
 try {
-  const h = new URLSearchParams(location.hash.slice(1));
-  if (h.get('db') && h.get('fc')) {
-    cfg = { db: h.get('db'), fc: h.get('fc') };
+  if (hash.get('db') && hash.get('fc')) {
+    cfg = { db: hash.get('db'), fc: hash.get('fc') };
     localStorage.setItem(LS, JSON.stringify(cfg));
-    history.replaceState(null, '', location.pathname + location.search);
   }
+  if (hash.get('kid') || hash.get('db')) history.replaceState(null, '', location.pathname + location.search);
 } catch { /* 保存できなくても動く */ }
 
 export const getCfg = () => cfg;
@@ -23,7 +24,7 @@ export function setCfg(db, fc) {
 }
 export const validCfg = (db, fc) => /^https:\/\/[^\s/]+/.test(db.trim()) && /^[A-Za-z0-9_-]{10,}$/.test(fc.trim());
 export const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(14)), (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
-export const shareLink = () => `${location.origin}${location.pathname}#${new URLSearchParams({ db: cfg.db, fc: cfg.fc })}`;
+export const shareLink = (kid) => `${location.origin}${location.pathname}#${new URLSearchParams({ ...(kid ? { kid } : {}), ...(enabled() ? { db: cfg.db, fc: cfg.fc } : {}) })}`;
 
 const base = () => `${cfg.db.replace(/\/+$/, '')}/hibiyui/${encodeURIComponent(cfg.fc)}`;
 async function req(url, opt) {

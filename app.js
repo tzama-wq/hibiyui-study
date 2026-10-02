@@ -1,5 +1,5 @@
 import * as sync from './sync.js';
-import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, shuffle, registerKokugo, setSeen } from './gen.js';
+import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, shuffle, registerKokugo, registerKnowledge, setSeen } from './gen.js';
 
 // ---- 設定 -----------------------------------------------------------------
 const KIDS = [
@@ -21,6 +21,9 @@ let S;
 try { S = JSON.parse(localStorage.getItem(KEY)) || init(); } catch { S = init(); }
 for (const k of KIDS) S.kids[k.id] = { ...newKid(), ...S.kids[k.id] };
 S.override = S.override || {};
+// このスマホの持ち主(ひびと/ゆいと)。リンクで指定された場合は、まだ決まっていなければ それに する
+if (!S.bound && sync.hashKid && KIDS.some((k) => k.id === sync.hashKid)) S.bound = sync.hashKid;
+if (S.bound && !KIDS.some((k) => k.id === S.bound)) S.bound = null;
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* 保存できなくても動く */ } };
 
 // ---- 日付 -----------------------------------------------------------------
@@ -107,8 +110,12 @@ function buildSet(kid, mode, unitId) {
     const review = sk.filter((u) => !cur.includes(u));
     const c = backCandidates(kid);
     const ko = unitsOf(kid.grade).find((u) => u.subject === '国語');
-    plan = [cur[0], cur[1 % cur.length], ko || cur[2 % cur.length]];
-    plan.push(weakPick(p, review.length ? review : sk));
+    const month = new Date().getMonth() + 1;
+    const know = unitsOf(kid.grade).filter((u) => ['理科', '社会', '生活'].includes(u.subject));
+    const knowNow = know.filter((u) => u.months.includes(month));
+    const kpool = knowNow.length ? knowNow : know;
+    const kn = kpool.length ? kpool[Math.floor(Math.random() * kpool.length)] : null;
+    plan = [cur[0], cur[1 % cur.length], ko || cur[2 % cur.length], kn || cur[2 % cur.length]];
     plan.push(c.length ? c[0] : weakPick(p, review.length ? review : sk));
     plan = shuffle(plan);
   }
@@ -122,8 +129,8 @@ function buildSet(kid, mode, unitId) {
 }
 
 // ---- 画面状態 -------------------------------------------------------------
-let view = 'home';
-let kidId = null;
+let kidId = S.bound || null;
+let view = kidId ? 'kid' : 'setup';
 let Q = null; // クイズ中の状態
 const kidOf = () => KIDS.find((k) => k.id === kidId);
 const $app = document.getElementById('app');
@@ -168,10 +175,45 @@ async function syncNow() {
   const k = kidId && kidOf();
   if (k) await sync.push(k.id, summary(k));
   const r = await sync.pull();
-  if (r) { S.remote = r; save(); if (['home', 'kid'].includes(view)) render(); }
+  if (r) { S.remote = r; save(); if (view === 'kid') render(); }
 }
 const MILESTONES = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000];
 const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'いま' : m < 60 ? `${m}ふん前` : m < 1440 ? `${Math.round(m / 60)}じかん前` : `${Math.round(m / 1440)}日前`; };
+const SUBJECT_ICON = { 算数: '🔢', 国語: '📖', 理科: '🔬', 社会: '🏙️', 生活: '🌱' };
+const SUBJECTS = ['算数', '国語', '理科', '社会', '生活'];
+
+// ---- 選手カード(能力値) ----------------------------------------------------------
+// 教科ごとの「ほんとに できる 度合い」を 40〜99 の 能力値に する。ぜんぶ ⬜ なら 40 から スタート。
+function ability(k, p) {
+  const W = { ok: 1, sprout: 0.6, shaky: 0.3, gap: 0.1, unknown: 0 };
+  const sk = skillsUpTo(k.grade);
+  const stats = {};
+  for (const sj of SUBJECTS) {
+    const us = sk.filter((u) => u.subject === sj);
+    if (!us.length) continue;
+    stats[sj] = Math.round(40 + 59 * (us.reduce((a, u) => a + W[status(p, u.id)], 0) / us.length));
+  }
+  const vals = Object.values(stats);
+  const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 40;
+  const ovr = Math.min(99, Math.round(avg) + rankOf(p.xp).i);
+  return { stats, ovr, tier: ovr >= 80 ? 'legend' : ovr >= 65 ? 'gold' : ovr >= 50 ? 'silver' : 'bronze' };
+}
+
+function playerCard(k, p) {
+  const ab = ability(k, p); const r = rankOf(p.xp);
+  return `<section class="pcard tier-${ab.tier}">
+    <div class="pc-shine"></div>
+    <div class="pc-left"><div class="pc-ovr">${ab.ovr}</div><div class="pc-ovr-l">OVR</div><div class="pc-grade">${k.grade}ねん</div></div>
+    <div class="pc-ava">${k.em}</div>
+    <div class="pc-name">${k.name}</div>
+    <div class="pc-rank">${r.name}</div>
+    <div class="pc-stats">${Object.entries(ab.stats).map(([sj, v]) => `<div><span>${SUBJECT_ICON[sj]} ${sj}</span><b>${v}</b></div>`).join('')}</div>
+    <div class="pc-xp"><i style="width:${r.pct}%"></i></div>
+    <div class="pc-xpl">${r.next ? `つぎの ランクまで あと ${r.next[0] - p.xp}` : 'MAX RANK'}</div>
+  </section>`;
+}
+
+// ---- きょうだいチーム(ひとの 記録を 見るだけ。問題は ひらけない) -----------------------------
 function siblingsCard() {
   const rows = KIDS.map((k) => ({ k, d: dataFor(k), remote: dataFor(k).remote, sel: dataFor(k).sel }));
   const total = rows.reduce((a, r) => a + r.d.goals, 0);
@@ -179,35 +221,69 @@ function siblingsCard() {
   const prev = [...MILESTONES].reverse().find((m) => m <= total) || 0;
   const pct = Math.round(((total - prev) / (next - prev)) * 100);
   const waiting = sync.enabled() && rows.some((r) => r.k.id !== kidId && !(S.remote && S.remote[r.k.id]));
-  return `<div class="card" style="background:#fff8d9"><h2>🤝 きょうだいチーム</h2>
-    ${rows.map((r) => `<div style="margin:6px 0"><b style="color:${r.k.color}">${r.k.em} ${r.d.name}</b>(${r.d.grade}ねん)${r.k.id === kidId ? ' ← じぶん' : ''}<br>
-      <span class="pill">${r.d.rank}</span> ${r.sel.state === 'in' ? '<span class="pill" style="background:#ffd6d6">🇯🇵 日本代表</span>' : '<span class="pill">🪑 ひかえ</span>'} <span class="pill">⚽ ${r.d.goals}ゴール</span> <span class="pill">📅 ${r.d.days}日</span>
-      ${r.remote && S.remote[r.k.id].t ? `<span class="muted"> ${ago(S.remote[r.k.id].t)}の きろく</span>` : ''}</div>`).join('')}
-    ${rows.every((r) => r.sel.state === 'in') ? '<div style="margin-top:8px;background:#ffd6d6;border-radius:12px;padding:8px"><b>🇯🇵🇯🇵 ふたりそろって 日本代表!</b><br><span class="muted">せいかいごとの ボーナスポイントが ふえてるよ</span></div>' : ''}
-    <div style="margin-top:10px"><b>チームの ゴール ごうけい ⚽ ${total}</b>
+  return `<section class="panel"><h2 class="sec">TEAM <small>きょうだいチーム</small></h2>
+    ${rows.map((r) => `<div class="mate" style="--kid:${r.k.color}">
+      <div class="mate-ava">${r.k.em}</div>
+      <div class="mate-main"><b>${r.d.name}</b><small>${r.d.grade}ねん ・ ${r.d.rank}${r.k.id === kidId ? ' ・ じぶん' : ''}</small>
+        <div class="row"><span class="chip gold">⚽ ${r.d.goals}</span><span class="chip">📅 ${r.d.days}日</span>${r.sel.state === 'in' ? '<span class="chip red">🇯🇵 代表</span>' : '<span class="chip">🪑 ひかえ</span>'}</div>
+        ${r.remote && S.remote[r.k.id].t ? `<small class="muted">${ago(S.remote[r.k.id].t)}の きろく</small>` : ''}</div></div>`).join('')}
+    ${rows.every((r) => r.sel.state === 'in') ? '<div class="banner-red"><b>🇯🇵🇯🇵 ふたりそろって 日本代表!</b><small>せいかいごとの ボーナスポイントが ふえてるよ</small></div>' : ''}
+    <div style="margin-top:12px"><b>チームの ゴール ごうけい ⚽ ${total}</b>
       <div class="bar" style="margin:6px 0"><i style="width:${pct}%"></i></div>
-      <div class="muted">つぎの もくひょう ${next}ゴールまで あと ${next - total}!ふたりで ちからを あわせよう</div></div>
+      <div class="muted">つぎの もくひょう ${next}ゴールまで あと ${next - total}!</div></div>
     ${waiting ? '<div class="muted">まだ あいての きろくが とどいてないよ(あいても アプリを ひらくと つながるよ)</div>' : ''}
-  </div>`;
+  </section>`;
 }
 
 // ---- 画面 -----------------------------------------------------------------
+let tab = 'home';
+let toTop = false;
 function render() {
-  document.documentElement.style.setProperty('--kid', kidId ? kidOf().color : '#1e6bd6');
-  ({ home: vHome, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa })[view]();
+  const k = kidId && kidOf();
+  document.documentElement.style.setProperty('--kid', k ? k.color : '#2f7bff');
+  document.body.dataset.view = view;
+  ({ setup: vSetup, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa })[view]();
+  if (toTop) { window.scrollTo(0, 0); toTop = false; }
 }
 
-function vHome() {
-  $app.innerHTML = `
-    <h1>⚽ ひびゆいFC</h1>
-    <p class="sub">サッカーがくえん ― だれが れんしゅうする?</p>
-    ${KIDS.map((k) => {
-      const p = S.kids[k.id]; const r = rankOf(p.xp);
-      return `<button class="btn kidbtn" style="background:${k.color}" data-act="pick" data-id="${k.id}">
-        <span class="em">${k.em}</span><span>${k.name}<br><small>${k.grade}ねんせい ・ ${r.name}</small></span></button>`;
-    }).join('')}
-    ${siblingsCard()}
-    <div style="text-align:center;margin-top:24px"><button class="link" data-act="papa">👨 パパの へや</button></div>`;
+// このスマホは だれの? (さいしょの 1回だけ。パパが やる)
+function vSetup() {
+  $app.innerHTML = `<div class="hero"><div class="logo">⚽ HIBIYUI FC</div><h1>このスマホは だれの?</h1>
+    <p class="sub">えらぶと、この スマホには その子の がめんだけが でるよ。<br>(かえるときは パパの PINが いるよ)</p></div>
+    ${KIDS.map((k) => `<button class="kid-select" style="--kid:${k.color}" data-act="bind" data-id="${k.id}"><span class="ks-ava">${k.em}</span><span class="ks-name">${k.name}</span><span class="ks-sub">${k.grade}ねんせい</span></button>`).join('')}`;
+}
+
+function topBar(k, p) {
+  const r = rankOf(p.xp);
+  return `<header class="topbar"><div class="tb-ava">${k.em}</div><div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
+    <div class="tb-chips"><span class="chip gold">⚽ ${p.goals}</span><span class="chip">XP ${p.xp}</span></div>
+    <button class="gear" data-act="papa" aria-label="パパの へや">⚙</button></header>`;
+}
+function navBar() {
+  const items = [['home', '🏠', 'ホーム'], ['train', '🎯', 'れんしゅう'], ['team', '🤝', 'チーム'], ['time', '⏪', 'タイム']];
+  return `<nav class="nav">${items.map(([t, i, l]) => `<button class="${tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}"><span>${i}</span><small>${l}</small></button>`).join('')}</nav>`;
+}
+
+function repChip(k) {
+  const sel = dataFor(k).sel;
+  return sel.state === 'in'
+    ? `<div class="rep-chip in">🇯🇵 日本代表に えらばれてるよ${bothIn() ? '(ふたりそろって!)' : ''}</div>`
+    : sel.state === 'close' ? '<div class="rep-chip">🇯🇵 あと 1日 れんしゅうで 日本代表!</div>'
+      : '<div class="rep-chip out">🪑 いまは ひかえ ― かんたんに もどれるよ(チームを みてね)</div>';
+}
+
+function homeTab(k, p) {
+  const cur = currentUnits(k.grade, new Date().getMonth() + 1, S.override[k.id]);
+  const left = p.today.bonusTotal - p.today.bonusDone;
+  const welcome = p.today.gap > 0 && p.today.sets === 0
+    ? `おかえり、${k.name}! まってたよ。きょうは かくれステージが ひらいてるよ 🌟`
+    : p.today.sets > 0 ? `${k.name}、きょうも ナイスプレー!` : `${k.name}、きょうも キックオフ!`;
+  return `${playerCard(k, p)}
+    <div class="welcome">${welcome}</div>
+    ${repChip(k)}
+    <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? 'もういっかい キックオフ!' : 'キックオフ!'}</b>
+      <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : '5もん ・ '}${cur.map((u) => u.name).join('、')}</span></button>
+    ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}`;
 }
 
 function repCard(k, p) {
@@ -217,47 +293,33 @@ function repCard(k, p) {
   const left = p.today.bonusTotal - p.today.bonusDone;
   let msg;
   if (sel.state === 'in') msg = `🇯🇵 <b>日本代表に えらばれてるよ!</b>${sel.called && sel.n < need ? '(追加招集)' : ''}<br><span class="muted">${bothIn() ? '🇯🇵🇯🇵 ふたりそろって 日本代表! ボーナスポイントが ふえてるよ' : 'もうひとりも えらばれると、ボーナスが もっと ふえるよ'}</span>`;
-  else if (sel.state === 'close') msg = `<b>あと 1日!</b> れんしゅうすると 日本代表に えらばれるよ`;
+  else if (sel.state === 'close') msg = '<b>あと 1日!</b> れんしゅうすると 日本代表に えらばれるよ';
   else msg = `いまは 🪑 ひかえメンバー。だいじょうぶ、すぐ もどれるよ!<br><span class="muted">${left > 0 ? '🌟 かくれステージを 1つ クリアすると、すぐ 追加招集されるよ' : `あと ${need - sel.n}日 れんしゅうすると 日本代表に えらばれるよ`}</span>`;
-  return `<div class="card" style="background:#ffeaea"><h2>🇯🇵 日本代表 せんしゅつ</h2>
+  return `<section class="panel rep"><h2 class="sec">JAPAN <small>日本代表 せんしゅつ</small></h2>
     <div class="muted">この ${WINDOW}日で ${need}日 れんしゅうすると えらばれるよ</div>
-    <div style="font-size:22px;margin:6px 0">${dots}</div>${msg}</div>`;
+    <div style="font-size:22px;margin:6px 0">${dots}</div>${msg}</section>`;
 }
 
 function vKid() {
   const k = kidOf(); const p = S.kids[k.id]; refreshDay(p);
-  const r = rankOf(p.xp);
-  const cur = currentUnits(k.grade, new Date().getMonth() + 1, S.override[k.id]);
-  const left = p.today.bonusTotal - p.today.bonusDone;
-  const welcome = p.today.gap > 0 && p.today.sets === 0
-    ? `おかえり、${k.name}! まってたよ。きょうは かくれステージが ひらいてるよ 🌟`
-    : p.today.sets > 0 ? `${k.name}、きょうも ナイスプレー!` : `${k.name}、きょうも キックオフ!`;
-  $app.innerHTML = `
-    <div class="field"><button class="link" data-act="home">← もどる</button><span>${k.grade}ねんせい</span></div>
-    <div class="card">
-      <div class="row" style="justify-content:space-between"><b style="font-size:22px">${k.em} ${k.name}</b><span class="pill">${r.name}</span></div>
-      <div class="bar" style="margin:10px 0"><i style="width:${r.pct}%"></i></div>
-      <div class="muted">${r.next ? `つぎの ランクまで あと ${r.next[0] - p.xp} ポイント` : 'さいこうランク!'}</div>
-      <div class="row" style="margin-top:8px"><span class="pill">⚽ ゴール ${p.goals}</span><span class="pill">📅 ぜんぶで ${p.days.length}日</span></div>
-    </div>
-    ${repCard(k, p)}
-    ${siblingsCard()}
-    <div class="card"><b>${welcome}</b></div>
-    <div class="card">
-      <h2>🏟️ きょうの しあい</h2>
-      <div class="muted">いま やってる たんげん:${cur.map((u) => u.name).join('、')}</div>
-      <button class="btn gold" data-act="start" data-mode="daily">${p.today.sets > 0 ? '✅ もういっかい しあいする' : '▶ キックオフ!(5もん)'}</button>
-    </div>
-    ${left > 0 ? `<div class="card" style="background:#fff3c4"><h2>🌟 かくれステージ</h2>
-      <div class="muted">おやすみしてた ぶん、ごほうびステージが ひらいたよ。ポイント 2ばい!<br>1つずつで おわってOK。あせらなくていいよ。</div>
-      <button class="btn gold" data-act="start" data-mode="bonus">🌟 ステージに いく(のこり ${left})</button></div>` : ''}
-    ${timeMachineCard(k, p)}
-    <div class="card"><h2>🎯 すきな れんしゅう</h2>
-      ${unitsOf(k.grade).map((u) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${u.subject === '国語' ? '📖 ' : ''}${u.name}</button>`).join('')}
-      <details style="margin-top:8px"><summary>⏪ まえの がくねんの れんしゅう</summary>
-        ${skillsUpTo(k.grade).filter((u) => u.grade < k.grade).map((u) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${u.grade}ねん:${u.name}</button>`).join('')}
-      </details>
-    </div>`;
+  let body;
+  if (tab === 'train') body = practiceCard(k, p);
+  else if (tab === 'team') body = repCard(k, p) + siblingsCard();
+  else if (tab === 'time') body = timeMachineCard(k, p);
+  else body = homeTab(k, p);
+  $app.innerHTML = `${topBar(k, p)}<main>${body}</main>${navBar()}`;
+}
+
+function practiceCard(k, p) {
+  const btn = (u, label) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${label}</button>`;
+  const mine = unitsOf(k.grade);
+  const earlier = skillsUpTo(k.grade).filter((u) => u.grade < k.grade);
+  return `<section class="panel"><h2 class="sec">TRAINING <small>すきな れんしゅう</small></h2>
+    ${SUBJECTS.filter((sj) => mine.some((u) => u.subject === sj)).map((sj) => `<details ${sj === '算数' ? 'open' : ''}><summary><b>${SUBJECT_ICON[sj]} ${sj}</b></summary>
+      ${mine.filter((u) => u.subject === sj).map((u) => btn(u, u.name)).join('')}</details>`).join('')}
+    <details><summary><b>⏪ まえの がくねんの れんしゅう</b></summary>
+      ${earlier.map((u) => btn(u, `${u.grade}ねん ${SUBJECT_ICON[u.subject] || ''}${u.name}`)).join('')}
+    </details></section>`;
 }
 
 function timeMachineCard(k, p) {
@@ -266,12 +328,12 @@ function timeMachineCard(k, p) {
   const weak = sk.filter((u) => ['gap', 'shaky'].includes(status(p, u.id)));
   const due = sk.filter((u) => status(p, u.id) === 'sprout' && needs(p, u.id)).length;
   const grades = [...new Set(sk.map((u) => u.grade))];
-  return `<div class="card" style="background:#e9f1ff"><h2>⏪ タイムマシン チェック</h2>
+  return `<section class="panel tm"><h2 class="sec">TIME MACHINE <small>タイムマシン チェック</small></h2>
     <div class="muted">むかしの がくねんまで もどって、「ぬけてる ところ」を さがすよ。みつかったら ラッキー! そこを なおせば ぐんと つよくなる。</div>
-    ${grades.map((g) => `<div style="margin:6px 0"><b>${g}ねん</b> ${sk.filter((u) => u.grade === g).map((u) => `<span title="${u.name}">${ICON[status(p, u.id)]}</span>`).join(' ')}</div>`).join('')}
+    ${grades.map((g) => `<div style="margin:8px 0"><b>${g}ねん</b> ${SUBJECTS.map((sj) => { const us = sk.filter((u) => u.grade === g && u.subject === sj); return us.length ? `<span style="white-space:nowrap">${SUBJECT_ICON[sj]}${us.map((u) => `<span title="${u.name}">${ICON[status(p, u.id)]}</span>`).join('')}</span>` : ''; }).join(' ')}</div>`).join('')}
     <div class="muted">✅ほんとに できた 🌱できたかも(べつの日に もういちど) 🔸あやしい 🔻ぬけてる ⬜まだ</div>
-    ${todo + weak.length + due > 0 ? `<button class="btn" data-act="start" data-mode="back">⏪ タイムマシンに のる(5もん)</button>` : '<b>ぜんぶ チェックずみ! すごい!</b>'}
-  </div>`;
+    ${todo + weak.length + due > 0 ? '<button class="match-btn alt" data-act="start" data-mode="back"><small>TIME MACHINE</small><b>⏪ タイムマシンに のる</b><span>5もん ・ むかしの ぬけを さがす</span></button>' : '<b>ぜんぶ チェックずみ! すごい!</b>'}
+  </section>`;
 }
 
 function vQuiz() {
@@ -280,11 +342,12 @@ function vQuiz() {
   const a = Q.answered;
   const locked = !a && Date.now() < Q.lockUntil;
   $app.innerHTML = `
-    <div class="field"><button class="link" data-act="quit">× やめる</button>
-      <span>${Q.mode === 'bonus' ? '🌟 かくれステージ' : Q.mode === 'back' ? '⏪ タイムマシン' : it.retry ? '🔁 おなじ ところ(かずが ちがうよ)' : '🏟️ しあい'} ${Q.i + 1}/${Q.items.length}</span></div>
+    <div class="quiz-top"><button class="link" data-act="quit">✕ やめる</button>
+      <span class="mode">${Q.mode === 'bonus' ? '🌟 かくれステージ' : Q.mode === 'back' ? '⏪ タイムマシン' : it.retry ? '🔁 おなじ ところ(かずが ちがうよ)' : '🏟️ しあい'}</span>
+      <span class="clock">${Q.i + 1}/${Q.items.length}</span></div>
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px)">⚽</span><span class="goal">🥅</span></div>
-    <div class="card">
-      <div class="q">${q.text}</div>
+    <main><section class="panel qpanel">
+      <div class="q ${q.text.length > 40 ? 'long' : ''}">${q.text}</div>
       <div style="text-align:center"><button class="btn small gray" data-act="speak">🔊 よみあげ</button></div>
       ${locked ? '<div id="wait" class="muted" style="text-align:center">👀 もんだいを よく よんでね…</div>' : ''}
       <div class="choices">
@@ -293,7 +356,7 @@ function vQuiz() {
       ${a ? feedback(q, a) : `<div class="row" style="margin-top:14px">
         <button class="btn small gray" data-act="idk">🤔 わからない</button>
         <button class="btn small gray" data-act="ask">👨 パパに きく</button></div>`}
-    </div>`;
+    </section></main>`;
   const i0 = Q.i;
   if (locked) {
     setTimeout(() => {
@@ -319,8 +382,10 @@ function feedback(q, a) {
       <p>+${a.xp} ポイント${a.rep ? `(🇯🇵 代表ボーナス +${a.rep} こみ)` : ''}</p><p class="muted">${q.why}</p></div>${next}`;
   }
   const [name, msg] = TAGS[a.tag] || TAGS.unknown;
+  const picked = a.idx != null ? q.choices[a.idx] : null;
   return `<div class="fb"><b>🧤 おしい! キーパーに とめられた</b>
-    <p><span class="tag">げんいん</span><b>${name}</b></p><p>${msg}</p>
+    <p><span class="tag">げんいん</span><b>${name}</b></p>
+    ${picked && picked.note ? `<p>👉 えらんだ「${picked.label}」は… ${picked.note}</p>` : `<p>${msg}</p>`}
     <p><b>せいかいは:</b> ${q.choices.find((c) => c.ok).label}</p><p class="muted">${q.why}</p>
     <p>${Q.items[Q.i].retry ? '👨 ここは パパと いっしょに みよう! 「パパに きく」を おしてね。' : '👉 つぎに、かずを かえて もういちど ためすよ。おぼえた こたえは つかえないよ 😉'}</p></div>
     <div class="row"><button class="btn small gray" data-act="ask">👨 パパに きく</button></div>
@@ -329,19 +394,18 @@ function feedback(q, a) {
 
 function vResult() {
   const k = kidOf(); const p = S.kids[k.id]; const R = Q.result;
-  const call = R.callup ? '<div class="card" style="background:#ffe3e3"><div class="big">🇯🇵</div><h2 style="text-align:center">日本代表に えらばれたよ!</h2></div>' : '';
-  const ranked = R.rankUp ? `<div class="card" style="background:#fff3c4"><div class="big">🎉</div><h2 style="text-align:center">ランクアップ!<br>${R.rankName}</h2></div>` : '';
-  const weak = R.tags.length ? `<div class="card"><h2>🔎 つぎは ここを ねらおう</h2>${R.tags.map((t) => `<p><span class="tag">${TAGS[t][0]}</span><br><span class="muted">${TAGS[t][1]}</span></p>`).join('')}</div>` : `<div class="card"><b>ノーミス! パーフェクトゲーム ✨</b></div>`;
+  const call = R.callup ? '<section class="panel rep"><div class="big">🇯🇵</div><h2 class="center">日本代表に えらばれたよ!</h2></section>' : '';
+  const ranked = R.rankUp ? `<section class="panel gold"><div class="big">🎉</div><h2 class="center">ランクアップ!<br>${R.rankName}</h2></section>` : '';
+  const weak = R.tags.length ? `<section class="panel"><h2 class="sec">NEXT <small>つぎは ここを ねらおう</small></h2>${R.tags.map((t) => `<p><span class="tag">${TAGS[t][0]}</span><br><span class="muted">${TAGS[t][1]}</span></p>`).join('')}</section>` : '<section class="panel"><b>ノーミス! パーフェクトゲーム ✨</b></section>';
   const lower = skillsUpTo(k.grade).filter((u) => u.grade < k.grade && ['gap', 'shaky'].includes(status(p, u.id))).slice(0, 3);
-  const found = lower.length ? `<div class="card" style="background:#e9f1ff"><h2>🕰️ むかしの ぬけてた ところ みつけた!</h2>
+  const found = lower.length ? `<section class="panel tm"><h2 class="sec">TIME MACHINE <small>むかしの ぬけてた ところ みつけた!</small></h2>
     <p class="muted">だれでも あるよ。ここを なおせば つぎの たんげんも ぐんと かんたんになるよ。</p>
-    ${lower.map((u) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${u.grade}ねん:${u.name} を れんしゅう</button>`).join('')}</div>` : '';
-  $app.innerHTML = `
-    <h1>${R.good >= 4 ? '🏆 ナイスゲーム!' : '👏 おつかれさま!'}</h1>
-    <div class="card"><div class="big">⚽ × ${R.good}</div>
-      <p style="text-align:center">${R.total}もん中 ${R.good}ゴール ・ +${R.xp}ポイント ${R.hat ? '・🎩 ハットトリック!' : ''}</p></div>
+    ${lower.map((u) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${u.grade}ねん:${u.name} を れんしゅう</button>`).join('')}</section>` : '';
+  $app.innerHTML = `<div class="hero small"><h1>${R.good >= 4 ? '🏆 ナイスゲーム!' : '👏 おつかれさま!'}</h1></div>
+    <main><section class="panel score"><div class="big">⚽ × ${R.good}</div>
+      <p class="center">${R.total}もん中 ${R.good}ゴール ・ +${R.xp}ポイント ${R.hat ? '・🎩 ハットトリック!' : ''}</p></section>
     ${call}${ranked}${found}${weak}
-    <button class="btn gold" data-act="kid">もどる</button>`;
+    <button class="btn gold" data-act="kid">ホームに もどる</button></main>`;
 }
 
 function vPapa() {
@@ -375,10 +439,27 @@ function vPapa() {
     <input id="synccode" placeholder="かぞくコード(10もじいじょう)" value="${sc.fc || ''}" style="width:100%;font:inherit;padding:8px;margin:4px 0">
     <button class="btn small gray" data-act="synccode">🎲 コードを つくる</button>
     <button class="btn small" data-act="syncsave">💾 ほぞん</button>
-    <button class="btn small gold" data-act="synccopy">📋 こども用リンクを コピー</button>
-    <p class="muted">こども用リンクを ひびと・ゆいとの スマホで ひらくと、おなじ せっていに なります。</p></div>`;
-  $app.innerHTML = `<div class="field"><button class="link" data-act="home">← もどる</button><span>👨 パパの へや</span></div>${repAdmin}${syncCard}${tagRows}
-    <p class="muted" style="color:#eaffea">学校の すすみ具合が ちがう ときは、うえの「いまの たんげん」を えらんでね。</p>`;
+    <p class="muted">下の リンクを それぞれの スマホで ひらくと、その子の スマホに なって、おなじ せっていが はいります。</p>
+    ${KIDS.map((k) => `<button class="btn small gold" data-act="synccopy" data-id="${k.id}">📋 ${k.name}用リンクを コピー</button>`).join('')}</div>`;
+  const ownerCard = `<div class="card"><h2>📱 この スマホの もちぬし</h2>
+    <p>いまは「<b>${S.bound ? KIDS.find((k) => k.id === S.bound).name : 'きまっていません'}</b>」の スマホです。ほかの子の もんだいは ひらけません。</p>
+    ${KIDS.filter((k) => k.id !== S.bound).map((k) => `<button class="btn small gray" data-act="rebind" data-id="${k.id}">${k.name}の スマホに かえる</button>`).join('')}</div>`;
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${ownerCard}${repAdmin}${syncCard}${tagRows}
+    <p class="muted">学校の すすみ具合が ちがう ときは、「いまの たんげん」を えらんでね。</p></main>`;
+}
+
+// ---- パパのPIN(持ち主の変更・パパの へやに 入るとき) ------------------------------------
+const pinHash = (t) => { let h = 5381; for (const c of String(t)) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return h.toString(36); };
+function askPin(msg) {
+  if (!S.pin) {
+    const p1 = prompt('パパの PINを きめてください(4けたの すうじ)。子どもには ひみつにしてね');
+    if (!/^\d{4}$/.test(p1 || '')) { toast('4けたの すうじで いれてね'); return false; }
+    S.pin = pinHash(p1); save(); return true;
+  }
+  const p = prompt(msg || 'パパの PINを いれてね');
+  if (p === null) return false;
+  if (pinHash(p) !== S.pin) { toast('PINが ちがうよ'); return false; }
+  return true;
 }
 
 // ---- 動作 -----------------------------------------------------------------
@@ -456,17 +537,24 @@ function askPapa() {
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
-  if (a === 'pick') { kidId = el.dataset.id; view = 'kid'; syncNow(); }
-  else if (a === 'home') { kidId = null; view = 'home'; syncNow(); }
-  else if (a === 'kid') view = 'kid';
-  else if (a === 'papa') view = 'papa';
-  else if (a === 'start') return startQuiz(el.dataset.mode, el.dataset.unit);
+  if (a === 'bind') {
+    if (!askPin()) return;
+    S.bound = el.dataset.id; kidId = S.bound; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
+  }
+  else if (a === 'rebind') {
+    if (!confirm(`この スマホを「${KIDS.find((x) => x.id === el.dataset.id).name}」の スマホに かえる?`)) return;
+    S.bound = el.dataset.id; kidId = S.bound; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
+  }
+  else if (a === 'tab') { tab = el.dataset.tab; view = 'kid'; toTop = true; }
+  else if (a === 'home' || a === 'kid') { view = kidId ? 'kid' : 'setup'; tab = 'home'; toTop = true; if (a === 'home') syncNow(); }
+  else if (a === 'papa') { if (!askPin()) return; view = 'papa'; toTop = true; }
+  else if (a === 'start') { toTop = true; return startQuiz(el.dataset.mode, el.dataset.unit); }
   else if (a === 'quit') { if (!confirm('ここで やめる?(とちゅうまでの ポイントは きえるよ)')) return; view = 'kid'; }
   else if (a === 'ans') return answer(Number(el.dataset.idx));
   else if (a === 'idk') return answer(null, true);
   else if (a === 'ask') return askPapa();
   else if (a === 'speak') return speak(Q.items[Q.i].q.text);
-  else if (a === 'next') { Q.answered = null; Q.i++; if (Q.i >= Q.items.length) return finish(); Q.lockUntil = Date.now() + lockMs(Q.items[Q.i].q); }
+  else if (a === 'next') { Q.answered = null; Q.i++; if (Q.i >= Q.items.length) return finish(); Q.lockUntil = Date.now() + lockMs(Q.items[Q.i].q); toTop = true; }
   else if (a === 'synccode') { document.getElementById('synccode').value = sync.newCode(); return; }
   else if (a === 'syncsave') {
     const db = document.getElementById('syncdb').value; const fc = document.getElementById('synccode').value;
@@ -474,8 +562,7 @@ document.addEventListener('click', (e) => {
     sync.setCfg(db, fc); toast('つないだよ!'); syncNow(); return;
   }
   else if (a === 'synccopy') {
-    if (!sync.enabled()) return toast('さきに「ほぞん」してね');
-    if (navigator.clipboard) navigator.clipboard.writeText(sync.shareLink()).then(() => toast('こども用リンクを コピーしたよ'), () => toast('コピーできなかったよ'));
+    if (navigator.clipboard) navigator.clipboard.writeText(sync.shareLink(el.dataset.id)).then(() => toast('こども用リンクを コピーしたよ'), () => toast('コピーできなかったよ'));
     return;
   }
   else if (a === 'askdone') { S.kids[el.dataset.id].ask.splice(Number(el.dataset.i), 1); save(); }
@@ -492,6 +579,12 @@ document.addEventListener('change', (e) => {
 try {
   const r = await fetch('data/kokugo-pool.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
   if (r.ok) registerKokugo((await r.json()).items || []);
+} catch { /* オフラインなど */ }
+
+// 理科・社会・生活(人が確かめた事実リスト)
+try {
+  const r = await fetch('data/knowledge.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
+  if (r.ok) registerKnowledge((await r.json()).units || []);
 } catch { /* オフラインなど */ }
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
