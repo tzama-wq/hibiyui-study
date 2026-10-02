@@ -1,0 +1,46 @@
+name: daily-kokugo
+
+# 毎朝 5:00(日本時間) に Gemini で国語(漢字)の問題を作って、data/kokugo-pool.json に ためる。
+# 手動でも動かせる(Actions タブ → daily-kokugo → Run workflow)。
+on:
+  schedule:
+    - cron: '0 20 * * *' # UTC 20:00 = JST 05:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-kokugo
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 検査ロジックのテスト
+        run: npm test
+
+      - name: 問題を作る(Gemini)
+        run: node scripts/generate-kokugo.mjs
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: 結果をコミット
+        run: |
+          git config user.name "daily-kokugo-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/kokugo-pool.json data/last-run.json
+          if git diff --cached --quiet; then
+            echo "変更なし"
+          else
+            git commit -m "daily kokugo pool $(date -u +%F)"
+            git push
+          fi

@@ -1,0 +1,9 @@
+{
+  "name": "hibiyui-study",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/gen.test.mjs && node tests/kokugo.test.mjs",
+    "start": "node scripts/serve.mjs"
+  }
+}
