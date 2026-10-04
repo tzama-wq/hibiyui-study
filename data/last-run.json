@@ -1,24 +1,31 @@
 {
- "date": "2026-10-03",
+ "date": "2026-10-05",
  "model": "gemini-3.8-flash",
  "grades": {
   "1": {
    "error": "HTTP 503"
   },
   "2": {
+   "error": "HTTP 503"
+  },
+  "3": {
    "asked": 8,
    "returned": 8,
    "rejected": {
-    "wrong-kanji-out-of-grade": 4
+    "target-not-once": 3,
+    "wrong-kanji-out-of-grade": 1
    },
    "unverified": 0,
    "accepted": 4
   },
-  "3": {
-   "error": "HTTP 503"
-  },
   "4": {
-   "error": "HTTP 503"
+   "asked": 8,
+   "returned": 8,
+   "rejected": {
+    "target-not-once": 4
+   },
+   "unverified": 0,
+   "accepted": 4
   }
  }
 }
