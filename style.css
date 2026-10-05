@@ -434,3 +434,11 @@ body.big .nav button small{font-size:13px}
 .rest{text-align:center}
 .breath{width:140px;height:140px;margin:14px auto;border-radius:50%;background:radial-gradient(circle,#27d8ff,#2f7bff 70%);box-shadow:0 0 30px rgba(39,216,255,.5);animation:breathe 8s ease-in-out infinite}
 @keyframes breathe{0%,100%{transform:scale(.7);opacity:.7}50%{transform:scale(1.15);opacity:1}}
+
+/* ================= つまずき けんきゅうじょ(かせつ) ================= */
+.hyp{display:flex;align-items:center;gap:10px;margin:8px 0;padding:10px;background:rgba(255,255,255,.04);border-left:4px solid var(--cyan)}
+.hyp.confirmed{border-left-color:var(--gold)}
+.hyp-main{flex:1;min-width:0}.hyp-main b{display:block;font-size:15px}.hyp-main small{display:block;color:var(--mute);font-size:12px;line-height:1.4}
+.hyp .btn.small{margin:0;flex:none}
+.hypnote{margin-top:10px;padding:8px 10px;background:rgba(39,216,255,.08);border-left:4px solid var(--cyan)}
+.hypnote p{margin:4px 0;font-size:15px}

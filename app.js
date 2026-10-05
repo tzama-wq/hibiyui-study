@@ -2,7 +2,8 @@ import * as sync from './sync.js';
 import { addPoints, SUBJECT_STAT } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
-import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, shuffle, registerKokugo, registerKnowledge, setSeen } from './gen.js';
+import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, setSeen } from './gen.js';
+import { observe, nextProbes, noteProbe, specFor, activeList, counts, THRESH } from './hyp.js';
 
 // ---- 設定 -----------------------------------------------------------------
 const KIDS = [
@@ -103,8 +104,12 @@ function buildSet(kid, mode, unitId) {
   const sk = skillsUpTo(kid.grade);
   const cur = currentUnits(kid.grade, new Date().getMonth() + 1, S.override[kid.id]);
   let plan;
+  const today = todayStr();
   if (mode === 'practice') plan = Array(SET_SIZE).fill(byId[unitId]);
-  else if (mode === 'back') {
+  else if (mode === 'hyp') { // 「たしかめる」ボタン: ひとつの かせつを しらべる 問題だけ
+    const h = (p.hyp || {})[unitId];
+    plan = h && byId[h.unit] ? Array.from({ length: SET_SIZE }, () => ({ unit: byId[h.unit], probe: specFor(h), hkey: h.key })) : Array(SET_SIZE).fill(cur[0]);
+  } else if (mode === 'back') {
     const c = backCandidates(kid);
     const pool = c.length ? c : sk.filter((u) => u.grade < kid.grade);
     plan = Array.from({ length: SET_SIZE }, (_, i) => pool[i % pool.length]);
@@ -123,13 +128,17 @@ function buildSet(kid, mode, unitId) {
     // だいじな じゅんに ならべて、せっていの もんだい数ぶん つかう。「やることを みせる」せっていの ときは じゅんばんを かえない
     plan = [cur[0], ko || cur[1 % cur.length], kn || cur[2 % cur.length], c.length ? c[0] : weakPick(p, review.length ? review : sk), cur[1 % cur.length]].slice(0, SET_SIZE);
     if (!kc.preview) plan = shuffle(plan);
+    // いま たしかめ中の かせつが あれば、1もん(大きいセットは 2もん)を「たしかめる 問題」に する
+    const nProbe = Math.min(2, Math.max(1, Math.floor(SET_SIZE / 3)));
+    nextProbes(p, today, nProbe + 2).filter((h) => byId[h.unit]).slice(0, nProbe).forEach((h, i) => { plan[plan.length - 1 - i] = { unit: byId[h.unit], probe: specFor(h), hkey: h.key }; });
   }
   const seen = new Set();
-  return plan.map((unit) => {
+  return plan.map((entry) => {
+    const unit = entry.probe ? entry.unit : entry;
     let q;
-    for (let t = 0; t < 8; t++) { q = makeQuestion(unit); if (!seen.has(q.text)) break; }
+    for (let t = 0; t < 8; t++) { q = entry.probe ? makeProbe(unit, entry.probe) : makeQuestion(unit); if (!seen.has(q.text)) break; }
     seen.add(q.text);
-    return { unit, q, retry: false };
+    return { unit, q, retry: false, probe: !!entry.probe, hkey: entry.hkey };
   });
 }
 
@@ -257,6 +266,8 @@ const BADGES = [
   { id: 'perfect', icon: '✨', name: 'パーフェクトゲーム', cond: (p) => (p.perfect || 0) >= 1 },
   { id: 'comeback', icon: '🌟', name: 'おかえり ステージ クリア', cond: (p) => !!p.callup },
   { id: 'time', icon: '⏪', name: 'タイムマシンに のった', cond: (p) => (p.backRuns || 0) >= 1 },
+  { id: 'hyp1', icon: '🔬', name: 'はじめて のりこえた', cond: (p) => (p.hypResolved || 0) >= 1 },
+  { id: 'hyp5', icon: '🧪', name: '5つ のりこえた', cond: (p) => (p.hypResolved || 0) >= 5 },
   { id: 'rank2', icon: '🚀', name: 'ユースの エース', cond: (p) => rankOf(p.xp).i >= 2 },
   { id: 'rank4', icon: '🏟️', name: 'Jリーガー', cond: (p) => rankOf(p.xp).i >= 4 },
   { id: 'rank5', icon: '🇯🇵', name: 'にほんだいひょう', cond: (p) => rankOf(p.xp).i >= 5 },
@@ -489,7 +500,7 @@ function vKid() {
   if (!S.pin) return vPinGate();
   const k = kidOf(); const p = S.kids[k.id]; refreshDay(p);
   let body;
-  if (tab === 'train') body = timeMachineCard(k, p) + practiceCard(k, p);
+  if (tab === 'train') body = labCard(k, p) + timeMachineCard(k, p) + practiceCard(k, p);
   else if (tab === 'gacha') body = gachaTab();
   else if (tab === 'team') body = teamTab();
   else body = homeTab(k, p);
@@ -532,7 +543,7 @@ function vQuiz() {
   $app.innerHTML = `
     <div class="quiz-top"><button class="link" data-act="quit">🛋️ やすむ</button>
       <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${Q.i + 1}<small>/${Q.items.length}</small></span>
-        <span class="sb-r">${tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : 'normal']}</span></div><span class="clock"></span></div>
+        <span class="sb-r">${tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
     <div class="remain">${remain}</div>
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>
     <div class="dots">${Q.items.map((x, i) => `<i class="${x.res || ''} ${i === Q.i ? 'cur' : ''}"></i>`).join('')}</div>
@@ -564,13 +575,63 @@ function vQuiz() {
   }
 }
 
+// ---- つまずきの「かせつ」(仮説): 立てる → たしかめる → けっろん ------------------------------------
+const hypLabel = (h) => (h.kind === 'item' ? h.label : (TAGS[h.tag] ? TAGS[h.tag][0] : h.tag));
+const weakWord = () => (cfg().soft ? 'のびしろ' : 'よわい');
+function hypLine(e) {
+  const l = hypLabel(e.h);
+  if (e.type === 'new') return `🔎 かせつ: 「${l}」が くりかえし おきるのかも? つぎの もんだいで たしかめるよ。`;
+  if (e.type === 'reopen') return `🔎 「${l}」が また でたよ。もういちど たしかめよう。`;
+  if (e.type === 'confirmed') return cfg().soft ? `🌱 「${l}」は、れんしゅうすると のびそう。いっしょに やってみよう。` : `⚠️ たしかめた けっか、「${l}」が つづいているよ。ここを れんしゅうしよう。`;
+  if (e.type === 'cleared') return `🍀 「${l}」は たまたま だったね。だいじょうぶ!`;
+  if (e.type === 'resolved') return `🌟 「${l}」を のりこえたよ! すごい!(+30ポイント)`;
+  return '';
+}
+const hypLines = (evs) => (evs && evs.length ? `<div class="hypnote">${evs.map((e) => `<p>${hypLine(e)}</p>`).join('')}</div>` : '');
+
+// つまずき けんきゅうじょ(ひとつずつ「たしかめる」)
+function labCard(k, p) {
+  const list = activeList(p); const c = counts(p);
+  if (!list.length && !c.resolved && !c.cleared) {
+    return `<section class="panel"><h2 class="sec">LAB <small>つまずき けんきゅうじょ</small></h2>
+      <div class="muted">まちがえると、ここに「かせつ」が でるよ。まちがいは ${weakWord()}ところを みつける ヒント。たしかめて、のりこえよう!</div></section>`;
+  }
+  const status = (h) => (h.status === 'confirmed'
+    ? `${cfg().soft ? '🌱 れんしゅう中' : `⚠️ ここが ${weakWord()} みたい`} ・ のりこえるまで: れんぞく せいかい ${Math.min(h.streak, THRESH.resolveStreak)}/${THRESH.resolveStreak}、${Math.min(h.okDays.length, THRESH.resolveDays)}/${THRESH.resolveDays}日`
+    : `❓ たしかめ中 ・ まちがい ${h.sup}かい / せいかい ${h.ref}かい`);
+  return `<section class="panel"><h2 class="sec">LAB <small>つまずき けんきゅうじょ</small></h2>
+    <div class="muted">まちがえ方から「かせつ」を たてて、もういちど たしかめるよ。</div>
+    <div class="row"><span class="chip gold">🌟 のりこえた ${c.resolved}</span><span class="chip">🍀 たまたま ${c.cleared}</span></div>
+    ${list.slice(0, 6).map((h) => `<div class="hyp ${h.status}"><div class="hyp-main"><b>${h.kind === 'item' ? `「${hypLabel(h)}」` : hypLabel(h)}</b><small>${status(h)}</small></div>
+      <button class="btn small gold" data-act="start" data-mode="hyp" data-unit="${h.key}">🔬 たしかめる</button></div>`).join('')}
+    ${list.length > 6 ? `<div class="muted">ほか ${list.length - 6}こ</div>` : ''}</section>`;
+}
+function hypResultPanel(R) {
+  if (!R.hyp || !R.hyp.length) return '';
+  const icon = { new: '🔎', reopen: '🔎', confirmed: cfg().soft ? '🌱' : '⚠️', cleared: '🍀', resolved: '🌟' };
+  const text = { new: 'かせつを たてたよ', reopen: 'もういちど たしかめよう', confirmed: cfg().soft ? 'れんしゅうすると のびそう' : `ほんとうに ${weakWord()} みたい`, cleared: 'たまたま だったね', resolved: 'のりこえた!' };
+  return `<section class="panel"><h2 class="sec">LAB <small>かせつの けっか</small></h2>
+    ${R.hyp.map((e) => `<p>${icon[e.type]} <b>${e.label}</b> ― ${text[e.type]}</p>`).join('')}
+    <div class="muted">「れんしゅう」→「つまずき けんきゅうじょ」で、つづきを たしかめられるよ。</div></section>`;
+}
+// パパ向け: かせつの ほうこく
+function hypReport() {
+  return `<div class="card"><h2>🔬 つまずきの かせつ(パパ向け)</h2>
+    <p class="muted">まちがえ方から「たぶん ここが ${'弱い'}」と 推定した 仮説です(仮です)。同じ まちがえ方の「罠」が ある 問題で 繰り返し 確かめ、3回の根拠で「確定」、3回連続で罠を避ければ「たまたま」、確定後に 3回連続正解(2日以上)で「のりこえた」とします。</p>
+    ${KIDS.map((k) => {
+    const p = S.kids[k.id]; const list = activeList(p); const c = counts(p);
+    return `<div class="cfgbox"><b>${k.name}</b> <span class="muted">のりこえた ${c.resolved} ・ たまたま ${c.cleared} ・ たしかめ中 ${c.testing} ・ 確定 ${c.confirmed}</span>
+      ${list.length ? list.map((h) => `<p><b>${h.status === 'confirmed' ? '⚠️ 確定' : '❓ 確かめ中'}</b> 「${hypLabel(h)}」 <span class="muted">(${(byId[h.unit] || {}).name || h.unit} ・ 根拠 ${h.sup} / 反する 証拠 ${h.ref})</span>${h.kind === 'tag' && TAGS[h.tag] ? `<br><span class="muted">声かけ: ${TAGS[h.tag][1]}</span>` : ''}</p>`).join('') : '<p class="muted">いま 確かめている 仮説は ありません</p>'}</div>`;
+  }).join('')}</div>`;
+}
+
 function feedback(q, a) {
   const tx = T(cfg()); const wait = waitWrongMs(cfg());
   const last = Q.i === Q.items.length - 1;
   const next = `<button class="btn gold" data-act="next">${last ? '🏁 けっかを みる' : 'つぎへ ▶'}</button>`;
   if (a.ok) {
     return `<div class="fb good"><b>${tx.ok} ${Q.combo >= 3 ? tx.combo(Q.combo) : ''}</b>
-      <p>+${a.xp} ポイント${a.rep ? `(🇯🇵 代表ボーナス +${a.rep} こみ)` : ''}</p><p class="muted">${q.why}</p></div>${next}`;
+      <p>+${a.xp} ポイント${a.rep ? `(🇯🇵 代表ボーナス +${a.rep} こみ)` : ''}</p><p class="muted">${q.why}</p>${hypLines(a.hyp)}</div>${next}`;
   }
   const [name, msg] = TAGS[a.tag] || TAGS.unknown;
   const picked = a.idx != null ? q.choices[a.idx] : null;
@@ -579,7 +640,7 @@ function feedback(q, a) {
     ${picked && picked.note ? `<p>👉 えらんだ「${picked.label}」は… ${picked.note}</p>` : `<p>${msg}</p>`}
     <p><b>せいかいは:</b> ${q.choices.find((c) => c.ok).label}</p><p class="muted">${q.why}</p>
     <p>${Q.items[Q.i].retry ? tx.retryNow : tx.retryNote}</p>
-    <p class="muted">ちょうせん ポイント +${a.effort || 0}(まちがえても、ポイントは かならず つくよ)</p></div>
+    <p class="muted">ちょうせん ポイント +${a.effort || 0}(まちがえても、ポイントは かならず つくよ)</p>${hypLines(a.hyp)}</div>
     <div class="row"><button class="btn small gray" data-act="ask">👨 パパに きく</button></div>
     <button class="btn gold" id="nextbtn" data-act="next" ${wait ? 'disabled' : ''}>${wait ? '📖 せつめいを よんでね…' : (last ? '🏁 けっかを みる' : 'つぎへ ▶')}</button>`;
 }
@@ -611,6 +672,7 @@ function vResult() {
       <div class="big">${cfg().plain ? '✅' : '⚽'} × <b data-count="${R.good}" data-key="score">${R.good}</b></div>
       <p class="center">${tx.score(R)}</p></section>
     ${rewardPanel(R)}
+    ${hypResultPanel(R)}
     ${R.newBadges.map((b) => `<section class="panel gold medal-new"><div class="big">${b.icon}</div><h2 class="center">NEW MEDAL!<br>${b.name}</h2></section>`).join('')}
     ${call}${ranked}${found}${weak}
     ${cfg().breakAfter ? '<section class="panel"><h2 class="sec">REST <small>きゅうけい</small></h2><div class="muted">がんばったね。1ぷん やすもう(みずを のむ・のびを する)。つづけても、おわっても いいよ。</div><button class="btn gray" data-act="rest">🍃 1ぷん やすむ</button></section>' : ''}
@@ -687,7 +749,7 @@ function vPapa() {
   const ownerCard = `<div class="card"><h2>📱 この スマホの もちぬし</h2>
     <p>いまは「<b>${S.bound ? KIDS.find((k) => k.id === S.bound).name : 'きまっていません'}</b>」の スマホです。ほかの子の もんだいは ひらけません。</p>
     ${KIDS.filter((k) => k.id !== S.bound).map((k) => `<button class="btn small gray" data-act="rebind" data-id="${k.id}">${k.name}の スマホに かえる</button>`).join('')}</div>`;
-  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${pinCard}${cfgCard()}${ownerCard}${repAdmin}${syncCard}${tagRows}
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
     <p class="muted">学校の すすみ具合が ちがう ときは、「いまの たんげん」を えらんでね。</p></main>`;
 }
 
@@ -763,6 +825,11 @@ function answer(idx, unknown) {
   if (q.id) { p.seen = [...(p.seen || []).filter((x) => x !== q.id), q.id].slice(-300); setSeen(p.seen); }
   if (ok) { u.d = u.d || []; if (!u.d.includes(todayStr())) u.d.push(todayStr()); u.d = u.d.slice(-5); }
   if (it.retry) { p.rt = p.rt || { ok: 0, ng: 0 }; p.rt[ok ? 'ok' : 'ng']++; }
+  // まちがえ方から「かせつ」を たてる / たしかめる(罠を えらべば こんきょ、せいかいは はんする しょうこ)
+  const evs = observe(p, { unitId: it.unit.id, q, choice: c, ok, today: todayStr(), immediate: !!it.retry });
+  if (it.hkey) noteProbe(p, it.hkey, todayStr());
+  Q.hyp = (Q.hyp || []).concat(evs);
+  for (const e of evs) if (e.type === 'resolved') { p.hypResolved = (p.hypResolved || 0) + 1; Q.xp += 30; } // のりこえた おいわい
   if (ok) {
     u.ok++; Q.good++; Q.combo++;
     let xp = 10 * (Q.mode === 'bonus' ? 2 : 1);
@@ -770,17 +837,20 @@ function answer(idx, unknown) {
     const rep = repBonus(k); xp += rep;
     Q.xp += xp; p.goals++; it.res = 'ok';
     const st = SUBJECT_STAT[it.unit.subject]; if (st) { addPoints(p, it.unit.subject, 2); Q.pts[st] = (Q.pts[st] || 0) + 2; }
-    Q.answered = { ok, idx, xp, rep };
+    Q.answered = { ok, idx, xp, rep, hyp: evs };
     beep('ok'); vibrate(25); confetti(lastTap.x, lastTap.y, Q.combo >= 3 ? 70 : 26, Q.combo >= 3 ? 1.3 : 0.8); floaty(`+${xp}`, lastTap.x, lastTap.y - 24);
   } else {
     u.ng++; Q.combo = 0;
     p.tags[tag] = (p.tags[tag] || 0) + 1; Q.missTags[tag] = (Q.missTags[tag] || 0) + 1;
     if (Q.retries < 3 && !it.retry) {
       Q.retries++;
-      let nq; for (let t = 0; t < 8; t++) { nq = makeQuestion(it.unit); if (nq.text !== q.text) break; }
+      // やりなおしは、おなじ 罠が 入った 問題(かせつの たしかめ)。数字は かわる
+      const spec = tag && tag !== 'unknown' && tag !== 'know_mixup' ? { tag } : null;
+      let nq; for (let t = 0; t < 8; t++) { nq = spec ? makeProbe(it.unit, spec) : makeQuestion(it.unit); if (nq.text !== q.text) break; }
+      if (nq.text === q.text) nq = makeQuestion(it.unit);
       Q.items.splice(Q.i + 1, 0, { unit: it.unit, q: nq, retry: true });
     }
-    Q.xp += 2; Q.answered = { ok, idx, tag, effort: 2 }; it.res = 'ng'; // ちょうせん ポイント(まちがえても ゼロに しない)
+    Q.xp += 2; Q.answered = { ok, idx, tag, effort: 2, hyp: evs }; it.res = 'ng'; // ちょうせん ポイント(まちがえても ゼロに しない)
     beep('ng'); vibrate([40, 40, 40]);
   }
   save(); render();
@@ -807,10 +877,10 @@ function finish() {
   save();
   const selAfter = dataFor(k).sel.state;
   const tags = Object.entries(Q.missTags).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([x]) => x).filter((x) => x !== 'unknown' || Object.keys(Q.missTags).length === 1);
-  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, pts: Q.pts };
+  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, pts: Q.pts, hyp: (Q.hyp || []).map((e) => ({ type: e.type, label: hypLabel(e.h) })) };
   lastCount.score = 0;
   view = 'result'; toTop = true; render();
-  if (Q.result.good >= Math.ceil(Q.result.total * 0.6) || Q.result.rankUp || Q.result.callup || Q.result.newBadges.length) {
+  if (Q.result.good >= Math.ceil(Q.result.total * 0.6) || Q.result.rankUp || Q.result.callup || Q.result.newBadges.length || Q.result.hyp.some((e) => e.type === 'resolved')) {
     setTimeout(() => { confetti(innerWidth / 2, innerHeight * 0.32, 110, 1.5); beep('win'); vibrate([60, 40, 60, 40, 120]); }, 400);
   }
   syncNow();

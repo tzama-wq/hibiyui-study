@@ -100,7 +100,7 @@ const NORMAL = {
   score: (R) => `${R.total}もん中 ${R.good}ゴール ・ +${R.xp}ポイント ${R.hat ? '・🎩 ハットトリック!' : ''}`,
   start: 'キックオフ!',
   again: 'もういっかい キックオフ!',
-  mode: { bonus: '🌟 かくれ', back: '⏪ タイム', retry: '🔁 もういちど', normal: '🏟️ しあい' },
+  mode: { bonus: '🌟 かくれ', back: '⏪ タイム', retry: '🔁 もういちど', probe: '🔬 かくにん', normal: '🏟️ しあい' },
 };
 const PLAIN = {
   ok: '✅ せいかい!',
@@ -113,6 +113,6 @@ const PLAIN = {
   score: (R) => `${R.total}もん中 ${R.good}もん せいかい ・ +${R.xp}ポイント ${R.hat ? '・3もん つづけて せいかい' : ''}`,
   start: 'はじめる',
   again: 'もういちど やる',
-  mode: { bonus: 'ごほうび ステージ', back: 'むかしの ふくしゅう', retry: 'もういちど', normal: 'もんだい' },
+  mode: { bonus: 'ごほうび ステージ', back: 'むかしの ふくしゅう', retry: 'もういちど', probe: 'かくにん', normal: 'もんだい' },
 };
 export const T = (cfg) => (cfg.plain ? PLAIN : NORMAL);

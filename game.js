@@ -284,7 +284,7 @@ export const kidStats = (p) => Object.fromEntries(STATS.map((s) => [s, kidStat((
 export const BADGE_BUFFS = {
   goal1: { SHO: 1 }, goal10: { SHO: 2 }, goal50: { SHO: 3 }, goal100: { SHO: 5 }, goal300: { SHO: 8 },
   day3: { STA: 2 }, day7: { STA: 3 }, day30: { STA: 8 },
-  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 },
+  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 },
   rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 },
   m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 },
 };

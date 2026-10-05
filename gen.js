@@ -601,9 +601,9 @@ export const setSeen = (ids) => { seenIds = new Set(ids); };
 // 入っていて よいのは <small> と <br> だけ(それ以外の < は 文字として あつかう)
 const sanitize = (t) => String(t).replace(/<(?!\/?small>|br>)/g, '&lt;');
 
-function fromPool(unit) {
+function fromPool(unit, forced) {
   const fresh = unit.pool.filter((p) => !seenIds.has(p.id));
-  const it = pick(fresh.length ? fresh : unit.pool); // 全部 見たら くりかえし
+  const it = forced || pick(fresh.length ? fresh : unit.pool); // 全部 見たら くりかえし
   const choices = shuffle([{ label: it.correct, ok: true }, ...it.wrong.map((w) => ({ label: w.label, ok: false, tag: w.tag }))]);
   return { text: sanitize(it.text), why: String(it.why).replace(/[<>&]/g, ''), choices, id: it.id };
 }
@@ -613,9 +613,9 @@ function fromPool(unit) {
 const RUBY = /\{([^|{}]+)\|([^{}]+)\}/g;
 export const ruby = (s) => String(s).replace(/[<>&"]/g, '').replace(RUBY, '<ruby>$1<rt>$2</rt></ruby>');
 
-function fromKnowledge(unit) {
+function fromKnowledge(unit, forced) {
   const fresh = unit.items.filter((p) => !seenIds.has(p.id));
-  const it = pick(fresh.length ? fresh : unit.items);
+  const it = forced || pick(fresh.length ? fresh : unit.items);
   const choices = shuffle([
     { label: ruby(it.correct), ok: true },
     ...it.wrong.map((w) => ({ label: ruby(w.label), ok: false, tag: 'know_mixup', note: ruby(w.note) })),
@@ -662,4 +662,25 @@ export function currentUnits(grade, month, overrideId) {
 
 export function makeQuestion(unit) {
   return { ...unit.gen(), unit: unit.id };
+}
+
+// かせつを たしかめる 問題(つまずきの「かせつ」の しけん)
+//  tag    : その まちがえ方の 罠(ひっかけの 選択肢)を ふくむ 問題。計算は 数字を かえて、国語は 罠つきの 問題から。
+//  itemId : 知識(理科・社会・生活)は「おなじ 問題」を もういちど(あいだを あけて)。
+export function makeProbe(unit, { tag, itemId } = {}) {
+  if (itemId && unit.items) {
+    const it = unit.items.find((x) => x.id === itemId);
+    if (it) return { ...fromKnowledge(unit, it), unit: unit.id };
+  }
+  if (tag && unit.pool) {
+    const cand = unit.pool.filter((it) => it.wrong.some((w) => w.tag === tag));
+    if (cand.length) {
+      const fresh = cand.filter((x) => !seenIds.has(x.id));
+      return { ...fromPool(unit, pick(fresh.length ? fresh : cand)), unit: unit.id };
+    }
+  }
+  if (tag && !unit.pool && !unit.items) {
+    for (let i = 0; i < 80; i++) { const q = unit.gen(); if (q.choices.some((c) => c.tag === tag)) return { ...q, unit: unit.id }; }
+  }
+  return makeQuestion(unit); // しらべられない ときは ふつうの 問題
 }
