@@ -56,6 +56,8 @@ assert.match(teamTab(), /ずかん/); act('dexf', { r: 'common' }); assert.match
 act('dexsel', { id: owned()[0] }); assert.match(teamTab(), /dex-detail/);
 
 // へんせい: 選手をいれる・いれかえ・はずす
+{ const star = G.PLAYERS.find((x) => x.type && x.rarity === 'legend'); p().owned[star.id] = 1; act('dexf', { r: 'legend' }); act('dexsel', { id: star.id });
+  const h = teamTab(); assert.match(h, new RegExp(star.nation)); assert.ok(h.includes(star.type), 'タイプが ずかんに でる'); assert.match(h, /ヒントに/, '「本人とは かんけいない」の ことわり'); }
 act('sub', { sub: 'form' });
 const fw = G.PLAYERS.find((x) => x.pos === 'FW' && x.rarity === 'common');
 p().owned[fw.id] = 1;

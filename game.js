@@ -42,34 +42,79 @@ const FACE = {
 const MAIN = { FW: ['SHO', 'SPD'], MF: ['PAS', 'STA'], DF: ['DEF', 'STA'], GK: ['DEF', 'STA'] };
 const RANGE = { common: [36, 56], uncommon: [50, 66], rare: [62, 78], super: [74, 90], legend: [89, 99] };
 const COUNTS = { common: 40, uncommon: 30, rare: 22, super: 12, legend: 6 };
-const LEGENDS = [
-  ['ゼウス・ストライカー', 'FW', '⚡'], ['ドラゴン・キング', 'FW', '🐉'], ['ペガサス・マエストロ', 'MF', '🦄'],
-  ['アポロ・コンダクター', 'MF', '☀️'], ['ヘラクレス・ウォール', 'DF', '🏛️'], ['アテナ・ガーディアン', 'GK', '🛡️'],
+// 有名な選手を「モデル」にした オリジナルの キャラクター(名前は もじり。実在の本人とは かんけいない)。
+// [レア度, なまえ, ポジション, 国, かお, とくい(タイプ), とくいな のうりょく]
+const STARS = [
+  // レジェンド(れきだいの でんせつ)
+  ['legend', 'キング・ペロ', 'FW', '🇧🇷', '👑', 'サッカーの 王さま。なんでも できる', ['SHO', 'SPD', 'PAS']],
+  ['legend', 'ロナルドン', 'FW', '🇧🇷', '👽', 'とてつもない スピードと ゴール', ['SHO', 'SPD']],
+  ['legend', 'マラドン', 'MF', '🇦🇷', '🪄', '左足の まほうつかい。ドリブルの かみさま', ['PAS', 'SPD', 'SHO']],
+  ['legend', 'ジダール', 'MF', '🇫🇷', '🎭', 'ゆうがな ターンの 司令塔', ['PAS', 'STA']],
+  ['legend', 'カイザー・ベック', 'DF', '🇩🇪', '🦅', 'ディフェンスから せめあがる 皇帝', ['DEF', 'PAS', 'STA']],
+  ['legend', 'ブラック・ヤシン', 'GK', '🌐', '🕷️', '黒い ふくの しゅごしん。ゴールを まもる でんせつ', ['DEF', 'STA']],
+  // スーパーレア(いまの せかいの スター)
+  ['super', 'レオ・メッセイ', 'FW', '🇦🇷', '🐐', '小さな 体の 左足ドリブラー', ['SPD', 'SHO', 'PAS']],
+  ['super', 'キリオン・エンバピ', 'FW', '🇫🇷', '🚀', 'せかいで いちばん はやい 若きエース', ['SPD', 'SHO']],
+  ['super', 'アーリン・ホーラン', 'FW', '🇳🇴', '🤖', 'ゴールを うみだす 大きな ストライカー', ['SHO', 'STA']],
+  ['super', 'ネイ・マール', 'FW', '🇧🇷', '🎩', 'トリッキーな ドリブルの てんさい', ['SPD', 'PAS', 'SHO']],
+  ['super', 'ケイヴ・デブラウン', 'MF', '🇧🇪', '🧠', 'せいかくな パスで チャンスを つくる', ['PAS', 'STA']],
+  ['super', 'ルコ・モドリー', 'MF', '🇭🇷', '🎻', 'ピッチを しはいする ベテラン', ['PAS', 'STA']],
+  ['super', 'ジュート・ベリンガー', 'MF', '🇬🇧', '⭐', 'ぜんぶ できる わかき ミッドフィルダー', ['PAS', 'SHO', 'STA']],
+  ['super', 'ヤマ・ラミール', 'MF', '🇪🇸', '✨', '10だいの てんさい ウィンガー', ['SPD', 'PAS']],
+  ['super', 'バルジル・ファンダイカ', 'DF', '🇳🇱', '🗼', 'くうちゅうせんに つよい かべ', ['DEF', 'STA']],
+  ['super', 'ルーベ・ディアーズ', 'DF', '🇵🇹', '🧱', 'しずかに まもる リーダー', ['DEF', 'STA']],
+  ['super', 'ティボル・クルトワール', 'GK', '🇧🇪', '🦒', 'でっかい 手で とめる しゅごしん', ['DEF', 'STA']],
+  ['super', 'アリゾン・ベッカ', 'GK', '🇧🇷', '🧤', '足もとも うまい しゅごしん', ['DEF', 'PAS']],
+  // レア(せかいと 日本の スター)
+  ['rare', 'モー・サラハ', 'FW', '🇪🇬', '⚡', '左足で カットインする 快足ウィング', ['SPD', 'SHO']],
+  ['rare', 'ハリー・ケイナ', 'FW', '🇬🇧', '🎯', 'ゴールも パスも できる ストライカー', ['SHO', 'PAS']],
+  ['rare', 'ビニ・シオール', 'FW', '🇧🇷', '🌪️', 'キレキレの ドリブルの ウィング', ['SPD', 'SHO']],
+  ['rare', 'ロドリオ', 'MF', '🇪🇸', '⚓', 'まもりの かなめの ボランチ', ['DEF', 'STA', 'PAS']],
+  ['rare', 'トニ・クローザ', 'MF', '🇩🇪', '🎼', 'ミスしない パスの たつじん', ['PAS', 'STA']],
+  ['rare', 'ペドロ・ペドリン', 'MF', '🇪🇸', '🎈', 'ちいさな 体で ボールを はなさない', ['PAS', 'SPD']],
+  ['rare', 'アクラム・ハキミル', 'DF', '🇲🇦', '🏃', 'スピードが ある 右サイド', ['SPD', 'DEF']],
+  ['rare', 'トレント・アーノル', 'DF', '🇬🇧', '📐', 'ロングパスが ピタリの サイドバック', ['PAS', 'DEF']],
+  ['rare', 'ウィリアム・サリバル', 'DF', '🇫🇷', '🛡️', 'れいせいな センターバック', ['DEF', 'SPD']],
+  ['rare', 'アルフォン・デイビス', 'DF', '🇨🇦', '💨', 'ちょうはやい 左サイドバック', ['SPD', 'DEF']],
+  ['rare', 'マヌエル・ノイエル', 'GK', '🇩🇪', '🧹', 'とびだして まもる スイーパーGK', ['DEF', 'SPD']],
+  ['rare', 'エデル・ソーン', 'GK', '🇧🇷', '🎯', 'ロングキックが せいかくな GK', ['DEF', 'PAS']],
+  ['rare', 'ミトモ・リョウ', 'FW', '🇯🇵', '🌀', '左がわから ぬく ドリブルの たつじん', ['SPD', 'SHO']],
+  ['rare', 'マエダ・ライ', 'FW', '🇯🇵', '🔥', 'どこまでも おいかける スプリンター', ['SPD', 'STA']],
+  ['rare', 'ウエダ・ジュウ', 'FW', '🇯🇵', '🏹', 'ゴールの においが わかる ストライカー', ['SHO', 'STA']],
+  ['rare', 'クボ・テツ', 'MF', '🇯🇵', '🪽', 'するどい パスと ドリブルの 若き てんさい', ['PAS', 'SPD', 'SHO']],
+  ['rare', 'エンドウ・マモル', 'MF', '🇯🇵', '🐺', '1たい1に つよい ボランチ', ['DEF', 'STA']],
+  ['rare', 'カマタ・ジュン', 'MF', '🇯🇵', '🧩', 'すきまに はいる トップした', ['PAS', 'SHO']],
+  ['rare', 'モリタ・ケイ', 'MF', '🇯🇵', '⚙️', 'よく はしる はたらきものの ボランチ', ['STA', 'PAS']],
+  ['rare', 'トミタ・ガク', 'DF', '🇯🇵', '🧰', 'どこでも まもれる ユーティリティ', ['DEF', 'SPD']],
+  ['rare', 'イタバ・コウ', 'DF', '🇯🇵', '🗿', 'たよれる センターバック', ['DEF', 'STA']],
+  ['rare', 'スズキ・ダイ', 'GK', '🇯🇵', '🦾', '大きくて はんのうが はやい GK', ['DEF', 'STA']],
 ];
 
 function buildPlayers() {
   const rnd = rngSeed(20261005);
   const pick = (a) => a[Math.floor(rnd() * a.length)];
-  const used = new Set();
+  const used = new Set(STARS.map((s) => s[1]));
   const out = [];
   for (const rarity of RARITIES) {
+    const stars = STARS.filter((s) => s[0] === rarity);
     for (let i = 0; i < COUNTS[rarity]; i++) {
-      let pos; let name; let face;
-      if (rarity === 'legend') { [name, pos, face] = LEGENDS[i]; }
+      let pos; let name; let face; let nation = ''; let type = ''; let main;
+      if (stars[i]) { [, name, pos, nation, face, type, main] = stars[i]; }
       else {
         pos = ['FW', 'FW', 'MF', 'MF', 'DF', 'DF', 'GK'][i % 7];
         do { name = `${pick(FIRST)}・${pick(LAST[pos])}`; } while (used.has(name));
         face = pick(FACE[pos]);
       }
       used.add(name);
+      main = main || MAIN[pos];
       const [lo, hi] = RANGE[rarity];
       const stats = {};
       for (const s of STATS) {
-        const main = MAIN[pos].includes(s);
-        const v = main ? lo + (hi - lo) * (0.6 + 0.4 * rnd()) : lo + (hi - lo) * 0.55 * rnd();
+        const isMain = main.includes(s);
+        const v = isMain ? lo + (hi - lo) * (0.6 + 0.4 * rnd()) : lo + (hi - lo) * 0.55 * rnd();
         stats[s] = Math.min(99, Math.round(v));
       }
-      out.push({ id: `${rarity[0]}${String(i + 1).padStart(2, '0')}`, name, pos, rarity, face, stats });
+      out.push({ id: `${rarity[0]}${String(i + 1).padStart(2, '0')}`, name, pos, rarity, face, nation, type, stats });
     }
   }
   return out;

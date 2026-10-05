@@ -45,7 +45,7 @@ function cardHtml(pl, o = {}) {
   const lv = pl.level ? ` Lv${pl.level}` : '';
   const nm = pl.rarity === 'kid' ? 'じぶん' : G.RARITY_NAME[pl.rarity] || '';
   return `<div class="rcard r-${pl.rarity} ${o.cls || ''}" ${o.attrs || ''}>
-    <div class="rc-top"><b class="rc-ovr">${ovrOf(pl.stats, pl.pos)}</b><small>${pl.pos === 'ALL' ? 'ALL' : pl.pos}</small></div>
+    <div class="rc-top"><b class="rc-ovr">${ovrOf(pl.stats, pl.pos)}</b><small>${pl.pos === 'ALL' ? 'ALL' : pl.pos}${pl.nation ? ` ${pl.nation}` : ''}</small></div>
     <div class="rc-face">${pl.face}</div><div class="rc-name">${esc(pl.name)}</div>
     <div class="rc-rar">${nm}${lv}${pl.offPos ? ' ⚠' : ''}</div>
     ${o.stats === false ? '' : `<div class="rc-stats">${G.STATS.map((s) => `<span><i>${STAT_SHORT[s]}</i>${pl.stats[s]}</span>`).join('')}</div>`}
@@ -106,6 +106,7 @@ function stageHtml() {
   const one = Gs.results.length === 1;
   return `<div class="gacha-stage reveal r-${best}"><div class="gs-rar">${G.RARITY_NAME[best]}${one ? '' : ' が でたよ!'}</div>
     <div class="gs-cards ${one ? 'one' : ''}">${Gs.results.map((r, i) => `<div class="gs-card" style="animation-delay:${0.1 + i * 0.12}s">${cardHtml({ ...r.player, level: G.levelOf(r.copies) }, { stats: one })}${r.isNew ? '<em class="new">NEW!</em>' : `<em class="dup">レベル${G.levelOf(r.copies)}</em>`}</div>`).join('')}</div>
+    ${one && Gs.results[0].player.type ? `<div class="gs-type">${esc(Gs.results[0].player.type)}</div>` : ''}
     <button class="btn gold" data-act="gachaclose">とじる</button></div>`;
 }
 
@@ -160,7 +161,8 @@ function dexHtml() {
   const sel = UI.dexSel && G.PLAYER_BY_ID[UI.dexSel];
   return `<section class="panel"><h2 class="sec">COLLECTION <small>ずかん ${n}/${G.PLAYERS.length}</small></h2>
     <div class="chips">${['all', ...G.RARITIES].map((r) => `<button class="chipb ${f === r ? 'on' : ''} r-${r}" data-act="dexf" data-r="${r}">${r === 'all' ? 'ぜんぶ' : G.RARITY_NAME[r]}${r === 'all' ? '' : ` ${G.PLAYERS.filter((x) => x.rarity === r && p.owned[x.id]).length}/${G.PLAYERS.filter((x) => x.rarity === r).length}`}</button>`).join('')}</div>
-    ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}<br>おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>` : ''}
+    ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>` : ''}
+    <div class="muted" style="margin-bottom:6px">※ 有名な 選手を ヒントに した オリジナルの キャラクターだよ(ほんにんとは かんけい ないよ)。</div>
     <div class="dex-grid">${list.map((pl) => p.owned[pl.id]
     ? `<button class="dx got r-${pl.rarity}" data-act="dexsel" data-id="${pl.id}"><span>${pl.face}</span><small>${esc(pl.name)}</small>${p.owned[pl.id] > 1 ? `<em>×${p.owned[pl.id]}</em>` : ''}</button>`
     : `<div class="dx r-${pl.rarity}"><span>？</span><small>${G.RARITY_NAME[pl.rarity]}</small></div>`).join('')}</div></section>`;

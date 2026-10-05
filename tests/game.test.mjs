@@ -17,6 +17,16 @@ for (const pos of ['FW', 'MF', 'DF', 'GK']) assert.ok(PLAYERS.some((p) => p.pos 
 const avg = (r) => { const l = PLAYERS.filter((p) => p.rarity === r); return l.reduce((a, p) => a + STATS.reduce((x, s) => x + p.stats[s], 0) / 5, 0) / l.length; };
 for (let i = 1; i < RARITIES.length; i++) assert.ok(avg(RARITIES[i]) > avg(RARITIES[i - 1]), `平均が ${RARITIES[i]} で逆転`);
 
+// モデル入りの選手(レア〜レジェンド)には 国と タイプが ある。名前は もじり(本人の名前は つかわない)
+for (const p of PLAYERS) {
+  const star = ['rare', 'super', 'legend'].includes(p.rarity);
+  assert.equal(!!p.type, star, `${p.id} タイプ`);
+  assert.equal(!!p.nation, star, `${p.id} 国`);
+}
+assert.equal(PLAYERS.filter((p) => p.type).length, 40);
+assert.equal(PLAYERS.filter((p) => p.nation === '🇯🇵').length, 10, '日本人は10人');
+for (const pos of ['FW', 'MF', 'DF', 'GK']) assert.ok(PLAYERS.some((p) => p.type && p.pos === pos), `${pos} のモデル入り`);
+
 // ---- 出る確率 ----
 for (const t of TICKET_ORDER) {
   const rt = rates(t);

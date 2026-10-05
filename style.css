@@ -376,3 +376,5 @@ body.enter .kid-select:nth-of-type(2){animation-delay:.1s}
 .slot .rc-face{font-size:34px}.slot .rc-name{font-size:11px;min-height:26px}
 .scoreboard{max-width:100%}.sb-l,.sb-r{min-width:0;font-size:12px}.sb-l b,.sb-r b{font-size:20px;font-style:italic}
 .sb-r{color:var(--text);background:linear-gradient(270deg,#0f2a5a,#0a1230)}
+
+.gs-type{max-width:300px;text-align:center;font-weight:800;color:#fff;text-shadow:0 0 10px var(--rc);animation:fadeUp .5s .5s both}
