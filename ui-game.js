@@ -1,6 +1,7 @@
 // ガチャ・ずかん・へんせい・つよくなる・たいせんの「画面」。
 // app.js から ctx(状態や共通の道具)を わたして つかう。DOM には さわらず、HTML文字列を かえす。
 import * as G from './game.js';
+import { DEFAULTS, gachaLeft, addGachaPulls } from './cfg.js';
 
 let X; // ctx
 export function gameInit(ctx) { X = ctx; }
@@ -83,16 +84,18 @@ function revealFx(results) {
 }
 export function gachaTab() {
   const p = X.p();
+  const lim = gachaLeft(p, X.cfg ? X.cfg() : DEFAULTS, X.today()); // きょうの のこりかいすう(せいげんなしは Infinity)
   const total = G.TICKET_ORDER.reduce((a, t) => a + p.tickets[t], 0);
   const stage = Gs.phase === 'idle' ? '' : stageHtml();
   return `${stage}<section class="panel"><h2 class="sec">GACHA <small>ガチャ</small></h2>
     ${ticketBar(p)}
     <div class="muted">べんきょうで チケットが もらえるよ。ログインボーナスは つづけるほど ごうかに なるよ(やすんでも なくならない)。</div>
+    ${(() => { const left = gachaLeft(p, X.cfg ? X.cfg() : DEFAULTS, X.today()); return left === Infinity ? '' : `<div class="muted">きょうの ガチャ: あと ${left}かい(チケットは のこしておけるよ)</div>`; })()}
     <div class="pull-list">${G.TICKET_ORDER.map((t) => {
     const n = p.tickets[t];
     return `<div class="pull-row tk-${t}"><div><b>${G.TICKETS[t].icon} ${G.TICKETS[t].name}</b><small>${G.RARITY_NAME[G.TICKETS[t].min]}いじょう かくてい</small></div>
-        <button class="btn small" data-act="pull" data-t="${t}" data-n="1" ${n ? '' : 'disabled'}>1かい</button>
-        <button class="btn small gold" data-act="pull" data-t="${t}" data-n="${Math.min(10, n)}" ${n >= 2 ? '' : 'disabled'}>まとめて ${Math.min(10, n)}</button></div>`;
+        <button class="btn small" data-act="pull" data-t="${t}" data-n="1" ${n && lim > 0 ? '' : 'disabled'}>1かい</button>
+        <button class="btn small gold" data-act="pull" data-t="${t}" data-n="${Math.min(10, n, lim)}" ${n >= 2 && lim >= 2 ? '' : 'disabled'}>まとめて ${Math.min(10, n, lim)}</button></div>`;
   }).join('')}</div>
     ${total ? '' : '<div class="muted">チケットが ないよ。れんしゅうで ゲットしよう!(6わり いじょう せいかいで もらえる)</div>'}
   </section>
@@ -266,11 +269,17 @@ export function onAct(a, el) {
       X.toast(`ログインボーナス ${r.n}日め!  ${rewardText(r.reward)}`); return true;
     }
     case 'pull': {
-      const t = el.dataset.t; const n = Math.min(Number(el.dataset.n) || 1, p.tickets[t]);
+      const t = el.dataset.t; const c = X.cfg ? X.cfg() : DEFAULTS;
+      const left = gachaLeft(p, c, X.today());
+      if (left === 0) { X.toast('きょうの ガチャは ここまで! チケットは とっておけるよ。また あしたね'); return true; }
+      const n = Math.min(Number(el.dataset.n) || 1, p.tickets[t], left);
       const results = [];
       for (let i = 0; i < n; i++) { const r = G.pull(p, t); if (r) results.push(r); }
       if (!results.length) return true;
-      X.save(); Gs.phase = 'rolling'; Gs.ticket = t; Gs.results = results;
+      addGachaPulls(p, X.today(), results.length);
+      X.save(); Gs.ticket = t; Gs.results = results;
+      if (c.calm) { Gs.phase = 'reveal'; revealFx(results); return true; } // 「うごきを へらす」ときは カプセルの えんしゅつを とばして すぐ みせる
+      Gs.phase = 'rolling';
       X.fx.vibrate([30, 30, 30]);
       setTimeout(() => { Gs.phase = 'reveal'; revealFx(results); X.render(); }, 1500);
       return true;

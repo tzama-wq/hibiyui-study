@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/gen.test.mjs && node tests/semantic.test.mjs && node tests/kokugo.test.mjs && node tests/game.test.mjs && node tests/ui-game.test.mjs && node scripts/build-knowledge.mjs && node scripts/lint-knowledge.mjs",
+    "test": "node tests/gen.test.mjs && node tests/semantic.test.mjs && node tests/kokugo.test.mjs && node tests/game.test.mjs && node tests/ui-game.test.mjs && node tests/cfg.test.mjs && node scripts/build-knowledge.mjs && node scripts/lint-knowledge.mjs",
     "start": "node scripts/serve.mjs"
   }
 }

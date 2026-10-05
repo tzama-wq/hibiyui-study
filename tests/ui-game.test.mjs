@@ -1,12 +1,14 @@
 // ガチャ・へんせい・たいせんの「画面の部品と操作」を、偽の ctx で動かして確かめる(DOMなし)。
 import assert from 'node:assert/strict';
 import * as G from '../game.js';
+import { DEFAULTS } from '../cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct, summaryTeam, awardStudy } from '../ui-game.js';
 
 const KIDS = [{ id: 'hibito', name: 'ひびと', grade: 4, em: '⚽' }, { id: 'yuito', name: 'ゆいと', grade: 2, em: '⚽' }];
 const S = { kids: { hibito: {}, yuito: {} } };
 for (const k of KIDS) { S.kids[k.id] = { days: [], goals: 0, xp: 0 }; ensureGame(S.kids[k.id]); }
 let cur = 'hibito'; let view = 'kid'; const log = [];
+let cfgNow = { ...DEFAULTS };
 const BADGES = [
   { id: 'goal1', icon: '⚽', name: 'はじめての ゴール', cond: () => true },
   { id: 'goal10', icon: '🔟', name: '10ゴール', cond: () => true },
@@ -15,7 +17,7 @@ const BADGES = [
   { id: 'day3', icon: '📅', name: '3日', cond: () => false },
 ];
 gameInit({
-  KIDS, kid: () => KIDS.find((k) => k.id === cur), p: () => S.kids[cur], render: () => log.push('render'), toast: (m) => log.push(m), save: () => log.push('save'),
+  KIDS, kid: () => KIDS.find((k) => k.id === cur), p: () => S.kids[cur], cfg: () => cfgNow, render: () => log.push('render'), toast: (m) => log.push(m), save: () => log.push('save'),
   today: () => '2026-10-05', BADGES, haveBadge: (b) => b.cond(), dataFor: (k) => ({ team: summaryTeam(k, S.kids[k.id]) }), matesHtml: () => '<div>mates</div>',
   setView: (v) => { view = v; }, fx: { confetti() {}, beep() {}, vibrate() {}, floaty() {} },
 });
@@ -104,6 +106,32 @@ assert.equal(G.kidStats(p()).SHO, G.kidStat(3));
   const q = { tickets: G.emptyTickets() };
   const got = awardStudy(q, { good: 5, total: 5, mode: 'daily', perfect: true }, '2026-10-05');
   assert.deepEqual(got, { silver: 1 }); assert.equal(q.tickets.silver, 1);
+}
+
+
+// ---- やさしい せってい: ガチャの 1日の かいすう / うごきを へらす ----
+{
+  act('gachaclose');
+  cur = 'yuito'; const q = p(); q.tickets.bronze = 5;
+  cfgNow = { ...DEFAULTS, gachaMax: 2 };
+  assert.match(gachaTab(), /あと 2かい/);
+  act('pull', { t: 'bronze', n: '10' });
+  assert.equal(q.tickets.bronze, 3, '1日2かいまで');
+  assert.match(gachaTab(), /あと 0かい/);
+  assert.doesNotMatch(gachaTab(), /data-t="bronze" data-n="1" >/, '上限の日は ボタンが おせない');
+  assert.match(gachaTab(), /data-t="bronze" data-n="1" disabled>/);
+  act('gachaclose');
+  log.length = 0; act('pull', { t: 'bronze', n: '1' });
+  assert.equal(q.tickets.bronze, 3, 'もう ひけない(チケットは へらない)');
+  assert.ok(log.some((m) => /ここまで/.test(m)), 'やさしく 知らせる');
+  // 制限なし + うごきを へらす: カプセルの えんしゅつを とばして すぐ みせる
+  cfgNow = { ...DEFAULTS, calm: true };
+  act('pull', { t: 'bronze', n: '1' });
+  assert.equal(q.tickets.bronze, 2);
+  assert.match(gachaTab(), /gacha-stage reveal/);
+  assert.doesNotMatch(gachaTab(), /gacha-stage rolling/);
+  act('gachaclose');
+  cfgNow = { ...DEFAULTS }; cur = 'hibito';
 }
 
 // たいせん: CPU と きょうだい

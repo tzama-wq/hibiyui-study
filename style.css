@@ -403,3 +403,34 @@ body.enter .kid-select:nth-of-type(2){animation-delay:.1s}
 .slot .rc-rar,.slot .rc-top small{display:none}.slot .rc-face:not(.has-img){font-size:26px}.slot .rc-ovr{font-size:14px}
 .slot>small{font-size:9px;top:-7px}
 .bteam{max-width:150px}.bt-img{width:22px;height:22px}
+
+/* ================= やさしい せってい ================= */
+/* うごき・ひかりを へらす */
+body.calm *,body.calm *::before,body.calm *::after{animation:none!important;transition:none!important}
+body.calm #fx{display:none}
+body.calm .pc-shine{display:none}
+body.calm .pcard{transform:none}
+body.calm .match-btn,body.calm .event-btn{filter:none}
+body.calm .pcard,body.calm .panel,body.calm .mission{backdrop-filter:none}
+/* おおきい もじ */
+body.big{font-size:19px}
+body.big .q{font-size:36px}body.big .q.long{font-size:26px}
+body.big .choice{font-size:27px;padding:22px 8px}
+body.big .btn{font-size:21px}body.big .btn.small{font-size:17px}
+body.big .fb p,body.big .muted{font-size:17px}
+body.big .nav button small{font-size:13px}
+/* ぶぶん */
+.remain{text-align:center;font-weight:800;color:var(--cyan);margin:2px 0 4px}
+.steps{list-style:none;counter-reset:s;margin:8px 0;padding:0}
+.steps li{counter-increment:s;display:flex;align-items:center;gap:10px;padding:10px 12px;margin:6px 0;background:rgba(255,255,255,.05);border-left:4px solid var(--cyan);font-size:17px}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--cyan);color:#041438;font-weight:900;flex:none}
+.steps li b{flex:1}.steps li span{color:var(--gold);font-weight:900}
+.todo{list-style:none;margin:6px 0;padding:0}.todo li{padding:8px 4px;font-size:17px;border-bottom:1px solid rgba(255,255,255,.06)}.todo li.done{color:var(--mute);text-decoration:line-through}
+.tgl{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;font:inherit;font-size:15px;font-weight:700;color:var(--text);cursor:pointer;background:#0a1230;border:1px solid var(--line)}
+.tgl.on{border-color:var(--gold);background:linear-gradient(160deg,#3a2c08,#1a1404)}
+.cfgbox{margin:12px 0;padding:10px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.cfgrow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0;font-size:14px}
+.cfgrow select{max-width:55%}
+.rest{text-align:center}
+.breath{width:140px;height:140px;margin:14px auto;border-radius:50%;background:radial-gradient(circle,#27d8ff,#2f7bff 70%);box-shadow:0 0 30px rgba(39,216,255,.5);animation:breathe 8s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(.7);opacity:.7}50%{transform:scale(1.15);opacity:1}}

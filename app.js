@@ -1,5 +1,6 @@
 import * as sync from './sync.js';
 import { addPoints, SUBJECT_STAT } from './game.js';
+import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, shuffle, registerKokugo, registerKnowledge, setSeen } from './gen.js';
 
@@ -12,7 +13,7 @@ const RANKS = [
   [0, 'サッカーきょうしつ'], [100, 'ジュニアユース'], [300, 'ユースの エース'], [600, 'プロ1ねんめ'],
   [1000, 'Jリーガー'], [1600, 'にほんだいひょう'], [2500, 'ワールドカップの スター'],
 ];
-const SET_SIZE = 5;
+// 1セットの もんだい数は 子どもごとの せってい(cfg.js の setSize。ふつうは 5)
 const MAX_BONUS = 3;
 
 // ---- 保存 -----------------------------------------------------------------
@@ -98,6 +99,7 @@ function backCandidates(kid) {
 
 function buildSet(kid, mode, unitId) {
   const p = S.kids[kid.id];
+  const kc = cfgOf(S, kid.id); const SET_SIZE = kc.setSize;
   const sk = skillsUpTo(kid.grade);
   const cur = currentUnits(kid.grade, new Date().getMonth() + 1, S.override[kid.id]);
   let plan;
@@ -118,9 +120,9 @@ function buildSet(kid, mode, unitId) {
     const knowNow = know.filter((u) => u.months.includes(month));
     const kpool = knowNow.length ? knowNow : know;
     const kn = kpool.length ? kpool[Math.floor(Math.random() * kpool.length)] : null;
-    plan = [cur[0], cur[1 % cur.length], ko || cur[2 % cur.length], kn || cur[2 % cur.length]];
-    plan.push(c.length ? c[0] : weakPick(p, review.length ? review : sk));
-    plan = shuffle(plan);
+    // だいじな じゅんに ならべて、せっていの もんだい数ぶん つかう。「やることを みせる」せっていの ときは じゅんばんを かえない
+    plan = [cur[0], ko || cur[1 % cur.length], kn || cur[2 % cur.length], c.length ? c[0] : weakPick(p, review.length ? review : sk), cur[1 % cur.length]].slice(0, SET_SIZE);
+    if (!kc.preview) plan = shuffle(plan);
   }
   const seen = new Set();
   return plan.map((unit) => {
@@ -153,13 +155,22 @@ function speak(text) {
 }
 
 // ---- 動き・音・ふるえ ---------------------------------------------------------
-const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const osReduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let reduceMotion = osReduce; // スマホの「うごきを へらす」か、アプリの せっていの どちらかで おさえる
+const cfg = () => (kidId ? cfgOf(S, kidId) : DEFAULTS);
+const quiet = () => !!S.mute || (kidId ? cfgOf(S, kidId).quiet : false);
+function applyCfg() {
+  const c = cfg();
+  reduceMotion = osReduce || c.calm;
+  document.body.classList.toggle('calm', c.calm);
+  document.body.classList.toggle('big', c.big);
+}
 let lastTap = { x: innerWidth / 2, y: innerHeight / 2 };
-function vibrate(p) { try { if (!S.mute && navigator.vibrate) navigator.vibrate(p); } catch { /* 非対応 */ } }
+function vibrate(p) { try { if (!quiet() && navigator.vibrate) navigator.vibrate(p); } catch { /* 非対応 */ } }
 let actx;
 const SND = { ok: [[660, 0.09], [880, 0.16]], ng: [[260, 0.12], [200, 0.2]], win: [[523, 0.1], [659, 0.1], [784, 0.1], [1047, 0.3]] };
 function beep(name) {
-  if (S.mute) return;
+  if (quiet()) return;
   try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === 'suspended') actx.resume();
@@ -330,7 +341,7 @@ function siblingsCard() {
     ${rows.map((r) => `<div class="mate" style="--kid:${r.k.color}">
       <div class="mate-ava">${r.k.em}</div>
       <div class="mate-main"><b>${r.d.name}</b><small>${r.d.grade}ねん ・ ${r.d.rank}${r.k.id === kidId ? ' ・ じぶん' : ''}</small>
-        <div class="row"><span class="chip gold">⚽ ${r.d.goals}</span><span class="chip">📅 ${r.d.days}日</span>${r.sel.state === 'in' ? '<span class="chip red">🇯🇵 代表</span>' : '<span class="chip">🪑 ひかえ</span>'}</div>
+        <div class="row"><span class="chip gold">⚽ ${r.d.goals}</span><span class="chip">📅 ${r.d.days}日</span>${r.sel.state === 'in' ? '<span class="chip red">🇯🇵 代表</span>' : (cfg().soft ? '' : '<span class="chip">🪑 ひかえ</span>')}</div>
         ${r.remote && S.remote[r.k.id].t ? `<small class="muted">${ago(S.remote[r.k.id].t)}の きろく</small>` : ''}</div></div>`).join('')}
     ${rows.every((r) => r.sel.state === 'in') ? '<div class="banner-red"><b>🇯🇵🇯🇵 ふたりそろって 日本代表!</b><small>せいかいごとの ボーナスポイントが ふえてるよ</small></div>' : ''}
     <div style="margin-top:12px"><b>チームの ゴール ごうけい ⚽ ${total}</b>
@@ -346,9 +357,10 @@ let toTop = false;
 function render() {
   const k = kidId && kidOf();
   document.documentElement.style.setProperty('--kid', k ? k.color : '#2f7bff');
+  applyCfg();
   document.body.dataset.view = view;
   const needLock = view === 'kid' && kidId && S.kidPins[kidId] && !unlocked;
-  (needLock ? vLock : { setup: vSetup, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa, battle: () => { $app.innerHTML = battleView(); } }[view])();
+  (needLock ? vLock : { setup: vSetup, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa, battle: () => { $app.innerHTML = battleView(); }, preview: vPreview, rest: vRest }[view])();
   if (toTop) {
     window.scrollTo(0, 0); toTop = false;
     document.body.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => document.body.classList.remove('enter'), 900);
@@ -376,7 +388,7 @@ function topBar(k, p) {
   return `<header class="topbar"><div class="tb-ava-wrap">${ringSvg('tb-ring', r.pct / 100)}<div class="tb-ava">${k.em}</div></div>
     <div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
     <div class="tb-chips"><span class="chip gold">⚽ <b data-count="${p.goals}" data-key="goals">${p.goals}</b></span><span class="chip">XP <b data-count="${p.xp}" data-key="xp">${p.xp}</b></span></div>
-    <button class="gear" data-act="mute" aria-label="おと">${S.mute ? '🔇' : '🔊'}</button>
+    <button class="gear" data-act="mute" aria-label="おと">${quiet() ? '🔇' : '🔊'}</button>
     ${S.kidPins[k.id] || S.shared ? '<button class="gear" data-act="lock" aria-label="ロック">🔒</button>' : ''}<button class="gear" data-act="papa" aria-label="パパの へや">⚙</button></header>`;
 }
 function navBar() {
@@ -386,6 +398,7 @@ function navBar() {
 
 function repChip(k) {
   const sel = dataFor(k).sel;
+  if (cfg().soft && sel.state !== 'in') return ''; // 「できなかった」を みせない せってい
   return sel.state === 'in'
     ? `<div class="rep-chip in">🇯🇵 日本代表に えらばれてるよ${bothIn() ? '(ふたりそろって!)' : ''}</div>`
     : sel.state === 'close' ? '<div class="rep-chip">🇯🇵 あと 1日 れんしゅうで 日本代表!</div>'
@@ -397,8 +410,8 @@ function missionCard(k, p) {
   const set = new Set(dataFor(k).recent);
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return { ds: dstr(d), w: '日月火水木金土'[d.getDay()], today: i === 6 }; });
   return `<section class="mission"><div class="ring-box">${ringSvg('ring', done ? 1 : 0)}<span class="ring-ic">${done ? '✅' : '⚽'}</span></div>
-    <div class="ms-main"><b>きょうの ミッション</b><small>${done ? 'キックオフ クリア! ナイス!' : 'キックオフを 1かい やろう'}</small>
-      <div class="week">${days.map((x) => `<span class="wd ${set.has(x.ds) ? 'on' : ''} ${x.today ? 'today' : ''}"><i>${set.has(x.ds) ? '⚽' : ''}</i><small>${x.w}</small></span>`).join('')}</div></div></section>`;
+    <div class="ms-main"><b>きょうの ミッション</b><small>${cfg().plain ? (done ? 'きょうの もんだいは おわり' : 'もんだいを 1かい やろう') : (done ? 'キックオフ クリア! ナイス!' : 'キックオフを 1かい やろう')}</small>
+      ${cfg().soft ? '' : `<div class="week">${days.map((x) => `<span class="wd ${set.has(x.ds) ? 'on' : ''} ${x.today ? 'today' : ''}"><i>${set.has(x.ds) ? '⚽' : ''}</i><small>${x.w}</small></span>`).join('')}</div>`}</div></section>`;
 }
 
 function medalShelf(k, p) {
@@ -406,6 +419,27 @@ function medalShelf(k, p) {
   const n = BADGES.filter(have).length;
   return `<section class="panel"><h2 class="sec">MEDALS <small>メダル ${n}/${BADGES.length}</small></h2>
     <div class="medals">${BADGES.map((b) => `<div class="medal ${have(b) ? 'got' : ''}" title="${b.name}"><span>${have(b) ? b.icon : '🔒'}</span><small>${b.name}</small></div>`).join('')}</div></section>`;
+}
+
+// 「きょうの やること」リスト(みとおしが あると おちつく子の ため)
+function scheduleCard(k, p) {
+  const left = p.today.bonusTotal - p.today.bonusDone; const done = p.today.sets > 0;
+  const items = [[done, `${cfg().setSize}もんの もんだい`]];
+  if (p.today.bonusTotal > 0) items.push([left <= 0, 'ごほうび ステージ']);
+  items.push([null, 'ごほうび(ガチャ・メダル)は すきな ときで OK']);
+  const all = done && left <= 0;
+  return `<section class="panel"><h2 class="sec">TODAY <small>きょうの やること</small></h2>
+    <ol class="todo">${items.map(([d, t]) => `<li class="${d ? 'done' : ''}">${d === null ? '🎁' : d ? '✅' : '⬜'} ${t}</li>`).join('')}</ol>
+    <div class="muted">${all ? 'ぜんぶ おわり! きょうは おしまい。また あした。' : 'ぜんぶ おわったら、きょうは おしまい。'}</div></section>`;
+}
+
+// じぶんで かえられる せってい(おと・うごき・もじ)
+function selfCfgCard(k) {
+  const c = cfg();
+  const b = (key, label) => `<button class="tgl ${c[key] ? 'on' : ''}" data-act="cfgt" data-id="${k.id}" data-key="${key}">${c[key] ? '✅' : '⬜'} ${label}</button>`;
+  return `<section class="panel"><h2 class="sec">MY SETTINGS <small>じぶんに あう ように</small></h2>
+    <div class="muted">つかいやすい ように、いつでも かえて いいよ。</div>
+    ${b('quiet', '🔇 おと・ふるえを けす')}${b('calm', '🐢 うごき・ひかりを へらす')}${b('big', '🔠 おおきい もじ')}</section>`;
 }
 
 function homeTab(k, p) {
@@ -418,21 +452,25 @@ function homeTab(k, p) {
     <div class="welcome">${welcome}</div>
     ${loginCard(p)}
     <div class="tk-wrap" data-act="tab" data-tab="gacha">${ticketBar(p)}</div>
+    ${cfg().schedule ? scheduleCard(k, p) : ''}
     ${missionCard(k, p)}
     ${repChip(k)}
-    <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? 'もういっかい キックオフ!' : 'キックオフ!'}</b>
-      <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : '5もん ・ '}${cur.map((u) => u.name).join('、')}</span></button>
+    <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? T(cfg()).again : T(cfg()).start}</b>
+      <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : `${cfg().setSize}もん ・ `}${cur.map((u) => u.name).join('、')}</span></button>
     ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}
-    ${medalShelf(k, p)}`;
+    ${medalShelf(k, p)}
+    ${selfCfgCard(k)}`;
 }
 
 function repCard(k, p) {
   const d = dataFor(k); const sel = d.sel; const need = needDays();
   const set = new Set(d.recent);
-  const dots = Array.from({ length: WINDOW }, (_, i) => { const day = new Date(); day.setDate(day.getDate() - (WINDOW - 1 - i)); return set.has(dstr(day)) ? '🟢' : '⚪'; }).join(' ');
+  const soft = cfg().soft;
+  const dots = Array.from({ length: WINDOW }, (_, i) => { const day = new Date(); day.setDate(day.getDate() - (WINDOW - 1 - i)); return set.has(dstr(day)) ? '🟢' : (soft ? '' : '⚪'); }).filter(Boolean).join(' ');
   const left = p.today.bonusTotal - p.today.bonusDone;
   let msg;
-  if (sel.state === 'in') msg = `🇯🇵 <b>日本代表に えらばれてるよ!</b>${sel.called && sel.n < need ? '(追加招集)' : ''}<br><span class="muted">${bothIn() ? '🇯🇵🇯🇵 ふたりそろって 日本代表! ボーナスポイントが ふえてるよ' : 'もうひとりも えらばれると、ボーナスが もっと ふえるよ'}</span>`;
+  if (soft && sel.state !== 'in') msg = 'いつでも 日本代表に もどれるよ。ゆっくりで だいじょうぶ。';
+  else if (sel.state === 'in') msg = `🇯🇵 <b>日本代表に えらばれてるよ!</b>${sel.called && sel.n < need ? '(追加招集)' : ''}<br><span class="muted">${bothIn() ? '🇯🇵🇯🇵 ふたりそろって 日本代表! ボーナスポイントが ふえてるよ' : 'もうひとりも えらばれると、ボーナスが もっと ふえるよ'}</span>`;
   else if (sel.state === 'close') msg = '<b>あと 1日!</b> れんしゅうすると 日本代表に えらばれるよ';
   else msg = `いまは 🪑 ひかえメンバー。だいじょうぶ、すぐ もどれるよ!<br><span class="muted">${left > 0 ? '🌟 かくれステージを 1つ クリアすると、すぐ 追加招集されるよ' : `あと ${need - sel.n}日 れんしゅうすると 日本代表に えらばれるよ`}</span>`;
   return `<section class="panel rep"><h2 class="sec">JAPAN <small>日本代表 せんしゅつ</small></h2>
@@ -486,13 +524,16 @@ function timeMachineCard(k, p) {
 
 function vQuiz() {
   const k = kidOf(); const it = Q.items[Q.i]; const q = it.q;
+  const tx = T(cfg());
+  const remain = Q.i === Q.items.length - 1 ? 'これが さいごの 1もん' : `あと ${Q.items.length - Q.i - 1}もん`;
   const pct = Math.round((Q.i / Q.items.length) * 82);
   const a = Q.answered;
   const locked = !a && Date.now() < Q.lockUntil;
   $app.innerHTML = `
-    <div class="quiz-top"><button class="link" data-act="quit">✕ やめる</button>
+    <div class="quiz-top"><button class="link" data-act="quit">🛋️ やすむ</button>
       <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${Q.i + 1}<small>/${Q.items.length}</small></span>
-        <span class="sb-r">${Q.mode === 'bonus' ? '🌟 かくれ' : Q.mode === 'back' ? '⏪ タイム' : it.retry ? '🔁 もういちど' : '🏟️ しあい'}</span></div><span class="clock"></span></div>
+        <span class="sb-r">${tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : 'normal']}</span></div><span class="clock"></span></div>
+    <div class="remain">${remain}</div>
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>
     <div class="dots">${Q.items.map((x, i) => `<i class="${x.res || ''} ${i === Q.i ? 'cur' : ''}"></i>`).join('')}</div>
     <main><section class="panel qpanel">
@@ -519,26 +560,28 @@ function vQuiz() {
       const b = document.getElementById('nextbtn');
       if (!b || !Q || Q.i !== i0) return;
       b.disabled = false; b.textContent = Q.i === Q.items.length - 1 ? '🏁 けっかを みる' : 'つぎへ ▶';
-    }, 4000);
+    }, Math.max(1, waitWrongMs(cfg())));
   }
 }
 
 function feedback(q, a) {
+  const tx = T(cfg()); const wait = waitWrongMs(cfg());
   const last = Q.i === Q.items.length - 1;
   const next = `<button class="btn gold" data-act="next">${last ? '🏁 けっかを みる' : 'つぎへ ▶'}</button>`;
   if (a.ok) {
-    return `<div class="fb good"><b>⚽ ゴール!! ${Q.combo >= 3 ? `🔥 ${Q.combo}れんぞく!` : ''}</b>
+    return `<div class="fb good"><b>${tx.ok} ${Q.combo >= 3 ? tx.combo(Q.combo) : ''}</b>
       <p>+${a.xp} ポイント${a.rep ? `(🇯🇵 代表ボーナス +${a.rep} こみ)` : ''}</p><p class="muted">${q.why}</p></div>${next}`;
   }
   const [name, msg] = TAGS[a.tag] || TAGS.unknown;
   const picked = a.idx != null ? q.choices[a.idx] : null;
-  return `<div class="fb"><b>🧤 おしい! キーパーに とめられた</b>
+  return `<div class="fb"><b>${tx.ng}</b>
     <p><span class="tag">げんいん</span><b>${name}</b></p>
     ${picked && picked.note ? `<p>👉 えらんだ「${picked.label}」は… ${picked.note}</p>` : `<p>${msg}</p>`}
     <p><b>せいかいは:</b> ${q.choices.find((c) => c.ok).label}</p><p class="muted">${q.why}</p>
-    <p>${Q.items[Q.i].retry ? '👨 ここは パパと いっしょに みよう! 「パパに きく」を おしてね。' : '👉 つぎに、かずを かえて もういちど ためすよ。おぼえた こたえは つかえないよ 😉'}</p></div>
+    <p>${Q.items[Q.i].retry ? tx.retryNow : tx.retryNote}</p>
+    <p class="muted">ちょうせん ポイント +${a.effort || 0}(まちがえても、ポイントは かならず つくよ)</p></div>
     <div class="row"><button class="btn small gray" data-act="ask">👨 パパに きく</button></div>
-    <button class="btn gold" id="nextbtn" data-act="next" disabled>📖 せつめいを よんでね…</button>`;
+    <button class="btn gold" id="nextbtn" data-act="next" ${wait ? 'disabled' : ''}>${wait ? '📖 せつめいを よんでね…' : (last ? '🏁 けっかを みる' : 'つぎへ ▶')}</button>`;
 }
 
 const TK_NAME = { bronze: '🥉ブロンズ', silver: '🥈シルバー', gold: '🥇ゴールド', platinum: '💎プラチナ' };
@@ -554,6 +597,8 @@ function rewardPanel(R) {
 
 function vResult() {
   const k = kidOf(); const p = S.kids[k.id]; const R = Q.result;
+  const tx = T(cfg());
+  const stars = Math.max(1, R.good / R.total >= 1 ? 3 : R.good / R.total >= 0.6 ? 2 : R.good / R.total >= 0.3 ? 1 : 0); // さいごまで やったら 星は 1つ いじょう
   const call = R.callup ? '<section class="panel rep"><div class="big">🇯🇵</div><h2 class="center">日本代表に えらばれたよ!</h2></section>' : '';
   const ranked = R.rankUp ? `<section class="panel gold"><div class="big">🎉</div><h2 class="center">ランクアップ!<br>${R.rankName}</h2></section>` : '';
   const weak = R.tags.length ? `<section class="panel"><h2 class="sec">NEXT <small>つぎは ここを ねらおう</small></h2>${R.tags.map((t) => `<p><span class="tag">${TAGS[t][0]}</span><br><span class="muted">${TAGS[t][1]}</span></p>`).join('')}</section>` : '<section class="panel"><b>ノーミス! パーフェクトゲーム ✨</b></section>';
@@ -561,14 +606,41 @@ function vResult() {
   const found = lower.length ? `<section class="panel tm"><h2 class="sec">TIME MACHINE <small>むかしの ぬけてた ところ みつけた!</small></h2>
     <p class="muted">だれでも あるよ。ここを なおせば つぎの たんげんも ぐんと かんたんになるよ。</p>
     ${lower.map((u) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${u.grade}ねん:${u.name} を れんしゅう</button>`).join('')}</section>` : '';
-  $app.innerHTML = `<div class="hero small"><h1>${R.good >= 4 ? '🏆 ナイスゲーム!' : '👏 おつかれさま!'}</h1></div>
-    <main><section class="panel score"><div class="stars">${[1, 2, 3].map((n) => `<span class="star ${n <= (R.good / R.total >= 1 ? 3 : R.good / R.total >= 0.6 ? 2 : R.good / R.total >= 0.3 ? 1 : 0) ? 'on' : ''}" style="animation-delay:${0.3 + n * 0.25}s">★</span>`).join('')}</div>
-      <div class="big">⚽ × <b data-count="${R.good}" data-key="score">${R.good}</b></div>
-      <p class="center">${R.total}もん中 ${R.good}ゴール ・ +${R.xp}ポイント ${R.hat ? '・🎩 ハットトリック!' : ''}</p></section>
+  $app.innerHTML = `<div class="hero small"><h1>${R.good >= 4 ? tx.resultHigh : tx.resultLow}</h1></div>
+    <main><section class="panel score"><div class="stars">${[1, 2, 3].map((n) => `<span class="star ${n <= stars ? 'on' : ''}" style="animation-delay:${0.3 + n * 0.25}s">★</span>`).join('')}</div>
+      <div class="big">${cfg().plain ? '✅' : '⚽'} × <b data-count="${R.good}" data-key="score">${R.good}</b></div>
+      <p class="center">${tx.score(R)}</p></section>
     ${rewardPanel(R)}
     ${R.newBadges.map((b) => `<section class="panel gold medal-new"><div class="big">${b.icon}</div><h2 class="center">NEW MEDAL!<br>${b.name}</h2></section>`).join('')}
     ${call}${ranked}${found}${weak}
+    ${cfg().breakAfter ? '<section class="panel"><h2 class="sec">REST <small>きゅうけい</small></h2><div class="muted">がんばったね。1ぷん やすもう(みずを のむ・のびを する)。つづけても、おわっても いいよ。</div><button class="btn gray" data-act="rest">🍃 1ぷん やすむ</button></section>' : ''}
+    <p class="muted center">これで ひとつ おわり。ホームに もどれるよ。</p>
     <button class="btn gold" data-act="kid">ホームに もどる</button></main>`;
+}
+
+const CFG_LABEL = {
+  calm: '🐢 うごき・ひかり・紙ふぶきを へらす', quiet: '🔇 おと・ふるえを けす', plain: '💬 たとえを つかわない(そのままの ことば)',
+  preview: '📋 はじめる まえに「やること」を みせる(じゅんばんも おなじ)', soft: '🌱 「できなかった」を みせない(ひかえ・からの まるを かくす)',
+  schedule: '🗓️ 「きょうの やること」リストを ホームに だす', breakAfter: '🍃 1セットごとに きゅうけいを すすめる', big: '🔠 おおきい もじ',
+};
+const LOCK_LABEL = { normal: 'ふつう(1.5〜3.5びょう)', short: 'みじかい(0.6〜1.5びょう)', off: 'なし' };
+const WAIT_LABEL = { normal: 'ふつう(4びょう)', short: 'みじかい(2びょう)', off: 'なし' };
+function cfgCard() {
+  const sel = (id, key, opts, label) => `<label class="cfgrow"><span>${label}</span><select data-act="cfgs" data-id="${id}" data-key="${key}">${opts.map(([v, t]) => `<option value="${v}" ${String(cfgOf(S, id)[key]) === String(v) ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+  return `<div class="card"><h2>🧩 やさしい せってい</h2>
+    <p class="muted">お子さんに あわせて えらべる「はいりょ」です。<b>診断や治療ではありません。</b>どれが あうかは 子どもごとに ちがうので、1つずつ ためして、あうものを のこしてください(学校・かかりつけ・支援機関の アドバイスが あれば、そちらを ゆうせん)。</p>
+    ${KIDS.map((k) => {
+    const c = cfgOf(S, k.id);
+    return `<div class="cfgbox"><b>${k.name}</b>
+      <div class="row">${Object.entries(PRESETS).map(([key, pr]) => `<button class="btn small gray" data-act="cfgp" data-id="${k.id}" data-p="${key}">${pr.name}</button>`).join('')}</div>
+      ${sel(k.id, 'setSize', OPTIONS.setSize.map((v) => [v, `${v}もん`]), '1セットの もんだい数')}
+      ${sel(k.id, 'lock', OPTIONS.lock.map((v) => [v, LOCK_LABEL[v]]), '「よく よんでね」の まち')}
+      ${sel(k.id, 'waitWrong', OPTIONS.waitWrong.map((v) => [v, WAIT_LABEL[v]]), 'まちがえた あとの まち')}
+      ${sel(k.id, 'gachaMax', OPTIONS.gachaMax.map((v) => [v, v === 0 ? 'せいげんなし' : `${v}かいまで`]), 'ガチャ 1日の かいすう')}
+      ${BOOLS.map((key) => `<button class="tgl ${c[key] ? 'on' : ''}" data-act="cfgt" data-id="${k.id}" data-key="${key}">${c[key] ? '✅' : '⬜'} ${CFG_LABEL[key]}</button>`).join('')}
+    </div>`;
+  }).join('')}
+    <p class="muted">※ ガチャは「いつ あたるか わからない」ので、しょうどう(おさえにくい きもち)が つよい子は ひきすぎる ことが あります。1日の かいすうの じょうげんを おすすめします。</p></div>`;
 }
 
 function vPapa() {
@@ -615,7 +687,7 @@ function vPapa() {
   const ownerCard = `<div class="card"><h2>📱 この スマホの もちぬし</h2>
     <p>いまは「<b>${S.bound ? KIDS.find((k) => k.id === S.bound).name : 'きまっていません'}</b>」の スマホです。ほかの子の もんだいは ひらけません。</p>
     ${KIDS.filter((k) => k.id !== S.bound).map((k) => `<button class="btn small gray" data-act="rebind" data-id="${k.id}">${k.name}の スマホに かえる</button>`).join('')}</div>`;
-  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${pinCard}${ownerCard}${repAdmin}${syncCard}${tagRows}
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${pinCard}${cfgCard()}${ownerCard}${repAdmin}${syncCard}${tagRows}
     <p class="muted">学校の すすみ具合が ちがう ときは、「いまの たんげん」を えらんでね。</p></main>`;
 }
 
@@ -634,14 +706,49 @@ function askPin(msg) {
 }
 
 // ---- 動作 -----------------------------------------------------------------
-// 問題が出てから、よく読む時間(はんしゃで おさせない)
-const lockMs = (q) => Math.min(3500, Math.max(1500, q.text.length * 120));
+// 問題が出てから、よく読む時間(はんしゃで おさせない。せっていで みじかく・なしに できる)
+const lockMs = (q) => lockMsFor(q.text.length, cfg());
 function startQuiz(mode, unitId) {
   const k = kidOf();
   setSeen(S.kids[k.id].seen || []);
   Q = { mode, items: buildSet(k, mode, unitId), i: 0, good: 0, xp: 0, combo: 0, hat: false, answered: null, retries: 0, lockUntil: 0, pts: {}, missTags: {}, startXp: S.kids[k.id].xp };
+  if (cfg().preview) { view = 'preview'; toTop = true; render(); return; } // はじめる まえに「やること」を みせる
+  beginQuiz();
+}
+function beginQuiz() {
   Q.lockUntil = Date.now() + lockMs(Q.items[0].q);
-  view = 'quiz'; render();
+  view = 'quiz'; toTop = true; render();
+}
+function vPreview() {
+  const n = Q.items.length; const plan = planPreview(Q.items);
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="previewback">← もどる</button><span class="mode">これから やること</span><span></span></div>
+    <main><section class="panel"><h2 class="sec">PLAN <small>じゅんばん</small></h2>
+      <ol class="steps">${plan.map((x) => `<li><b>${x.label}</b><span>${x.n}もん</span></li>`).join('')}</ol>
+      <div class="muted">ぜんぶで ${n}もん。だいたい ${estimateMinutes(n)}ふん。じかんの せいげんは ないよ。<br>
+      まちがえたら、おなじ ところの もんだいが 1もん ふえる ことが あるよ(1セットで さいだい 3もん)。<br>
+      おわったら けっかが でて、ホームに もどれるよ。とちゅうで やすんでも だいじょうぶ(ポイントは のこるよ)。</div>
+      <button class="btn gold" data-act="begin">はじめる</button></section></main>`;
+}
+
+// きゅうけい(1ぷん)。かすかに ふくらむ まるを みながら、ゆっくり いきを する
+let restUntil = 0; let restTimer = null;
+function startRest() { restUntil = Date.now() + 60000; view = 'rest'; toTop = true; render(); tickRest(); }
+function tickRest() {
+  clearTimeout(restTimer);
+  if (view !== 'rest') return;
+  const left = Math.max(0, Math.ceil((restUntil - Date.now()) / 1000));
+  const el = document.getElementById('restleft');
+  if (left <= 0) { render(); toast('きゅうけい おわり。つづけても、おわっても いいよ'); return; }
+  if (el) el.textContent = `${left} びょう`;
+  restTimer = setTimeout(tickRest, 1000);
+}
+function vRest() {
+  const left = Math.max(0, Math.ceil((restUntil - Date.now()) / 1000));
+  $app.innerHTML = `<div class="hero"><h1>きゅうけい</h1><p class="sub">みずを のんだり、のびを したり しよう。</p></div>
+    <main><section class="panel rest"><div class="breath"></div>
+      <div class="big" id="restleft">${left > 0 ? `${left} びょう` : 'おしまい'}</div>
+      <div class="muted center">${left > 0 ? 'ゆっくり いきを すって、はいて。' : 'もう いいよ。つづけても、おわっても だいじょうぶ。'}</div>
+      <button class="btn gold" data-act="restend">${left > 0 ? 'もう もどる' : 'ホームに もどる'}</button></section></main>`;
 }
 
 function answer(idx, unknown) {
@@ -673,7 +780,7 @@ function answer(idx, unknown) {
       let nq; for (let t = 0; t < 8; t++) { nq = makeQuestion(it.unit); if (nq.text !== q.text) break; }
       Q.items.splice(Q.i + 1, 0, { unit: it.unit, q: nq, retry: true });
     }
-    Q.answered = { ok, idx, tag }; it.res = 'ng';
+    Q.xp += 2; Q.answered = { ok, idx, tag, effort: 2 }; it.res = 'ng'; // ちょうせん ポイント(まちがえても ゼロに しない)
     beep('ng'); vibrate([40, 40, 40]);
   }
   save(); render();
@@ -760,13 +867,24 @@ document.addEventListener('click', (e) => {
     if (S.shared) { kidId = null; unlocked = false; } else { kidId = S.bound || null; unlocked = false; }
     toast(S.shared ? '2人で つかう モードに したよ' : '1人ずつの スマホに もどしたよ');
   }
-  else if (a === 'mute') { S.mute = !S.mute; save(); if (!S.mute) beep('ok'); }
+  else if (a === 'mute') { const was = quiet(); S.mute = false; setCfg(S, kidId, { quiet: !was }); save(); if (!quiet()) beep('ok'); }
+  else if (a === 'begin') return beginQuiz();
+  else if (a === 'previewback') { Q = null; view = 'kid'; toTop = true; }
+  else if (a === 'rest') return startRest();
+  else if (a === 'restend') { clearTimeout(restTimer); view = 'kid'; tab = 'home'; toTop = true; }
+  else if (a === 'cfgt') { const id = el.dataset.id; setCfg(S, id, { [el.dataset.key]: !cfgOf(S, id)[el.dataset.key] }); save(); }
+  else if (a === 'cfgp') { applyPreset(S, el.dataset.id, el.dataset.p); save(); toast('せっていを かえたよ'); }
   else if (a === 'setpin') { if (!askPin()) return; }
   else if (a === 'tab') { tab = el.dataset.tab; view = 'kid'; toTop = true; }
   else if (a === 'home' || a === 'kid') { view = kidId ? 'kid' : 'setup'; tab = 'home'; toTop = true; if (a === 'home') syncNow(); }
   else if (a === 'papa') { if (!askPin()) return; view = 'papa'; toTop = true; }
   else if (a === 'start') { toTop = true; return startQuiz(el.dataset.mode, el.dataset.unit); }
-  else if (a === 'quit') { if (!confirm('ここで やめる?(とちゅうまでの ポイントは きえるよ)')) return; view = 'kid'; }
+  else if (a === 'quit') {
+    if (!confirm('ここで ひとやすみ する?(ここまでの ポイントは とっておくよ)')) return;
+    const pq = S.kids[kidId];
+    if (Q && Q.xp) { pq.xp += Q.xp; Q.xp = 0; save(); toast('ここまでの ポイントは とっておいたよ'); }
+    view = 'kid'; toTop = true;
+  }
   else if (a === 'ans') return answer(Number(el.dataset.idx));
   else if (a === 'idk') return answer(null, true);
   else if (a === 'ask') return askPapa();
@@ -797,14 +915,18 @@ document.addEventListener('pointermove', (e) => {
 document.addEventListener('pointerup', () => document.querySelectorAll('.pcard').forEach((c) => { c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg'); }));
 
 document.addEventListener('change', (e) => {
-  const el = e.target.closest('[data-act="override"],[data-act="need"]'); if (!el) return;
+  const el = e.target.closest('[data-act="override"],[data-act="need"],[data-act="cfgs"]'); if (!el) return;
+  if (el.dataset.act === 'cfgs') {
+    const key = el.dataset.key; const numeric = key === 'setSize' || key === 'gachaMax';
+    setCfg(S, el.dataset.id, { [key]: numeric ? Number(el.value) : el.value }); save(); toast('せっていを かえたよ'); return render();
+  }
   if (el.dataset.act === 'need') { S.need = Number(el.value); save(); toast('日数を かえたよ'); return render(); }
   if (el.value) S.override[el.dataset.id] = el.value; else delete S.override[el.dataset.id];
   save(); toast('たんげんを かえたよ');
 });
 
 gameInit({
-  KIDS, kid: () => kidOf(), p: () => S.kids[kidId], render: () => render(), toast, save, today: todayStr, BADGES,
+  KIDS, kid: () => kidOf(), p: () => S.kids[kidId], cfg: () => cfg(), render: () => render(), toast, save, today: todayStr, BADGES,
   haveBadge: (b) => (S.kids[kidId].badges || []).includes(b.id) || b.cond(S.kids[kidId], kidOf()),
   dataFor, matesHtml: () => repCard(kidOf(), S.kids[kidId]) + siblingsCard(),
   setView: (v) => { view = v; toTop = true; },
