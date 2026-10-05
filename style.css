@@ -258,3 +258,121 @@ body.enter .kid-select:nth-of-type(2){animation-delay:.1s}
 .tb-name{min-width:0}.tb-name small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gear{padding:6px 4px}
 @media(max-width:420px){.tb-chips .chip:nth-child(2){display:none}}
+
+/* ================= ガチャ・選手カード・たいせん ================= */
+:root{--r-common:#9aa7bd;--r-uncommon:#2fd18a;--r-rare:#3b9bff;--r-super:#b66bff;--r-legend:#ffc93c;--r-kid:#27d8ff}
+
+/* チケット */
+.tickets{display:flex;gap:8px;margin:6px 0 10px}
+.tk{flex:1;text-align:center;padding:8px 2px;background:#0a1230;border:1px solid var(--line);opacity:.6;
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.tk b{display:block;font-size:20px;font-style:italic}.tk small{display:block;font-size:10px;color:var(--mute)}
+.tk.has{opacity:1;border-color:var(--gold);background:linear-gradient(160deg,#3a2c08,#1a1404)}
+.tk-wrap{cursor:pointer;margin:6px 0}
+.event-btn.login{background:linear-gradient(100deg,#27d8ff,#2f7bff 60%,#7ae7ff);color:#041438;box-shadow:0 5px 0 #0d2a78}
+
+/* 選手カード */
+.rcard{position:relative;padding:8px 8px 6px;text-align:center;color:#fff;border:2px solid var(--rc,#445);min-width:0;
+  background:linear-gradient(160deg,var(--rg1,#2a3558),var(--rg2,#141b33));
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+.r-common{--rc:var(--r-common);--rg1:#4b566e;--rg2:#222a3e}
+.r-uncommon{--rc:var(--r-uncommon);--rg1:#1c6b4a;--rg2:#0d2a22}
+.r-rare{--rc:var(--r-rare);--rg1:#1c4f9a;--rg2:#0d1f44}
+.r-super{--rc:var(--r-super);--rg1:#5b2a9a;--rg2:#1f0f40}
+.r-legend{--rc:var(--r-legend);--rg1:#a8760a;--rg2:#3a2300}
+.r-kid{--rc:var(--r-kid);--rg1:#106a8c;--rg2:#08243a}
+.rc-top{display:flex;justify-content:space-between;align-items:baseline}
+.rc-ovr{font-size:22px;font-style:italic;text-shadow:0 2px 0 rgba(0,0,0,.4)}.rc-top small{font-weight:900;font-size:11px;opacity:.9}
+.rc-face{font-size:44px;line-height:1.1;margin:2px 0}
+.rc-name{font-size:12px;font-weight:900;line-height:1.25;min-height:30px}
+.rc-rar{font-size:10px;font-weight:800;color:var(--rc);letter-spacing:.04em}
+.rc-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:4px;font-size:10px;font-weight:900}
+.rc-stats i{display:block;font-style:normal;font-size:8px;opacity:.7}
+.rc-copies{position:absolute;right:6px;bottom:4px;font-weight:900;color:var(--gold)}
+.rcard.mini{width:64px;flex:none;padding:4px}.rcard.mini .rc-face{font-size:26px}.rcard.mini .rc-name{display:none}.rcard.mini .rc-ovr{font-size:15px}
+.r-legend.rcard{box-shadow:0 0 18px rgba(255,201,60,.55)}.r-super.rcard{box-shadow:0 0 14px rgba(182,107,255,.45)}
+
+/* ガチャ */
+.pull-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pull-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.04);border-left:4px solid var(--gold)}
+.pull-row>div{flex:1}.pull-row small{display:block;color:var(--mute);font-size:11px}
+.pull-row .btn.small{margin:0}
+.rate-table{font-size:13px;margin:6px 0}
+.rt-h,.rt-r{display:grid;grid-template-columns:1.6fr repeat(4,1fr);gap:4px;padding:5px 2px;border-bottom:1px solid rgba(255,255,255,.06)}
+.rt-r span:first-child{font-weight:900;color:var(--rc)}.rt-h span,.rt-r span{text-align:right}.rt-r span:first-child{text-align:left}
+.gacha-stage{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;
+  background:radial-gradient(circle at 50% 40%,var(--rg1,#1b2f6b),#04060f 75%);animation:fadeUp .3s both;overflow:auto}
+.gacha-stage.reveal{background:radial-gradient(circle at 50% 35%,var(--rc),var(--rg1) 30%,#04060f 80%)}
+.gs-text{font-weight:900;letter-spacing:.1em;color:var(--cyan)}
+.capsule{font-size:110px;animation:capsuleShake .5s ease-in-out infinite;filter:drop-shadow(0 0 22px #27d8ff)}
+@keyframes capsuleShake{0%,100%{transform:rotate(0) scale(1)}25%{transform:rotate(-14deg) scale(1.06)}75%{transform:rotate(14deg) scale(1.06)}}
+.gs-rar{font-size:30px;font-weight:900;font-style:italic;color:#fff;text-shadow:0 0 18px var(--rc);animation:popIn .6s both}
+.gs-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:460px}
+.gs-cards.one{grid-template-columns:1fr;max-width:230px}
+.gs-card{position:relative;animation:popIn .55s both}.gs-cards.one .rc-face{font-size:80px}.gs-cards.one .rc-name{font-size:17px}
+.gs-card em{position:absolute;top:-8px;right:-4px;font-style:normal;font-size:11px;font-weight:900;padding:2px 8px;background:var(--red);color:#fff;transform:rotate(8deg)}
+.gs-card em.dup{background:#26376b}
+.gacha-stage .btn{max-width:320px}
+
+/* サブナビ・へんせい */
+.subnav{display:flex;gap:6px;margin:10px 0 4px;overflow-x:auto;padding-bottom:4px}
+.subnav button{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:68px;padding:8px 10px;font:inherit;font-size:11px;font-weight:900;color:var(--mute);cursor:pointer;
+  background:#0a1230;border:1px solid var(--line);clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.subnav button span{font-size:18px}.subnav button.on{color:var(--gold);border-color:var(--gold);background:linear-gradient(160deg,#3a2c08,#1a1404)}
+.power{display:flex;gap:14px;align-items:baseline;font-weight:900;margin:4px 0 10px}.power b{margin-left:auto;font-size:20px;color:var(--gold);font-style:italic}
+.formation{display:flex;flex-direction:column;gap:8px;padding:12px 6px;background:repeating-linear-gradient(0deg,rgba(25,214,138,.14) 0 44px,rgba(25,214,138,.06) 44px 88px);border:2px solid rgba(255,255,255,.25)}
+.frow{display:flex;justify-content:center;gap:10px}
+.slot{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;width:104px;position:relative}
+.slot>small{position:absolute;top:-8px;left:4px;z-index:2;background:#000;color:var(--cyan);font-weight:900;font-size:10px;padding:0 6px}
+.slot.sel .rcard{box-shadow:0 0 0 3px var(--gold),0 0 18px var(--gold)}
+.picker{margin-top:12px;border-top:1px dashed var(--line);padding-top:8px;max-height:340px;overflow:auto}
+.picker h3{margin:4px 0 8px;font-size:14px;color:var(--cyan)}
+.opt{display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.04);border:1px solid transparent;padding:6px;margin:4px 0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.opt.cur{border-color:var(--gold)}.opt-info b{display:block;font-size:14px}.opt-info small{color:var(--mute)}
+.buffnow{margin:6px 0;font-weight:800;color:var(--gold)}
+.equip-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.eq{display:flex;flex-direction:column;align-items:center;padding:8px 4px;font:inherit;color:var(--text);cursor:pointer;background:#0a1230;border:1px solid var(--line);gap:2px}
+.eq span{font-size:24px}.eq b{font-size:12px}.eq small{font-size:10px;color:var(--mute)}
+.eq.on{border-color:var(--gold);background:linear-gradient(160deg,#3a2c08,#1a1404)}.eq.on small{color:var(--gold)}
+
+/* ずかん */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+.chipb{padding:5px 10px;font:inherit;font-size:11px;font-weight:900;color:var(--text);cursor:pointer;background:#0a1230;border:1px solid var(--line)}
+.chipb.on{border-color:var(--rc,var(--gold));color:var(--rc,var(--gold))}
+.dex-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.dx{position:relative;text-align:center;padding:8px 2px;font:inherit;color:var(--text);background:#0a1230;border:2px solid #1c2850;opacity:.7;min-width:0}
+.dx span{display:block;font-size:30px;filter:grayscale(1) brightness(.5)}.dx small{display:block;font-size:9px;line-height:1.2;color:var(--mute);margin-top:2px}
+.dx.got{opacity:1;border-color:var(--rc);cursor:pointer;background:linear-gradient(160deg,var(--rg1),var(--rg2))}
+.dx.got span{filter:none}.dx.got small{color:#fff}.dx em{position:absolute;right:3px;top:1px;font-style:normal;font-size:10px;font-weight:900;color:var(--gold)}
+.dex-detail{display:flex;gap:12px;align-items:center;margin:8px 0}.dex-detail .rcard{width:150px;flex:none}
+
+/* つよくなる */
+.kidcard{display:flex;justify-content:center;margin:10px 0}.kidcard .rcard{width:120px}
+.stat-row{display:grid;grid-template-columns:78px 1fr 46px auto;gap:6px 8px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.06)}
+.sr-name b{display:block;font-size:14px}.sr-name small{font-size:10px;color:var(--mute)}
+.sr-bar{position:relative;height:12px;background:#0a1230;border:1px solid var(--line)}.sr-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--gold))}
+.sr-bar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--red)}
+.sr-val{text-align:right}.sr-val b{font-size:18px;font-style:italic}.sr-val small{display:block;font-size:10px;color:var(--mute)}
+.stat-row .btn.small{margin:0;padding:8px 10px}.sr-pts{grid-column:2/5;font-size:11px;color:var(--gold);font-weight:800;margin-top:-4px}
+.reward-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+
+/* たいせん */
+.cpu-list .btn.gray small{display:block;font-weight:600;color:var(--mute);font-size:11px}
+.vs{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px}.vs>b{font-size:20px;font-style:italic;color:var(--gold)}
+.bteam{display:flex;flex-wrap:wrap;max-width:132px;gap:2px;font-size:22px;justify-content:center}.bteam small{width:100%;text-align:center;font-size:11px;color:var(--mute);font-weight:800}
+.blog{min-height:140px;display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.bl{display:flex;gap:8px;align-items:center;padding:8px 10px;font-size:14px;font-weight:700;background:rgba(255,255,255,.05);border-left:4px solid var(--blue)}
+.bl.op{border-left-color:var(--red)}.bl.goal{background:linear-gradient(90deg,#0d3a2c,transparent)}.bl.goal.op{background:linear-gradient(90deg,#4a1220,transparent)}
+.bl.new{animation:fadeUp .4s both}
+.bresult{text-align:center;padding:10px;margin:10px 0;background:#16224a;border:1px solid var(--line)}.bresult b{font-size:34px;font-style:italic;color:var(--gold)}
+.bresult.win{background:linear-gradient(160deg,#4a3700,#241a00)}.bresult.lose b{color:var(--mute)}
+.bresult p{margin:4px 0}
+@media (prefers-reduced-motion:reduce){.capsule{animation:none}}
+
+/* 微調整: タブを画面にぴったり / へんせいを コンパクト / たいせんの スコア */
+.subnav{overflow:visible;gap:4px}
+.subnav button{flex:1;min-width:0;padding:8px 2px;font-size:10px}
+.slot{width:92px}.frow{gap:8px}.formation{padding:10px 4px;gap:6px}
+.slot .rc-face{font-size:34px}.slot .rc-name{font-size:11px;min-height:26px}
+.scoreboard{max-width:100%}.sb-l,.sb-r{min-width:0;font-size:12px}.sb-l b,.sb-r b{font-size:20px;font-style:italic}
+.sb-r{color:var(--text);background:linear-gradient(270deg,#0f2a5a,#0a1230)}

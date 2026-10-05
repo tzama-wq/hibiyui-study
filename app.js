@@ -1,4 +1,6 @@
 import * as sync from './sync.js';
+import { addPoints, SUBJECT_STAT } from './game.js';
+import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, shuffle, registerKokugo, registerKnowledge, setSeen } from './gen.js';
 
 // ---- 設定 -----------------------------------------------------------------
@@ -21,6 +23,7 @@ let S;
 try { S = JSON.parse(localStorage.getItem(KEY)) || init(); } catch { S = init(); }
 for (const k of KIDS) S.kids[k.id] = { ...newKid(), ...S.kids[k.id] };
 S.override = S.override || {};
+for (const k of KIDS) ensureGame(S.kids[k.id]);
 // このスマホの持ち主(ひびと/ゆいと)。リンクで指定された場合は、まだ決まっていなければ それに する
 if (!S.bound && sync.hashKid && KIDS.some((k) => k.id === sync.hashKid)) S.bound = sync.hashKid;
 if (S.bound && !KIDS.some((k) => k.id === S.bound)) S.bound = null;
@@ -227,7 +230,7 @@ function animateCounts() {
 const ringSvg = (cls, pct) => `<svg class="${cls}" viewBox="0 0 44 44"><circle class="rg-bg" cx="22" cy="22" r="18"/><circle class="rg-fg" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="113.1" data-ring="${pct}"/></svg>`;
 
 // ---- きょうだい共有 ---------------------------------------------------------
-const summary = (k) => { const p = S.kids[k.id]; return { name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null }; };
+const summary = (k) => { const p = S.kids[k.id]; return { name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null, team: summaryTeam(k, p) }; };
 // ---- メダル(実績) -------------------------------------------------------------
 const masterCount = (p, k, sj) => skillsUpTo(k.grade).filter((u) => u.subject === sj && ['ok', 'sprout'].includes(status(p, u.id)) && (p.units[u.id] || {}).ok >= 3).length;
 const BADGES = [
@@ -345,7 +348,7 @@ function render() {
   document.documentElement.style.setProperty('--kid', k ? k.color : '#2f7bff');
   document.body.dataset.view = view;
   const needLock = view === 'kid' && kidId && S.kidPins[kidId] && !unlocked;
-  (needLock ? vLock : { setup: vSetup, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa }[view])();
+  (needLock ? vLock : { setup: vSetup, kid: vKid, quiz: vQuiz, result: vResult, papa: vPapa, battle: () => { $app.innerHTML = battleView(); } }[view])();
   if (toTop) {
     window.scrollTo(0, 0); toTop = false;
     document.body.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => document.body.classList.remove('enter'), 900);
@@ -377,7 +380,7 @@ function topBar(k, p) {
     ${S.kidPins[k.id] || S.shared ? '<button class="gear" data-act="lock" aria-label="ロック">🔒</button>' : ''}<button class="gear" data-act="papa" aria-label="パパの へや">⚙</button></header>`;
 }
 function navBar() {
-  const items = [['home', '🏠', 'ホーム'], ['train', '🎯', 'れんしゅう'], ['team', '🤝', 'チーム'], ['time', '⏪', 'タイム']];
+  const items = [['home', '🏠', 'ホーム'], ['train', '🎯', 'れんしゅう'], ['gacha', '🎰', 'ガチャ'], ['team', '🤝', 'チーム']];
   return `<nav class="nav">${items.map(([t, i, l]) => `<button class="${tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}"><span>${i}</span><small>${l}</small></button>`).join('')}</nav>`;
 }
 
@@ -413,6 +416,8 @@ function homeTab(k, p) {
     : p.today.sets > 0 ? `${k.name}、きょうも ナイスプレー!` : `${k.name}、きょうも キックオフ!`;
   return `${playerCard(k, p)}
     <div class="welcome">${welcome}</div>
+    ${loginCard(p)}
+    <div class="tk-wrap" data-act="tab" data-tab="gacha">${ticketBar(p)}</div>
     ${missionCard(k, p)}
     ${repChip(k)}
     <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? 'もういっかい キックオフ!' : 'キックオフ!'}</b>
@@ -446,9 +451,9 @@ function vKid() {
   if (!S.pin) return vPinGate();
   const k = kidOf(); const p = S.kids[k.id]; refreshDay(p);
   let body;
-  if (tab === 'train') body = practiceCard(k, p);
-  else if (tab === 'team') body = repCard(k, p) + siblingsCard();
-  else if (tab === 'time') body = timeMachineCard(k, p);
+  if (tab === 'train') body = timeMachineCard(k, p) + practiceCard(k, p);
+  else if (tab === 'gacha') body = gachaTab();
+  else if (tab === 'team') body = teamTab();
   else body = homeTab(k, p);
   $app.innerHTML = `${topBar(k, p)}<main>${body}</main>${navBar()}`;
 }
@@ -536,6 +541,17 @@ function feedback(q, a) {
     <button class="btn gold" id="nextbtn" data-act="next" disabled>📖 せつめいを よんでね…</button>`;
 }
 
+const TK_NAME = { bronze: '🥉ブロンズ', silver: '🥈シルバー', gold: '🥇ゴールド', platinum: '💎プラチナ' };
+const STAT_JA = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
+function rewardPanel(R) {
+  const tk = Object.entries(R.tickets || {}).filter(([, v]) => v);
+  const pts = Object.entries(R.pts || {}).filter(([, v]) => v);
+  if (!tk.length && !pts.length) return '';
+  return `<section class="panel gold"><h2 class="sec">REWARD <small>ごほうび</small></h2>
+    ${tk.length ? `<div class="reward-row">${tk.map(([k, v]) => `<span class="chip gold">${TK_NAME[k]} ×${v}</span>`).join(' ')} <small class="muted">ガチャで つかえるよ</small></div>` : '<div class="muted">6わり いじょう せいかいで チケットが もらえるよ(つぎは がんばろう!)</div>'}
+    ${pts.length ? `<div class="reward-row">${pts.map(([k, v]) => `<span class="chip">${STAT_JA[k]} +${v}pt</span>`).join(' ')} <small class="muted">「チーム → つよく」で つかえるよ</small></div>` : ''}</section>`;
+}
+
 function vResult() {
   const k = kidOf(); const p = S.kids[k.id]; const R = Q.result;
   const call = R.callup ? '<section class="panel rep"><div class="big">🇯🇵</div><h2 class="center">日本代表に えらばれたよ!</h2></section>' : '';
@@ -549,6 +565,7 @@ function vResult() {
     <main><section class="panel score"><div class="stars">${[1, 2, 3].map((n) => `<span class="star ${n <= (R.good / R.total >= 1 ? 3 : R.good / R.total >= 0.6 ? 2 : R.good / R.total >= 0.3 ? 1 : 0) ? 'on' : ''}" style="animation-delay:${0.3 + n * 0.25}s">★</span>`).join('')}</div>
       <div class="big">⚽ × <b data-count="${R.good}" data-key="score">${R.good}</b></div>
       <p class="center">${R.total}もん中 ${R.good}ゴール ・ +${R.xp}ポイント ${R.hat ? '・🎩 ハットトリック!' : ''}</p></section>
+    ${rewardPanel(R)}
     ${R.newBadges.map((b) => `<section class="panel gold medal-new"><div class="big">${b.icon}</div><h2 class="center">NEW MEDAL!<br>${b.name}</h2></section>`).join('')}
     ${call}${ranked}${found}${weak}
     <button class="btn gold" data-act="kid">ホームに もどる</button></main>`;
@@ -622,7 +639,7 @@ const lockMs = (q) => Math.min(3500, Math.max(1500, q.text.length * 120));
 function startQuiz(mode, unitId) {
   const k = kidOf();
   setSeen(S.kids[k.id].seen || []);
-  Q = { mode, items: buildSet(k, mode, unitId), i: 0, good: 0, xp: 0, combo: 0, hat: false, answered: null, retries: 0, lockUntil: 0, missTags: {}, startXp: S.kids[k.id].xp };
+  Q = { mode, items: buildSet(k, mode, unitId), i: 0, good: 0, xp: 0, combo: 0, hat: false, answered: null, retries: 0, lockUntil: 0, pts: {}, missTags: {}, startXp: S.kids[k.id].xp };
   Q.lockUntil = Date.now() + lockMs(Q.items[0].q);
   view = 'quiz'; render();
 }
@@ -645,6 +662,7 @@ function answer(idx, unknown) {
     if (Q.combo === 3) { xp += 10; Q.hat = true; }
     const rep = repBonus(k); xp += rep;
     Q.xp += xp; p.goals++; it.res = 'ok';
+    const st = SUBJECT_STAT[it.unit.subject]; if (st) { addPoints(p, it.unit.subject, 2); Q.pts[st] = (Q.pts[st] || 0) + 2; }
     Q.answered = { ok, idx, xp, rep };
     beep('ok'); vibrate(25); confetti(lastTap.x, lastTap.y, Q.combo >= 3 ? 70 : 26, Q.combo >= 3 ? 1.3 : 0.8); floaty(`+${xp}`, lastTap.x, lastTap.y - 24);
   } else {
@@ -677,10 +695,12 @@ function finish() {
   if (Q.mode === 'back') p.backRuns = (p.backRuns || 0) + 1;
   const newly = BADGES.filter((b) => !(p.badges || []).includes(b.id) && b.cond(p, k));
   p.badges = [...(p.badges || []), ...newly.map((b) => b.id)];
+  const perfectNow = Q.good === Q.items.length && !Object.keys(Q.missTags).length;
+  const gotTickets = awardStudy(p, { good: Q.good, total: Q.items.length, mode: Q.mode, perfect: perfectNow }, t);
   save();
   const selAfter = dataFor(k).sel.state;
   const tags = Object.entries(Q.missTags).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([x]) => x).filter((x) => x !== 'unknown' || Object.keys(Q.missTags).length === 1);
-  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })) };
+  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, pts: Q.pts };
   lastCount.score = 0;
   view = 'result'; toTop = true; render();
   if (Q.result.good >= Math.ceil(Q.result.total * 0.6) || Q.result.rankUp || Q.result.callup || Q.result.newBadges.length) {
@@ -763,6 +783,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   else if (a === 'askdone') { S.kids[el.dataset.id].ask.splice(Number(el.dataset.i), 1); save(); }
+  else if (gameAct(a, el)) { /* ガチャ・へんせい・たいせん など */ }
   render();
 });
 // 選手カードが 指に ついて すこし かたむく
@@ -780,6 +801,14 @@ document.addEventListener('change', (e) => {
   if (el.dataset.act === 'need') { S.need = Number(el.value); save(); toast('日数を かえたよ'); return render(); }
   if (el.value) S.override[el.dataset.id] = el.value; else delete S.override[el.dataset.id];
   save(); toast('たんげんを かえたよ');
+});
+
+gameInit({
+  KIDS, kid: () => kidOf(), p: () => S.kids[kidId], render: () => render(), toast, save, today: todayStr, BADGES,
+  haveBadge: (b) => (S.kids[kidId].badges || []).includes(b.id) || b.cond(S.kids[kidId], kidOf()),
+  dataFor, matesHtml: () => repCard(kidOf(), S.kids[kidId]) + siblingsCard(),
+  setView: (v) => { view = v; toTop = true; },
+  fx: { confetti, beep, vibrate, floaty },
 });
 
 // 国語の問題プール(毎朝 Gemini が増やす)。読めなくても 算数だけで動く

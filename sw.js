@@ -1,5 +1,5 @@
-const CACHE = 'hibiyui-v4';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'gen.js', 'sync.js', 'manifest.webmanifest', 'icon.svg'];
+const CACHE = 'hibiyui-v5';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'gen.js', 'sync.js', 'game.js', 'ui-game.js', 'manifest.webmanifest', 'icon.svg'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
   self.skipWaiting();

@@ -1,0 +1,282 @@
+// ガチャ・選手・編成・対戦・強化の「ルール」。画面(DOM)には触らない純粋な計算だけ。
+// 乱数は rnd(0以上1未満を返す関数)を渡せる。テストでは固定のシードを使う。
+
+// ---- 基本のきまり ----------------------------------------------------------------
+export const RARITIES = ['common', 'uncommon', 'rare', 'super', 'legend'];
+export const RARITY_NAME = { common: 'コモン', uncommon: 'アンコモン', rare: 'レア', super: 'スーパーレア', legend: 'レジェンド' };
+export const BASE_RATES = { common: 60, uncommon: 28, rare: 9.5, super: 2.48, legend: 0.02 }; // 合計100(%)
+export const LEGEND_RATE = BASE_RATES.legend; // どのチケットでも 0.02% 固定
+export const TICKETS = {
+  bronze: { name: 'ブロンズ', icon: '🥉', min: 'common' },
+  silver: { name: 'シルバー', icon: '🥈', min: 'uncommon' },
+  gold: { name: 'ゴールド', icon: '🥇', min: 'rare' },
+  platinum: { name: 'プラチナ', icon: '💎', min: 'super' },
+};
+export const TICKET_ORDER = ['bronze', 'silver', 'gold', 'platinum'];
+
+export const STATS = ['SHO', 'PAS', 'SPD', 'DEF', 'STA'];
+export const STAT_NAME = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
+export const SUBJECT_STAT = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA' };
+export const SLOT_POS = ['FW', 'FW', 'MF', 'DF', 'GK']; // 5にんで しあいをする
+export const POS_NAME = { FW: 'フォワード', MF: 'ミッドフィルダー', DF: 'ディフェンダー', GK: 'キーパー', ALL: 'オールラウンダー' };
+
+export const rngSeed = (seed) => { // mulberry32: 同じシードなら同じ並び
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+};
+
+// ---- 選手(オリジナル。実在の人物ではない) --------------------------------------------
+const FIRST = ['ハヤテ', 'ソラ', 'レオ', 'カイ', 'リク', 'ダイチ', 'ツバサ', 'ヒカル', 'アラタ', 'ショウ', 'ナギ', 'ミナト', 'ライト', 'コウタ', 'ハルト', 'ジン', 'ガク', 'ケン', 'トラ', 'シン', 'カズ', 'マル', 'ボル', 'ロコ', 'テツ', 'サク', 'タケル', 'リュウ', 'ゲン', 'アキラ', 'ヨウ', 'ジロー', 'モモ', 'ヒロ', 'セナ', 'ルカ', 'ノア', 'ミライ'];
+const LAST = {
+  FW: ['サンダー', 'ブレイズ', 'ストライク', 'ターボ', 'ロケット', 'コメット', 'ファルコン', 'スパーク', 'ブレイカー', 'ハリケーン'],
+  MF: ['リズム', 'マジック', 'ドリーム', 'パス', 'ウィンド', 'ムーン', 'オーシャン', 'テクニカル', 'アシスト', 'ミラクル'],
+  DF: ['ウォール', 'ガーディアン', 'バリア', 'ブロック', 'シールド', 'アイアン', 'ロック', 'ナイト', 'タイタン', 'クラッシュ'],
+  GK: ['セーブ', 'グローブ', 'ネット', 'キャッチ', 'ジャイアント', 'フォートレス', 'ブルワーク', 'ストッパー'],
+};
+const FACE = {
+  FW: ['🦁', '🐯', '🦅', '🐺', '🦈', '🐉', '🔥', '⚡'],
+  MF: ['🦊', '🐬', '🦉', '🐙', '🦄', '🌟', '🦋', '🐼'],
+  DF: ['🐻', '🦏', '🐢', '🛡️', '🐘', '🦬', '🦍', '🐗'],
+  GK: ['🧤', '🦒', '🐊', '🦦', '🐨', '🦛'],
+};
+const MAIN = { FW: ['SHO', 'SPD'], MF: ['PAS', 'STA'], DF: ['DEF', 'STA'], GK: ['DEF', 'STA'] };
+const RANGE = { common: [36, 56], uncommon: [50, 66], rare: [62, 78], super: [74, 90], legend: [89, 99] };
+const COUNTS = { common: 40, uncommon: 30, rare: 22, super: 12, legend: 6 };
+const LEGENDS = [
+  ['ゼウス・ストライカー', 'FW', '⚡'], ['ドラゴン・キング', 'FW', '🐉'], ['ペガサス・マエストロ', 'MF', '🦄'],
+  ['アポロ・コンダクター', 'MF', '☀️'], ['ヘラクレス・ウォール', 'DF', '🏛️'], ['アテナ・ガーディアン', 'GK', '🛡️'],
+];
+
+function buildPlayers() {
+  const rnd = rngSeed(20261005);
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const used = new Set();
+  const out = [];
+  for (const rarity of RARITIES) {
+    for (let i = 0; i < COUNTS[rarity]; i++) {
+      let pos; let name; let face;
+      if (rarity === 'legend') { [name, pos, face] = LEGENDS[i]; }
+      else {
+        pos = ['FW', 'FW', 'MF', 'MF', 'DF', 'DF', 'GK'][i % 7];
+        do { name = `${pick(FIRST)}・${pick(LAST[pos])}`; } while (used.has(name));
+        face = pick(FACE[pos]);
+      }
+      used.add(name);
+      const [lo, hi] = RANGE[rarity];
+      const stats = {};
+      for (const s of STATS) {
+        const main = MAIN[pos].includes(s);
+        const v = main ? lo + (hi - lo) * (0.6 + 0.4 * rnd()) : lo + (hi - lo) * 0.55 * rnd();
+        stats[s] = Math.min(99, Math.round(v));
+      }
+      out.push({ id: `${rarity[0]}${String(i + 1).padStart(2, '0')}`, name, pos, rarity, face, stats });
+    }
+  }
+  return out;
+}
+export const PLAYERS = buildPlayers();
+export const PLAYER_BY_ID = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
+
+// ---- ガチャ ---------------------------------------------------------------------
+// チケットの 上位ほど 低いレアが でなくなる。レジェンドは どれも 0.02% で かわらない。
+export function rates(ticket) {
+  const minI = RARITIES.indexOf(TICKETS[ticket].min);
+  const tiers = RARITIES.filter((r, i) => r !== 'legend' && i >= minI);
+  const sum = tiers.reduce((a, r) => a + BASE_RATES[r], 0);
+  const out = Object.fromEntries(RARITIES.map((r) => [r, 0]));
+  for (const r of tiers) out[r] = (BASE_RATES[r] / sum) * (100 - LEGEND_RATE);
+  out.legend = LEGEND_RATE;
+  return out;
+}
+export function rollRarity(ticket, rnd = Math.random) {
+  const rt = rates(ticket);
+  let r = rnd() * 100;
+  for (const k of ['legend', 'super', 'rare', 'uncommon', 'common']) { // ちいさい 確率から じゅんに
+    if (r < rt[k]) return k;
+    r -= rt[k];
+  }
+  return RARITIES[RARITIES.indexOf(TICKETS[ticket].min)]; // 丸め誤差の保険
+}
+export function rollPlayer(ticket, rnd = Math.random) {
+  const rarity = rollRarity(ticket, rnd);
+  const pool = PLAYERS.filter((p) => p.rarity === rarity);
+  return pool[Math.floor(rnd() * pool.length)];
+}
+// 1回ひく: チケットを1まい つかって、選手を コレクションに くわえる
+export function pull(p, ticket, rnd = Math.random) {
+  if (!(p.tickets && p.tickets[ticket] > 0)) return null;
+  p.tickets[ticket]--;
+  const player = rollPlayer(ticket, rnd);
+  const before = p.owned[player.id] || 0;
+  p.owned[player.id] = before + 1;
+  return { player, isNew: before === 0, copies: before + 1 };
+}
+// 同じ選手が ふえると レベルアップ(さいだい +5)。1レベルごとに 能力 +4%
+export const levelOf = (copies) => Math.max(0, Math.min(5, (copies || 1) - 1));
+
+// ---- チケットの かせぎかた ---------------------------------------------------------------
+export const DAILY_STUDY_TICKET_CAP = 6; // 1日に べんきょうで もらえる 上限(ひたすら ちかてつ連打を ふせぐ)
+export const emptyTickets = () => ({ bronze: 0, silver: 0, gold: 0, platinum: 0 });
+export function studyReward({ good, total, mode, perfect }) {
+  if (!total || good / total < 0.6) return {};
+  let r = perfect ? { silver: 1 } : { bronze: 1 };
+  if (mode === 'bonus' || mode === 'back') r = { ...r, bronze: (r.bronze || 0) + 1 };
+  return r;
+}
+export function addTickets(p, reward) {
+  p.tickets = { ...emptyTickets(), ...(p.tickets || {}) };
+  for (const [k, v] of Object.entries(reward)) p.tickets[k] += v;
+}
+// べんきょうで もらった チケット(1日の上限つき)。もらえた ぶんを かえす
+export function earnStudyTickets(p, info, today) {
+  p.tk = p.tk && p.tk.date === today ? p.tk : { date: today, n: 0 };
+  const want = studyReward(info);
+  const got = {};
+  for (const k of TICKET_ORDER) {
+    for (let i = 0; i < (want[k] || 0); i++) {
+      if (p.tk.n >= DAILY_STUDY_TICKET_CAP) break;
+      got[k] = (got[k] || 0) + 1; p.tk.n++;
+    }
+  }
+  addTickets(p, got);
+  return got;
+}
+// ログインボーナス: 「れんぞく」ではなく「ぜんぶで なん日め」。やすんでも のこる。
+export function loginReward(n) {
+  if (n % 30 === 0) return { platinum: 1, gold: 1 };
+  if (n % 14 === 0) return { gold: 1 };
+  if (n % 7 === 0) return { silver: 2 };
+  if (n % 3 === 0) return { silver: 1 };
+  return { bronze: 1 };
+}
+export function nextBigLogin(n) { // 「あと なん日で ごうかに なる?」
+  for (let d = n + 1; d <= n + 30; d++) if (d % 7 === 0 || d % 14 === 0 || d % 30 === 0) return { day: d, in: d - n, reward: loginReward(d) };
+  return null;
+}
+export function claimLogin(p, today) {
+  if (p.lastLogin === today) return null;
+  p.loginDays = (p.loginDays || 0) + 1;
+  p.lastLogin = today;
+  const reward = loginReward(p.loginDays);
+  addTickets(p, reward);
+  return { n: p.loginDays, reward };
+}
+
+// ---- 強化(ひびと・ゆいとの つよさ) ----------------------------------------------------
+export const MAX_LEVEL = 100;
+export const upgradeCost = (level) => 1 + Math.floor(level / 10);
+export const kidStat = (level) => Math.round(30 + level * 1.5); // Lv47 で レジェンドの さいだい(99)を こえる
+export const emptyStatMap = () => Object.fromEntries(STATS.map((s) => [s, 0]));
+export function addPoints(p, subject, n) {
+  const s = SUBJECT_STAT[subject]; if (!s) return;
+  p.pts = { ...emptyStatMap(), ...(p.pts || {}) };
+  p.pts[s] += n;
+}
+export function upgrade(p, stat) {
+  p.pts = { ...emptyStatMap(), ...(p.pts || {}) }; p.lv = { ...emptyStatMap(), ...(p.lv || {}) };
+  const lv = p.lv[stat]; const cost = upgradeCost(lv);
+  if (lv >= MAX_LEVEL || p.pts[stat] < cost) return false;
+  p.pts[stat] -= cost; p.lv[stat]++;
+  return true;
+}
+export const kidStats = (p) => Object.fromEntries(STATS.map((s) => [s, kidStat(((p.lv || {})[s]) || 0)]));
+
+// ---- メダルの チームバフ(%) ----------------------------------------------------------------
+export const BADGE_BUFFS = {
+  goal1: { SHO: 1 }, goal10: { SHO: 2 }, goal50: { SHO: 3 }, goal100: { SHO: 5 }, goal300: { SHO: 8 },
+  day3: { STA: 2 }, day7: { STA: 3 }, day30: { STA: 8 },
+  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 },
+  rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 },
+  m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 },
+};
+export const MAX_EQUIP = 3;
+export const BUFF_CAP = 40;
+export function teamBuff(equip = []) {
+  const out = emptyStatMap();
+  for (const id of equip.slice(0, MAX_EQUIP)) {
+    const b = BADGE_BUFFS[id]; if (!b) continue;
+    for (const s of STATS) out[s] += (b[s] || 0) + (b.ALL || 0);
+  }
+  for (const s of STATS) out[s] = Math.min(BUFF_CAP, out[s]);
+  return out;
+}
+export const buffText = (id) => {
+  const b = BADGE_BUFFS[id]; if (!b) return '';
+  return Object.entries(b).map(([s, v]) => `${s === 'ALL' ? 'ぜんぶ' : STAT_NAME[s]}+${v}%`).join(' ');
+};
+
+// ---- チーム編成と つよさ ----------------------------------------------------------------
+const OUT_OF_POSITION = 0.85;
+export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty = 1 }) {
+  return Object.fromEntries(STATS.map((s) => [s, Math.round(base[s] * (1 + 0.04 * level) * (1 + buff[s] / 100) * penalty)]));
+}
+const BENCH = { id: 'bench', name: 'ベンチの 子', face: '🪑', pos: 'ALL', rarity: 'common', stats: Object.fromEntries(STATS.map((s) => [s, 30])) };
+// team: 5つの わく(選手ID / 'self' / null)。kid: { name, face, stats }
+export function teamSnapshot({ kid, owned = {}, team = [], equip = [] }) {
+  const buff = teamBuff(equip);
+  return SLOT_POS.map((slot, i) => {
+    const id = team[i];
+    let who; let level = 0; let penalty = 1;
+    if (id === 'self') who = { id: 'self', name: kid.name, face: kid.face, pos: 'ALL', rarity: 'kid', stats: kid.stats };
+    else if (id && owned[id] && PLAYER_BY_ID[id]) {
+      who = PLAYER_BY_ID[id]; level = levelOf(owned[id]);
+      if (who.pos !== slot) penalty = OUT_OF_POSITION;
+    } else who = BENCH;
+    return { slot, id: who.id, name: who.name, face: who.face, pos: who.pos, rarity: who.rarity, level, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty }) };
+  });
+}
+const attSkill = (s) => 0.5 * s.SHO + 0.2 * s.PAS + 0.3 * s.SPD;
+const defSkill = (s) => 0.6 * s.DEF + 0.2 * s.STA + 0.2 * s.SPD;
+const ATT_W = [1, 1, 0.5, 0.1, 0];
+const DEF_W = [0, 0, 0.5, 1, 1.2];
+export function ratings(snap) {
+  const wsum = (w) => w.reduce((a, b) => a + b, 0);
+  const att = snap.reduce((a, p, i) => a + ATT_W[i] * attSkill(p.stats), 0) / wsum(ATT_W);
+  const def = snap.reduce((a, p, i) => a + DEF_W[i] * defSkill(p.stats), 0) / wsum(DEF_W);
+  return { att, def, power: Math.round((att + def) / 2) };
+}
+
+// ---- 対戦(かんたんな シミュレーション) ---------------------------------------------------------
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const pickW = (arr, w, rnd) => { const t = w.reduce((a, b) => a + b, 0); let r = rnd() * t; for (let i = 0; i < arr.length; i++) { r -= w[i]; if (r <= 0) return arr[i]; } return arr[arr.length - 1]; };
+export const goalChance = (att, def) => clamp(0.3 * (att / Math.max(1, def)) ** 1.3, 0.04, 0.8);
+export function simulate(a, b, rnd = Math.random, phases = 6) {
+  const ra = ratings(a.team); const rb = ratings(b.team);
+  const sides = [{ ...a, r: ra, key: 'a' }, { ...b, r: rb, key: 'b' }];
+  const events = []; const score = { a: 0, b: 0 };
+  for (let i = 0; i < phases * 2; i++) {
+    const atk = sides[i % 2]; const dfn = sides[(i + 1) % 2];
+    const att = atk.team; const gk = dfn.team[4];
+    const passer = pickW([att[2], att[0], att[1]], [att[2].stats.PAS, att[0].stats.PAS, att[1].stats.PAS], rnd);
+    const shooter = pickW([att[0], att[1], att[2]], [att[0].stats.SHO, att[1].stats.SHO, att[2].stats.SHO * 0.6], rnd);
+    const p = goalChance(atk.r.att, dfn.r.def);
+    const roll = rnd();
+    const type = roll < p ? 'goal' : roll < p + (1 - p) * 0.55 ? 'save' : 'miss';
+    if (type === 'goal') score[atk.key]++;
+    events.push({
+      side: atk.key, type, passer: passer.name, shooter: shooter.name, keeper: gk.name, score: { ...score },
+      text: type === 'goal' ? `${passer.name}の パスから ${shooter.name}が シュート! ゴール!!`
+        : type === 'save' ? `${shooter.name}の シュートを ${gk.name}が ナイスセーブ!`
+          : `${shooter.name}の シュートは ゴールの 外へ…`,
+    });
+  }
+  return { events, score, ratings: { a: ra, b: rb } };
+}
+
+// CPUチーム(じぶんの つよさに あわせて つくる)
+export const CPU_LEVELS = [
+  { id: 'easy', name: 'やさしい', factor: 0.75, club: 'ルーキーズ FC' },
+  { id: 'normal', name: 'ふつう', factor: 1.0, club: 'ライバル ユナイテッド' },
+  { id: 'hard', name: 'つよい', factor: 1.25, club: 'ストロング ワンダラーズ' },
+  { id: 'boss', name: 'ボス', factor: 1.6, club: 'レジェンド オールスターズ' },
+];
+export function cpuTeam(power, levelId, rnd = Math.random) {
+  const lv = CPU_LEVELS.find((l) => l.id === levelId) || CPU_LEVELS[1];
+  const base = Math.max(35, power * lv.factor);
+  const faces = ['🦁', '🐯', '🦊', '🐻', '🧤'];
+  const team = SLOT_POS.map((slot, i) => ({
+    slot, id: `cpu${i}`, name: `${FIRST[Math.floor(rnd() * FIRST.length)]}・${LAST[slot][Math.floor(rnd() * LAST[slot].length)]}`, face: faces[i], pos: slot, rarity: 'common', level: 0, offPos: false,
+    stats: Object.fromEntries(STATS.map((s) => [s, Math.round(base * (0.9 + 0.2 * rnd()))])),
+  }));
+  return { name: lv.club, team };
+}
