@@ -5,7 +5,9 @@
 export const RARITIES = ['common', 'uncommon', 'rare', 'super', 'legend'];
 export const RARITY_NAME = { common: 'コモン', uncommon: 'アンコモン', rare: 'レア', super: 'スーパーレア', legend: 'レジェンド' };
 export const BASE_RATES = { common: 60, uncommon: 28, rare: 9.5, super: 2.48, legend: 0.02 }; // 合計100(%)
-export const LEGEND_RATE = BASE_RATES.legend; // どのチケットでも 0.02% 固定
+// レジェンドの でやすさは チケットで かわる(いいチケットほど でやすい。さいだい 2%)
+export const LEGEND_RATES = { bronze: 0.02, silver: 0.1, gold: 0.5, platinum: 2 };
+export const MAX_LEGEND_RATE = 2;
 export const TICKETS = {
   bronze: { name: 'ブロンズ', icon: '🥉', min: 'common' },
   silver: { name: 'シルバー', icon: '🥈', min: 'uncommon' },
@@ -170,14 +172,15 @@ export const PLAYERS = buildPlayers();
 export const PLAYER_BY_ID = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
 
 // ---- ガチャ ---------------------------------------------------------------------
-// チケットの 上位ほど 低いレアが でなくなる。レジェンドは どれも 0.02% で かわらない。
+// チケットの 上位ほど 低いレアが でなくなり、レジェンドも でやすくなる(0.02% 〜 2%)。
 export function rates(ticket) {
   const minI = RARITIES.indexOf(TICKETS[ticket].min);
   const tiers = RARITIES.filter((r, i) => r !== 'legend' && i >= minI);
   const sum = tiers.reduce((a, r) => a + BASE_RATES[r], 0);
   const out = Object.fromEntries(RARITIES.map((r) => [r, 0]));
-  for (const r of tiers) out[r] = (BASE_RATES[r] / sum) * (100 - LEGEND_RATE);
-  out.legend = LEGEND_RATE;
+  const legend = LEGEND_RATES[ticket];
+  for (const r of tiers) out[r] = (BASE_RATES[r] / sum) * (100 - legend);
+  out.legend = legend;
   return out;
 }
 export function rollRarity(ticket, rnd = Math.random) {

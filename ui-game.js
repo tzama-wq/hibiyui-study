@@ -98,7 +98,7 @@ export function gachaTab() {
   <section class="panel"><h2 class="sec">RATE <small>でやすさ</small></h2>
     <div class="rate-table"><div class="rt-h"><span></span>${G.TICKET_ORDER.map((t) => `<span>${G.TICKETS[t].icon}</span>`).join('')}</div>
     ${G.RARITIES.slice().reverse().map((r) => `<div class="rt-r r-${r}"><span>${G.RARITY_NAME[r]}</span>${G.TICKET_ORDER.map((t) => { const v = G.rates(t)[r]; return `<span>${v === 0 ? '−' : `${+v.toFixed(r === 'legend' ? 2 : 1)}%`}</span>`; }).join('')}</div>`).join('')}</div>
-    <div class="muted">レジェンドは どのチケットでも 0.02%。ほんとうに めずらしいよ!</div></section>`;
+    <div class="muted">👑 レジェンドは チケットが いいほど でやすいよ(ブロンズ 0.02% 〜 プラチナ 2%)。ほんとうに めずらしいよ!</div></section>`;
 }
 function stageHtml() {
   if (Gs.phase === 'rolling') {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import {
-  PLAYERS, RARITIES, TICKETS, TICKET_ORDER, STATS, rates, rollRarity, pull, levelOf, rngSeed,
+  PLAYERS, RARITIES, TICKETS, LEGEND_RATES, TICKET_ORDER, STATS, rates, rollRarity, pull, levelOf, rngSeed,
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance,
@@ -46,11 +46,15 @@ for (const p of PLAYERS) {
 for (const t of TICKET_ORDER) {
   const rt = rates(t);
   assert.ok(Math.abs(Object.values(rt).reduce((a, b) => a + b, 0) - 100) < 1e-9, `${t} 合計`);
-  assert.equal(rt.legend, 0.02, `${t} のレジェンドは0.02%固定`);
+  assert.equal(rt.legend, LEGEND_RATES[t], `${t} のレジェンド`);
+  assert.ok(rt.legend <= 2, `${t} のレジェンドは さいだい 2%`);
   const minI = RARITIES.indexOf(TICKETS[t].min);
   RARITIES.forEach((r, i) => { if (i < minI) assert.equal(rt[r], 0, `${t} は ${r} が出ない`); });
 }
-assert.deepEqual(rates('bronze'), { common: 60, uncommon: 28, rare: 9.5, super: 2.48, legend: 0.02 });
+assert.deepEqual(rates('bronze'), { common: 60, uncommon: 28, rare: 9.5, super: 2.48, legend: 0.02 }, 'ブロンズは いままでと同じ');
+assert.deepEqual(TICKET_ORDER.map((t) => rates(t).legend), [0.02, 0.1, 0.5, 2], 'いいチケットほど レジェンドが でやすい');
+for (let i = 1; i < TICKET_ORDER.length; i++) assert.ok(rates(TICKET_ORDER[i]).legend > rates(TICKET_ORDER[i - 1]).legend);
+assert.equal(Math.max(...TICKET_ORDER.map((t) => rates(t).legend)), 2, '最大2%');
 
 const N = 2_000_000;
 {
@@ -63,6 +67,13 @@ const N = 2_000_000;
     const e = exp(r); assert.ok(Math.abs(cnt[r] - e) <= 5 * Math.sqrt(e), `${r} ${cnt[r]} (期待 ${e})`);
   }
   console.log('  ブロンズ 2,000,000回:', JSON.stringify(cnt));
+}
+for (const t of ['silver', 'gold', 'platinum']) {
+  const rnd = rngSeed(31 + t.length); const n = 1_000_000; let leg = 0;
+  for (let i = 0; i < n; i++) if (rollRarity(t, rnd) === 'legend') leg++;
+  const e = (rates(t).legend / 100) * n;
+  assert.ok(Math.abs(leg - e) <= 5 * Math.sqrt(e), `${t} レジェンド ${leg} (期待 ${e})`);
+  console.log(`  ${t} 1,000,000回: レジェンド ${leg} (${(leg / n * 100).toFixed(3)}%)`);
 }
 for (const t of ['silver', 'gold', 'platinum']) {
   const rnd = rngSeed(777); const minI = RARITIES.indexOf(TICKETS[t].min);
