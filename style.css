@@ -378,3 +378,20 @@ body.enter .kid-select:nth-of-type(2){animation-delay:.1s}
 .sb-r{color:var(--text);background:linear-gradient(270deg,#0f2a5a,#0a1230)}
 
 .gs-type{max-width:300px;text-align:center;font-weight:800;color:#fff;text-shadow:0 0 10px var(--rc);animation:fadeUp .5s .5s both}
+
+/* 選手のイラスト(レア以上) */
+.rc-face.has-img{font-size:0;line-height:0;margin:2px 0 4px}
+.rc-img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block;background:#0a1230}
+.rcard.mini .rc-img{border-radius:6px}
+.dx-img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;filter:none}
+.dx.got span{font-size:0;line-height:0}.dx.got span:not(:has(img)){font-size:30px}
+.bt-img{width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--line)}
+.gs-cards.one .rc-img{border-radius:12px}
+.dex-detail .rcard{width:170px}
+
+/* まとめ引き: 4列・はみ出さない */
+.gs-cards{grid-template-columns:repeat(4,minmax(0,1fr))}.gs-cards.one{grid-template-columns:1fr}
+.gs-card{min-width:0}.gs-card .rcard{padding:4px 4px 3px}
+.gs-cards:not(.one) .rc-name{font-size:10px;min-height:24px;line-height:1.15}
+.gs-cards:not(.one) .rc-rar,.gs-cards:not(.one) .rc-top small{display:none}
+.gs-cards:not(.one) .rc-ovr{font-size:15px}

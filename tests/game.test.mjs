@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import {
   PLAYERS, RARITIES, TICKETS, TICKET_ORDER, STATS, rates, rollRarity, pull, levelOf, rngSeed,
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
@@ -33,6 +34,12 @@ const PIN = {"c01":{"name":"マル・ストライク","pos":"FW","stats":{"SHO":
 for (const [id, v] of Object.entries(PIN)) {
   const p = PLAYERS.find((x) => x.id === id);
   assert.deepEqual({ name: p.name, pos: p.pos, stats: p.stats }, v, `${id} が かわってしまった(もっている選手が かわる)`);
+}
+
+// イラスト: モデル入りの選手(レア以上)は 全員 画像ファイルが ある。それ以外は 絵文字
+for (const p of PLAYERS) {
+  if (p.type) assert.ok(existsSync(new URL(`../${p.img}`, import.meta.url)), `${p.id} の画像が ない: ${p.img}`);
+  else assert.equal(p.img, '');
 }
 
 // ---- 出る確率 ----

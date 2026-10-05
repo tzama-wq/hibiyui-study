@@ -41,12 +41,14 @@ const ovrOf = (stats, pos) => {
   const o = G.STATS.filter((s) => !main.includes(s)).reduce((a, s) => a + stats[s], 0) / (5 - main.length);
   return Math.round(m * 0.65 + o * 0.35);
 };
+// イラストが あれば 画像、よみこめなければ 絵文字に もどる
+const faceHtml = (pl) => (pl.img ? `<img class="rc-img" src="${esc(pl.img)}" alt="" loading="lazy" onerror="this.outerHTML='${pl.face}'">` : pl.face);
 function cardHtml(pl, o = {}) {
   const lv = pl.level ? ` Lv${pl.level}` : '';
   const nm = pl.rarity === 'kid' ? 'じぶん' : G.RARITY_NAME[pl.rarity] || '';
   return `<div class="rcard r-${pl.rarity} ${o.cls || ''}" ${o.attrs || ''}>
     <div class="rc-top"><b class="rc-ovr">${ovrOf(pl.stats, pl.pos)}</b><small>${pl.pos === 'ALL' ? 'ALL' : pl.pos}${pl.nation ? ` ${pl.nation}` : ''}</small></div>
-    <div class="rc-face">${pl.face}</div><div class="rc-name">${esc(pl.name)}</div>
+    <div class="rc-face ${pl.img ? 'has-img' : ''}">${faceHtml(pl)}</div><div class="rc-name">${esc(pl.name)}</div>
     <div class="rc-rar">${nm}${lv}${pl.offPos ? ' ⚠' : ''}</div>
     ${o.stats === false ? '' : `<div class="rc-stats">${G.STATS.map((s) => `<span><i>${STAT_SHORT[s]}</i>${pl.stats[s]}</span>`).join('')}</div>`}
     ${o.copies > 1 ? `<div class="rc-copies">×${o.copies}</div>` : ''}</div>`;
@@ -157,14 +159,16 @@ function dexHtml() {
   const p = X.p();
   const n = Object.keys(p.owned).length;
   const f = UI.dexF;
-  const list = G.PLAYERS.filter((pl) => f === 'all' || pl.rarity === f);
+  // もっている選手を さきに(レア度の たかい じゅん)、あとは まだの 選手
+  const list = G.PLAYERS.filter((pl) => f === 'all' || pl.rarity === f)
+    .sort((a, b) => (!!p.owned[b.id] - !!p.owned[a.id]) || (G.RARITIES.indexOf(b.rarity) - G.RARITIES.indexOf(a.rarity)));
   const sel = UI.dexSel && G.PLAYER_BY_ID[UI.dexSel];
   return `<section class="panel"><h2 class="sec">COLLECTION <small>ずかん ${n}/${G.PLAYERS.length}</small></h2>
     <div class="chips">${['all', ...G.RARITIES].map((r) => `<button class="chipb ${f === r ? 'on' : ''} r-${r}" data-act="dexf" data-r="${r}">${r === 'all' ? 'ぜんぶ' : G.RARITY_NAME[r]}${r === 'all' ? '' : ` ${G.PLAYERS.filter((x) => x.rarity === r && p.owned[x.id]).length}/${G.PLAYERS.filter((x) => x.rarity === r).length}`}</button>`).join('')}</div>
     ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>` : ''}
     <div class="muted" style="margin-bottom:6px">※ 有名な 選手を ヒントに した オリジナルの キャラクターだよ(ほんにんとは かんけい ないよ)。</div>
     <div class="dex-grid">${list.map((pl) => p.owned[pl.id]
-    ? `<button class="dx got r-${pl.rarity}" data-act="dexsel" data-id="${pl.id}"><span>${pl.face}</span><small>${esc(pl.name)}</small>${p.owned[pl.id] > 1 ? `<em>×${p.owned[pl.id]}</em>` : ''}</button>`
+    ? `<button class="dx got r-${pl.rarity}" data-act="dexsel" data-id="${pl.id}"><span>${pl.img ? `<img class="dx-img" src="${esc(pl.img)}" alt="" loading="lazy" onerror="this.outerHTML='${pl.face}'">` : pl.face}</span><small>${esc(pl.name)}</small>${p.owned[pl.id] > 1 ? `<em>×${p.owned[pl.id]}</em>` : ''}</button>`
     : `<div class="dx r-${pl.rarity}"><span>？</span><small>${G.RARITY_NAME[pl.rarity]}</small></div>`).join('')}</div></section>`;
 }
 
@@ -240,7 +244,7 @@ export function battleView() {
   const ev = B.res.events.slice(0, B.i); const last = ev[ev.length - 1];
   const sc = last ? last.score : { a: 0, b: 0 };
   const done = B.i >= B.res.events.length;
-  const sideHtml = (t) => `<div class="bteam">${t.team.map((m) => `<span title="${esc(m.name)}">${m.face}</span>`).join('')}<small>${G.ratings(t.team).power}</small></div>`;
+  const sideHtml = (t) => `<div class="bteam">${t.team.map((m) => `<span title="${esc(m.name)}">${m.img ? `<img class="bt-img" src="${esc(m.img)}" alt="" onerror="this.outerHTML='${m.face}'">` : m.face}</span>`).join('')}<small>${G.ratings(t.team).power}</small></div>`;
   const result = done ? (sc.a > sc.b ? ['WIN!', '🏆 かったよ! ナイスゲーム!'] : sc.a < sc.b ? ['LOSE', 'ざんねん…! つぎは かてるよ。れんしゅうで つよく なろう!'] : ['DRAW', 'ひきわけ! いい しあいだったね']) : null;
   return `<div class="quiz-top"><span></span><div class="scoreboard"><span class="sb-l">${esc(B.me.name)} <b>${sc.a}</b></span><span class="sb-m">-</span><span class="sb-r"><b>${sc.b}</b> ${esc(B.opp.name)}</span></div><span></span></div>
     <main><section class="panel"><div class="vs">${sideHtml(B.me)}<b>VS</b>${sideHtml(B.opp)}</div>

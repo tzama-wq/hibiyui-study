@@ -159,7 +159,9 @@ function buildPlayers() {
         const v = isMain ? lo + (hi - lo) * (0.6 + 0.4 * rnd()) : lo + (hi - lo) * 0.55 * rnd();
         stats[s] = Math.min(99, Math.round(v));
       }
-      out.push({ id: `${rarity[0]}${String(i + 1).padStart(2, '0')}`, name, pos, rarity, face, nation, type, stats });
+      const id = `${rarity[0]}${String(i + 1).padStart(2, '0')}`;
+      // イラストが あるのは モデル入り(レア以上)。なければ 絵文字の かおを つかう
+      out.push({ id, name, pos, rarity, face, nation, type, img: type ? `images/players/${id}.webp` : '', stats });
     }
   }
   return out;
@@ -312,7 +314,7 @@ export function teamSnapshot({ kid, owned = {}, team = [], equip = [] }) {
       who = PLAYER_BY_ID[id]; level = levelOf(owned[id]);
       if (who.pos !== slot) penalty = OUT_OF_POSITION;
     } else who = BENCH;
-    return { slot, id: who.id, name: who.name, face: who.face, pos: who.pos, rarity: who.rarity, level, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty }) };
+    return { slot, id: who.id, name: who.name, face: who.face, img: who.img || '', pos: who.pos, rarity: who.rarity, level, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty }) };
   });
 }
 const attSkill = (s) => 0.5 * s.SHO + 0.2 * s.PAS + 0.3 * s.SPD;
