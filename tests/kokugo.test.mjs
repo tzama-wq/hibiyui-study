@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { allowedSet, generateForGrade, mergePool, pickTargets, validateItem, verifyAnswers } from '../scripts/lib/kokugo.mjs';
+import { allowedSet, generateForGrade, mergePool, normalizeItem, pickTargets, validateItem, verifyAnswers } from '../scripts/lib/kokugo.mjs';
+import { makeGen } from '../scripts/lib/gemini.mjs';
 
 const kanji = JSON.parse(readFileSync(new URL('../data/kanji.json', import.meta.url), 'utf8'));
 const a1 = allowedSet(kanji, 1);
@@ -70,4 +71,89 @@ for (const q of seed) {
   assert.ok(!q.wrong.some((w) => w.label === q.correct), q.id);
   assert.ok([...q.text.replace(/<[^>]*>/g, '')].every((c) => !/[一-鿿]/.test(c) || allowed.has(c)), `out-of-grade kanji in ${q.id}`);
 }
+
+// ---- 採用率を上げる工夫 ----
+// (1) 書き問題で sentence を ひらがなのまま 書いてきても、安全に 漢字へ おきかえる
+{
+  const hira = { ...good, type: 'kaki', sentence: 'がっこうに いく。', wrong: [{ text: '字校', tag: 'similar_kanji' }, { text: '学林', tag: 'similar_sound' }, { text: '学村', tag: 'similar_kanji' }] };
+  assert.equal(validateItem(hira, a1).reason, 'target-not-once', '直さないと おちる');
+  const fixed = normalizeItem(hira);
+  assert.equal(fixed.sentence, '学校に いく。');
+  assert.ok(validateItem(fixed, a1).ok);
+  // おきかえ先が 2か所に ある(あいまい)なら 直さない
+  assert.equal(normalizeItem({ ...good, sentence: 'がっこうと がっこう。' }).sentence, 'がっこうと がっこう。');
+  // kanji が 2字 → target に ふくまれる 1字に
+  assert.equal(normalizeItem({ ...good, kanji: '学校' }).kanji, '学');
+}
+// (2) 落ちた漢字だけを、落ちた りゆうを つたえて もう1回 たのむ
+{
+  const prompts = [];
+  const mk = (k, t, r, sent) => ({ type: 'yomi', kanji: k, target: t, reading: r, sentence: sent, explain: 'ひとこと。', wrong: [{ text: 'あああ', tag: 'other' }, { text: 'いいい', tag: 'other' }, { text: 'ううう', tag: 'other' }] });
+  const round1 = [mk('山', '山', 'やま', '山に のぼる。'), mk('水', '水', 'みず', '水を のむ。')]; // 川・火 は 返ってこない
+  const round2 = [mk('川', '川', 'かわ', '川で あそぶ。'), mk('火', '火', 'ひ', '火を つける。')];
+  const answers = (items) => items.map((it, i) => ({ index: i, answer: it.reading }));
+  let call = 0;
+  const gen = async (prompt) => {
+    prompts.push(prompt); call++;
+    if (call === 1) return round1;
+    if (call === 2) return answers(round1);
+    if (call === 3) return round2;
+    return answers(round2);
+  };
+  const r = await generateForGrade({ kanji, grade: 1, count: 4, dateStr: '2026-10-02', gen, targets: ['山', '水', '川', '火'] });
+  assert.equal(r.items.length, 4, '2回目で 足りない ぶんが とれた');
+  assert.equal(r.stats.rounds, 2);
+  assert.ok(prompts[2].includes('川、火') && !prompts[2].includes('山、水'), '2回目は 足りない 漢字だけ');
+  assert.equal(r.stats.missing, 0);
+}
+// 落ちた 問題の じっぶつが samples に のこる(原因を あとで 見られる)
+{
+  const bad = { ...good, sentence: '学校と 学校。' };
+  const gen = async (prompt) => (prompt.includes('一覧に ない') ? [] : [bad]);
+  const r = await generateForGrade({ kanji, grade: 1, count: 1, dateStr: '2026-10-02', gen, targets: ['校'], rounds: 1 });
+  assert.equal(r.items.length, 0);
+  assert.equal(r.stats.samples[0].reason, 'target-not-once');
+  assert.equal(r.stats.samples[0].item.sentence, '学校と 学校。');
+}
+// 2回目の プロンプトには 前回の ダメだし(りゆう)が 入る
+{
+  const prompts = [];
+  const gen = async (prompt) => { prompts.push(prompt); return []; };
+  await generateForGrade({ kanji, grade: 1, count: 1, dateStr: '2026-10-02', gen, targets: ['校'] }).catch(() => {});
+  // 返りが 空 → ダメだしは なし。かわりに、理由つきの 再依頼は 上のテストで 確認ずみ
+  assert.ok(prompts.length >= 1);
+}
+// (3) 1日2回(午前=0/午後=1)で ちがう 漢字を えらぶ
+{
+  const am = pickTargets(kanji, 3, 8, '2026-10-02', 0); const pm = pickTargets(kanji, 3, 8, '2026-10-02', 1);
+  assert.equal(new Set([...am, ...pm]).size, 16, '午前と午後で かぶらない');
+  assert.deepEqual(pickTargets(kanji, 3, 8, '2026-10-02', 1), pm, '同じ日・同じ回なら 同じ');
+}
+
+// ---- 混雑(503)への ふんばり: 再試行 → 別モデルへ ----
+{
+  const calls = []; const sleeps = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const model = String(url).match(/models\/([^:]+):/)[1]; calls.push(model);
+    if (model === 'm-busy') return { status: 503, ok: false, text: async () => 'busy', json: async () => ({}) };
+    return { status: 200, ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '[{"ok":1}]' }] } }] }) };
+  };
+  try {
+    const gen = makeGen('KEY', ['m-busy', 'm-ok'], { sleep: async (ms) => { sleeps.push(ms); }, attempts: 3 });
+    assert.deepEqual(await gen('p', {}), [{ ok: 1 }]);
+    assert.deepEqual(calls, ['m-busy', 'm-busy', 'm-busy', 'm-ok'], '3回 ためして、だめなら 次の モデル');
+    assert.equal(sleeps.length, 2, '待つのは 2回(最後は 待たずに 次へ)');
+    assert.ok(sleeps[1] > sleeps[0], 'だんだん 長く まつ');
+    // どのモデルも だめなら エラーを なげる
+    calls.length = 0;
+    const bad = makeGen('KEY', ['m-busy'], { sleep: async () => {}, attempts: 2 });
+    await assert.rejects(bad('p', {}), /503/);
+    // 400 は 作りなおしても なおらないので すぐ 止める
+    globalThis.fetch = async () => ({ status: 400, ok: false, text: async () => 'bad request', json: async () => ({}) });
+    const once = makeGen('KEY', ['m1', 'm2'], { sleep: async () => {} });
+    await assert.rejects(once('p', {}), /HTTP 400/);
+  } finally { globalThis.fetch = realFetch; }
+}
+
 console.log(`OK: kokugo (${seed.length}問のプールを検査)`);

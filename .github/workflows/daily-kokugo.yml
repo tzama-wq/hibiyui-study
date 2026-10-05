@@ -1,10 +1,12 @@
 name: daily-kokugo
 
-# 毎朝 5:00(日本時間) に Gemini で国語(漢字)の問題を作って、data/kokugo-pool.json に ためる。
+# 1日2回(日本時間 5:00 と 17:00)Gemini で国語(漢字)の問題を作って、data/kokugo-pool.json に ためる。
+# 午前と午後で、ちがう漢字を つくる(混雑で 失敗しても、もう1回 とりかえせる)。
 # 手動でも動かせる(Actions タブ → daily-kokugo → Run workflow)。
 on:
   schedule:
     - cron: '0 20 * * *' # UTC 20:00 = JST 05:00
+    - cron: '0 8 * * *' # UTC 08:00 = JST 17:00
   workflow_dispatch:
 
 permissions:
@@ -17,7 +19,7 @@ concurrency:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 

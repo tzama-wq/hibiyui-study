@@ -95,9 +95,9 @@ export const ITEM_SCHEMA = {
   },
 };
 
-export function buildPrompt(grade, kanjiList, allowed) {
+export function buildPrompt(grade, kanjiList, allowed, feedback = '') {
   return `あなたは日本の小学校の国語の先生です。小学${grade}年生向けの漢字の問題を作ってください。
-
+${feedback ? `\n【前回の ダメだし(かならず なおす)】\n${feedback}\n` : ''}
 【対象の漢字】${kanjiList.join('、')}
 対象の漢字ごとに 1問ずつ作ります。type は yomi と kaki を交互にしてください。
 - yomi: 文の中の語(target)の読みを答える問題。reading は target の読み(ひらがなだけ)。
@@ -105,14 +105,45 @@ export function buildPrompt(grade, kanjiList, allowed) {
 
 【きまり】
 - target は対象の漢字を1字以上ふくむ語(熟語、または送りがな付き)。kanji には対象の漢字を1字入れる。
-- sentence は 20字いない のやさしい日本語の文で、target をちょうど1回ふくむ。子どもに不適切な内容は入れない。
-- sentence と explain の中で使ってよい漢字は、次の一覧にあるものだけ。一覧にない漢字は かならず ひらがなで書く:
+- sentence は 20字いない のやさしい日本語の文。**yomi でも kaki でも、sentence には target を「漢字のまま」ちょうど1回だけ入れる**(kaki でも sentence の中の target を ひらがなに しない。ひらがな版は reading に書く。アプリが あとで ひらがなに おきかえる)。子どもに不適切な内容は入れない。
+- sentence・explain・wrong の中で使ってよい漢字は、次の一覧にあるものだけ。一覧にない漢字は かならず ひらがなで書く(kaki の wrong の 漢字も、一覧の中の 漢字だけで 作る):
 ${[...allowed].join('')}
-- wrong は まちがえやすい 選択肢を ちょうど3つ。
+- wrong は まちがえやすい 選択肢を ちょうど3つ。どれも 正しい答えとは 別の もの。
   - yomi: ひらがなだけ。tag は ${YOMI_TAGS.join(' / ')} から選ぶ(onkun_mix=音読みと訓読みの取り違え、dakuten=にごる・にごらない、small_kana=小さい「っ」「ゅ」など、long_vowel=のばす音、similar_word=にた語の読み)。
-  - kaki: 漢字をふくむ語。形のにた漢字や同じ読みの漢字を使う。tag は ${KAKI_TAGS.join(' / ')}。
-  - 正しい答えと同じものは入れない。
+  - kaki: 漢字をふくむ語(ひらがなだけに しない)。形のにた漢字や同じ読みの漢字を使う。tag は ${KAKI_TAGS.join(' / ')}。
 - explain は 小学${grade}年生に分かる やさしい ひと言(40字いない)で、なぜその答えになるかを書く。`;
+}
+
+// 落ちた りゆうを AI に つたえて やりなおしてもらう ための ひとこと
+export const REASON_HINT = {
+  'target-not-once': 'sentence に target が ちょうど1回、漢字のまま 入っていない(ひらがなに していたり、2回 入っていた)',
+  'sentence-kanji-out-of-grade': 'sentence に 一覧に ない 漢字が あった(一覧に ない 漢字は ひらがなに する)',
+  'explain-kanji-out-of-grade': 'explain に 一覧に ない 漢字が あった',
+  'wrong-kanji-out-of-grade': 'kaki の wrong に 一覧に ない 漢字が あった(一覧の 漢字だけで 作る)',
+  'wrong-not-hiragana': 'yomi の wrong が ひらがなだけでは なかった',
+  'wrong-dup': 'wrong が 正しい答えや ほかの wrong と おなじだった',
+  'wrong-shape': 'wrong の tag が きまりの 中から えらばれていなかった',
+  'wrong-count': 'wrong が 3つ なかった',
+  'reading-not-hiragana': 'reading が ひらがなだけでは なかった',
+  'too-long': '文や explain が ながすぎた',
+  'target-kanji': 'kanji が target に ふくまれていない',
+};
+
+// AI の 出力の よくある ずれを 安全に なおす(なおせない ものは そのまま 検査で おとす)
+export function normalizeItem(it) {
+  if (!it || typeof it !== 'object') return it;
+  const o = { ...it };
+  for (const k of ['kanji', 'target', 'reading', 'sentence', 'explain']) if (typeof o[k] === 'string') o[k] = o[k].trim();
+  // kanji が 2字いじょうなら、target に ふくまれる 最初の 1字に
+  if (typeof o.kanji === 'string' && o.kanji.length > 1 && typeof o.target === 'string') {
+    o.kanji = [...o.kanji].find((c) => o.target.includes(c)) || o.kanji;
+  }
+  // sentence に target が なく、reading(ひらがな)が ちょうど1回 あれば、target(漢字)に おきかえる
+  if (typeof o.sentence === 'string' && typeof o.target === 'string' && typeof o.reading === 'string' && o.target && o.reading
+    && !o.sentence.includes(o.target) && o.sentence.split(o.reading).length === 2) {
+    o.sentence = o.sentence.replace(o.reading, o.target);
+  }
+  return o;
 }
 
 export function buildVerifyPrompt(items) {
@@ -147,32 +178,46 @@ export const dayNumber = (dateStr) => {
 };
 
 // 日付から決まるローテーション(毎日ちがう漢字が対象になる)
-export function pickTargets(kanji, grade, count, dateStr) {
+export function pickTargets(kanji, grade, count, dateStr, part = 0) {
   const list = kanji[grade].map((e) => e.k);
-  const start = (dayNumber(dateStr) * count) % list.length;
+  const start = ((dayNumber(dateStr) * 2 + part) * count) % list.length; // 1日に2回(part 0/1)やるので、ちがう 漢字を えらぶ
   return Array.from({ length: count }, (_, i) => list[(start + i) % list.length]);
 }
 
 // gen(prompt, schema) → 解析済みJSON。テストでは差し替える
-export async function generateForGrade({ kanji, grade, count, dateStr, gen, targets }) {
+export async function generateForGrade({ kanji, grade, count, dateStr, gen, targets, part = 0, rounds = 2 }) {
   const allowed = allowedSet(kanji, grade);
-  const list = targets || pickTargets(kanji, grade, count, dateStr);
-  const raw = await gen(buildPrompt(grade, list, allowed), ITEM_SCHEMA);
-  const stats = { asked: list.length, returned: Array.isArray(raw) ? raw.length : 0, rejected: {}, unverified: 0, accepted: 0 };
-  const valid = [];
-  for (const it of Array.isArray(raw) ? raw : []) {
-    const v = validateItem(it, allowed);
-    if (v.ok) valid.push(it);
-    else stats.rejected[v.reason] = (stats.rejected[v.reason] || 0) + 1;
-  }
-  let accepted = [];
-  if (valid.length) {
-    const answers = await gen(buildVerifyPrompt(valid), VERIFY_SCHEMA);
-    const ok = verifyAnswers(valid, answers);
-    accepted = valid.filter((_, i) => ok[i]);
-    stats.unverified = valid.length - accepted.length;
+  const list = targets || pickTargets(kanji, grade, count, dateStr, part);
+  const stats = { asked: list.length, returned: 0, rejected: {}, unverified: 0, accepted: 0, rounds: 0, samples: [] };
+  const accepted = [];
+  let pending = list;
+  let feedback = '';
+  for (let round = 0; round < rounds && pending.length; round++) {
+    stats.rounds++;
+    const raw = await gen(buildPrompt(grade, pending, allowed, feedback), ITEM_SCHEMA);
+    const items = Array.isArray(raw) ? raw.map(normalizeItem) : [];
+    stats.returned += items.length;
+    const valid = [];
+    const reasons = new Set();
+    for (const it of items) {
+      const v = validateItem(it, allowed);
+      if (v.ok) valid.push(it);
+      else {
+        stats.rejected[v.reason] = (stats.rejected[v.reason] || 0) + 1;
+        reasons.add(v.reason);
+        if (stats.samples.length < 4) stats.samples.push({ reason: v.reason, item: it }); // 原因を あとで 見られるように
+      }
+    }
+    if (valid.length) {
+      const answers = await gen(buildVerifyPrompt(valid), VERIFY_SCHEMA);
+      const ok = verifyAnswers(valid, answers);
+      valid.forEach((it, i) => { if (ok[i]) accepted.push(it); else stats.unverified++; });
+    }
+    pending = list.filter((k) => !accepted.some((it) => it.kanji === k));
+    feedback = [...reasons].map((r) => `- ${REASON_HINT[r] || r}`).join('\n');
   }
   stats.accepted = accepted.length;
+  stats.missing = pending.length;
   return { items: accepted.map((it) => toPoolItem(it, grade)), stats };
 }
 
