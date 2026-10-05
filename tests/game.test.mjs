@@ -4,7 +4,7 @@ import {
   PLAYERS, RARITIES, TICKETS, LEGEND_RATES, TICKET_ORDER, STATS, rates, rollRarity, pull, levelOf, rngSeed,
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
-  teamSnapshot, ratings, simulate, cpuTeam, goalChance,
+  teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
 } from '../game.js';
 
 // ---- 選手データ ----
@@ -150,18 +150,19 @@ const kid = { name: 'ひびと', face: '⚽', stats: Object.fromEntries(STATS.ma
 const fw = PLAYERS.find((p) => p.pos === 'FW' && p.rarity === 'common');
 const df = PLAYERS.find((p) => p.pos === 'DF' && p.rarity === 'common');
 {
-  const snap = teamSnapshot({ kid, owned: { [fw.id]: 1, [df.id]: 3 }, team: ['self', fw.id, null, df.id, fw.id] });
-  assert.equal(snap.length, 5);
+  const snap = teamSnapshot({ kid, owned: { [fw.id]: 1, [df.id]: 3 }, team: ['self', fw.id, null, null, null, null, df.id, null, null, null, fw.id] });
+  assert.equal(snap.length, 11); assert.equal(TEAM_SIZE, 11);
+  assert.deepEqual(SLOT_POS.reduce((a, p) => ({ ...a, [p]: (a[p] || 0) + 1 }), {}), { FW: 2, MF: 4, DF: 4, GK: 1 }, '4-4-2');
   assert.equal(snap[0].name, 'ひびと'); assert.equal(snap[0].stats.SHO, 50, 'じぶんは どこでも ペナルティなし');
   assert.equal(snap[2].name, 'ベンチの 子');
-  assert.equal(snap[3].level, 2);
-  assert.ok(snap[4].offPos && snap[4].stats.SHO < fw.stats.SHO, 'ポジション ちがいは よわくなる');
+  assert.equal(snap[6].level, 2);
+  assert.ok(snap[10].offPos && snap[10].stats.SHO < fw.stats.SHO, 'ポジション ちがいは よわくなる(FWをGKの わくへ)');
   assert.ok(!snap[1].offPos && snap[1].stats.SHO === fw.stats.SHO);
   const buffed = teamSnapshot({ kid, owned: {}, team: ['self'], equip: ['goal300'] });
   assert.equal(buffed[0].stats.SHO, Math.round(50 * 1.08));
 }
 {
-  const strong = (v) => ({ name: 'S', team: ['FW', 'FW', 'MF', 'DF', 'GK'].map((slot, i) => ({ slot, id: `x${i}`, name: `S${i}`, face: '⚽', pos: slot, rarity: 'common', level: 0, offPos: false, stats: Object.fromEntries(STATS.map((s) => [s, v])) })) });
+  const strong = (v) => ({ name: 'S', team: SLOT_POS.map((slot, i) => ({ slot, id: `x${i}`, name: `S${i}`, face: '⚽', pos: slot, rarity: 'common', level: 0, offPos: false, stats: Object.fromEntries(STATS.map((s) => [s, v])) })) });
   assert.equal(ratings(strong(60).team).power, 60);
   assert.ok(ratings(strong(80).team).power > ratings(strong(60).team).power);
   assert.ok(goalChance(100, 100) > 0.29 && goalChance(100, 100) < 0.31);
@@ -185,4 +186,7 @@ const df = PLAYERS.find((p) => p.pos === 'DF' && p.rarity === 'common');
   assert.ok(rr('easy') < rr('normal') && rr('normal') < rr('hard') && rr('hard') < rr('boss'));
   assert.ok(Math.abs(rr('normal') - 60) <= 6);
 }
+// 5にんの ころの へんせいは 11にんの じゅんばんに ひきつがれる
+assert.deepEqual(migrateTeam(['a', 'b', 'c', 'd', 'e']), ['a', 'b', 'c', null, null, null, 'd', null, null, null, 'e']);
+assert.equal(migrateTeam([]).length, 11);
 console.log('OK: game');

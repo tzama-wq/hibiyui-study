@@ -395,3 +395,11 @@ body.enter .kid-select:nth-of-type(2){animation-delay:.1s}
 .gs-cards:not(.one) .rc-name{font-size:10px;min-height:24px;line-height:1.15}
 .gs-cards:not(.one) .rc-rar,.gs-cards:not(.one) .rc-top small{display:none}
 .gs-cards:not(.one) .rc-ovr{font-size:15px}
+
+/* 11にん(4-4-2): 1ぎょうに 4にん ならぶ */
+.formation{gap:4px;padding:8px 3px}.frow{gap:5px}
+.slot{width:calc(25% - 5px);max-width:86px;min-width:0}
+.slot .rcard{padding:3px 3px 2px}.slot .rc-name{font-size:9px;min-height:22px;line-height:1.1}
+.slot .rc-rar,.slot .rc-top small{display:none}.slot .rc-face:not(.has-img){font-size:26px}.slot .rc-ovr{font-size:14px}
+.slot>small{font-size:9px;top:-7px}
+.bteam{max-width:150px}.bt-img{width:22px;height:22px}

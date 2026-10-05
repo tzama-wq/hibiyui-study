@@ -15,7 +15,8 @@ const rewardText = (r) => G.TICKET_ORDER.filter((k) => r[k]).map((k) => `${G.TIC
 export function ensureGame(p) {
   p.tickets = { ...G.emptyTickets(), ...(p.tickets || {}) };
   p.owned = p.owned || {};
-  if (!Array.isArray(p.team) || p.team.length !== 5) p.team = ['self', null, null, null, null];
+  if (Array.isArray(p.team) && p.team.length === 5) p.team = G.migrateTeam(p.team); // 5にんの ころの へんせいを ひきつぐ
+  if (!Array.isArray(p.team) || p.team.length !== G.TEAM_SIZE) p.team = G.migrateTeam(['self']);
   p.equip = Array.isArray(p.equip) ? p.equip.slice(0, G.MAX_EQUIP) : [];
   p.pts = { ...G.emptyStatMap(), ...(p.pts || {}) };
   p.lv = { ...G.emptyStatMap(), ...(p.lv || {}) };
@@ -123,12 +124,13 @@ export function teamTab() {
 function formHtml() {
   const k = X.kid(); const p = X.p();
   const snap = snapshotOf(k, p); const r = G.ratings(snap);
-  const rows = [[0, 1], [2], [3], [4]];
+  const rows = [[0, 1], [2, 3, 4, 5], [6, 7, 8, 9], [10]]; // 4-4-2
   const slotHtml = (i) => `<button class="slot ${UI.slot === i ? 'sel' : ''}" data-act="slot" data-i="${i}"><small>${G.SLOT_POS[i]}</small>${cardHtml(snap[i], { stats: false })}</button>`;
   return `<section class="panel"><h2 class="sec">FORMATION <small>へんせい</small></h2>
     <div class="power"><span>⚔ ${Math.round(r.att)}</span><span>🛡 ${Math.round(r.def)}</span><b>パワー ${r.power}</b></div>
     <div class="formation">${rows.map((row) => `<div class="frow">${row.map(slotHtml).join('')}</div>`).join('')}</div>
     <div class="muted">わくを おして、えらぼう。ポジションが ちがうと ⚠ よわくなるよ(じぶんは どこでも OK)。</div>
+    <button class="btn small gold" data-act="auto">✨ おまかせで あいている わくを うめる</button>
     ${UI.slot !== null ? pickerHtml(k, p) : ''}</section>${equipHtml(p)}`;
 }
 function pickerHtml(k, p) {
@@ -194,7 +196,7 @@ let B = null; let timer = null;
 function mateOpponent() {
   const other = X.KIDS.find((k) => k.id !== X.kid().id);
   const d = X.dataFor(other);
-  if (Array.isArray(d.team) && d.team.length === 5) return { name: `${other.name}の チーム`, team: d.team, power: G.ratings(d.team).power };
+  if (Array.isArray(d.team) && d.team.length === G.TEAM_SIZE) return { name: `${other.name}の チーム`, team: d.team, power: G.ratings(d.team).power };
   return null;
 }
 function battleMenuHtml() {
@@ -282,6 +284,20 @@ export function onAct(a, el) {
       if (id) { const j = p.team.indexOf(id); if (j >= 0 && j !== i) p.team[j] = was || null; } // いれかえ
       p.team[i] = id;
       UI.slot = null; X.save(); X.fx.beep('ok'); return true;
+    }
+    case 'auto': { // あいている わくに、ポジションの あう つよい選手を いれる
+      const placed = new Set(p.team.filter(Boolean));
+      const pool = Object.keys(p.owned).map(playerOf).filter(Boolean);
+      let n = 0;
+      for (let i = 0; i < G.TEAM_SIZE; i++) {
+        if (p.team[i]) continue;
+        const pos = G.SLOT_POS[i];
+        const best = pool.filter((x) => !placed.has(x.id))
+          .sort((a, b) => (b.pos === pos) - (a.pos === pos) || ovrOf(b.stats, b.pos) - ovrOf(a.stats, a.pos))[0];
+        if (best) { p.team[i] = best.id; placed.add(best.id); n++; }
+      }
+      X.save(); X.toast(n ? `${n}にん いれたよ!` : 'いれられる 選手が いないよ(ガチャで あつめよう)');
+      return true;
     }
     case 'equip': {
       const id = el.dataset.id; const j = p.equip.indexOf(id);

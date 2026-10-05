@@ -19,7 +19,11 @@ export const TICKET_ORDER = ['bronze', 'silver', 'gold', 'platinum'];
 export const STATS = ['SHO', 'PAS', 'SPD', 'DEF', 'STA'];
 export const STAT_NAME = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
 export const SUBJECT_STAT = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA' };
-export const SLOT_POS = ['FW', 'FW', 'MF', 'DF', 'GK']; // 5にんで しあいをする
+// 11にんで しあいをする(4-4-2)。じゅんばん: FW2 → MF4 → DF4 → GK1
+export const SLOT_POS = ['FW', 'FW', 'MF', 'MF', 'MF', 'MF', 'DF', 'DF', 'DF', 'DF', 'GK'];
+export const TEAM_SIZE = SLOT_POS.length;
+// 5にんだった ころの へんせいを 11にんの じゅんばんに うつす(FW,FW,MF,DF,GK)
+export const migrateTeam = (old) => { const t = Array(TEAM_SIZE).fill(null); [0, 1, 2, 6, 10].forEach((to, k) => { t[to] = old[k] ?? null; }); return t; };
 export const POS_NAME = { FW: 'フォワード', MF: 'ミッドフィルダー', DF: 'ディフェンダー', GK: 'キーパー', ALL: 'オールラウンダー' };
 
 export const rngSeed = (seed) => { // mulberry32: 同じシードなら同じ並び
@@ -306,7 +310,7 @@ export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty
   return Object.fromEntries(STATS.map((s) => [s, Math.round(base[s] * (1 + 0.04 * level) * (1 + buff[s] / 100) * penalty)]));
 }
 const BENCH = { id: 'bench', name: 'ベンチの 子', face: '🪑', pos: 'ALL', rarity: 'common', stats: Object.fromEntries(STATS.map((s) => [s, 30])) };
-// team: 5つの わく(選手ID / 'self' / null)。kid: { name, face, stats }
+// team: 11この わく(選手ID / 'self' / null)。kid: { name, face, stats }
 export function teamSnapshot({ kid, owned = {}, team = [], equip = [] }) {
   const buff = teamBuff(equip);
   return SLOT_POS.map((slot, i) => {
@@ -322,12 +326,17 @@ export function teamSnapshot({ kid, owned = {}, team = [], equip = [] }) {
 }
 const attSkill = (s) => 0.5 * s.SHO + 0.2 * s.PAS + 0.3 * s.SPD;
 const defSkill = (s) => 0.6 * s.DEF + 0.2 * s.STA + 0.2 * s.SPD;
-const ATT_W = [1, 1, 0.5, 0.1, 0];
-const DEF_W = [0, 0, 0.5, 1, 1.2];
+// ポジションごとの 「こうげき」「まもり」への きよ度(4-4-2)
+const ATT_W = { FW: 1, MF: 0.5, DF: 0.1, GK: 0 };
+const DEF_W = { FW: 0, MF: 0.5, DF: 1, GK: 1.5 };
 export function ratings(snap) {
-  const wsum = (w) => w.reduce((a, b) => a + b, 0);
-  const att = snap.reduce((a, p, i) => a + ATT_W[i] * attSkill(p.stats), 0) / wsum(ATT_W);
-  const def = snap.reduce((a, p, i) => a + DEF_W[i] * defSkill(p.stats), 0) / wsum(DEF_W);
+  let aw = 0; let as = 0; let dw = 0; let ds = 0;
+  snap.forEach((p, i) => {
+    const pos = SLOT_POS[i];
+    aw += ATT_W[pos]; as += ATT_W[pos] * attSkill(p.stats);
+    dw += DEF_W[pos]; ds += DEF_W[pos] * defSkill(p.stats);
+  });
+  const att = as / aw; const def = ds / dw;
   return { att, def, power: Math.round((att + def) / 2) };
 }
 
@@ -335,15 +344,20 @@ export function ratings(snap) {
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const pickW = (arr, w, rnd) => { const t = w.reduce((a, b) => a + b, 0); let r = rnd() * t; for (let i = 0; i < arr.length; i++) { r -= w[i]; if (r <= 0) return arr[i]; } return arr[arr.length - 1]; };
 export const goalChance = (att, def) => clamp(0.3 * (att / Math.max(1, def)) ** 1.3, 0.04, 0.8);
+const GK_SLOT = SLOT_POS.lastIndexOf('GK');
+const at = (team, pos) => team.filter((_, i) => SLOT_POS[i] === pos);
 export function simulate(a, b, rnd = Math.random, phases = 6) {
   const ra = ratings(a.team); const rb = ratings(b.team);
   const sides = [{ ...a, r: ra, key: 'a' }, { ...b, r: rb, key: 'b' }];
   const events = []; const score = { a: 0, b: 0 };
   for (let i = 0; i < phases * 2; i++) {
     const atk = sides[i % 2]; const dfn = sides[(i + 1) % 2];
-    const att = atk.team; const gk = dfn.team[4];
-    const passer = pickW([att[2], att[0], att[1]], [att[2].stats.PAS, att[0].stats.PAS, att[1].stats.PAS], rnd);
-    const shooter = pickW([att[0], att[1], att[2]], [att[0].stats.SHO, att[1].stats.SHO, att[2].stats.SHO * 0.6], rnd);
+    const fw = at(atk.team, 'FW'); const mf = at(atk.team, 'MF');
+    const gk = dfn.team[GK_SLOT];
+    const passers = [...mf, ...fw];
+    const passer = pickW(passers, passers.map((x) => x.stats.PAS), rnd);
+    const cands = [...fw, ...mf].filter((x) => x !== passer);
+    const shooter = pickW(cands, cands.map((x) => x.stats.SHO * (fw.includes(x) ? 1 : 0.5)), rnd);
     const p = goalChance(atk.r.att, dfn.r.def);
     const roll = rnd();
     const type = roll < p ? 'goal' : roll < p + (1 - p) * 0.55 ? 'save' : 'miss';
@@ -368,9 +382,9 @@ export const CPU_LEVELS = [
 export function cpuTeam(power, levelId, rnd = Math.random) {
   const lv = CPU_LEVELS.find((l) => l.id === levelId) || CPU_LEVELS[1];
   const base = Math.max(35, power * lv.factor);
-  const faces = ['🦁', '🐯', '🦊', '🐻', '🧤'];
+  const faces = ['🦁', '🐯', '🦊', '🐻', '🐺', '🦅', '🐲', '🦈', '🐘', '🦏', '🧤'];
   const team = SLOT_POS.map((slot, i) => ({
-    slot, id: `cpu${i}`, name: `${FIRST[Math.floor(rnd() * FIRST.length)]}・${LAST[slot][Math.floor(rnd() * LAST[slot].length)]}`, face: faces[i], pos: slot, rarity: 'common', level: 0, offPos: false,
+    slot, id: `cpu${i}`, name: `${FIRST[Math.floor(rnd() * FIRST.length)]}・${LAST[slot][Math.floor(rnd() * LAST[slot].length)]}`, face: faces[i % faces.length], pos: slot, rarity: 'common', level: 0, offPos: false,
     stats: Object.fromEntries(STATS.map((s) => [s, Math.round(base * (0.9 + 0.2 * rnd()))])),
   }));
   return { name: lv.club, team };

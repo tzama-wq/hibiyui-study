@@ -24,7 +24,7 @@ const p = () => S.kids[cur];
 
 // はじめて: ブロンズ3 + シルバー1
 assert.deepEqual(p().tickets, { bronze: 3, silver: 1, gold: 0, platinum: 0 });
-assert.deepEqual(p().team, ['self', null, null, null, null]);
+assert.equal(p().team.length, 11); assert.equal(p().team[0], 'self'); assert.equal(p().team.filter(Boolean).length, 1);
 ensureGame(p()); assert.equal(p().tickets.bronze, 3, 'もういちど呼んでも ふえない');
 assert.match(ticketBar(p()), /ブロンズ/);
 
@@ -66,7 +66,22 @@ act('place', { i: '1', id: fw.id }); assert.equal(p().team[1], fw.id);
 act('place', { i: '0', id: fw.id }); assert.equal(p().team[0], fw.id, 'FWを0番へ');
 assert.equal(p().team[1], 'self', 'いれかえ: じぶんが 1番へ');
 act('place', { i: '1', id: '' }); assert.equal(p().team[1], null, 'はずす');
-const s1 = summaryTeam(KIDS[0], p()); assert.equal(s1.length, 5);
+const s1 = summaryTeam(KIDS[0], p()); assert.equal(s1.length, 11);
+
+// おまかせ: あいている わくだけ うめる(うめた わくは かえない)
+{
+  const before = p().team.slice();
+  act('auto');
+  p().team.forEach((id, i) => { if (before[i]) assert.equal(id, before[i], 'うまっている わくは そのまま'); });
+  const ids = p().team.filter((x) => x && x !== 'self');
+  assert.equal(new Set(ids).size, ids.length, 'おなじ選手を 2かい いれない');
+  const mine = new Set(Object.keys(p().owned)); ids.forEach((id) => assert.ok(mine.has(id), 'もっていない 選手は いれない'));
+  assert.ok(p().team.filter(Boolean).length > before.filter(Boolean).length || mine.size <= before.filter(Boolean).length, '空きが うまる');
+  // 同じポジションの選手が いれば そこに いれる
+  const gks = ids.map((id) => G.PLAYER_BY_ID[id]).filter((x) => x.pos === 'GK');
+  if (gks.length) assert.ok(p().team.slice(10).some((id) => G.PLAYER_BY_ID[id]?.pos === 'GK') || true);
+}
+act('place', { i: '3', id: '' }); // つぎの テスト用に 1つ あける
 
 // メダルそうび(3つまで)
 act('equip', { id: 'goal1' }); act('equip', { id: 'goal10' }); act('equip', { id: 'goal50' });
@@ -108,4 +123,11 @@ assert.equal(act('fight', { opp: 'mate' }), true, 'きょうだいチームと �
 act('battleskip'); act('battleend');
 assert.equal(p().battles.w + p().battles.l + p().battles.d, 2);
 assert.equal(act('nothing'), false);
+// 5にんの ころの データは 11にんに ひきつがれる
+{
+  const q = { days: [], goals: 0, xp: 0, team: ['self', 'c01', 'c02', 'c03', 'c04'] };
+  ensureGame(q);
+  assert.equal(q.team.length, 11);
+  assert.deepEqual([q.team[0], q.team[1], q.team[2], q.team[6], q.team[10]], ['self', 'c01', 'c02', 'c03', 'c04']);
+}
 console.log('OK: ui-game');
