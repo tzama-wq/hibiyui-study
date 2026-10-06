@@ -2,6 +2,7 @@
 // app.js から ctx(状態や共通の道具)を わたして つかう。DOM には さわらず、HTML文字列を かえす。
 import * as G from './game.js';
 import { DEFAULTS, gachaLeft, addGachaPulls } from './cfg.js';
+import { createMatch } from './match.js';
 
 let X; // ctx
 export function gameInit(ctx) { X = ctx; }
@@ -202,7 +203,7 @@ function powerHtml() {
 }
 
 // ---- 対戦 ----------------------------------------------------------------------
-let B = null; let timer = null;
+let B = null; let timer = null; let M = null;
 function mateOpponent() {
   const other = X.KIDS.find((k) => k.id !== X.kid().id);
   const d = X.dataFor(other);
@@ -217,8 +218,12 @@ function battleMenuHtml() {
     <div class="power"><b>${k.name}の チーム パワー ${r.power}</b><span>${p.battles.w}勝 ${p.battles.d}分 ${p.battles.l}敗</span></div>
     <div class="muted">へんせいした チームで たいせん! (どちらが かつかは うんも あるよ)</div>
     ${mate ? `<button class="match-btn alt" data-act="fight" data-opp="mate"><small>VS BROTHER</small><b>⚔️ ${esc(mate.name)}と たいせん</b><span>あいての パワー ${mate.power}</span></button>` : '<div class="muted">きょうだいの チームは、きょうだいが アプリを ひらくと あらわれるよ。</div>'}
+    ${p.lastMatch ? `<div class="replay"><b>🎬 まえの しあい</b> <span>${esc(p.lastMatch.me.name)} ${p.lastMatch.score.a} - ${p.lastMatch.score.b} ${esc(p.lastMatch.opp.name)}</span>
+      <div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェスト(ゴールだけ)</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 ぜんぶ みる</button></div></div>` : ''}
     <div class="cpu-list">${G.CPU_LEVELS.map((l) => `<button class="btn gray" data-act="fight" data-opp="cpu:${l.id}">⚔ ${l.club}<small>(${l.name} ・ パワー めやす ${Math.round(r.power * l.factor)})</small></button>`).join('')}</div></section>`;
 }
+const slim = (t) => ({ name: t.name, power: G.ratings(t.team).power, team: t.team.map((m) => ({ id: m.id, name: m.name, slot: m.slot, rarity: m.rarity })) });
+const animOn = () => !(X.cfg && X.cfg().calm); // 「うごきを へらす」ときは 映像を だして うごかさない
 function startFight(oppId) {
   const k = X.kid(); const p = X.p();
   const me = { name: `${k.name}の チーム`, team: snapshotOf(k, p) };
@@ -226,18 +231,52 @@ function startFight(oppId) {
   if (oppId === 'mate') { const m = mateOpponent(); if (!m) return false; opp = { name: m.name, team: m.team }; }
   else opp = G.cpuTeam(G.ratings(me.team).power, oppId.split(':')[1], Math.random, G.FORMATIONS[Math.floor(Math.random() * G.FORMATIONS.length)].id);
   const res = G.simulate(me, opp);
-  B = { me, opp, res, i: 0, counted: false };
-  X.setView('battle');
-  tickBattle();
+  openBattle({ me: slim(me), opp: slim(opp), res, counted: false, mode: 'full' });
   return true;
 }
-function tickBattle() {
+// しあいを ひらく(あたらしい しあい / まえの しあいの リプレイ)
+function openBattle(b) {
+  stopMatch(); clearTimeout(timer);
+  const all = b.res.events.map((e, i) => ({ ...e, idx: i, total: b.res.events.length }));
+  let evs = all;
+  if (b.mode === 'digest') { evs = all.filter((e) => e.type === 'goal'); if (!evs.length) evs = all.filter((e) => e.type === 'save'); if (!evs.length) evs = all.slice(0, 4); }
+  B = { ...b, evs, i: 0, speed: 1, anim: animOn(), matchDone: false, banner: '' };
+  X.setView('battle');
+  if (B.anim) {
+    M = createMatch({ me: B.me, opp: B.opp, events: evs, speed: B.speed, callbacks: {
+      onEvent: ({ phase, i, ev }) => {
+        if (!B) return;
+        if (phase === 'start') { B.minute = Math.round(((ev.idx + 0.5) / ev.total) * 90); hudUpdate(); }
+        if (phase === 'result') {
+          B.i = i + 1;
+          if (ev.type === 'goal') { X.fx.beep(ev.side === 'a' ? 'ok' : 'ng'); X.fx.vibrate(ev.side === 'a' ? 30 : 15); if (ev.side === 'a') X.fx.confetti(vw() / 2, vh() * 0.3, 40, 1); }
+          hudUpdate(true);
+        }
+      },
+      onBanner: (t) => { B.banner = t; hudUpdate(); setTimeout(() => { if (B && B.banner === t) { B.banner = ''; hudUpdate(); } }, 1500); },
+      onEnd: () => { if (!B) return; B.i = B.evs.length; B.matchDone = true; B.minute = 90; finishBattle(); X.render(); },
+    } });
+  } else tickBattle();
+}
+function stopMatch() { if (M) { M.destroy(); M = null; } }
+const scoreNow = () => { if (B.matchDone || (!B.anim && B.i >= B.evs.length)) return B.res.score; const e = B.evs[B.i - 1]; return e ? e.score : { a: 0, b: 0 }; };
+// がめんを つくりなおさずに、スコアなどを その場で かきかえる(映像の canvas を こわさない)
+function hudUpdate(addLog) {
+  if (!B || typeof document === 'undefined') return;
+  const sc = scoreNow(); const q = (id) => document.getElementById(id);
+  if (q('bsa')) q('bsa').textContent = sc.a; if (q('bsb')) q('bsb').textContent = sc.b;
+  if (q('bmin')) q('bmin').textContent = B.matchDone ? 'おわり' : B.minute ? `${B.minute < 46 ? '前半' : '後半'} ${B.minute}分` : 'キックオフ';
+  if (q('bban')) { q('bban').textContent = B.banner || ''; q('bban').className = `bban ${B.banner ? 'on' : ''}`; }
+  if (addLog && q('blog')) { const e = B.evs[B.i - 1]; if (e) { q('blog').insertAdjacentHTML('beforeend', logRow(e, true)); q('blog').scrollTop = q('blog').scrollHeight; const em = q('blog').querySelector('.muted'); if (em) em.remove(); } }
+}
+const logRow = (e, isNew) => `<div class="bl ${e.type} ${e.side === 'a' ? 'me' : 'op'} ${isNew ? 'new' : ''}"><i>${e.type === 'goal' ? '⚽' : e.type === 'save' ? '🧤' : '💨'}</i><span>${esc(e.text)}</span></div>`;
+function tickBattle() { // 「うごきを へらす」ときの ぶんしょうだけの しあい
   clearTimeout(timer);
-  if (!B || B.i >= B.res.events.length) { finishBattle(); return; }
+  if (!B || B.i >= B.evs.length) { finishBattle(); return; }
   timer = setTimeout(() => {
     if (!B) return;
     B.i++;
-    const ev = B.res.events[B.i - 1];
+    const ev = B.evs[B.i - 1];
     if (ev.type === 'goal') { X.fx.beep(ev.side === 'a' ? 'ok' : 'ng'); X.fx.vibrate(ev.side === 'a' ? 30 : 15); if (ev.side === 'a') X.fx.confetti(vw() / 2, vh() * 0.3, 40, 1); }
     X.render();
     tickBattle();
@@ -248,20 +287,25 @@ function finishBattle() {
   B.counted = true;
   const p = X.p(); const s = B.res.score;
   if (s.a > s.b) p.battles.w++; else if (s.a < s.b) p.battles.l++; else p.battles.d++;
+  p.lastMatch = { me: B.me, opp: B.opp, score: { ...s }, events: B.res.events.map(({ side, type, passer, shooter, keeper, score, text }) => ({ side, type, passer, shooter, keeper, score, text })) };
   X.save();
   if (s.a > s.b) { X.fx.confetti(vw() / 2, vh() * 0.35, 120, 1.5); X.fx.beep('win'); }
 }
 export function battleView() {
   if (!B) return '<main><div class="muted">たいせんが ないよ</div><button class="btn gold" data-act="battleend">もどる</button></main>';
-  const ev = B.res.events.slice(0, B.i); const last = ev[ev.length - 1];
-  const sc = last ? last.score : { a: 0, b: 0 };
-  const done = B.i >= B.res.events.length;
-  const sideHtml = (t) => `<div class="bteam">${t.team.map((m) => `<span title="${esc(m.name)}">${m.img ? `<img class="bt-img" src="${esc(m.img)}" alt="" onerror="this.outerHTML='${m.face}'">` : m.face}</span>`).join('')}<small>${G.ratings(t.team).power}</small></div>`;
+  const done = B.anim ? B.matchDone : B.i >= B.evs.length;
+  const sc = done ? B.res.score : scoreNow();
+  const shown = B.evs.slice(0, B.i);
   const result = done ? (sc.a > sc.b ? ['WIN!', '🏆 かったよ! ナイスゲーム!'] : sc.a < sc.b ? ['LOSE', 'ざんねん…! つぎは かてるよ。れんしゅうで つよく なろう!'] : ['DRAW', 'ひきわけ! いい しあいだったね']) : null;
-  return `<div class="quiz-top"><span></span><div class="scoreboard"><span class="sb-l">${esc(B.me.name)} <b>${sc.a}</b></span><span class="sb-m">-</span><span class="sb-r"><b>${sc.b}</b> ${esc(B.opp.name)}</span></div><span></span></div>
-    <main><section class="panel"><div class="vs">${sideHtml(B.me)}<b>VS</b>${sideHtml(B.opp)}</div>
-    <div class="blog">${ev.map((e, i) => `<div class="bl ${e.type} ${e.side === 'a' ? 'me' : 'op'} ${i === ev.length - 1 ? 'new' : ''}"><i>${e.type === 'goal' ? '⚽' : e.type === 'save' ? '🧤' : '💨'}</i><span>${esc(e.text)}</span></div>`).join('') || '<div class="muted">キックオフ…!</div>'}</div>
-    ${done ? `<div class="bresult ${sc.a > sc.b ? 'win' : sc.a < sc.b ? 'lose' : ''}"><b>${result[0]}</b><p>${result[1]}</p></div>` : '<button class="btn small gray" data-act="battleskip">⏩ とばす</button>'}
+  const teamHtml = (t) => `<div class="bteam"><b>${esc(t.name)}</b><small>パワー ${t.power}</small></div>`;
+  if (B.anim && M) setTimeout(() => { const cv = typeof document !== 'undefined' && document.getElementById('mcv'); if (cv && M) M.attach(cv); }, 0);
+  return `<div class="quiz-top"><span></span><div class="scoreboard"><span class="sb-l">${esc(B.me.name)} <b id="bsa">${sc.a}</b></span><span class="sb-m">-</span><span class="sb-r"><b id="bsb">${sc.b}</b> ${esc(B.opp.name)}</span></div><span></span></div>
+    <main><section class="panel"><div class="vs">${teamHtml(B.me)}<b>VS</b>${teamHtml(B.opp)}</div>
+    ${B.anim ? `<div class="mwrap"><canvas id="mcv" class="mcv" aria-label="しあいの えいぞう"></canvas><span id="bmin" class="bmin">${done ? 'おわり' : B.minute ? `${B.minute < 46 ? '前半' : '後半'} ${B.minute}分` : 'キックオフ'}</span><div id="bban" class="bban ${B.banner ? 'on' : ''}">${esc(B.banner)}</div></div>` : ''}
+    <div class="blog" id="blog">${shown.map((e) => logRow(e)).join('') || '<div class="muted">キックオフ…!</div>'}</div>
+    ${done ? `<div class="bresult ${sc.a > sc.b ? 'win' : sc.a < sc.b ? 'lose' : ''}"><b>${result[0]}</b><p>${result[1]}</p></div>
+      <div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェストを みる</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 もういちど ぜんぶ</button></div>`
+    : `<div class="row"><button class="btn small gray" data-act="battlespeed">⏩ ${B.speed > 1 ? 'ふつうに もどす' : 'はやおくり'}</button><button class="btn small gray" data-act="battleskip">⏭ とばす</button></div>`}
     <button class="btn gold" data-act="battleend">${done ? 'もどる' : 'やめる'}</button></section></main>`;
 }
 
@@ -335,9 +379,11 @@ export function onAct(a, el) {
       return true;
     }
     case 'fight': return startFight(el.dataset.opp);
-    case 'battleskip': if (B) { B.i = B.res.events.length; clearTimeout(timer); finishBattle(); } return true;
-    case 'battleend': clearTimeout(timer); B = null; X.setView('kid'); return true;
+    case 'battleskip': if (B) { clearTimeout(timer); if (M) M.skip(); else { B.i = B.evs.length; finishBattle(); } } return true;
+    case 'battlespeed': if (B && M) { B.speed = B.speed > 1 ? 1 : 2.5; M.setSpeed(B.speed); X.render(); } return true;
+    case 'replaylast': { const lm = p.lastMatch; if (!lm) return false; openBattle({ me: lm.me, opp: lm.opp, res: { events: lm.events, score: lm.score }, counted: true, mode: el.dataset.mode }); return true; }
+    case 'battleend': clearTimeout(timer); stopMatch(); B = null; X.setView('kid'); return true;
     default: return false;
   }
 }
-export function resetBattle() { clearTimeout(timer); B = null; }
+export function resetBattle() { clearTimeout(timer); stopMatch(); B = null; }

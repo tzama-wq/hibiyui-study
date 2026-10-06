@@ -451,3 +451,14 @@ body.big .nav button small{font-size:13px}
 .shapebox{display:flex;justify-content:center;margin:2px 0 10px}
 .shape{width:min(62vw,230px);max-height:230px;height:auto;filter:drop-shadow(0 0 10px rgba(39,216,255,.45))}
 .shape path{fill:var(--cyan);fill-opacity:.9;stroke:#fff;stroke-width:1.2;stroke-linejoin:round}
+
+/* ピクセルの しあい映像 */
+.mwrap{position:relative;margin:6px -4px 8px;background:#06101f;border:2px solid var(--line);overflow:hidden}
+.mcv{display:block;width:100%;height:auto;aspect-ratio:320/184;image-rendering:pixelated;image-rendering:crisp-edges}
+.bmin{position:absolute;left:6px;top:6px;font:800 11px/1 system-ui;color:#fff;background:rgba(0,0,0,.55);padding:3px 6px}
+.bban{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:900 28px/1 system-ui;font-style:italic;letter-spacing:2px;color:var(--gold);text-shadow:0 2px 0 #000,0 0 18px rgba(255,200,0,.8);opacity:0;pointer-events:none}
+.bban.on{opacity:1;animation:bannerIn .5s both}
+@keyframes bannerIn{from{transform:scale(1.8);opacity:0}to{transform:scale(1);opacity:1}}
+.bteam{display:flex;flex-direction:column;align-items:center;max-width:none;gap:0}.bteam b{font-size:13px}
+.replay{margin:10px 0;padding:10px;background:rgba(255,255,255,.05);border-left:4px solid var(--gold)}.replay span{font-size:13px;font-weight:700}
+.blog{max-height:190px;overflow:auto;min-height:60px}
