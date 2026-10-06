@@ -446,3 +446,8 @@ body.big .nav button small{font-size:13px}
 .fchips{margin:6px 0}
 .frow.n5 .slot{width:calc(20% - 5px);max-width:76px}
 .frow.n3 .slot{max-width:90px}
+
+/* かたちクイズ */
+.shapebox{display:flex;justify-content:center;margin:2px 0 10px}
+.shape{width:min(62vw,230px);max-height:230px;height:auto;filter:drop-shadow(0 0 10px rgba(39,216,255,.45))}
+.shape path{fill:var(--cyan);fill-opacity:.9;stroke:#fff;stroke-width:1.2;stroke-linejoin:round}

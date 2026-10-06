@@ -2,7 +2,7 @@ import * as sync from './sync.js';
 import { addPoints, SUBJECT_STAT } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
-import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, setSeen } from './gen.js';
+import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen } from './gen.js';
 import { observe, nextProbes, noteProbe, specFor, activeList, counts, THRESH } from './hyp.js';
 
 // ---- 設定 -----------------------------------------------------------------
@@ -500,13 +500,22 @@ function vKid() {
   if (!S.pin) return vPinGate();
   const k = kidOf(); const p = S.kids[k.id]; refreshDay(p);
   let body;
-  if (tab === 'train') body = labCard(k, p) + timeMachineCard(k, p) + practiceCard(k, p);
+  if (tab === 'train') body = labCard(k, p) + shapeCard(k, p) + timeMachineCard(k, p) + practiceCard(k, p);
   else if (tab === 'gacha') body = gachaTab();
   else if (tab === 'team') body = teamTab();
   else body = homeTab(k, p);
   $app.innerHTML = `${topBar(k, p)}<main>${body}</main>${navBar()}`;
 }
 
+// かたちクイズ(都道府県・くに): 形から なまえを あてる
+function shapeCard(k, p) {
+  const e = k.grade >= 3 ? '' : '_e';
+  const us = ['geo_pref', 'geo_world'].map((id) => byId[id + e]).filter(Boolean);
+  if (!us.length) return '';
+  return `<section class="panel"><h2 class="sec">QUIZ <small>かたち あてクイズ</small></h2>
+    <div class="muted">かたちを みて、どこか あてよう! ${e ? 'ゆうめいな ところから だすよ。' : 'ぜんぶで 47都道府県と せかいの くにが でるよ。'}</div>
+    <div class="row">${us.map((u) => `<button class="btn gold" data-act="start" data-mode="practice" data-unit="${u.id}">${u.id.includes('pref') ? '🗾' : '🌏'} ${u.id.includes('pref') ? 'にほん' : 'せかい'}の かたち</button>`).join('')}</div></section>`;
+}
 function practiceCard(k, p) {
   const btn = (u, label) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${label}</button>`;
   const mine = unitsOf(k.grade);
@@ -548,7 +557,7 @@ function vQuiz() {
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>
     <div class="dots">${Q.items.map((x, i) => `<i class="${x.res || ''} ${i === Q.i ? 'cur' : ''}"></i>`).join('')}</div>
     <main><section class="panel qpanel">
-      <div class="q ${q.text.length > 40 ? 'long' : ''}">${q.text}</div>
+      <div class="q ${qplain(q.text).length > 40 ? 'long' : ''}">${q.text}</div>
       <div style="text-align:center"><button class="btn small gray" data-act="speak">🔊 よみあげ</button></div>
       ${locked ? '<div id="wait" class="muted" style="text-align:center">👀 もんだいを よく よんでね…</div>' : ''}
       <div class="choices">
@@ -769,7 +778,8 @@ function askPin(msg) {
 
 // ---- 動作 -----------------------------------------------------------------
 // 問題が出てから、よく読む時間(はんしゃで おさせない。せっていで みじかく・なしに できる)
-const lockMs = (q) => lockMsFor(q.text.length, cfg());
+const qplain = (t) => t.replace(/<svg[\s\S]*?<\/svg>/g, '');
+const lockMs = (q) => lockMsFor(qplain(q.text).length, cfg());
 function startQuiz(mode, unitId) {
   const k = kidOf();
   setSeen(S.kids[k.id].seen || []);
@@ -1013,6 +1023,12 @@ try {
 try {
   const r = await fetch('data/knowledge.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
   if (r.ok) registerKnowledge((await r.json()).units || []);
+} catch { /* オフラインなど */ }
+
+// 都道府県・せかいの くにの かたち(かたちクイズ)
+try {
+  const r = await fetch('data/geo.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
+  if (r.ok) registerGeo(await r.json());
 } catch { /* オフラインなど */ }
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});

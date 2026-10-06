@@ -42,7 +42,7 @@ export function observe(p, { unitId, q, choice, ok, today, immediate = false }) 
     const key = keyOf(unitId, tag, item);
     const h = p.hyp[key];
     if (!h) {
-      p.hyp[key] = { key, unit: unitId, kind: item ? 'item' : 'tag', tag: item ? null : tag, item: item || null, label: item ? plain(q.text).slice(0, 24) : '', sup: 1, ref: 0, streak: 0, okDays: [], seen: 1, first: today, last: today, status: 'testing', probeDay: null };
+      p.hyp[key] = { key, unit: unitId, kind: item ? 'item' : 'tag', tag: item ? null : tag, item: item || null, label: item ? (q.hlabel || plain(q.text).slice(0, 24)) : '', sup: 1, ref: 0, streak: 0, okDays: [], seen: 1, first: today, last: today, status: 'testing', probeDay: null };
       events.push({ type: 'new', h: p.hyp[key] });
     } else if (['cleared', 'resolved'].includes(h.status)) { // いちど おわった かせつが ぶりかえした
       Object.assign(h, { sup: 1, ref: 0, streak: 0, okDays: [], seen: h.seen + 1, last: today, status: 'testing' });

@@ -616,11 +616,13 @@ export const ruby = (s) => String(s).replace(/[<>&"]/g, '').replace(RUBY, '<ruby
 function fromKnowledge(unit, forced) {
   const fresh = unit.items.filter((p) => !seenIds.has(p.id));
   const it = forced || pick(fresh.length ? fresh : unit.items);
+  // かたちクイズは まちがいの せんたくしを その つど えらぶ(ちかい ところを 2つ + ほか)
+  const wrong = it.wrong || (() => { const n = shuffle(it.near.slice()); const f = shuffle(it.far.slice()); return [...n.slice(0, 2), ...f, ...n.slice(2)].slice(0, 3); })();
   const choices = shuffle([
     { label: ruby(it.correct), ok: true },
-    ...it.wrong.map((w) => ({ label: ruby(w.label), ok: false, tag: 'know_mixup', note: ruby(w.note) })),
+    ...wrong.map((w) => ({ label: ruby(w.label), ok: false, tag: 'know_mixup', note: ruby(w.note) })),
   ]);
-  return { text: ruby(it.q), why: ruby(it.why), choices, id: it.id };
+  return { text: (it.svg ? `<div class="shapebox">${it.svg}</div>` : '') + ruby(it.q), why: ruby(it.why), choices, id: it.id, ...(it.hlabel ? { hlabel: it.hlabel } : {}) };
 }
 
 export function registerKnowledge(list) {
@@ -632,6 +634,44 @@ export function registerKnowledge(list) {
     byId[k.id] = unit;
   }
   for (const u of Object.values(byId)) u.pre = u.pre.filter((x) => byId[x]);
+}
+
+// ---- かたちクイズ(都道府県・せかいの くに): data/geo.json から たんげんを つくる ----------------
+const TAIL = { 県: 'けん', 府: 'ふ', 都: 'と', 市: 'し', 区: 'く' };
+// 読みを つける。tail=true なら「県・市」など おわりの 1もじは ふりがな なし
+function rubyName(name, yomi, whole) {
+  if (!yomi) return name;
+  const t = name.slice(-1);
+  if (!whole && TAIL[t] && name.length > 1 && yomi.endsWith(TAIL[t])) return `{${name.slice(0, -1)}|${yomi.slice(0, -TAIL[t].length)}}${t}`;
+  return `{${name}|${yomi}}`;
+}
+const svgOf = (o) => `<svg class="shape" viewBox="-4 -4 ${o.w + 8} ${o.h + 8}" role="img" aria-label="かたち"><path d="${o.d}"/></svg>`;
+export function registerGeo(geo) {
+  if (!geo || !geo.pref || !geo.world) return;
+  const make = (id, name, subject, grade, rows, whole, groupKey, makeItem) => {
+    if (byId[id] || rows.length < 6) return;
+    const pool = rows;
+    const items = pool.map((o, i) => {
+      const others = pool.filter((x) => x !== o);
+      const lab = (x) => rubyName(x.n, x.y, whole);
+      const note = (x) => `それは ${lab(x)}の かたちだよ。もういちど よく くらべてみよう。`;
+      const near = others.filter((x) => x[groupKey] === o[groupKey]).map((x) => ({ label: lab(x), note: note(x) }));
+      const far = others.filter((x) => x[groupKey] !== o[groupKey]).map((x) => ({ label: lab(x), note: note(x) }));
+      return { ...makeItem(o, lab), svg: svgOf(o), near, far, hlabel: `${o.n}の かたち`, id: `${id}:${i}` };
+    });
+    const unit = { id, name, subject, grade, months: [], pre: [], geo: true, items, gen: () => fromKnowledge(unit) };
+    (UNITS[grade] = UNITS[grade] || []).push(unit);
+    byId[id] = unit;
+  };
+  const prefs = Object.values(geo.pref); const world = Object.values(geo.world);
+  const prefItem = (o, lab) => ({ q: 'この かたちは どこの 都道府県かな?', correct: lab(o),
+    why: `${lab(o)}。${o.r}ちほうだよ。{県庁所在地|けんちょうしょざいち}は ${rubyName(o.c, o.cy, true)}。` });
+  const worldItem = (o, lab) => ({ q: 'この かたちは どこの くにかな?', correct: lab(o),
+    why: `${lab(o)}。${o.k}の くにだよ。しゅとは ${rubyName(o.c, o.cy, true)}。` });
+  make('geo_pref', '都道府県の かたち', '社会', 4, prefs, false, 'r', prefItem);
+  make('geo_world', 'せかいの くにの かたち', '社会', 4, world, false, 'k', worldItem);
+  make('geo_pref_e', 'にほんの かたち', '生活', 2, prefs.filter((o) => o.e), true, 'r', prefItem);
+  make('geo_world_e', 'せかいの くにの かたち', '生活', 2, world.filter((o) => o.e), true, 'k', worldItem);
 }
 
 export function registerKokugo(items) {
