@@ -1,6 +1,6 @@
 {
  "date": "2026-10-06",
- "part": 0,
+ "part": 1,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -19,19 +19,10 @@
   },
   "2": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
-  },
-  "3": {
-   "asked": 8,
-   "returned": 10,
+   "returned": 13,
    "rejected": {
-    "explain-kanji-out-of-grade": 2
+    "explain-kanji-out-of-grade": 1,
+    "wrong-shape": 4
    },
    "unverified": 0,
    "accepted": 8,
@@ -41,48 +32,161 @@
      "reason": "explain-kanji-out-of-grade",
      "item": {
       "type": "kaki",
-      "kanji": "湯",
-      "target": "お湯",
-      "reading": "おゆ",
-      "sentence": "お湯をわかします。",
-      "explain": "「ゆ」は、さんずいに「昜」の「湯」と書きます。",
+      "kanji": "姉",
+      "target": "姉",
+      "reading": "あね",
+      "sentence": "あにの 上の 人は 姉です。",
+      "explain": "おねえさんの ことは 漢字で「姉」と 書きます。",
       "wrong": [
        {
-        "text": "お場",
+        "text": "妹",
+        "tag": "similar_word"
+       },
+       {
+        "text": "女",
+        "tag": "other"
+       },
+       {
+        "text": "兄",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "室",
+      "target": "教室",
+      "reading": "きょうしつ",
+      "sentence": "教室で べんきょうする。",
+      "explain": "「教室」は「きょうしつ」と よみます。",
+      "wrong": [
+       {
+        "text": "きょうした",
+        "tag": "similar_word"
+       },
+       {
+        "text": "きょうしち",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "きようしつ",
+        "tag": "small_kana"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "家",
+      "target": "家",
+      "reading": "いえ",
+      "sentence": "夕方に 家へ かえる。",
+      "explain": "「いえ」は「うかんむり」の「家」と 書きます。",
+      "wrong": [
+       {
+        "text": "矢",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "室",
+        "tag": "similar_word"
+       },
+       {
+        "text": "店",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "寺",
+      "target": "寺",
+      "reading": "てら",
+      "sentence": "ふるい 寺を 見に行く。",
+      "explain": "「寺」は「てら」と よみます。",
+      "wrong": [
+       {
+        "text": "じ",
+        "tag": "onkun_mix"
+       },
+       {
+        "text": "でら",
+        "tag": "dakuten"
+       },
+       {
+        "text": "てり",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 0
+  },
+  "3": {
+   "asked": 8,
+   "returned": 10,
+   "rejected": {
+    "sentence-kanji-out-of-grade": 2
+   },
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "申",
+      "target": "申込",
+      "reading": "もうしこみ",
+      "sentence": "大会の 申込を 出す。",
+      "explain": "「もうしこみ」は「申込」と かきます。",
+      "wrong": [
+       {
+        "text": "神込",
         "tag": "similar_kanji"
        },
        {
-        "text": "お陽",
+        "text": "由込",
         "tag": "similar_kanji"
        },
        {
-        "text": "お温",
+        "text": "毛し込",
         "tag": "similar_sound"
        }
       ]
      }
     },
     {
-     "reason": "explain-kanji-out-of-grade",
+     "reason": "sentence-kanji-out-of-grade",
      "item": {
       "type": "kaki",
-      "kanji": "球",
-      "target": "野球",
-      "reading": "やきゅう",
-      "sentence": "毎日野球をします。",
-      "explain": "「きゅう」は、たまへんに「求」の「球」と書きます。",
+      "kanji": "畑",
+      "target": "畑",
+      "reading": "はたけ",
+      "sentence": "畑で 野菜を そだてる。",
+      "explain": "「はたけ」は「畑」と かきます。",
       "wrong": [
        {
-        "text": "野級",
-        "tag": "similar_sound"
+        "text": "田",
+        "tag": "similar_kanji"
        },
        {
-        "text": "野急",
-        "tag": "similar_sound"
+        "text": "火田",
+        "tag": "other"
        },
        {
-        "text": "野究",
-        "tag": "similar_sound"
+        "text": "油",
+        "tag": "similar_kanji"
        }
       ]
      }
@@ -92,12 +196,40 @@
   },
   "4": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 9,
+   "rejected": {
+    "wrong-shape": 1
+   },
    "unverified": 0,
    "accepted": 8,
-   "rounds": 1,
-   "samples": [],
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "泣",
+      "target": "泣く",
+      "reading": "なく",
+      "sentence": "赤ちゃんが元気に泣く。",
+      "explain": "「泣く」は「なく」とよみます。",
+      "wrong": [
+       {
+        "text": "かく",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "はく",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "きゅう",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   }
  }
