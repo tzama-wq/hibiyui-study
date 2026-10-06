@@ -5,6 +5,7 @@ import {
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
+  FORMATIONS, slotsOf, refitTeam,
 } from '../game.js';
 
 // ---- 選手データ ----
@@ -189,4 +190,29 @@ const df = PLAYERS.find((p) => p.pos === 'DF' && p.rarity === 'common');
 // 5にんの ころの へんせいは 11にんの じゅんばんに ひきつがれる
 assert.deepEqual(migrateTeam(['a', 'b', 'c', 'd', 'e']), ['a', 'b', 'c', null, null, null, 'd', null, null, null, 'e']);
 assert.equal(migrateTeam([]).length, 11);
+
+// ---- フォーメーション ----
+for (const f of FORMATIONS) {
+  const sl = slotsOf(f.id);
+  assert.equal(sl.length, 11, f.name); assert.equal(f.fw + f.mf + f.df, 10); assert.equal(sl.filter((x) => x === 'GK').length, 1);
+  assert.deepEqual(sl, [...sl].sort((a, b) => ['FW', 'MF', 'DF', 'GK'].indexOf(a) - ['FW', 'MF', 'DF', 'GK'].indexOf(b)), 'FW→MF→DF→GK');
+  const cpu = cpuTeam(60, 'normal', rngSeed(3), f.id).team;
+  assert.deepEqual(cpu.map((x) => x.slot), sl);
+  const r = simulate({ name: 'a', team: cpu }, { name: 'b', team: cpu }, rngSeed(1));
+  assert.equal(r.events.length, 12, `${f.name}で しあいが できる`);
+}
+{ // こうげき型は att が たかく、まもり型は def が たかい(せんしゅは おなじ つよさ)
+  const flat = (id) => cpuTeam(60, 'normal', () => 0.5, id).team;
+  const a433 = ratings(flat('433')); const a442 = ratings(flat('442')); const a532 = ratings(flat('532'));
+  assert.ok(a433.att > a442.att && a532.def > a442.def && a532.att < a442.att);
+}
+{ // かたちを かえると、ポジションの あう わくに ならびなおす
+  const pos = { s: 'ALL', f1: 'FW', f2: 'FW', f3: 'FW', d1: 'DF', g: 'GK' };
+  const t = refitTeam(['f1', 'f2', null, null, null, null, 'd1', null, null, null, 'g'].map((x) => x), slotsOf('433'), (id) => pos[id]);
+  const sl = slotsOf('433');
+  assert.equal(t[sl.indexOf('GK')], 'g'); assert.equal(t[sl.indexOf('DF')], 'd1');
+  assert.deepEqual(t.slice(0, 2), ['f1', 'f2']);
+  const t2 = refitTeam(['s', 'f1', 'f2', 'f3'], slotsOf('451'), (id) => pos[id]); // FW は 1にんだけ
+  assert.equal(t2.filter(Boolean).length, 4, '1にんも きえない'); assert.equal(t2[0], 'f1');
+}
 console.log('OK: game');

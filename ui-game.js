@@ -18,6 +18,7 @@ export function ensureGame(p) {
   p.owned = p.owned || {};
   if (Array.isArray(p.team) && p.team.length === 5) p.team = G.migrateTeam(p.team); // 5にんの ころの へんせいを ひきつぐ
   if (!Array.isArray(p.team) || p.team.length !== G.TEAM_SIZE) p.team = G.migrateTeam(['self']);
+  if (!G.FORMATIONS.some((f) => f.id === p.formation)) p.formation = '442';
   p.equip = Array.isArray(p.equip) ? p.equip.slice(0, G.MAX_EQUIP) : [];
   p.pts = { ...G.emptyStatMap(), ...(p.pts || {}) };
   p.lv = { ...G.emptyStatMap(), ...(p.lv || {}) };
@@ -26,7 +27,7 @@ export function ensureGame(p) {
 }
 
 export const kidCardOf = (k, p) => ({ name: k.name, face: k.em, stats: G.kidStats(p) });
-export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip });
+export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip, formation: p.formation });
 export const summaryTeam = (k, p) => snapshotOf(k, p);
 
 // ---- 学習のあとの ごほうび(チケット・強化ポイント) -----------------------------------------
@@ -124,20 +125,26 @@ export function teamTab() {
   return `<div class="subnav">${SUBS.map(([s, i, l]) => `<button class="${UI.sub === s ? 'on' : ''}" data-act="sub" data-sub="${s}"><span>${i}</span>${l}</button>`).join('')}</div>${body}`;
 }
 
+const rowsOf = (fid) => { // [FW のわく], [MF], [DF], [GK] の じゅんに、わくの ばんごうを ならべる
+  const sl = G.slotsOf(fid); return ['FW', 'MF', 'DF', 'GK'].map((pos) => sl.map((s, i) => (s === pos ? i : -1)).filter((i) => i >= 0));
+};
 function formHtml() {
   const k = X.kid(); const p = X.p();
+  const slots = G.slotsOf(p.formation);
   const snap = snapshotOf(k, p); const r = G.ratings(snap);
-  const rows = [[0, 1], [2, 3, 4, 5], [6, 7, 8, 9], [10]]; // 4-4-2
-  const slotHtml = (i) => `<button class="slot ${UI.slot === i ? 'sel' : ''}" data-act="slot" data-i="${i}"><small>${G.SLOT_POS[i]}</small>${cardHtml(snap[i], { stats: false })}</button>`;
+  const rows = rowsOf(p.formation);
+  const slotHtml = (i) => `<button class="slot ${UI.slot === i ? 'sel' : ''}" data-act="slot" data-i="${i}"><small>${slots[i]}</small>${cardHtml(snap[i], { stats: false })}</button>`;
   return `<section class="panel"><h2 class="sec">FORMATION <small>へんせい</small></h2>
     <div class="power"><span>⚔ ${Math.round(r.att)}</span><span>🛡 ${Math.round(r.def)}</span><b>パワー ${r.power}</b></div>
-    <div class="formation">${rows.map((row) => `<div class="frow">${row.map(slotHtml).join('')}</div>`).join('')}</div>
+    <div class="chips fchips">${G.FORMATIONS.map((f) => `<button class="chipb ${p.formation === f.id ? 'on' : ''}" data-act="formation" data-f="${f.id}">${f.name}</button>`).join('')}</div>
+    <div class="muted">${G.formationOf(p.formation).name}: ${G.formationOf(p.formation).desc}(かたちで こうげき・まもりが ちょっと かわるよ)</div>
+    <div class="formation">${rows.map((row) => `<div class="frow n${row.length}">${row.map(slotHtml).join('')}</div>`).join('')}</div>
     <div class="muted">わくを おして、えらぼう。ポジションが ちがうと ⚠ よわくなるよ(じぶんは どこでも OK)。</div>
     <button class="btn small gold" data-act="auto">✨ おまかせで あいている わくを うめる</button>
     ${UI.slot !== null ? pickerHtml(k, p) : ''}</section>${equipHtml(p)}`;
 }
 function pickerHtml(k, p) {
-  const i = UI.slot; const pos = G.SLOT_POS[i];
+  const i = UI.slot; const pos = G.slotsOf(p.formation)[i];
   const placed = new Set(p.team.filter(Boolean));
   const owned = Object.keys(p.owned).map(playerOf).filter(Boolean)
     .sort((a, b) => (b.pos === pos) - (a.pos === pos) || G.RARITIES.indexOf(b.rarity) - G.RARITIES.indexOf(a.rarity) || ovrOf(b.stats, b.pos) - ovrOf(a.stats, a.pos));
@@ -217,7 +224,7 @@ function startFight(oppId) {
   const me = { name: `${k.name}の チーム`, team: snapshotOf(k, p) };
   let opp;
   if (oppId === 'mate') { const m = mateOpponent(); if (!m) return false; opp = { name: m.name, team: m.team }; }
-  else opp = G.cpuTeam(G.ratings(me.team).power, oppId.split(':')[1]);
+  else opp = G.cpuTeam(G.ratings(me.team).power, oppId.split(':')[1], Math.random, G.FORMATIONS[Math.floor(Math.random() * G.FORMATIONS.length)].id);
   const res = G.simulate(me, opp);
   B = { me, opp, res, i: 0, counted: false };
   X.setView('battle');
@@ -286,6 +293,12 @@ export function onAct(a, el) {
     }
     case 'gachaclose': Gs.phase = 'idle'; return true;
     case 'sub': UI.sub = el.dataset.sub; UI.slot = null; UI.dexSel = null; return true;
+    case 'formation': {
+      const f = el.dataset.f; if (f === p.formation) return true;
+      const posOf = (id) => (id === 'self' ? 'ALL' : (playerOf(id) || {}).pos);
+      p.team = G.refitTeam(p.team, G.slotsOf(f), posOf); p.formation = f;
+      UI.slot = null; X.save(); X.fx.beep('ok'); X.toast(`${G.formationOf(f).name}に かえたよ`); return true;
+    }
     case 'slot': UI.slot = UI.slot === Number(el.dataset.i) ? null : Number(el.dataset.i); return true;
     case 'place': {
       const i = Number(el.dataset.i); const id = el.dataset.id || null;
@@ -300,7 +313,7 @@ export function onAct(a, el) {
       let n = 0;
       for (let i = 0; i < G.TEAM_SIZE; i++) {
         if (p.team[i]) continue;
-        const pos = G.SLOT_POS[i];
+        const pos = G.slotsOf(p.formation)[i];
         const best = pool.filter((x) => !placed.has(x.id))
           .sort((a, b) => (b.pos === pos) - (a.pos === pos) || ovrOf(b.stats, b.pos) - ovrOf(a.stats, a.pos))[0];
         if (best) { p.team[i] = best.id; placed.add(best.id); n++; }

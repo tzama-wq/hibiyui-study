@@ -20,8 +20,30 @@ export const STATS = ['SHO', 'PAS', 'SPD', 'DEF', 'STA'];
 export const STAT_NAME = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
 export const SUBJECT_STAT = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA' };
 // 11にんで しあいをする(4-4-2)。じゅんばん: FW2 → MF4 → DF4 → GK1
-export const SLOT_POS = ['FW', 'FW', 'MF', 'MF', 'MF', 'MF', 'DF', 'DF', 'DF', 'DF', 'GK'];
+// フォーメーション: わくの じゅんばんは いつも FW → MF → DF → GK。かずが かわるだけ
+export const FORMATIONS = [
+  { id: '442', name: '4-4-2', fw: 2, mf: 4, df: 4, desc: 'バランスが いい' },
+  { id: '433', name: '4-3-3', fw: 3, mf: 3, df: 4, desc: 'こうげき ふやす' },
+  { id: '343', name: '3-4-3', fw: 3, mf: 4, df: 3, desc: 'とにかく こうげき' },
+  { id: '352', name: '3-5-2', fw: 2, mf: 5, df: 3, desc: 'まんなかを あつく' },
+  { id: '451', name: '4-5-1', fw: 1, mf: 5, df: 4, desc: 'まもって カウンター' },
+  { id: '532', name: '5-3-2', fw: 2, mf: 3, df: 5, desc: 'がっちり まもる' },
+];
+export const formationOf = (id) => FORMATIONS.find((f) => f.id === id) || FORMATIONS[0];
+export const slotsOf = (id) => { const f = formationOf(id); return [...Array(f.fw).fill('FW'), ...Array(f.mf).fill('MF'), ...Array(f.df).fill('DF'), 'GK']; };
+export const SLOT_POS = slotsOf('442');
 export const TEAM_SIZE = SLOT_POS.length;
+// フォーメーションを かえた とき、えらんだ 選手を ポジションの あう わくに ならべなおす(じぶんは どこでも OK)
+export function refitTeam(team, newSlots, posOf) {
+  const ids = team.filter(Boolean); const out = Array(newSlots.length).fill(null); const left = [];
+  for (const id of ids) {
+    const j = newSlots.findIndex((s, i) => !out[i] && s === posOf(id));
+    if (j >= 0) out[j] = id; else left.push(id);
+  }
+  left.sort((a, b) => (posOf(a) === 'ALL') - (posOf(b) === 'ALL')); // ポジションの きまってる 子を さきに
+  for (const id of left) { const j = out.findIndex((x) => !x); if (j >= 0) out[j] = id; }
+  return out;
+}
 // 5にんだった ころの へんせいを 11にんの じゅんばんに うつす(FW,FW,MF,DF,GK)
 export const migrateTeam = (old) => { const t = Array(TEAM_SIZE).fill(null); [0, 1, 2, 6, 10].forEach((to, k) => { t[to] = old[k] ?? null; }); return t; };
 export const POS_NAME = { FW: 'フォワード', MF: 'ミッドフィルダー', DF: 'ディフェンダー', GK: 'キーパー', ALL: 'オールラウンダー' };
@@ -311,9 +333,9 @@ export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty
 }
 const BENCH = { id: 'bench', name: 'ベンチの 子', face: '🪑', pos: 'ALL', rarity: 'common', stats: Object.fromEntries(STATS.map((s) => [s, 30])) };
 // team: 11この わく(選手ID / 'self' / null)。kid: { name, face, stats }
-export function teamSnapshot({ kid, owned = {}, team = [], equip = [] }) {
+export function teamSnapshot({ kid, owned = {}, team = [], equip = [], formation = '442' }) {
   const buff = teamBuff(equip);
-  return SLOT_POS.map((slot, i) => {
+  return slotsOf(formation).map((slot, i) => {
     const id = team[i];
     let who; let level = 0; let penalty = 1;
     if (id === 'self') who = { id: 'self', name: kid.name, face: kid.face, pos: 'ALL', rarity: 'kid', stats: kid.stats };
@@ -330,13 +352,16 @@ const defSkill = (s) => 0.6 * s.DEF + 0.2 * s.STA + 0.2 * s.SPD;
 const ATT_W = { FW: 1, MF: 0.5, DF: 0.1, GK: 0 };
 const DEF_W = { FW: 0, MF: 0.5, DF: 1, GK: 1.5 };
 export function ratings(snap) {
-  let aw = 0; let as = 0; let dw = 0; let ds = 0;
-  snap.forEach((p, i) => {
-    const pos = SLOT_POS[i];
+  let aw = 0; let as = 0; let dw = 0; let ds = 0; const n = { FW: 0, MF: 0, DF: 0 };
+  snap.forEach((p) => {
+    const pos = p.slot;
+    n[pos] = (n[pos] || 0) + 1;
     aw += ATT_W[pos]; as += ATT_W[pos] * attSkill(p.stats);
     dw += DEF_W[pos]; ds += DEF_W[pos] * defSkill(p.stats);
   });
-  const att = as / aw; const def = ds / dw;
+  // かたちの クセ: フォワードが おおいと こうげき、ディフェンダーが おおいと まもり(4-4-2 が きじゅん)
+  const att = (as / aw) * (1 + 0.05 * (n.FW - 2) + 0.02 * (n.MF - 4));
+  const def = (ds / dw) * (1 + 0.05 * (n.DF - 4) + 0.02 * (n.MF - 4));
   return { att, def, power: Math.round((att + def) / 2) };
 }
 
@@ -344,8 +369,7 @@ export function ratings(snap) {
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const pickW = (arr, w, rnd) => { const t = w.reduce((a, b) => a + b, 0); let r = rnd() * t; for (let i = 0; i < arr.length; i++) { r -= w[i]; if (r <= 0) return arr[i]; } return arr[arr.length - 1]; };
 export const goalChance = (att, def) => clamp(0.3 * (att / Math.max(1, def)) ** 1.3, 0.04, 0.8);
-const GK_SLOT = SLOT_POS.lastIndexOf('GK');
-const at = (team, pos) => team.filter((_, i) => SLOT_POS[i] === pos);
+const at = (team, pos) => team.filter((x) => x.slot === pos);
 export function simulate(a, b, rnd = Math.random, phases = 6) {
   const ra = ratings(a.team); const rb = ratings(b.team);
   const sides = [{ ...a, r: ra, key: 'a' }, { ...b, r: rb, key: 'b' }];
@@ -353,7 +377,7 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
   for (let i = 0; i < phases * 2; i++) {
     const atk = sides[i % 2]; const dfn = sides[(i + 1) % 2];
     const fw = at(atk.team, 'FW'); const mf = at(atk.team, 'MF');
-    const gk = dfn.team[GK_SLOT];
+    const gk = at(dfn.team, 'GK')[0];
     const passers = [...mf, ...fw];
     const passer = pickW(passers, passers.map((x) => x.stats.PAS), rnd);
     const cands = [...fw, ...mf].filter((x) => x !== passer);
@@ -379,13 +403,13 @@ export const CPU_LEVELS = [
   { id: 'hard', name: 'つよい', factor: 1.25, club: 'ストロング ワンダラーズ' },
   { id: 'boss', name: 'ボス', factor: 1.6, club: 'レジェンド オールスターズ' },
 ];
-export function cpuTeam(power, levelId, rnd = Math.random) {
+export function cpuTeam(power, levelId, rnd = Math.random, formation = '442') {
   const lv = CPU_LEVELS.find((l) => l.id === levelId) || CPU_LEVELS[1];
   const base = Math.max(35, power * lv.factor);
   const faces = ['🦁', '🐯', '🦊', '🐻', '🐺', '🦅', '🐲', '🦈', '🐘', '🦏', '🧤'];
-  const team = SLOT_POS.map((slot, i) => ({
+  const team = slotsOf(formation).map((slot, i) => ({
     slot, id: `cpu${i}`, name: `${FIRST[Math.floor(rnd() * FIRST.length)]}・${LAST[slot][Math.floor(rnd() * LAST[slot].length)]}`, face: faces[i % faces.length], pos: slot, rarity: 'common', level: 0, offPos: false,
     stats: Object.fromEntries(STATS.map((s) => [s, Math.round(base * (0.9 + 0.2 * rnd()))])),
   }));
-  return { name: lv.club, team };
+  return { name: lv.club, team, formation };
 }

@@ -442,3 +442,7 @@ body.big .nav button small{font-size:13px}
 .hyp .btn.small{margin:0;flex:none}
 .hypnote{margin-top:10px;padding:8px 10px;background:rgba(39,216,255,.08);border-left:4px solid var(--cyan)}
 .hypnote p{margin:4px 0;font-size:15px}
+
+.fchips{margin:6px 0}
+.frow.n5 .slot{width:calc(20% - 5px);max-width:76px}
+.frow.n3 .slot{max-width:90px}
