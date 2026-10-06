@@ -121,7 +121,7 @@ function stageHtml() {
 
 // ---- チーム(へんせい・ずかん・つよく・たいせん・きょうだい) -----------------------------------------
 const UI = { sub: 'form', slot: null, dexF: 'all', dexSel: null };
-const SUBS = [['form', '🧩', 'へんせい'], ['dex', '📚', 'ずかん'], ['power', '💪', 'つよく'], ['cup', '🏆', 'たいかい'], ['battle', '⚔️', 'フリー'], ['mates', '🤝', 'きょうだい']];
+const SUBS = [['form', '🧩', 'へんせい'], ['dex', '📚', 'ずかん'], ['power', '💪', 'つよく'], ['cup', '🏆', 'たいかい'], ['battle', '⚔️', 'フリー'], ['mates', '🤝', 'かぞく']];
 export function teamTab() {
   const body = { form: formHtml, dex: dexHtml, power: powerHtml, cup: cupHtml, battle: battleMenuHtml, mates: () => X.matesHtml() }[UI.sub]();
   return `<div class="subnav">${SUBS.map(([s, i, l]) => `<button class="${UI.sub === s ? 'on' : ''}" data-act="sub" data-sub="${s}"><span>${i}</span>${l}</button>`).join('')}</div>${body}`;
@@ -205,20 +205,23 @@ function powerHtml() {
 
 // ---- 対戦 ----------------------------------------------------------------------
 let B = null; let timer = null; let M = null;
-function mateOpponent() {
-  const other = X.KIDS.find((k) => k.id !== X.kid().id);
-  const d = X.dataFor(other);
-  if (Array.isArray(d.team) && d.team.length === G.TEAM_SIZE) return { name: `${other.name}の チーム`, team: d.team, power: G.ratings(d.team).power };
-  return null;
+// かぞく(ひびと・ゆいと・パパ)の うち、チームの きろくが とどいている 人
+function mateOpponents() {
+  return X.KIDS.filter((k) => k.id !== X.kid().id).map((other) => {
+    const d = X.dataFor(other);
+    if (Array.isArray(d.team) && d.team.length === G.TEAM_SIZE) return { id: other.id, name: `${other.name}の チーム`, team: d.team, power: G.ratings(d.team).power };
+    return null;
+  }).filter(Boolean);
 }
+const mateOpponent = (id) => { const l = mateOpponents(); return id ? l.find((m) => m.id === id) : l[0]; };
 function battleMenuHtml() {
   const k = X.kid(); const p = X.p();
   const snap = snapshotOf(k, p); const r = G.ratings(snap);
-  const mate = mateOpponent();
+  const mates = mateOpponents();
   return `<section class="panel"><h2 class="sec">MATCH <small>たいせん</small></h2>
     <div class="power"><b>${k.name}の チーム パワー ${r.power}</b><span>${p.battles.w}勝 ${p.battles.d}分 ${p.battles.l}敗</span></div>
     <div class="muted">へんせいした チームで たいせん! (どちらが かつかは うんも あるよ)</div>
-    ${mate ? `<button class="match-btn alt" data-act="fight" data-opp="mate"><small>VS BROTHER</small><b>⚔️ ${esc(mate.name)}と たいせん</b><span>あいての パワー ${mate.power}</span></button>` : '<div class="muted">きょうだいの チームは、きょうだいが アプリを ひらくと あらわれるよ。</div>'}
+    ${mates.length ? mates.map((mate) => `<button class="match-btn alt" data-act="fight" data-opp="mate:${mate.id}"><small>VS FAMILY</small><b>⚔️ ${esc(mate.name)}と たいせん</b><span>あいての パワー ${mate.power}</span></button>`).join('') : '<div class="muted">かぞくの チームは、かぞくが アプリを ひらくと あらわれるよ。</div>'}
     ${p.lastMatch ? `<div class="replay"><b>🎬 まえの しあい</b> <span>${esc(p.lastMatch.me.name)} ${p.lastMatch.score.a} - ${p.lastMatch.score.b} ${esc(p.lastMatch.opp.name)}</span>
       <div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェスト(ゴールだけ)</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 ぜんぶ みる</button></div></div>` : ''}
     <div class="cpu-list">${G.CPU_LEVELS.map((l) => `<button class="btn gray" data-act="fight" data-opp="cpu:${l.id}">⚔ ${l.club}<small>(${l.name} ・ てきの パワー ${l.power} ・ ${stars(estimateVs(l.power))})</small></button>`).join('')}</div></section>`;
@@ -229,7 +232,7 @@ function startFight(oppId) {
   const k = X.kid(); const p = X.p();
   const me = { name: `${k.name}の チーム`, team: snapshotOf(k, p) };
   let opp;
-  if (oppId === 'mate') { const m = mateOpponent(); if (!m) return false; opp = { name: m.name, team: m.team }; }
+  if (oppId === 'mate' || oppId.startsWith('mate:')) { const m = mateOpponent(oppId.split(':')[1]); if (!m) return false; opp = { name: m.name, team: m.team }; }
   else opp = G.cpuTeam(oppId.split(':')[1], Math.random, G.FORMATIONS[Math.floor(Math.random() * G.FORMATIONS.length)].id);
   const res = G.simulate(me, opp);
   openBattle({ me: slim(me), opp: slim(opp), res, counted: false, mode: 'full' });

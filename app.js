@@ -9,6 +9,7 @@ import { observe, nextProbes, noteProbe, specFor, activeList, counts, THRESH } f
 const KIDS = [
   { id: 'hibito', name: 'ひびと', grade: 4, color: '#1e6bd6', em: '⚽' },
   { id: 'yuito', name: 'ゆいと', grade: 2, color: '#d6341e', em: '⚽' },
+  { id: 'papa', name: 'パパ', grade: 4, color: '#2a9d6f', em: '👨', adult: true }, // パパも 3にんめの 選手として さんか(小4の もんだい)
 ];
 const RANKS = [
   [0, 'サッカーきょうしつ'], [100, 'ジュニアユース'], [300, 'ユースの エース'], [600, 'プロ1ねんめ'],
@@ -298,7 +299,7 @@ function dataFor(k) {
   const callup = [loc.callup, rem && rem.callup].filter(Boolean).sort().pop() || null;
   return { ...d, recent, callup, remote: !!(rem && rem.xp > loc.xp), sel: selection(recent, callup) };
 }
-const bothIn = () => KIDS.every((x) => dataFor(x).sel.state === 'in');
+const bothIn = () => KIDS.filter((x) => !x.adult).every((x) => dataFor(x).sel.state === 'in'); // 日本代表の ボーナスは 子ども ふたりぶん(パパは かんけいなし)
 const repBonus = (k) => (dataFor(k).sel.state === 'in' ? 3 : 0) + (bothIn() ? 2 : 0);
 
 async function syncNow() {
@@ -352,13 +353,13 @@ function siblingsCard() {
   const prev = [...MILESTONES].reverse().find((m) => m <= total) || 0;
   const pct = Math.round(((total - prev) / (next - prev)) * 100);
   const waiting = sync.enabled() && rows.some((r) => r.k.id !== kidId && !(S.remote && S.remote[r.k.id]));
-  return `<section class="panel"><h2 class="sec">TEAM <small>きょうだいチーム</small></h2>
+  return `<section class="panel"><h2 class="sec">TEAM <small>かぞくチーム</small></h2>
     ${rows.map((r) => `<div class="mate" style="--kid:${r.k.color}">
       <div class="mate-ava">${r.k.em}</div>
       <div class="mate-main"><b>${r.d.name}</b><small>${r.d.grade}ねん ・ ${r.d.rank}${r.k.id === kidId ? ' ・ じぶん' : ''}</small>
         <div class="row"><span class="chip gold">⚽ ${r.d.goals}</span><span class="chip">📅 ${r.d.days}日</span>${r.sel.state === 'in' ? '<span class="chip red">🇯🇵 代表</span>' : (cfg().soft ? '' : '<span class="chip">🪑 ひかえ</span>')}</div>
         ${r.remote && S.remote[r.k.id].t ? `<small class="muted">${ago(S.remote[r.k.id].t)}の きろく</small>` : ''}</div></div>`).join('')}
-    ${rows.every((r) => r.sel.state === 'in') ? '<div class="banner-red"><b>🇯🇵🇯🇵 ふたりそろって 日本代表!</b><small>せいかいごとの ボーナスポイントが ふえてるよ</small></div>' : ''}
+    ${rows.filter((r) => !r.k.adult).every((r) => r.sel.state === 'in') ? '<div class="banner-red"><b>🇯🇵🇯🇵 ふたりそろって 日本代表!</b><small>せいかいごとの ボーナスポイントが ふえてるよ</small></div>' : ''}
     <div style="margin-top:12px"><b>チームの ゴール ごうけい ⚽ ${total}</b>
       <div class="bar" style="margin:6px 0"><i style="width:${pct}%"></i></div>
       <div class="muted">つぎの もくひょう ${next}ゴールまで あと ${next - total}!</div></div>
@@ -758,8 +759,8 @@ function vPapa() {
       <button class="btn small gray" data-act="setkidpin" data-id="${k.id}">${S.kidPins[k.id] ? 'かえる' : 'きめる'}</button>
       ${S.kidPins[k.id] ? `<button class="btn small gray" data-act="clearkidpin" data-id="${k.id}">けす</button>` : ''}</div>`).join('')}
     <div class="row" style="margin-top:8px"><button class="btn small gray" data-act="changepin">🔑 パパの PINを かえる</button>
-      <button class="btn small ${S.shared ? 'gold' : 'gray'}" data-act="toggleshared">${S.shared ? '✅ 2人で つかう モード(おす とやめる)' : '2人で 1台を つかう モードに する'}</button></div>
-    ${S.shared && KIDS.some((k) => !S.kidPins[k.id]) ? '<p class="muted">⚠ 2人で つかう ときは、2人とも PINを きめてね(PINが ない子は だれでも ひらけます)。</p>' : ''}</div>`;
+      <button class="btn small ${S.shared ? 'gold' : 'gray'}" data-act="toggleshared">${S.shared ? '✅ みんなで つかう モード(おす とやめる)' : 'みんなで 1台を つかう モードに する'}</button></div>
+    ${S.shared && KIDS.some((k) => !S.kidPins[k.id]) ? '<p class="muted">⚠ みんなで つかう ときは、ぜんいん PINを きめてね(PINが ない子は だれでも ひらけます)。</p>' : ''}</div>`;
   const ownerCard = `<div class="card"><h2>📱 この スマホの もちぬし</h2>
     <p>いまは「<b>${S.bound ? KIDS.find((k) => k.id === S.bound).name : 'きまっていません'}</b>」の スマホです。ほかの子の もんだいは ひらけません。</p>
     ${KIDS.filter((k) => k.id !== S.bound).map((k) => `<button class="btn small gray" data-act="rebind" data-id="${k.id}">${k.name}の スマホに かえる</button>`).join('')}</div>`;
@@ -950,7 +951,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'toggleshared') {
     S.shared = !S.shared; save();
     if (S.shared) { kidId = null; unlocked = false; } else { kidId = S.bound || null; unlocked = false; }
-    toast(S.shared ? '2人で つかう モードに したよ' : '1人ずつの スマホに もどしたよ');
+    toast(S.shared ? 'みんなで つかう モードに したよ' : '1人ずつの スマホに もどしたよ');
   }
   else if (a === 'mute') { const was = quiet(); S.mute = false; setCfg(S, kidId, { quiet: !was }); save(); if (!quiet()) beep('ok'); }
   else if (a === 'begin') return beginQuiz();

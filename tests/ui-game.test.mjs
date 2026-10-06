@@ -4,7 +4,7 @@ import * as G from '../game.js';
 import { DEFAULTS } from '../cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct, summaryTeam, awardStudy } from '../ui-game.js';
 
-const KIDS = [{ id: 'hibito', name: 'ひびと', grade: 4, em: '⚽' }, { id: 'yuito', name: 'ゆいと', grade: 2, em: '⚽' }];
+const KIDS = [{ id: 'hibito', name: 'ひびと', grade: 4, em: '⚽' }, { id: 'yuito', name: 'ゆいと', grade: 2, em: '⚽' }, { id: 'papa', name: 'パパ', grade: 4, em: '👨' }];
 const S = { kids: { hibito: {}, yuito: {} } };
 for (const k of KIDS) { S.kids[k.id] = { days: [], goals: 0, xp: 0 }; ensureGame(S.kids[k.id]); }
 let cur = 'hibito'; let view = 'kid'; const log = [];
@@ -136,7 +136,7 @@ assert.equal(G.kidStats(p()).SHO, G.kidStat(3));
 
 // たいせん: CPU と きょうだい
 act('sub', { sub: 'battle' });
-assert.match(teamTab(), /ルーキーズ/); assert.match(teamTab(), /VS BROTHER/);
+assert.match(teamTab(), /ルーキーズ/); assert.match(teamTab(), /VS FAMILY/);
 log.length = 0;
 assert.equal(act('fight', { opp: 'cpu:easy' }), true);
 assert.equal(view, 'battle');
@@ -168,6 +168,15 @@ assert.equal(p().battles.w + p().battles.l + p().battles.d, 2);
   assert.match(teamTab(), /てきの パワー 110/, 'フリーマッチは きまった つよさ');
   assert.equal(act('replaylast', { mode: 'digest' }), true); act('battleend');
   assert.equal(p().battles.w + p().battles.l + p().battles.d, 3, 'リプレイは せんせきに かぞえない');
+}
+// パパも さんか: かぞく 2人と たいせんできる
+{
+  act('sub', { sub: 'battle' });
+  const h = teamTab();
+  assert.match(h, /data-opp="mate:yuito"/); assert.match(h, /data-opp="mate:papa"/); assert.match(h, /パパの チームと たいせん/);
+  const before = p().battles.w + p().battles.l + p().battles.d;
+  assert.equal(act('fight', { opp: 'mate:papa' }), true); act('battleskip'); act('battleend');
+  assert.equal(p().battles.w + p().battles.l + p().battles.d, before + 1);
 }
 assert.equal(act('nothing'), false);
 // 5にんの ころの データは 11にんに ひきつがれる
