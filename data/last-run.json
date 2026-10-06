@@ -1,31 +1,104 @@
 {
- "date": "2026-10-05",
- "model": "gemini-3.8-flash",
+ "date": "2026-10-06",
+ "part": 0,
+ "models": [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash"
+ ],
  "grades": {
   "1": {
-   "error": "HTTP 503"
+   "asked": 8,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
   },
   "2": {
-   "error": "HTTP 503"
+   "asked": 8,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
   },
   "3": {
    "asked": 8,
-   "returned": 8,
+   "returned": 10,
    "rejected": {
-    "target-not-once": 3,
-    "wrong-kanji-out-of-grade": 1
+    "explain-kanji-out-of-grade": 2
    },
    "unverified": 0,
-   "accepted": 4
+   "accepted": 8,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "湯",
+      "target": "お湯",
+      "reading": "おゆ",
+      "sentence": "お湯をわかします。",
+      "explain": "「ゆ」は、さんずいに「昜」の「湯」と書きます。",
+      "wrong": [
+       {
+        "text": "お場",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "お陽",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "お温",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "球",
+      "target": "野球",
+      "reading": "やきゅう",
+      "sentence": "毎日野球をします。",
+      "explain": "「きゅう」は、たまへんに「求」の「球」と書きます。",
+      "wrong": [
+       {
+        "text": "野級",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "野急",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "野究",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 0
   },
   "4": {
    "asked": 8,
    "returned": 8,
-   "rejected": {
-    "target-not-once": 4
-   },
+   "rejected": {},
    "unverified": 0,
-   "accepted": 4
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
   }
  }
 }
