@@ -306,7 +306,7 @@ export const kidStats = (p) => Object.fromEntries(STATS.map((s) => [s, kidStat((
 export const BADGE_BUFFS = {
   goal1: { SHO: 1 }, goal10: { SHO: 2 }, goal50: { SHO: 3 }, goal100: { SHO: 5 }, goal300: { SHO: 8 },
   day3: { STA: 2 }, day7: { STA: 3 }, day30: { STA: 8 },
-  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 },
+  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 },
   rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 },
   m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 },
 };
@@ -396,20 +396,99 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
   return { events, score, ratings: { a: ra, b: rb } };
 }
 
-// CPUチーム(じぶんの つよさに あわせて つくる)
+// CPUチーム: つよさは「じぶんに あわせない」。いつでも きまった つよさ(おそろしい あいては ほんとうに つよい)
 export const CPU_LEVELS = [
-  { id: 'easy', name: 'やさしい', factor: 0.75, club: 'ルーキーズ FC' },
-  { id: 'normal', name: 'ふつう', factor: 1.0, club: 'ライバル ユナイテッド' },
-  { id: 'hard', name: 'つよい', factor: 1.25, club: 'ストロング ワンダラーズ' },
-  { id: 'boss', name: 'ボス', factor: 1.6, club: 'レジェンド オールスターズ' },
+  { id: 'easy', name: 'やさしい', power: 30, club: 'ルーキーズ FC' },
+  { id: 'normal', name: 'ふつう', power: 52, club: 'ライバル ユナイテッド' },
+  { id: 'hard', name: 'つよい', power: 72, club: 'ストロング ワンダラーズ' },
+  { id: 'boss', name: 'ボス', power: 95, club: 'レジェンド オールスターズ' },
+  { id: 'god', name: 'ちょうつよい', power: 110, club: 'ドリーム レジェンズ' },
 ];
-export function cpuTeam(power, levelId, rnd = Math.random, formation = '442') {
-  const lv = CPU_LEVELS.find((l) => l.id === levelId) || CPU_LEVELS[1];
-  const base = Math.max(35, power * lv.factor);
+// style: att = こうげき タイプ(まもりが うすい)/ def = まもり タイプ(こうげきが うすい)/ bal = バランス
+const STYLE_MUL = { att: { SHO: 1.12, PAS: 1.1, SPD: 1.06, DEF: 0.88, STA: 0.94 }, def: { SHO: 0.88, PAS: 0.94, SPD: 0.96, DEF: 1.12, STA: 1.08 }, bal: {} };
+export const STYLE_NAME = { att: '⚔ こうげき タイプ', def: '🛡 まもり タイプ', bal: '⚖ バランス タイプ' };
+export function cpuTeamAt(power, name, rnd = Math.random, formation = '442', style = 'bal') {
   const faces = ['🦁', '🐯', '🦊', '🐻', '🐺', '🦅', '🐲', '🦈', '🐘', '🦏', '🧤'];
+  const mul = STYLE_MUL[style] || {};
   const team = slotsOf(formation).map((slot, i) => ({
     slot, id: `cpu${i}`, name: `${FIRST[Math.floor(rnd() * FIRST.length)]}・${LAST[slot][Math.floor(rnd() * LAST[slot].length)]}`, face: faces[i % faces.length], pos: slot, rarity: 'common', level: 0, offPos: false,
-    stats: Object.fromEntries(STATS.map((s) => [s, Math.round(base * (0.9 + 0.2 * rnd()))])),
+    stats: Object.fromEntries(STATS.map((s) => [s, Math.round(power * (mul[s] || 1) * (0.9 + 0.2 * rnd()))])),
   }));
-  return { name: lv.club, team, formation };
+  return { name, team, formation, style };
+}
+export function cpuTeam(levelId, rnd = Math.random, formation = '442') {
+  const lv = CPU_LEVELS.find((l) => l.id === levelId) || CPU_LEVELS[1];
+  return cpuTeamAt(lv.power, lv.club, rnd, formation);
+}
+
+// ---- PK戦(ひきわけの ときの けっちゃく) -------------------------------------------------
+export function shootout(powerA, powerB, rnd = Math.random) {
+  const pa = clamp(0.72 + (powerA - powerB) / 800, 0.62, 0.82); const pb = clamp(0.72 + (powerB - powerA) / 800, 0.62, 0.82);
+  let a = 0; let b = 0;
+  for (let i = 0; i < 5; i++) { if (rnd() < pa) a++; if (rnd() < pb) b++; }
+  while (a === b) { if (rnd() < pa) a++; if (rnd() < pb) b++; if (a === b && rnd() < 0.02) a++; }
+  return { a, b };
+}
+// かてる かくりつ(PK戦も ふくめた めやす)。ひょうじ用
+export function winChance(me, opp, n = 160, rnd = Math.random) {
+  let w = 0;
+  for (let i = 0; i < n; i++) {
+    const r = simulate(me, opp, rnd);
+    if (r.score.a > r.score.b) w++; else if (r.score.a === r.score.b) { const k = shootout(ratings(me.team).power, ratings(opp.team).power, rnd); if (k.a > k.b) w++; }
+  }
+  return w / n;
+}
+
+// ---- たいかい(Jリーグ → アジアカップ → KIRINカップ → ワールドカップ) -----------------------------------
+// 1つ かつごとに つぎの ラウンドへ。まけたら はいたい(1かいせんから)。ゆうしょうで つぎの たいかいが ひらく
+export const CUPS = [
+  { id: 'j', name: 'Jリーグ', icon: '🏟️', sub: 'J3から J1へ しょうかく! リーグを せいはしよう', badge: 'cup_j', final: { silver: 2 }, rounds: [
+    { label: 'J3 リーグせん', name: '山形ブルーリバーFC', power: 34, style: 'def', reward: { bronze: 1 } },
+    { label: 'J2 リーグせん', name: '水戸グリーンホップス', power: 41, style: 'att', reward: { bronze: 1 } },
+    { label: 'J1 リーグせん', name: '名古屋ゴールデンシャチ', power: 50, style: 'bal', reward: { silver: 1 } },
+    { label: 'ゆうしょう けっていせん', name: '大阪ブラックタイガース', power: 58, style: 'att', reward: { silver: 1 } },
+  ] },
+  { id: 'asia', name: 'アジアカップ', icon: '🏆', sub: 'アジアの てっぺんを めざせ!', badge: 'cup_asia', final: { gold: 1, silver: 2 }, rounds: [
+    { label: 'グループステージ', name: 'タイ代表', power: 52, style: 'att', reward: { silver: 1 } },
+    { label: 'ラウンド16', name: 'サウジアラビア代表', power: 60, style: 'def', reward: { silver: 1 } },
+    { label: '準決勝', name: 'イラン代表', power: 68, style: 'bal', reward: { gold: 1 } },
+    { label: '決勝', name: '韓国代表', power: 76, style: 'att', reward: { gold: 1 } },
+  ] },
+  { id: 'kirin', name: 'KIRINカップ', icon: '🍀', sub: 'せかいの ゲストチームを むかえうて!', badge: 'cup_kirin', final: { gold: 2 }, rounds: [
+    { label: 'オープニングマッチ', name: 'ペルー代表', power: 70, style: 'bal', reward: { gold: 1 } },
+    { label: '準決勝', name: 'ガーナ代表', power: 77, style: 'att', reward: { gold: 1 } },
+    { label: '決勝', name: 'スイス代表', power: 84, style: 'def', reward: { gold: 1 } },
+  ] },
+  { id: 'wc', name: 'ワールドカップ', icon: '🌍', sub: 'せかい いちを きめる たたかい!', badge: 'cup_wc', final: { platinum: 2, gold: 3 }, rounds: [
+    { label: 'グループステージ', name: 'モロッコ代表', power: 78, style: 'def', reward: { gold: 1 } },
+    { label: 'ベスト16', name: 'ドイツ代表', power: 86, style: 'bal', reward: { gold: 1 } },
+    { label: '準々決勝', name: 'スペイン代表', power: 92, style: 'att', reward: { platinum: 1 } },
+    { label: '準決勝', name: 'アルゼンチン代表', power: 98, style: 'bal', reward: { platinum: 1 } },
+    { label: '決勝', name: 'ブラジル代表', power: 105, style: 'att', reward: { platinum: 1 } },
+  ] },
+];
+export const cupById = (id) => CUPS.find((c) => c.id === id);
+export const ensureCup = (p) => { p.cup = p.cup || {}; p.cup.cleared = Array.isArray(p.cup.cleared) ? p.cup.cleared : []; p.cup.titles = p.cup.titles || {}; if (p.cup.run && !cupById(p.cup.run.id)) p.cup.run = null; return p.cup; };
+export function cupUnlocked(p, id) {
+  const i = CUPS.findIndex((c) => c.id === id); if (i < 0) return false;
+  return i === 0 || ensureCup(p).cleared.includes(CUPS[i - 1].id);
+}
+export function cupRound(p, id) { const r = ensureCup(p).run; return r && r.id === id ? r.round : 0; }
+export function cupOpponent(cup, round, rnd = Math.random) {
+  const r = cup.rounds[round];
+  return cpuTeamAt(r.power, r.name, rnd, FORMATIONS[Math.floor(rnd() * FORMATIONS.length)].id, r.style);
+}
+const mergeTickets = (...ts) => ts.reduce((a, t) => { for (const [k, v] of Object.entries(t || {})) a[k] = (a[k] || 0) + v; return a; }, {});
+// しあいの けっかを たいかいに はんえいする。forgive: まけても おなじ しあいから やりなおせる
+export function cupResult(p, id, round, won, forgive = false) {
+  const cup = cupById(id); const c = ensureCup(p); const last = round >= cup.rounds.length - 1;
+  if (!won) {
+    if (forgive) { c.run = { id, round }; return { type: 'retry', round }; }
+    c.run = null; return { type: 'out', round };
+  }
+  const reward = mergeTickets(cup.rounds[round].reward, last ? cup.final : null);
+  addTickets(p, reward);
+  if (!last) { c.run = { id, round: round + 1 }; return { type: 'advance', round: round + 1, reward }; }
+  c.run = null; if (!c.cleared.includes(id)) c.cleared.push(id); c.titles[id] = (c.titles[id] || 0) + 1;
+  return { type: 'cleared', reward, first: c.titles[id] === 1 };
 }

@@ -266,6 +266,10 @@ const BADGES = [
   { id: 'perfect', icon: '✨', name: 'パーフェクトゲーム', cond: (p) => (p.perfect || 0) >= 1 },
   { id: 'comeback', icon: '🌟', name: 'おかえり ステージ クリア', cond: (p) => !!p.callup },
   { id: 'time', icon: '⏪', name: 'タイムマシンに のった', cond: (p) => (p.backRuns || 0) >= 1 },
+  { id: 'cup_j', icon: '🏟️', name: 'Jリーグ ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('j') },
+  { id: 'cup_asia', icon: '🏆', name: 'アジアカップ ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('asia') },
+  { id: 'cup_kirin', icon: '🍀', name: 'KIRINカップ ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('kirin') },
+  { id: 'cup_wc', icon: '🌍', name: 'ワールドカップ ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('wc') },
   { id: 'hyp1', icon: '🔬', name: 'はじめて のりこえた', cond: (p) => (p.hypResolved || 0) >= 1 },
   { id: 'hyp5', icon: '🧪', name: '5つ のりこえた', cond: (p) => (p.hypResolved || 0) >= 5 },
   { id: 'rank2', icon: '🚀', name: 'ユースの エース', cond: (p) => rankOf(p.xp).i >= 2 },
@@ -510,11 +514,11 @@ function vKid() {
 // かたちクイズ(都道府県・くに): 形から なまえを あてる
 function shapeCard(k, p) {
   const e = k.grade >= 3 ? '' : '_e';
-  const us = ['geo_pref', 'geo_world'].map((id) => byId[id + e]).filter(Boolean);
+  const us = ['geo_pref', 'geo_world', 'flag_world'].map((id) => byId[id + e]).filter(Boolean);
   if (!us.length) return '';
-  return `<section class="panel"><h2 class="sec">QUIZ <small>かたち あてクイズ</small></h2>
-    <div class="muted">かたちを みて、どこか あてよう! ${e ? 'ゆうめいな ところから だすよ。' : 'ぜんぶで 47都道府県と せかいの くにが でるよ。'}</div>
-    <div class="row">${us.map((u) => `<button class="btn gold" data-act="start" data-mode="practice" data-unit="${u.id}">${u.id.includes('pref') ? '🗾' : '🌏'} ${u.id.includes('pref') ? 'にほん' : 'せかい'}の かたち</button>`).join('')}</div></section>`;
+  return `<section class="panel"><h2 class="sec">QUIZ <small>かたち・はた あてクイズ</small></h2>
+    <div class="muted">かたちや はたを みて、どこか あてよう! ${e ? 'ゆうめいな ところから だすよ。' : 'ぜんぶで 47都道府県と せかいの くにが でるよ。'}</div>
+    <div class="row">${us.map((u) => `<button class="btn gold" data-act="start" data-mode="practice" data-unit="${u.id}">${u.id.includes('flag') ? '🚩 くにの はた' : u.id.includes('pref') ? '🗾 にほんの かたち' : '🌏 せかいの かたち'}</button>`).join('')}</div></section>`;
 }
 function practiceCard(k, p) {
   const btn = (u, label) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${label}</button>`;
@@ -693,6 +697,7 @@ const CFG_LABEL = {
   calm: '🐢 うごき・ひかり・紙ふぶきを へらす', quiet: '🔇 おと・ふるえを けす', plain: '💬 たとえを つかわない(そのままの ことば)',
   preview: '📋 はじめる まえに「やること」を みせる(じゅんばんも おなじ)', soft: '🌱 「できなかった」を みせない(ひかえ・からの まるを かくす)',
   schedule: '🗓️ 「きょうの やること」リストを ホームに だす', breakAfter: '🍃 1セットごとに きゅうけいを すすめる', big: '🔠 おおきい もじ',
+  forgive: '🏆 たいかいで まけても、おなじ しあいから やりなおせる',
 };
 const LOCK_LABEL = { normal: 'ふつう(1.5〜3.5びょう)', short: 'みじかい(0.6〜1.5びょう)', off: 'なし' };
 const WAIT_LABEL = { normal: 'ふつう(4びょう)', short: 'みじかい(2びょう)', off: 'なし' };
@@ -1028,7 +1033,8 @@ try {
 // 都道府県・せかいの くにの かたち(かたちクイズ)
 try {
   const r = await fetch('data/geo.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
-  if (r.ok) registerGeo(await r.json());
+  const fr = await fetch('data/flags.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) }).catch(() => null);
+  if (r.ok) registerGeo(await r.json(), fr && fr.ok ? await fr.json() : null);
 } catch { /* オフラインなど */ }
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});

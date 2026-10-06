@@ -11,6 +11,7 @@ export const DEFAULTS = {
   schedule: false,     // 「きょうの やること」リストを ホームに だす
   breakAfter: false,   // 1セット おわったら きゅうけいを すすめる
   big: false,          // おおきい もじ
+  forgive: false,      // たいかいで まけても、おなじ しあいから やりなおせる(はいたいに ならない)
   lock: 'normal',      // 「よく よんでね」の まち: normal / short / off
   waitWrong: 'normal', // まちがえた あとの 「せつめいを よんでね」の まち: normal / short / off
   gachaMax: 0,         // ガチャを 1日に ひける かいすう(0 = せいげんなし)
@@ -18,8 +19,8 @@ export const DEFAULTS = {
 
 // ふつう「よく ある はいりょ」を ならべた おすすめセット(いつでも 1つずつ かえられる)
 export const PRESETS = {
-  adhd: { name: 'ADHD(あつまりにくい・じっとしにくい)に やさしい', set: { setSize: 3, breakAfter: true, schedule: true, lock: 'short', waitWrong: 'short', gachaMax: 5 } },
-  asd: { name: 'ASD(みとおし・かんかくが だいじ)に やさしい', set: { calm: true, quiet: true, plain: true, preview: true, soft: true, schedule: true, lock: 'short', gachaMax: 3 } },
+  adhd: { name: 'ADHD(あつまりにくい・じっとしにくい)に やさしい', set: { setSize: 3, breakAfter: true, schedule: true, lock: 'short', waitWrong: 'short', gachaMax: 5, forgive: true } },
+  asd: { name: 'ASD(みとおし・かんかくが だいじ)に やさしい', set: { calm: true, quiet: true, plain: true, preview: true, soft: true, schedule: true, lock: 'short', gachaMax: 3, forgive: true } },
   reset: { name: 'ぜんぶ ふつうに もどす', set: {} },
 };
 
@@ -29,7 +30,7 @@ export const OPTIONS = {
   waitWrong: ['normal', 'short', 'off'],
   gachaMax: [0, 1, 3, 5, 10],
 };
-export const BOOLS = ['calm', 'quiet', 'plain', 'preview', 'soft', 'schedule', 'breakAfter', 'big'];
+export const BOOLS = ['calm', 'quiet', 'plain', 'preview', 'soft', 'schedule', 'breakAfter', 'big', 'forgive'];
 
 // ---- 読みだし・書きこみ ---------------------------------------------------------------
 export function sanitize(c) {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { buildPlan, layout, toPx, createMatch, PITCH, W, H } from '../match.js';
 import { simulate, cpuTeam, rngSeed, slotsOf, FORMATIONS } from '../game.js';
 
-const team = (fid, seed = 1) => cpuTeam(60, 'normal', rngSeed(seed), fid).team;
+const team = (fid, seed = 1) => cpuTeam('normal', rngSeed(seed), fid).team;
 globalThis.requestAnimationFrame = () => 0; globalThis.cancelAnimationFrame = () => {};
 const noop = new Proxy({}, { get: () => () => {}, set: () => true });
 const fakeCanvas = { width: 0, height: 0, getContext: () => noop };

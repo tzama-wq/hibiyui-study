@@ -646,7 +646,7 @@ function rubyName(name, yomi, whole) {
   return `{${name}|${yomi}}`;
 }
 const svgOf = (o) => `<svg class="shape" viewBox="-4 -4 ${o.w + 8} ${o.h + 8}" role="img" aria-label="かたち"><path d="${o.d}"/></svg>`;
-export function registerGeo(geo) {
+export function registerGeo(geo, flags) {
   if (!geo || !geo.pref || !geo.world) return;
   const make = (id, name, subject, grade, rows, whole, groupKey, makeItem) => {
     if (byId[id] || rows.length < 6) return;
@@ -657,7 +657,7 @@ export function registerGeo(geo) {
       const note = (x) => `それは ${lab(x)}の かたちだよ。もういちど よく くらべてみよう。`;
       const near = others.filter((x) => x[groupKey] === o[groupKey]).map((x) => ({ label: lab(x), note: note(x) }));
       const far = others.filter((x) => x[groupKey] !== o[groupKey]).map((x) => ({ label: lab(x), note: note(x) }));
-      return { ...makeItem(o, lab), svg: svgOf(o), near, far, hlabel: `${o.n}の かたち`, id: `${id}:${i}` };
+      return { svg: svgOf(o), hlabel: `${o.n}の かたち`, ...makeItem(o, lab), near, far, id: `${id}:${i}` };
     });
     const unit = { id, name, subject, grade, months: [], pre: [], geo: true, items, gen: () => fromKnowledge(unit) };
     (UNITS[grade] = UNITS[grade] || []).push(unit);
@@ -672,6 +672,15 @@ export function registerGeo(geo) {
   make('geo_world', 'せかいの くにの かたち', '社会', 4, world, false, 'k', worldItem);
   make('geo_pref_e', 'にほんの かたち', '生活', 2, prefs.filter((o) => o.e), true, 'r', prefItem);
   make('geo_world_e', 'せかいの くにの かたち', '生活', 2, world.filter((o) => o.e), true, 'k', worldItem);
+  // こっきクイズ(data/flags.json): はたを みて、どこの くにか あてる
+  if (flags && flags.flags) {
+    const fw = Object.entries(geo.world).filter(([a3]) => flags.flags[a3]).map(([a3, o]) => ({ ...o, a3 }));
+    const flagItem = (o, lab) => ({ q: 'この はたは どこの くにの はたかな?', correct: lab(o), hlabel: `${o.n}の はた`,
+      svg: `<svg class="flag" viewBox="0 0 640 480" role="img" aria-label="こっき">${flags.flags[o.a3]}</svg>`,
+      why: `${lab(o)}の はただよ。${o.k}の くにで、しゅとは ${rubyName(o.c, o.cy, true)}。` });
+    make('flag_world', 'せかいの こっき', '社会', 4, fw, false, 'k', flagItem);
+    make('flag_world_e', 'せかいの こっき', '生活', 2, fw.filter((o) => o.e), true, 'k', flagItem);
+  }
 }
 
 export function registerKokugo(items) {

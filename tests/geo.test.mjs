@@ -12,7 +12,10 @@ for (const o of [...Object.values(geo.pref), ...Object.values(geo.world)]) {
   assert.ok(/^[Mlz0-9 -]+$/.test(o.d), `${o.n}: パスの もじ`);
 }
 
-registerGeo(geo); registerGeo(geo); // 2回よんでも ふえない
+const flags = JSON.parse(readFileSync(new URL('../data/flags.json', import.meta.url), 'utf8'));
+assert.equal(Object.keys(flags.flags).length, COUNTRIES.length);
+assert.ok(Object.values(flags.flags).every((s) => s.includes('<') && s.length > 80 && s.length < 20000), '国旗の サイズ');
+registerGeo(geo, flags); registerGeo(geo, flags); // 2回よんでも ふえない
 const units = ['geo_pref', 'geo_world', 'geo_pref_e', 'geo_world_e'].map((id) => byId[id]);
 assert.ok(units.every(Boolean));
 assert.equal(units[0].items.length, 47); assert.equal(units[1].items.length, COUNTRIES.length);
@@ -43,4 +46,15 @@ assert.equal(kana(byId.geo_world, 'アメリカ'), 'アメリカ');
 let near = 0;
 for (let i = 0; i < 60; i++) { const q = makeProbe(byId.geo_pref, { itemId: byId.geo_pref.items.find((x) => x.hlabel.startsWith('熊本')).id }); near += q.choices.filter((c) => !c.ok && /福岡|佐賀|長崎|大分|宮崎|鹿児島|沖縄/.test(c.label.replace(/<[^>]*>/g, ''))).length; }
 assert.ok(near / 60 >= 1.9, '同じ地方から 2つは まざる');
+// こっきクイズ
+for (const id of ['flag_world', 'flag_world_e']) {
+  const u = byId[id]; assert.ok(u, id);
+  for (const it of u.items) {
+    const q = makeProbe(u, { itemId: it.id });
+    assert.ok(q.text.includes('class="flag"') && q.text.includes('はた'), 'はたが ある');
+    assert.equal(q.choices.length, 4); assert.equal(new Set(q.choices.map((c) => c.label)).size, 4);
+    assert.ok(q.hlabel.endsWith('の はた'));
+  }
+}
+assert.equal(byId.flag_world.items.length, COUNTRIES.length);
 console.log('OK: geo');

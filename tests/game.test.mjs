@@ -5,7 +5,7 @@ import {
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
-  FORMATIONS, slotsOf, refitTeam,
+  FORMATIONS, slotsOf, refitTeam, CUPS, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
 } from '../game.js';
 
 // ---- 選手データ ----
@@ -183,9 +183,9 @@ const df = PLAYERS.find((p) => p.pos === 'DF' && p.rarity === 'common');
   assert.ok(Math.abs(w2 - l2) / 6000 < 0.04, `互角: ${w2} vs ${l2}`);
   console.log(`  70 vs 40 の勝率 ${(win / 40).toFixed(1)}% / 60 vs 60 の勝ち数 ${w2} / 負け数 ${l2}`);
   // CPUは じぶんの強さに あわせる
-  const rr = (lv) => ratings(cpuTeam(60, lv, rngSeed(5)).team).power;
-  assert.ok(rr('easy') < rr('normal') && rr('normal') < rr('hard') && rr('hard') < rr('boss'));
-  assert.ok(Math.abs(rr('normal') - 60) <= 6);
+  const rr = (lv) => ratings(cpuTeam(lv, rngSeed(5)).team).power;
+  assert.ok(rr('easy') < rr('normal') && rr('normal') < rr('hard') && rr('hard') < rr('boss') && rr('boss') < rr('god'));
+  assert.ok(Math.abs(rr('normal') - 52) <= 6, 'CPUは じぶんの つよさに かかわらず きまった つよさ');
 }
 // 5にんの ころの へんせいは 11にんの じゅんばんに ひきつがれる
 assert.deepEqual(migrateTeam(['a', 'b', 'c', 'd', 'e']), ['a', 'b', 'c', null, null, null, 'd', null, null, null, 'e']);
@@ -196,13 +196,13 @@ for (const f of FORMATIONS) {
   const sl = slotsOf(f.id);
   assert.equal(sl.length, 11, f.name); assert.equal(f.fw + f.mf + f.df, 10); assert.equal(sl.filter((x) => x === 'GK').length, 1);
   assert.deepEqual(sl, [...sl].sort((a, b) => ['FW', 'MF', 'DF', 'GK'].indexOf(a) - ['FW', 'MF', 'DF', 'GK'].indexOf(b)), 'FW→MF→DF→GK');
-  const cpu = cpuTeam(60, 'normal', rngSeed(3), f.id).team;
+  const cpu = cpuTeam('normal', rngSeed(3), f.id).team;
   assert.deepEqual(cpu.map((x) => x.slot), sl);
   const r = simulate({ name: 'a', team: cpu }, { name: 'b', team: cpu }, rngSeed(1));
   assert.equal(r.events.length, 12, `${f.name}で しあいが できる`);
 }
 { // こうげき型は att が たかく、まもり型は def が たかい(せんしゅは おなじ つよさ)
-  const flat = (id) => cpuTeam(60, 'normal', () => 0.5, id).team;
+  const flat = (id) => cpuTeam('normal', () => 0.5, id).team;
   const a433 = ratings(flat('433')); const a442 = ratings(flat('442')); const a532 = ratings(flat('532'));
   assert.ok(a433.att > a442.att && a532.def > a442.def && a532.att < a442.att);
 }
@@ -214,5 +214,51 @@ for (const f of FORMATIONS) {
   assert.deepEqual(t.slice(0, 2), ['f1', 'f2']);
   const t2 = refitTeam(['s', 'f1', 'f2', 'f3'], slotsOf('451'), (id) => pos[id]); // FW は 1にんだけ
   assert.equal(t2.filter(Boolean).length, 4, '1にんも きえない'); assert.equal(t2[0], 'f1');
+}
+
+// ---- つよさの ばらつき: はじめの チームは ボスに かてない / やさしい あいてには かてる ----
+{
+  const flat = (v) => ({ name: 'F', team: SLOT_POS.map((slot, i) => ({ slot, id: `f${i}`, name: `F${i}`, face: '⚽', pos: slot, rarity: 'common', level: 0, offPos: false, stats: Object.fromEntries(STATS.map((x) => [x, v])) })) });
+  const rnd = rngSeed(77);
+  const start = flat(30);
+  assert.ok(winChance(start, cpuTeam('boss', rnd), 400, rnd) < 0.01, 'はじめの チームは ボス(レジェンド)に かてない');
+  assert.ok(winChance(start, cpuTeam('hard', rnd), 400, rnd) < 0.03);
+  assert.ok(winChance(start, cpuTeam('easy', rnd), 400, rnd) > 0.3, 'やさしい あいてには かてる');
+  assert.ok(winChance(flat(95), cpuTeam('boss', rnd), 400, rnd) > 0.35, 'レジェンド チームなら ボスと いい しょうぶ');
+  // タイプ: こうげき型は こうげきが たかく まもりが ひくい
+  const att = ratings(cpuTeamAt(60, 'A', () => 0.5, '442', 'att').team); const def = ratings(cpuTeamAt(60, 'D', () => 0.5, '442', 'def').team);
+  assert.ok(att.att > def.att && att.def < def.def);
+}
+// ---- PK戦 ----
+{
+  const rnd = rngSeed(5); let strong = 0;
+  for (let i = 0; i < 2000; i++) { const k = shootout(100, 40, rnd); assert.notEqual(k.a, k.b, 'PK戦は ひきわけない'); if (k.a > k.b) strong++; }
+  assert.ok(strong / 2000 > 0.55 && strong / 2000 < 0.85, `PK戦の かち ${strong / 2000}`);
+}
+// ---- たいかい ----
+{
+  const all = CUPS.flatMap((c) => c.rounds.map((r) => r.power));
+  assert.deepEqual(CUPS.map((c) => c.id), ['j', 'asia', 'kirin', 'wc']);
+  for (const c of CUPS) for (let i = 1; i < c.rounds.length; i++) assert.ok(c.rounds[i].power > c.rounds[i - 1].power, `${c.name}: ラウンドごとに つよく なる`);
+  const finals = CUPS.map((c) => c.rounds.at(-1).power);
+  for (let i = 1; i < finals.length; i++) assert.ok(finals[i] > finals[i - 1], 'たいかいの けっしょうは じゅんばんに つよく なる');
+  assert.ok(Math.min(...all) <= 36 && Math.max(...all) >= 100, 'はばが ひろい');
+  assert.ok(CUPS.every((c) => c.rounds.every((r) => r.name && r.label && r.reward)));
+  const p = { tickets: emptyTickets() };
+  assert.ok(cupUnlocked(p, 'j') && !cupUnlocked(p, 'asia') && !cupUnlocked(p, 'wc'));
+  assert.equal(cupRound(p, 'j'), 0);
+  // かつと つぎへ / まけると はいたい
+  let r = cupResult(p, 'j', 0, true); assert.equal(r.type, 'advance'); assert.equal(cupRound(p, 'j'), 1); assert.equal(p.tickets.bronze, 1);
+  r = cupResult(p, 'j', 1, false); assert.equal(r.type, 'out'); assert.equal(cupRound(p, 'j'), 0, 'はいたい: 1かいせんから');
+  // やりなおし(やさしい せってい)
+  cupResult(p, 'j', 0, true); r = cupResult(p, 'j', 1, false, true); assert.equal(r.type, 'retry'); assert.equal(cupRound(p, 'j'), 1);
+  // ゆうしょう → つぎの たいかい
+  for (let k = 1; k < 4; k++) r = cupResult(p, 'j', k, true);
+  assert.equal(r.type, 'cleared'); assert.ok(r.first); assert.ok(cupUnlocked(p, 'asia')); assert.ok(!cupUnlocked(p, 'kirin'));
+  assert.equal(p.cup.titles.j, 1); assert.equal(cupRound(p, 'j'), 0);
+  assert.equal(p.tickets.silver, 1 + 1 + 2, 'ラウンド3,4 + ゆうしょう ボーナス');
+  r = cupResult(p, 'j', 3, true); assert.equal(r.first, false); assert.equal(p.cup.titles.j, 2);
+  // こわれた データでも だいじょうぶ
+  const q = { cup: { run: { id: 'zzz', round: 9 }, cleared: 'x' } }; ensureCup(q); assert.equal(q.cup.run, null); assert.deepEqual(q.cup.cleared, []);
 }
 console.log('OK: game');

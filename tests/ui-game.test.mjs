@@ -150,6 +150,25 @@ act('battleend'); assert.equal(view, 'kid');
 assert.equal(act('fight', { opp: 'mate' }), true, 'きょうだいチームと たいせん');
 act('battleskip'); act('battleend');
 assert.equal(p().battles.w + p().battles.l + p().battles.d, 2);
+// たいかい: じゅんばん・せいかく な すすみかた
+{
+  act('sub', { sub: 'cup' });
+  const html = teamTab();
+  assert.match(html, /Jリーグ/); assert.match(html, /🔒/, '2ばんめ いこうは ロック'); assert.match(html, /かてそう/);
+  const before = p().battles.w;
+  assert.equal(act('cupfight', { cup: 'asia' }), true); assert.notEqual(view, 'battle', 'ロック中は しあいに すすめない');
+  assert.equal(act('cupfight', { cup: 'j' }), true); assert.equal(view, 'battle');
+  act('battleskip');
+  const won = p().battles.w > before;
+  assert.equal(p().cup.run ? p().cup.run.round : 0, won ? 1 : 0, 'かてば つぎの ラウンド / まけたら 1かいせんから');
+  assert.match(battleView(), won ? /つぎの ラウンドへ|ゆうしょう/ : /はいたい/);
+  assert.equal(p().lastMatch.events.length, 12);
+  act('battleskip'); assert.equal(p().battles.w + p().battles.l + p().battles.d, 3, 'スキップを くりかえしても 二重に かぞえない');
+  act('battleend'); act('sub', { sub: 'battle' });
+  assert.match(teamTab(), /てきの パワー 110/, 'フリーマッチは きまった つよさ');
+  assert.equal(act('replaylast', { mode: 'digest' }), true); act('battleend');
+  assert.equal(p().battles.w + p().battles.l + p().battles.d, 3, 'リプレイは せんせきに かぞえない');
+}
 assert.equal(act('nothing'), false);
 // 5にんの ころの データは 11にんに ひきつがれる
 {

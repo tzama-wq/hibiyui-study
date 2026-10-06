@@ -462,3 +462,15 @@ body.big .nav button small{font-size:13px}
 .bteam{display:flex;flex-direction:column;align-items:center;max-width:none;gap:0}.bteam b{font-size:13px}
 .replay{margin:10px 0;padding:10px;background:rgba(255,255,255,.05);border-left:4px solid var(--gold)}.replay span{font-size:13px;font-weight:700}
 .blog{max-height:190px;overflow:auto;min-height:60px}
+
+.flag{width:min(62vw,230px);height:auto;border:2px solid #fff;box-shadow:0 0 14px rgba(0,0,0,.5)}
+
+/* たいかい */
+.cup h3{margin:0 0 4px;font-size:17px}.cup.locked{opacity:.55}
+.cup .trophy{font-style:normal;font-size:13px;color:var(--gold);margin-left:6px}
+.cdots{display:flex;gap:6px;margin:8px 0}.cdots i{flex:1;height:8px;background:#1b2a55;border:1px solid var(--line)}
+.cdots i.won{background:var(--gold)}.cdots i.cur{background:var(--cyan);animation:pulse 1.4s infinite}
+.cnext{display:flex;flex-direction:column;gap:2px;margin:6px 0 10px;padding:8px 10px;background:rgba(255,255,255,.05);border-left:4px solid var(--blue)}
+.cnext b{font-size:16px}.cnext small,.cnext span{font-size:12px;color:var(--mute)}
+.cupout{margin:8px 0;padding:10px;text-align:center;background:#16224a;border:1px solid var(--line)}.cupout b{font-size:18px}.cupout.win{background:linear-gradient(160deg,#4a3700,#241a00)}.cupout.lose b{color:var(--mute)}
+@keyframes pulse{50%{opacity:.45}}
