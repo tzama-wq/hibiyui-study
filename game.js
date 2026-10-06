@@ -237,6 +237,7 @@ export const levelOf = (copies) => Math.max(0, Math.min(5, (copies || 1) - 1));
 
 // ---- チケットの かせぎかた ---------------------------------------------------------------
 export const DAILY_STUDY_TICKET_CAP = 6; // 1日に べんきょうで もらえる 上限(ひたすら ちかてつ連打を ふせぐ)
+export const PRACTICE_TICKET_CAP = 4;    // 「すきな れんしゅう」の ぶんは べつわく(きょうの セットで 上限でも、れんしゅうで もらえる)
 export const emptyTickets = () => ({ bronze: 0, silver: 0, gold: 0, platinum: 0 });
 export function studyReward({ good, total, mode, perfect }) {
   if (!total || good / total < 0.6) return {};
@@ -250,13 +251,15 @@ export function addTickets(p, reward) {
 }
 // べんきょうで もらった チケット(1日の上限つき)。もらえた ぶんを かえす
 export function earnStudyTickets(p, info, today) {
-  p.tk = p.tk && p.tk.date === today ? p.tk : { date: today, n: 0 };
+  p.tk = p.tk && p.tk.date === today ? p.tk : { date: today, n: 0, pn: 0 };
   const want = studyReward(info);
   const got = {};
+  const key = info.mode === 'practice' ? 'pn' : 'n'; const cap = info.mode === 'practice' ? PRACTICE_TICKET_CAP : DAILY_STUDY_TICKET_CAP;
+  p.tk.pn = p.tk.pn || 0;
   for (const k of TICKET_ORDER) {
     for (let i = 0; i < (want[k] || 0); i++) {
-      if (p.tk.n >= DAILY_STUDY_TICKET_CAP) break;
-      got[k] = (got[k] || 0) + 1; p.tk.n++;
+      if (p.tk[key] >= cap) break;
+      got[k] = (got[k] || 0) + 1; p.tk[key]++;
     }
   }
   addTickets(p, got);

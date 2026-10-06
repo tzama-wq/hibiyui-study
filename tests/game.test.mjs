@@ -261,4 +261,14 @@ for (const f of FORMATIONS) {
   // こわれた データでも だいじょうぶ
   const q = { cup: { run: { id: 'zzz', round: 9 }, cleared: 'x' } }; ensureCup(q); assert.equal(q.cup.run, null); assert.deepEqual(q.cup.cleared, []);
 }
+// れんしゅうの チケットは べつわく
+{
+  const p = { tickets: emptyTickets() };
+  for (let i = 0; i < 10; i++) earnStudyTickets(p, { good: 5, total: 5, mode: 'daily', perfect: false }, '2026-10-07');
+  const daily = Object.values(p.tickets).reduce((a, b) => a + b, 0); assert.equal(daily, 6, 'セットの 上限は 6');
+  let got = 0; for (let i = 0; i < 10; i++) got += Object.values(earnStudyTickets(p, { good: 4, total: 5, mode: 'practice', perfect: false }, '2026-10-07')).reduce((a, b) => a + b, 0);
+  assert.equal(got, 4, 'れんしゅうは セットが 上限でも べつに 4まい もらえる');
+  assert.deepEqual(earnStudyTickets(p, { good: 2, total: 5, mode: 'practice' }, '2026-10-07'), {}, '6わり みまんは もらえない');
+  const q = { tickets: emptyTickets() }; assert.equal(Object.values(earnStudyTickets(q, { good: 5, total: 5, mode: 'practice', perfect: true }, '2026-10-08')).reduce((a, b) => a + b, 0), 1);
+}
 console.log('OK: game');

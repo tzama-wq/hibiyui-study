@@ -36,6 +36,15 @@ export async function push(id, data) {
   if (!enabled()) return false;
   try { return (await req(`${base()}/${id}.json`, { method: 'PUT', body: JSON.stringify({ ...data, t: Date.now() }) })).ok; } catch { return false; }
 }
+// つながりの チェック(ほぞんした せっていで よめるか)。ok / status / いま みえている こどもの id
+export async function check() {
+  if (!enabled()) return { ok: false, status: -1, ids: [] };
+  try {
+    const r = await req(`${base()}.json`);
+    const data = r.ok ? (await r.json()) || {} : null;
+    return { ok: r.ok, status: r.status, ids: data ? Object.keys(data) : [] };
+  } catch { return { ok: false, status: 0, ids: [] }; }
+}
 export async function pull() {
   if (!enabled()) return null;
   try {

@@ -1,5 +1,5 @@
 import * as sync from './sync.js';
-import { addPoints, SUBJECT_STAT } from './game.js';
+import { addPoints, SUBJECT_STAT, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen } from './gen.js';
@@ -526,9 +526,10 @@ function practiceCard(k, p) {
   const mine = unitsOf(k.grade);
   const earlier = skillsUpTo(k.grade).filter((u) => u.grade < k.grade);
   return `<section class="panel"><h2 class="sec">TRAINING <small>すきな れんしゅう</small></h2>
+    <div class="muted">れんしゅうでも 6わり いじょう せいかいで 🎟 チケットが もらえるよ(1日 ${PRACTICE_CAP}まいまで)</div>
     ${SUBJECTS.filter((sj) => mine.some((u) => u.subject === sj)).map((sj) => `<details ${sj === '算数' ? 'open' : ''}><summary><b>${SUBJECT_ICON[sj]} ${sj}</b></summary>
       ${mine.filter((u) => u.subject === sj).map((u) => btn(u, u.name)).join('')}</details>`).join('')}
-    <details><summary><b>⏪ まえの がくねんの れんしゅう</b></summary>
+    <details><summary><b>⏪ まえの がくねんの れんしゅう</b> <small class="muted">(ポイントは はんぶん ・ チケットは もらえるよ)</small></summary>
       ${earlier.map((u) => btn(u, `${u.grade}ねん ${SUBJECT_ICON[u.subject] || ''}${u.name}`)).join('')}
     </details></section>`;
 }
@@ -664,9 +665,9 @@ const STAT_JA = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 
 function rewardPanel(R) {
   const tk = Object.entries(R.tickets || {}).filter(([, v]) => v);
   const pts = Object.entries(R.pts || {}).filter(([, v]) => v);
-  if (!tk.length && !pts.length) return '';
+  if (!tk.length && !pts.length && !R.capped) return '';
   return `<section class="panel gold"><h2 class="sec">REWARD <small>ごほうび</small></h2>
-    ${tk.length ? `<div class="reward-row">${tk.map(([k, v]) => `<span class="chip gold">${TK_NAME[k]} ×${v}</span>`).join(' ')} <small class="muted">ガチャで つかえるよ</small></div>` : '<div class="muted">6わり いじょう せいかいで チケットが もらえるよ(つぎは がんばろう!)</div>'}
+    ${tk.length ? `<div class="reward-row">${tk.map(([k, v]) => `<span class="chip gold">${TK_NAME[k]} ×${v}</span>`).join(' ')} <small class="muted">ガチャで つかえるよ</small></div>` : `<div class="muted">${R.capped ? 'きょうは もう たくさん チケットを もらったよ。また あした!' : '6わり いじょう せいかいで チケットが もらえるよ(つぎは がんばろう!)'}</div>`}
     ${pts.length ? `<div class="reward-row">${pts.map(([k, v]) => `<span class="chip">${STAT_JA[k]} +${v}pt</span>`).join(' ')} <small class="muted">「チーム → つよく」で つかえるよ</small></div>` : ''}</section>`;
 }
 
@@ -746,11 +747,19 @@ function vPapa() {
     ${KIDS.map((k) => { const d = dataFor(k); return `<p>${k.name}:${d.sel.state === 'in' ? '🇯🇵 選出中' : '🪑 ひかえ'}(この${WINDOW}日で ${d.sel.n}日${d.sel.called ? '・追加招集' : ''})</p>`; }).join('')}</div>`;
   const syncCard = `<div class="card"><h2>🔗 きょうだいと つなぐ</h2>
     <p class="muted">${sync.enabled() ? '✅ つながっています(ランク・ゴール数・日数だけ きょうゆう)' : '⚠ まだ つながっていません。いまは この スマホの きろくだけ みえます。'}</p>
-    <p class="muted">Firebase の Realtime Database の URL と、家族だけの ひみつの コードを いれます。つくりかたは README の「きょうだい共有」を見てね。</p>
+    <p class="muted">Firebase の Realtime Database の URL と、家族だけの ひみつの コードを いれます。</p>
+    <details><summary><b>📖 はじめての せってい(パパが 1かいだけ)</b></summary><ol class="muted" style="padding-left:20px;line-height:1.7">
+      <li>パソコンで <b>console.firebase.google.com</b> を ひらき、Google アカウントで ログイン →「プロジェクトを つくる」(なまえは なんでも OK ・ アナリティクスは オフ)</li>
+      <li>左の「構築」→「Realtime Database」→「データベースを作成」→ ロケーション「シンガポール」→「テストモード」で はじめる</li>
+      <li>「ルール」タブを、README の「きょうだい共有」の ルールに おきかえて「公開」</li>
+      <li>「データ」タブの いちばん うえの URL(https://〜firebasedatabase.app)を コピーして、下の 1つめの らんに はりつける</li>
+      <li>「🎲 コードを つくる」→「💾 ほぞん」→「🔎 つながりを チェック」で「つながったよ」が でれば OK</li>
+      <li>下の「📋 〜用リンクを コピー」を、LINE などで ひびと・ゆいと・パパ それぞれの スマホに おくって ひらく(スマホごとに 1かいだけ)</li></ol></details>
     <input id="syncdb" placeholder="https://xxxx-default-rtdb.firebaseio.com" value="${sc.db || ''}" style="width:100%;font:inherit;padding:8px;margin:4px 0">
     <input id="synccode" placeholder="かぞくコード(10もじいじょう)" value="${sc.fc || ''}" style="width:100%;font:inherit;padding:8px;margin:4px 0">
     <button class="btn small gray" data-act="synccode">🎲 コードを つくる</button>
     <button class="btn small" data-act="syncsave">💾 ほぞん</button>
+    <button class="btn small gray" data-act="synctest">🔎 つながりを チェック</button>
     <p class="muted">下の リンクを それぞれの スマホで ひらくと、その子の スマホに なって、おなじ せっていが はいります。</p>
     ${KIDS.map((k) => `<button class="btn small gold" data-act="synccopy" data-id="${k.id}">📋 ${k.name}用リンクを コピー</button>`).join('')}</div>`;
   const pinCard = `<div class="card"><h2>🔐 PIN</h2>
@@ -851,6 +860,7 @@ function answer(idx, unknown) {
     let xp = 10 * (Q.mode === 'bonus' ? 2 : 1);
     if (Q.combo === 3) { xp += 10; Q.hat = true; }
     const rep = repBonus(k); xp += rep;
+    if (it.unit.grade < k.grade) xp = Math.max(2, Math.round(xp / 2)); // まえの がくねんは ポイントが はんぶん
     Q.xp += xp; p.goals++; it.res = 'ok';
     const st = SUBJECT_STAT[it.unit.subject]; if (st) { addPoints(p, it.unit.subject, 2); Q.pts[st] = (Q.pts[st] || 0) + 2; }
     Q.answered = { ok, idx, xp, rep, hyp: evs };
@@ -876,7 +886,8 @@ function finish() {
   const k = kidOf(); const p = S.kids[k.id]; refreshDay(p);
   const before = rankOf(p.xp);
   const selBefore = dataFor(k).sel.state;
-  const bonusXp = Q.xp + 20; // 1セットやりきったボーナス
+  const own = Q.items.filter((x) => x.unit.grade >= k.grade).length / Math.max(1, Q.items.length);
+  const bonusXp = Q.xp + Math.round(20 * own); // 1セットやりきったボーナス(まえの がくねんの ぶんは はんぶん)
   p.xp += bonusXp;
   const after = rankOf(p.xp);
   const t = todayStr();
@@ -889,11 +900,13 @@ function finish() {
   const newly = BADGES.filter((b) => !(p.badges || []).includes(b.id) && b.cond(p, k));
   p.badges = [...(p.badges || []), ...newly.map((b) => b.id)];
   const perfectNow = Q.good === Q.items.length && !Object.keys(Q.missTags).length;
-  const gotTickets = awardStudy(p, { good: Q.good, total: Q.items.length, mode: Q.mode, perfect: perfectNow }, t);
+  const info = { good: Q.good, total: Q.items.length, mode: Q.mode, perfect: perfectNow };
+  const gotTickets = awardStudy(p, info, t);
+  const capped = !Object.keys(gotTickets).length && Object.keys(studyReward(info)).length > 0;
   save();
   const selAfter = dataFor(k).sel.state;
   const tags = Object.entries(Q.missTags).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([x]) => x).filter((x) => x !== 'unknown' || Object.keys(Q.missTags).length === 1);
-  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, pts: Q.pts, hyp: (Q.hyp || []).map((e) => ({ type: e.type, label: hypLabel(e.h) })) };
+  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, capped, pts: Q.pts, hyp: (Q.hyp || []).map((e) => ({ type: e.type, label: hypLabel(e.h) })) };
   lastCount.score = 0;
   view = 'result'; toTop = true; render();
   if (Q.result.good >= Math.ceil(Q.result.total * 0.6) || Q.result.rankUp || Q.result.callup || Q.result.newBadges.length || Q.result.hyp.some((e) => e.type === 'resolved')) {
@@ -981,6 +994,16 @@ document.addEventListener('click', (e) => {
     const db = document.getElementById('syncdb').value; const fc = document.getElementById('synccode').value;
     if (!sync.validCfg(db, fc)) return toast('URL(https://〜)と コード(10もじいじょう)を いれてね');
     sync.setCfg(db, fc); toast('つないだよ!'); syncNow(); return;
+  }
+  else if (a === 'synctest') {
+    toast('しらべてるよ…');
+    sync.check().then((r) => {
+      const names = r.ids.map((id) => (KIDS.find((k) => k.id === id) || { name: id }).name);
+      toast(r.ok ? (names.length ? `つながったよ! きろくが とどいている人: ${names.join('・')}` : 'つながったよ! まだ だれの きろくも ないよ(それぞれの スマホで アプリを ひらいてね)')
+        : r.status === 401 || r.status === 403 ? 'ルールが ちがうよ。README の ルールを コピーして「公開」してね'
+          : r.status === 404 ? 'URLが ちがうみたい。「データ」タブの いちばん うえの URLを いれてね' : r.status === -1 ? 'まず URLと コードを ほぞんしてね' : 'つながらないよ。ネットと URLを かくにんしてね');
+    });
+    return;
   }
   else if (a === 'synccopy') {
     if (navigator.clipboard) navigator.clipboard.writeText(sync.shareLink(el.dataset.id)).then(() => toast('こども用リンクを コピーしたよ'), () => toast('コピーできなかったよ'));
