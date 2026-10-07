@@ -310,7 +310,7 @@ export const BADGE_BUFFS = {
   goal1: { SHO: 1 }, goal10: { SHO: 2 }, goal50: { SHO: 3 }, goal100: { SHO: 5 }, goal300: { SHO: 8 },
   day3: { STA: 2 }, day7: { STA: 3 }, day30: { STA: 8 },
   hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, kuku9: { SHO: 4, SPD: 2 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 },
-  rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 },
+  rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 }, rank_eu: { ALL: 4 }, rank_wc: { ALL: 5 }, rank_max: { ALL: 6 },
   m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 },
 };
 export const MAX_EQUIP = 3;

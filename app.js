@@ -11,10 +11,15 @@ const KIDS = [
   { id: 'yuito', name: 'ゆいと', grade: 2, color: '#d6341e', em: '⚽' },
   { id: 'papa', name: 'パパ', grade: 4, color: '#2a9d6f', em: '👨', adult: true }, // パパも 3にんめの 選手として さんか(小4の もんだい)
 ];
+// ランク(25だん)。さいごまで いくには ながい たびに なる。むかしの きろく(xp)は そのまま ひきつぐ
 const RANKS = [
-  [0, 'サッカーきょうしつ'], [100, 'ジュニアユース'], [300, 'ユースの エース'], [600, 'プロ1ねんめ'],
-  [1000, 'Jリーガー'], [1600, 'にほんだいひょう'], [2500, 'ワールドカップの スター'],
+  [0, 'サッカーきょうしつ'], [100, 'ジュニアユース'], [250, 'ジュニアユースの エース'], [450, 'ユースの レギュラー'], [700, 'ユースの エース'],
+  [1000, 'ユースだいひょう'], [1400, 'プロ1ねんめ'], [1900, 'プロの レギュラー'], [2500, 'Jリーガー'], [3200, 'Jリーグの エース'],
+  [4000, 'Jリーグ ベストイレブン'], [5000, 'Jリーグ MVP'], [6200, 'にほんだいひょうこうほ'], [7600, 'にほんだいひょう'], [9200, 'にほんだいひょうの エース'],
+  [11000, 'だいひょうの キャプテン'], [13000, 'ヨーロッパへ ちょうせん'], [15500, 'ヨーロッパの レギュラー'], [18500, 'ヨーロッパの スター'], [22000, 'チャンピオンズリーグの スター'],
+  [26000, 'ワールドカップの だいひょう'], [30000, 'ワールドカップの スター'], [35000, 'バロンドールこうほ'], [41000, 'バロンドール'], [50000, 'サッカーの でんせつ'],
 ];
+const rankIdx = (name) => RANKS.findIndex((r) => r[1] === name);
 // 1セットの もんだい数は 子どもごとの せってい(cfg.js の setSize。ふつうは 5)
 const MAX_BONUS = 3;
 
@@ -281,9 +286,12 @@ const BADGES = [
   { id: 'cup_wc', icon: '🌍', name: 'ワールドカップ ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('wc') },
   { id: 'hyp1', icon: '🔬', name: 'はじめて のりこえた', cond: (p) => (p.hypResolved || 0) >= 1 },
   { id: 'hyp5', icon: '🧪', name: '5つ のりこえた', cond: (p) => (p.hypResolved || 0) >= 5 },
-  { id: 'rank2', icon: '🚀', name: 'ユースの エース', cond: (p) => rankOf(p.xp).i >= 2 },
-  { id: 'rank4', icon: '🏟️', name: 'Jリーガー', cond: (p) => rankOf(p.xp).i >= 4 },
-  { id: 'rank5', icon: '🇯🇵', name: 'にほんだいひょう', cond: (p) => rankOf(p.xp).i >= 5 },
+  { id: 'rank2', icon: '🚀', name: 'ユースの エース', cond: (p) => rankOf(p.xp).i >= rankIdx('ユースの エース') },
+  { id: 'rank4', icon: '🏟️', name: 'Jリーガー', cond: (p) => rankOf(p.xp).i >= rankIdx('Jリーガー') },
+  { id: 'rank5', icon: '🇯🇵', name: 'にほんだいひょう', cond: (p) => rankOf(p.xp).i >= rankIdx('にほんだいひょう') },
+  { id: 'rank_eu', icon: '🌍', name: 'ヨーロッパの スター', cond: (p) => rankOf(p.xp).i >= rankIdx('ヨーロッパの スター') },
+  { id: 'rank_wc', icon: '🏆', name: 'ワールドカップの スター', cond: (p) => rankOf(p.xp).i >= rankIdx('ワールドカップの スター') },
+  { id: 'rank_max', icon: '👑', name: 'サッカーの でんせつ', cond: (p) => rankOf(p.xp).i >= RANKS.length - 1 },
   ...[['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱']].map(([sj, icon]) => (
     { id: `m_${sj}`, icon, name: `${sj}の プロ`, cond: (p, k) => masterCount(p, k, sj) >= 3 })),
 ];
@@ -335,7 +343,7 @@ function ability(k, p) {
   }
   const vals = Object.values(stats);
   const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 40;
-  const ovr = Math.min(99, Math.round(avg) + rankOf(p.xp).i);
+  const ovr = Math.min(99, Math.round(avg) + Math.round((rankOf(p.xp).i * 7) / (RANKS.length - 1))); // ランクの ぶんは さいだい +7
   return { stats, ovr, tier: ovr >= 80 ? 'legend' : ovr >= 65 ? 'gold' : ovr >= 50 ? 'silver' : 'bronze' };
 }
 
