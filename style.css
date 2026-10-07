@@ -474,3 +474,14 @@ body.big .nav button small{font-size:13px}
 .cnext b{font-size:16px}.cnext small,.cnext span{font-size:12px;color:var(--mute)}
 .cupout{margin:8px 0;padding:10px;text-align:center;background:#16224a;border:1px solid var(--line)}.cupout b{font-size:18px}.cupout.win{background:linear-gradient(160deg,#4a3700,#241a00)}.cupout.lose b{color:var(--mute)}
 @keyframes pulse{50%{opacity:.45}}
+
+.bpk{margin:8px 0;padding:8px 10px;background:linear-gradient(90deg,#2a1d4a,#16224a);border-left:4px solid var(--gold)}
+.bpk b{display:block;color:var(--gold);font-size:13px;margin-bottom:2px}.bpk div{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:700}
+.bpk em{font-style:normal;color:var(--gold);font-size:16px}.bpk small{font-size:15px;letter-spacing:1px}
+
+.kukugrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.kukugrid .kk{margin:0;padding:10px 4px;font-size:14px}
+
+.choice .shape.mini,.choice .flag.mini{display:block;margin:0 auto;width:100%;max-width:120px;max-height:84px;height:auto;filter:none}
+.choice .flag.mini{border:1px solid #fff;box-shadow:none}.choice .shape.mini path{stroke-width:1.5}
+
+.choice.out{opacity:.25;text-decoration:line-through;filter:grayscale(1)}

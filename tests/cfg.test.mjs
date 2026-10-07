@@ -81,4 +81,13 @@ assert.equal(estimateMinutes(3), 2); assert.equal(estimateMinutes(5), 3); assert
   assert.match(n.score({ total: 5, good: 3, xp: 40, hat: true }), /ハットトリック/);
   assert.match(pl.score({ total: 5, good: 3, xp: 40, hat: false }), /5もん中 3もん せいかい/);
 }
+// 境界知能・ひとにやさしい せってい
+{
+  const S = {}; const c = applyPreset(S, 'x', 'bif');
+  assert.equal(c.choices, '3'); assert.equal(c.hint, true); assert.equal(c.autoRead, true); assert.equal(c.setSize, 3); assert.equal(c.plain, true); assert.equal(c.forgive, true);
+  assert.equal(c.lock, 'normal', '読む じかんは みじかく しない');
+  assert.equal(sanitize({ choices: 9 }).choices, 'all'); assert.equal(sanitize({ choices: 2 }).choices, '2'); assert.equal(sanitize({ setSize: 2 }).setSize, 2);
+  assert.equal(DEFAULTS.hint, false); assert.equal(DEFAULTS.choices, 'all');
+  assert.ok(applyPreset(S, 'y', 'asd').calm && !applyPreset(S, 'y', 'asd').hint, 'ASD は ヒントなし・うごきを へらす');
+}
 console.log('OK: cfg');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { buildPlan, layout, toPx, createMatch, PITCH, W, H } from '../match.js';
-import { simulate, cpuTeam, rngSeed, slotsOf, FORMATIONS } from '../game.js';
+import { simulate, cpuTeam, rngSeed, slotsOf, FORMATIONS, shootout, pkKicks } from '../game.js';
 
 const team = (fid, seed = 1) => cpuTeam('normal', rngSeed(seed), fid).team;
 globalThis.requestAnimationFrame = () => 0; globalThis.cancelAnimationFrame = () => {};
@@ -62,4 +62,20 @@ for (const [fa, fb] of [['442', '433'], ['352', '532'], ['451', '343']]) {
   const m = createMatch({ me, opp, events: res.events.map((e, i) => ({ ...e, idx: i, total: 12 })), callbacks: { onEnd: () => ended++ } });
   m.attach(fakeCanvas); m.skip(); assert.ok(m.done); assert.equal(ended, 1); m.destroy();
 }
+// PK戦: けったぶん ぜんぶ えんしゅつして おわる
+for (let s = 0; s < 6; s++) {
+  const me = { name: 'a', team: team('442', 1) }; const opp = { name: 'b', team: team('433', 2) };
+  const res = simulate(me, opp, rngSeed(s)); const pk = shootout(50, 55, rngSeed(s + 100));
+  assert.notEqual(pk.a, pk.b); assert.equal(pk.kicks.filter((k) => k.side === 'a' && k.ok).length, pk.a);
+  const log = []; let ended = 0;
+  const m = createMatch({ me, opp, events: res.events.map((e, i) => ({ ...e, idx: i, total: 12 })), pk: pk.kicks, rnd: rngSeed(9), callbacks: { onPk: (x) => log.push(`${x.phase}${x.i}`), onBanner: (b) => log.push(b), onEnd: () => ended++ } });
+  m.attach(fakeCanvas); let f = 0;
+  while (!m.done && f < 40000) { m._step(0.03); f++; const bl = m._ball; assert.ok(Number.isFinite(bl.x) && Number.isFinite(bl.y) && bl.x > -40 && bl.x < W + 40, `PK ボール ${bl.x},${bl.y}`); }
+  assert.ok(m.done && ended === 1);
+  for (let i = 0; i < pk.kicks.length; i++) assert.ok(log.includes(`start${i}`) && log.includes(`result${i}`), `PK ${i}ほんめ`);
+  assert.ok(log.includes('PK戦'));
+  m.destroy();
+}
+// ふるい きろく(kicks なし)からも ならべられる
+{ const k = pkKicks({ a: 4, b: 3 }); assert.equal(k.filter((x) => x.side === 'a' && x.ok).length, 4); assert.equal(k.filter((x) => x.side === 'b' && x.ok).length, 3); }
 console.log('OK: match');

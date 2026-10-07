@@ -105,7 +105,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
 const ease = (t) => t * t * (3 - 2 * t);
 
-export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, callbacks = {} }) {
+export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, callbacks = {}, pk = null }) {
   const sides = { a: me, b: opp };
   const players = { a: [], b: [] };
   const lay = { a: layout(me.team), b: layout(opp.team) };
@@ -227,6 +227,59 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     }
   }
 
+  // ---- PK戦 ----
+  function startKick(i) {
+    const pkS = S.pk; const K = pkS.kicks[i]; pkS.i = i; pkS.t = 0; pkS.stage = 'ready';
+    const ks = K.side; const ds = ks === 'a' ? 'b' : 'a';
+    const order = [...lay[ks].rows.FW, ...lay[ks].rows.MF, ...lay[ks].rows.DF];
+    const kicker = players[ks][order[Math.floor(i / 2) % order.length]]; const keeper = players[ds][lay[ds].rows.GK[0]];
+    pkS.kicker = kicker; pkS.keeper = keeper;
+    const spot = { x: PITCH.x1 - 46, y: CY };
+    const mid = (PITCH.x0 + PITCH.x1) / 2; let n = 0;
+    for (const k of ['a', 'b']) for (const p of players[k]) {
+      p.dive = null; p.arms = false; p.celebrate = false; p.jump = 0;
+      if (p === kicker || p === keeper) continue;
+      p.tx = mid + (k === 'a' ? -14 : 14); p.ty = PITCH.y0 + 20 + (n++ % 11) * 11; p.dir = k === 'a' ? 1 : -1;
+    }
+    kicker.x = spot.x - 26; kicker.y = spot.y + 3; kicker.tx = spot.x - 5; kicker.ty = spot.y; kicker.dir = 1;
+    keeper.x = PITCH.x1 - 5; keeper.y = CY; keeper.tx = PITCH.x1 - 5; keeper.ty = CY; keeper.dir = -1;
+    ball.x = spot.x; ball.y = spot.y; ball.hold = null; ball.z = 0; ball.net = 0;
+    S.plan = { side: 'a', type: K.kind, gk: lay[ds].rows.GK[0] };
+    cb.onPk && cb.onPk({ phase: 'start', i, kick: K, shown: pkS.kicks.slice(0, i) });
+  }
+  function stepPk(dt) {
+    const q = S.pk; const K = q.kicks[q.i]; q.t += dt;
+    const kp = q.keeper;
+    if (q.stage === 'ready') {
+      if (q.t >= 0.95) {
+        q.stage = 'shot'; q.t = 0; q.sx = ball.x; q.sy = ball.y;
+        const dy = (rnd() < 0.5 ? -1 : 1) * (7 + rnd() * 7);
+        if (K.kind === 'goal') { q.tx = PITCH.x1 + 5; q.ty = CY + dy; kp.dive = { up: dy > 0, t: 0, ty: CY - dy * 1.2, late: true, y0: kp.y }; }
+        else if (K.kind === 'save') { q.tx = PITCH.x1 - 6; q.ty = CY + dy * 0.8; kp.dive = { up: dy < 0, t: 0, ty: CY + dy * 0.8, late: false, y0: kp.y }; }
+        else { q.tx = PITCH.x1 + 14; q.ty = CY + (dy > 0 ? 1 : -1) * (GOAL_HALF + 9); q.high = 3; }
+      }
+      return;
+    }
+    if (q.stage === 'shot') {
+      const u = clamp01(q.t / 0.5); const e = ease(u);
+      ball.x = lerp(q.sx, q.tx, e); ball.y = lerp(q.sy, q.ty, e); ball.z = Math.sin(u * Math.PI) * (q.high != null ? q.high : 4);
+      if (kp.dive) { const dd = clamp01((q.t - (kp.dive.late ? 0.1 : 0.04)) / 0.38); kp.dive.t = dd; kp.y = lerp(kp.dive.y0, kp.dive.ty, ease(dd)); kp.ty = kp.y; }
+      if (u >= 1) {
+        q.stage = 'after'; q.t = 0;
+        if (K.kind === 'goal') { S.shake = 0.35; S.crowd = 1; S.flash = 0.25; ball.net = 1; q.kicker.arms = true; } else if (K.kind === 'save') { S.crowd = 0.4; q.ex = ball.x - 22; q.ey = ball.y + (ball.y < CY ? -18 : 18); q.bx = ball.x; q.by = ball.y; }
+        cb.onPk && cb.onPk({ phase: 'result', i: q.i, kick: K, shown: q.kicks.slice(0, q.i + 1) });
+      }
+      return;
+    }
+    // after
+    if (K.kind === 'save') { const v = clamp01(q.t / 0.5); ball.x = lerp(q.bx, q.ex, ease(v)); ball.y = lerp(q.by, q.ey, ease(v)); ball.z = Math.sin(v * Math.PI) * 6; }
+    if (K.kind === 'goal') { ball.net = Math.max(0, 1 - q.t / 0.9); q.kicker.jump = Math.abs(Math.sin(q.t * 8)) * 4; }
+    if (q.t >= (K.kind === 'goal' ? 1.2 : 0.95)) {
+      q.kicker.jump = 0;
+      if (q.i + 1 >= q.kicks.length) { q.on = false; S.done = true; nextBanner('PK戦 しゅうりょう', 2); cb.onEnd && cb.onEnd(); return; }
+      startKick(q.i + 1);
+    }
+  }
   function nextBanner(text, dur) { S.banner = { text, t: dur }; cb.onBanner && cb.onBanner(text); }
 
   function step(dt) {
@@ -248,7 +301,8 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       if (!p.celebrate) p.jump = 0;
     }
     if (S.done) return;
-    if (S.pause > 0) { S.pause -= dt; if (S.pause <= 0 && !S.started) { S.started = true; beginEvent(0); S.pause = 0; } else if (S.pause <= 0 && S.next) { const n = S.next; S.next = null; players.a.concat(players.b).forEach((p) => { p.celebrate = false; p.arms = false; p.dive = null; }); beginEvent(n); } return; }
+    if (S.pause > 0) { S.pause -= dt; if (S.pause <= 0 && !S.started) { S.started = true; beginEvent(0); S.pause = 0; } else if (S.pause <= 0 && S.pk && !S.pk.on) { S.pk.on = true; startKick(0); } else if (S.pause <= 0 && S.next) { const n = S.next; S.next = null; players.a.concat(players.b).forEach((p) => { p.celebrate = false; p.arms = false; p.dive = null; }); beginEvent(n); } return; }
+    if (S.pk && S.pk.on) { stepPk(dt); return; }
     if (!S.started) return;
     const st = S.steps[S.si];
     if (!st) return;
@@ -260,7 +314,11 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       if (S.si >= S.steps.length) { // 1かい おわり
         const n = S.idx + 1;
         if (cb.onEvent) cb.onEvent({ phase: 'end', i: S.idx, ev: events[S.idx] });
-        if (n >= events.length) { S.done = true; ball.hold = null; formation(null); nextBanner('FULL TIME', 2.5); cb.onEnd && cb.onEnd(); return; }
+        if (n >= events.length) {
+          ball.hold = null; formation(null);
+          if (pk && pk.length) { S.pk = { kicks: pk, i: -1, on: false }; nextBanner('PK戦', 1.6); S.pause = 1.7; return; }
+          S.done = true; nextBanner('FULL TIME', 2.5); cb.onEnd && cb.onEnd(); return;
+        }
         // ハーフタイム(ぜんぶの まんなか)
         const half = events[n].idx != null && events[n].total && events[n].idx === Math.floor(events[n].total / 2) && events[S.idx].idx < events[n].idx;
         formation(null); ball.x = (PITCH.x0 + PITCH.x1) / 2; ball.y = CY; ball.hold = null; ball.z = 0; ball.net = 0;

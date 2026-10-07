@@ -135,6 +135,35 @@ function kuku() {
   ], `${a}の だん:${Array.from({ length: b }, (_, i) => a * (i + 1)).join('、')}。${a}×${b}=${c}`);
 }
 
+// ---- 九九マスター(1〜9の だん・ぜんぶ・□を さがす) -----------------------------------------
+// だん ごとの れんしゅう。かたちを かえて(a×b / b×a / a×□=c)おなじ もんだいに ならないように する
+function kukuDan(d) {
+  const a = d; const b = rnd(1, 9), c = a * b;
+  const swap = c >= 10 ? Number(String(c).split('').reverse().join('')) : c + 1;
+  const form = rnd(0, 3);
+  const why = `${a}の だん:${Array.from({ length: 9 }, (_, i) => a * (i + 1)).slice(0, Math.max(b, 3)).join('、')}。${a}×${b}=${c}`;
+  if (form === 2) { // a × □ = c
+    return build(`${a} × □ = ${c}  □に はいる 数は?`, S(b), [
+      [S(b + 1), 'kuku_neighbor'], [S(b - 1), 'kuku_neighbor'], [S(c - a), 'calc_slip'], [S(a), 'plus_instead'], [S(b + 2), 'calc_slip'], [S(c), 'calc_slip'],
+    ], `${a}の だん で ${c} に なるのは ${a}×${b}。□は ${b}`);
+  }
+  if (form === 1 && a !== b) return build(`${b} × ${a} = ?`, S(c), [
+    [S(b * (a + 1)), 'kuku_neighbor'], [S(b * (a - 1)), 'kuku_neighbor'], [S((b + 1) * a), 'kuku_neighbor'], [S(a + b), 'plus_instead'], [S(swap), 'calc_slip'], [S(c + 10), 'calc_slip'],
+  ], `${b}×${a} と ${a}×${b} は おなじ こたえ。${why}`);
+  return build(`${a} × ${b} = ?`, S(c), [
+    [S(a * (b + 1)), 'kuku_neighbor'], [S(a * (b - 1)), 'kuku_neighbor'], [S((a + 1) * b), 'kuku_neighbor'], [S(a + b), 'plus_instead'], [S(swap), 'calc_slip'], [S(c + 10), 'calc_slip'],
+  ], why);
+}
+function kukuInv() { // □ × a = c / c ÷ a の 九九
+  const a = rnd(2, 9), b = rnd(2, 9), c = a * b;
+  if (Math.random() < 0.5) return build(`□ × ${a} = ${c}  □に はいる 数は?`, S(b), [
+    [S(b + 1), 'kuku_neighbor'], [S(b - 1), 'kuku_neighbor'], [S(c - a), 'calc_slip'], [S(a), 'plus_instead'], [S(b + 2), 'calc_slip'],
+  ], `${a}の だんで ${c} に なるのは ${a}×${b}。□は ${b}`);
+  return build(`${a} の だんで、こたえが ${c} に なる 九九は?`, `${a} × ${b}`, [
+    [`${a} × ${b + 1}`, 'kuku_neighbor'], [`${a} × ${b - 1}`, 'kuku_neighbor'], [`${a + 1} × ${b}`, 'kuku_neighbor'], [`${b} × ${b}`, 'calc_slip'], [`${a} × ${a}`, 'calc_slip'],
+  ], `${a}×${b}=${c}`);
+}
+
 // ---- 4年生 ---------------------------------------------------------------
 function bignum() {
   const k = rnd(12, 999), n = k * 10000;
@@ -593,6 +622,11 @@ const PRE = {
 for (const [g, us] of Object.entries(UNITS)) for (const u of us) { u.grade = Number(g); u.pre = PRE[u.id] || []; u.subject = u.subject || '算数'; }
 
 export const byId = Object.fromEntries(Object.values(UNITS).flat().map((u) => [u.id, u]));
+// 九九マスター用の たんげん(ふだんの 一覧や タイムマシンには 出さず、専用の カードから あそぶ)
+export const KUKU_DAN = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => `g2_kuku_${d}`);
+for (let d = 1; d <= 9; d++) byId[`g2_kuku_${d}`] = { id: `g2_kuku_${d}`, name: `九九 ${d}の だん`, subject: '算数', grade: 2, months: [], pre: ['g2_add'], drill: true, gen: () => kukuDan(d) };
+byId.g2_kuku_all = { id: 'g2_kuku_all', name: '九九 ぜんぶ', subject: '算数', grade: 2, months: [], pre: ['g2_add'], drill: true, gen: () => kukuDan(rnd(1, 9)) };
+byId.g2_kuku_inv = { id: 'g2_kuku_inv', name: '九九の □を さがせ', subject: '算数', grade: 2, months: [], pre: ['g2_kuku_all'], drill: true, gen: kukuInv };
 export const unitsOf = (grade) => UNITS[grade] || [];
 
 // ---- 国語(Gemini が毎朝ふやす 問題プールから出題) -----------------------------------
@@ -618,9 +652,10 @@ function fromKnowledge(unit, forced) {
   const it = forced || pick(fresh.length ? fresh : unit.items);
   // かたちクイズは まちがいの せんたくしを その つど えらぶ(ちかい ところを 2つ + ほか)
   const wrong = it.wrong || (() => { const n = shuffle(it.near.slice()); const f = shuffle(it.far.slice()); return [...n.slice(0, 2), ...f, ...n.slice(2)].slice(0, 3); })();
+  const lab = (t) => (it.raw ? t : ruby(t)); // かたち・はたの えらびかたは SVG をそのまま つかう
   const choices = shuffle([
-    { label: ruby(it.correct), ok: true },
-    ...wrong.map((w) => ({ label: ruby(w.label), ok: false, tag: 'know_mixup', note: ruby(w.note) })),
+    { label: lab(it.correct), ok: true },
+    ...wrong.map((w) => ({ label: lab(w.label), ok: false, tag: 'know_mixup', note: ruby(w.note) })),
   ]);
   return { text: (it.svg ? `<div class="shapebox">${it.svg}</div>` : '') + ruby(it.q), why: ruby(it.why), choices, id: it.id, ...(it.hlabel ? { hlabel: it.hlabel } : {}) };
 }
@@ -636,51 +671,110 @@ export function registerKnowledge(list) {
   for (const u of Object.values(byId)) u.pre = u.pre.filter((x) => byId[x]);
 }
 
-// ---- かたちクイズ(都道府県・せかいの くに): data/geo.json から たんげんを つくる ----------------
+// ---- かたち・はた クイズ(都道府県・せかいの くに): data/geo.json・flags.json から たんげんを つくる ----------
+// 1つの 県・くにに つき 5しゅるいの といかた(かたち→なまえ / なまえ→かたち / しゅと / ちほう・たいりく / しゅと→なまえ)
 const TAIL = { 県: 'けん', 府: 'ふ', 都: 'と', 市: 'し', 区: 'く' };
-// 読みを つける。tail=true なら「県・市」など おわりの 1もじは ふりがな なし
+// 読みを つける。whole=false なら「県・市」など おわりの 1もじは ふりがな なし
 function rubyName(name, yomi, whole) {
   if (!yomi) return name;
   const t = name.slice(-1);
   if (!whole && TAIL[t] && name.length > 1 && yomi.endsWith(TAIL[t])) return `{${name.slice(0, -1)}|${yomi.slice(0, -TAIL[t].length)}}${t}`;
   return `{${name}|${yomi}}`;
 }
-const svgOf = (o) => `<svg class="shape" viewBox="-4 -4 ${o.w + 8} ${o.h + 8}" role="img" aria-label="かたち"><path d="${o.d}"/></svg>`;
+const svgOf = (o, cls = 'shape') => `<svg class="${cls}" viewBox="-4 -4 ${o.w + 8} ${o.h + 8}" role="img" aria-label="かたち"><path d="${o.d}"/></svg>`;
+const flagSvg = (f, cls = 'flag') => `<svg class="${cls}" viewBox="0 0 640 480" role="img" aria-label="こっき">${f}</svg>`;
+const REGION_R = { 北海道: '{北海道|ほっかいどう}', 東北: '{東北|とうほく}', 関東: '{関東|かんとう}', 中部: '{中部|ちゅうぶ}', 近畿: '{近畿|きんき}', 中国: '{中国|ちゅうごく}', 四国: '{四国|しこく}', '九州・沖縄': '{九州|きゅうしゅう}・{沖縄|おきなわ}' };
+const CONT_R = { アジア: 'アジア', ヨーロッパ: 'ヨーロッパ', アフリカ: 'アフリカ', 北アメリカ: '{北|きた}アメリカ', 南アメリカ: '{南|みなみ}アメリカ', オセアニア: 'オセアニア' };
+const NOTE = 'ちがうよ。もういちど よく かんがえてみよう。';
+
+// かたち・はたの といを つくる(variantsFn: 1つの ぎょうから といの リストを かえす)
+function makeGeoUnit(id, name, subject, grade, rows, variantsFn) {
+  if (byId[id] || rows.length < 6) return;
+  const items = [];
+  for (const o of rows) {
+    for (const v of variantsFn(o, rows)) {
+      let near = []; let far = [];
+      if (v.values) far = v.values.filter((x) => x !== v.correct).map((label) => ({ label, note: NOTE }));
+      else {
+        for (const x of rows) {
+          if (x === o) continue;
+          const e = { label: v.labelOf(x), note: v.noteOf(x) };
+          if (v.group && x[v.group] === o[v.group]) near.push(e); else far.push(e);
+        }
+        near = near.filter((e) => e.label !== v.correct); far = far.filter((e) => e.label !== v.correct);
+      }
+      items.push({ q: v.q, svg: v.svg, correct: v.correct, raw: !!v.raw, why: v.why, hlabel: v.hlabel, near, far, id: `${id}:${items.length}` });
+    }
+  }
+  const unit = { id, name, subject, grade, months: [], pre: [], geo: true, items, gen: () => fromKnowledge(unit) };
+  (UNITS[grade] = UNITS[grade] || []).push(unit);
+  byId[id] = unit;
+}
+
 export function registerGeo(geo, flags) {
   if (!geo || !geo.pref || !geo.world) return;
-  const make = (id, name, subject, grade, rows, whole, groupKey, makeItem) => {
-    if (byId[id] || rows.length < 6) return;
-    const pool = rows;
-    const items = pool.map((o, i) => {
-      const others = pool.filter((x) => x !== o);
-      const lab = (x) => rubyName(x.n, x.y, whole);
-      const note = (x) => `それは ${lab(x)}の かたちだよ。もういちど よく くらべてみよう。`;
-      const near = others.filter((x) => x[groupKey] === o[groupKey]).map((x) => ({ label: lab(x), note: note(x) }));
-      const far = others.filter((x) => x[groupKey] !== o[groupKey]).map((x) => ({ label: lab(x), note: note(x) }));
-      return { svg: svgOf(o), hlabel: `${o.n}の かたち`, ...makeItem(o, lab), near, far, id: `${id}:${i}` };
-    });
-    const unit = { id, name, subject, grade, months: [], pre: [], geo: true, items, gen: () => fromKnowledge(unit) };
-    (UNITS[grade] = UNITS[grade] || []).push(unit);
-    byId[id] = unit;
+  const prefs = Object.values(geo.pref); const world = Object.entries(geo.world).map(([a3, o]) => ({ ...o, a3 }));
+  const flagRows = flags && flags.flags ? world.filter((o) => flags.flags[o.a3]).map((o) => ({ ...o, f: flags.flags[o.a3] })) : [];
+  const capName = (x) => rubyName(x.c, x.cy, true);
+  const REG = Object.values(REGION_R); const CON = Object.values(CONT_R);
+
+  const prefVariants = (whole, small) => (o) => {
+    const lab = (x) => rubyName(x.n, x.y, whole);
+    const out = [
+      { q: 'この かたちは どこの 都道府県かな?', svg: svgOf(o), correct: lab(o), labelOf: lab, noteOf: (x) => `それは ${lab(x)}の かたちだよ。もういちど よく くらべてみよう。`, group: 'r', hlabel: `${o.n}の かたち`,
+        why: `${lab(o)}。${REGION_R[o.r]}ちほうだよ。{県庁所在地|けんちょうしょざいち}は ${capName(o)}。` },
+      { q: `「${lab(o)}」の かたちは どれ?`, correct: svgOf(o, 'shape mini'), raw: true, labelOf: (x) => svgOf(x, 'shape mini'), noteOf: (x) => `それは ${lab(x)}の かたちだよ。`, group: 'r', hlabel: `${o.n}の かたち`,
+        why: `${lab(o)}の かたちは これ。${REGION_R[o.r]}ちほうに あるよ。` },
+    ];
+    if (small) return out;
+    out.push(
+      { q: 'この かたちの 県の {県庁所在地|けんちょうしょざいち}は どこかな?', svg: svgOf(o), correct: capName(o), labelOf: capName, noteOf: (x) => `それは ${lab(x)}の {県庁所在地|けんちょうしょざいち}だよ。`, group: 'r', hlabel: `${o.n}の けんちょうしょざいち`,
+        why: `${lab(o)}の {県庁所在地|けんちょうしょざいち}は ${capName(o)}。` },
+      { q: 'この かたちは どの 地方に ある 県かな?', svg: svgOf(o), correct: REGION_R[o.r], values: REG, hlabel: `${o.n}の ちほう`, why: `${lab(o)}は ${REGION_R[o.r]}ちほうだよ。` },
+      { q: `${capName(o)}は どの 都道府県の {県庁所在地|けんちょうしょざいち}かな?`, correct: lab(o), labelOf: lab, noteOf: (x) => `それは ${lab(x)}だよ。${capName(o)}は べつの 県の まちだよ。`, group: 'r', hlabel: `${o.n}の けんちょうしょざいち`,
+        why: `${capName(o)}は ${lab(o)}の {県庁所在地|けんちょうしょざいち}。` },
+    );
+    return out;
   };
-  const prefs = Object.values(geo.pref); const world = Object.values(geo.world);
-  const prefItem = (o, lab) => ({ q: 'この かたちは どこの 都道府県かな?', correct: lab(o),
-    why: `${lab(o)}。${o.r}ちほうだよ。{県庁所在地|けんちょうしょざいち}は ${rubyName(o.c, o.cy, true)}。` });
-  const worldItem = (o, lab) => ({ q: 'この かたちは どこの くにかな?', correct: lab(o),
-    why: `${lab(o)}。${o.k}の くにだよ。しゅとは ${rubyName(o.c, o.cy, true)}。` });
-  make('geo_pref', '都道府県の かたち', '社会', 4, prefs, false, 'r', prefItem);
-  make('geo_world', 'せかいの くにの かたち', '社会', 4, world, false, 'k', worldItem);
-  make('geo_pref_e', 'にほんの かたち', '生活', 2, prefs.filter((o) => o.e), true, 'r', prefItem);
-  make('geo_world_e', 'せかいの くにの かたち', '生活', 2, world.filter((o) => o.e), true, 'k', worldItem);
-  // こっきクイズ(data/flags.json): はたを みて、どこの くにか あてる
-  if (flags && flags.flags) {
-    const fw = Object.entries(geo.world).filter(([a3]) => flags.flags[a3]).map(([a3, o]) => ({ ...o, a3 }));
-    const flagItem = (o, lab) => ({ q: 'この はたは どこの くにの はたかな?', correct: lab(o), hlabel: `${o.n}の はた`,
-      svg: `<svg class="flag" viewBox="0 0 640 480" role="img" aria-label="こっき">${flags.flags[o.a3]}</svg>`,
-      why: `${lab(o)}の はただよ。${o.k}の くにで、しゅとは ${rubyName(o.c, o.cy, true)}。` });
-    make('flag_world', 'せかいの こっき', '社会', 4, fw, false, 'k', flagItem);
-    make('flag_world_e', 'せかいの こっき', '生活', 2, fw.filter((o) => o.e), true, 'k', flagItem);
-  }
+  makeGeoUnit('geo_pref', '都道府県の かたち', '社会', 4, prefs, prefVariants(false, false));
+  makeGeoUnit('geo_pref_e', 'にほんの かたち', '生活', 2, prefs.filter((o) => o.e), prefVariants(true, true));
+
+  const worldVariants = (whole, small) => (o) => {
+    const lab = (x) => rubyName(x.n, x.y, whole);
+    const out = [
+      { q: 'この かたちは どこの くにかな?', svg: svgOf(o), correct: lab(o), labelOf: lab, noteOf: (x) => `それは ${lab(x)}の かたちだよ。もういちど よく くらべてみよう。`, group: 'k', hlabel: `${o.n}の かたち`,
+        why: `${lab(o)}。${CONT_R[o.k]}の くにで、しゅとは ${capName(o)}。` },
+      { q: `「${lab(o)}」の かたちは どれ?`, correct: svgOf(o, 'shape mini'), raw: true, labelOf: (x) => svgOf(x, 'shape mini'), noteOf: (x) => `それは ${lab(x)}の かたちだよ。`, group: 'k', hlabel: `${o.n}の かたち`,
+        why: `${lab(o)}の かたちは これ。${CONT_R[o.k]}に あるよ。` },
+    ];
+    if (small) return out;
+    out.push(
+      { q: 'この かたちの くにの しゅとは どこかな?', svg: svgOf(o), correct: capName(o), labelOf: capName, noteOf: (x) => `それは ${lab(x)}の しゅとだよ。`, group: 'k', hlabel: `${o.n}の しゅと`, why: `${lab(o)}の しゅとは ${capName(o)}。` },
+      { q: 'この かたちの くには どの たいりくに あるかな?', svg: svgOf(o), correct: CONT_R[o.k], values: CON, hlabel: `${o.n}の たいりく`, why: `${lab(o)}は ${CONT_R[o.k]}に あるよ。` },
+      { q: `${capName(o)}は どこの くにの しゅとかな?`, correct: lab(o), labelOf: lab, noteOf: (x) => `それは ${lab(x)}だよ。${capName(o)}は べつの くにの まちだよ。`, group: 'k', hlabel: `${o.n}の しゅと`, why: `${capName(o)}は ${lab(o)}の しゅと。` },
+    );
+    return out;
+  };
+  makeGeoUnit('geo_world', 'せかいの くにの かたち', '社会', 4, world, worldVariants(false, false));
+  makeGeoUnit('geo_world_e', 'せかいの くにの かたち', '生活', 2, world.filter((o) => o.e), worldVariants(true, true));
+
+  const flagVariants = (whole, small) => (o) => {
+    const lab = (x) => rubyName(x.n, x.y, whole);
+    const out = [
+      { q: 'この はたは どこの くにの はたかな?', svg: flagSvg(o.f), correct: lab(o), labelOf: lab, noteOf: (x) => `それは ${lab(x)}の はただよ。もういちど よく みてみよう。`, group: 'k', hlabel: `${o.n}の はた`,
+        why: `${lab(o)}の はただよ。${CONT_R[o.k]}の くにで、しゅとは ${capName(o)}。` },
+      { q: `「${lab(o)}」の はたは どれ?`, correct: flagSvg(o.f, 'flag mini'), raw: true, labelOf: (x) => flagSvg(x.f, 'flag mini'), noteOf: (x) => `それは ${lab(x)}の はただよ。`, group: 'k', hlabel: `${o.n}の はた`,
+        why: `${lab(o)}の はたは これ。${CONT_R[o.k]}の くにだよ。` },
+    ];
+    if (small) return out;
+    out.push(
+      { q: 'この はたの くにの しゅとは どこかな?', svg: flagSvg(o.f), correct: capName(o), labelOf: capName, noteOf: (x) => `それは ${lab(x)}の しゅとだよ。`, group: 'k', hlabel: `${o.n}の しゅと`, why: `${lab(o)}の しゅとは ${capName(o)}。` },
+      { q: 'この はたの くには どの たいりくに あるかな?', svg: flagSvg(o.f), correct: CONT_R[o.k], values: CON, hlabel: `${o.n}の たいりく`, why: `${lab(o)}は ${CONT_R[o.k]}に あるよ。` },
+    );
+    return out;
+  };
+  makeGeoUnit('flag_world', 'せかいの こっき', '社会', 4, flagRows, flagVariants(false, false));
+  makeGeoUnit('flag_world_e', 'せかいの こっき', '生活', 2, flagRows.filter((o) => o.e), flagVariants(true, true));
 }
 
 export function registerKokugo(items) {

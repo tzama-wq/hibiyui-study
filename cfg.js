@@ -12,6 +12,9 @@ export const DEFAULTS = {
   breakAfter: false,   // 1セット おわったら きゅうけいを すすめる
   big: false,          // おおきい もじ
   forgive: false,      // たいかいで まけても、おなじ しあいから やりなおせる(はいたいに ならない)
+  choices: 'all',      // せんたくしの かず: all(ぜんぶ)/ 3 / 2 (へらすと えらびやすい)
+  hint: false,         // 「ヒント」ボタン(まちがいの せんたくしを 1つずつ けす)
+  autoRead: false,     // もんだいが でたら じどうで よみあげる
   lock: 'normal',      // 「よく よんでね」の まち: normal / short / off
   waitWrong: 'normal', // まちがえた あとの 「せつめいを よんでね」の まち: normal / short / off
   gachaMax: 0,         // ガチャを 1日に ひける かいすう(0 = せいげんなし)
@@ -21,16 +24,19 @@ export const DEFAULTS = {
 export const PRESETS = {
   adhd: { name: 'ADHD(あつまりにくい・じっとしにくい)に やさしい', set: { setSize: 3, breakAfter: true, schedule: true, lock: 'short', waitWrong: 'short', gachaMax: 5, forgive: true } },
   asd: { name: 'ASD(みとおし・かんかくが だいじ)に やさしい', set: { calm: true, quiet: true, plain: true, preview: true, soft: true, schedule: true, lock: 'short', gachaMax: 3, forgive: true } },
+  // 境界知能(IQ 70〜84 くらい)に よく ある ニーズ: ゆっくり・短く・えらびやすく・ことばを やさしく・くりかえし。
+  bif: { name: 'ゆっくり じっくり(境界知能)に やさしい', set: { setSize: 3, plain: true, soft: true, preview: true, schedule: true, breakAfter: true, lock: 'normal', waitWrong: 'normal', choices: '3', hint: true, autoRead: true, forgive: true, gachaMax: 5 } },
   reset: { name: 'ぜんぶ ふつうに もどす', set: {} },
 };
 
 export const OPTIONS = {
-  setSize: [3, 5],
+  setSize: [2, 3, 5],
+  choices: ['all', '3', '2'],
   lock: ['normal', 'short', 'off'],
   waitWrong: ['normal', 'short', 'off'],
   gachaMax: [0, 1, 3, 5, 10],
 };
-export const BOOLS = ['calm', 'quiet', 'plain', 'preview', 'soft', 'schedule', 'breakAfter', 'big', 'forgive'];
+export const BOOLS = ['calm', 'quiet', 'plain', 'preview', 'soft', 'schedule', 'breakAfter', 'big', 'forgive', 'hint', 'autoRead'];
 
 // ---- 読みだし・書きこみ ---------------------------------------------------------------
 export function sanitize(c) {
@@ -38,6 +44,7 @@ export function sanitize(c) {
   for (const k of BOOLS) o[k] = !!o[k];
   if (!OPTIONS.setSize.includes(Number(o.setSize))) o.setSize = DEFAULTS.setSize; else o.setSize = Number(o.setSize);
   for (const k of ['lock', 'waitWrong']) if (!OPTIONS[k].includes(o[k])) o[k] = DEFAULTS[k];
+  o.choices = String(o.choices); if (!OPTIONS.choices.includes(o.choices)) o.choices = DEFAULTS.choices;
   o.gachaMax = Math.max(0, Math.min(20, Math.floor(Number(o.gachaMax) || 0)));
   return o;
 }

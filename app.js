@@ -2,7 +2,7 @@ import * as sync from './sync.js';
 import { addPoints, SUBJECT_STAT, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
-import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen } from './gen.js';
+import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen, KUKU_DAN } from './gen.js';
 import { observe, nextProbes, noteProbe, specFor, activeList, counts, THRESH } from './hyp.js';
 
 // ---- 設定 -----------------------------------------------------------------
@@ -99,6 +99,12 @@ function backCandidates(kid) {
   return [...cand].filter((id) => needs(p, id)).sort((a, b) => rank(a) - rank(b)).map((id) => byId[id]);
 }
 
+// せんたくしの かずを へらす(せいかい + まちがい を いくつか のこす)
+function limitQ(q, n, keepTag) { // keepTag: たしかめる もんだいの「わな」は のこす
+  const m = Number(n); if (!m || q.choices.length <= m) return q;
+  const ok = q.choices.find((c) => c.ok); const wrong = shuffle(q.choices.filter((c) => !c.ok)).sort((x, y) => (y.tag === keepTag) - (x.tag === keepTag)).slice(0, m - 1);
+  return { ...q, choices: shuffle([ok, ...wrong]) };
+}
 function buildSet(kid, mode, unitId) {
   const p = S.kids[kid.id];
   const kc = cfgOf(S, kid.id); const SET_SIZE = kc.setSize;
@@ -139,6 +145,7 @@ function buildSet(kid, mode, unitId) {
     let q;
     for (let t = 0; t < 8; t++) { q = entry.probe ? makeProbe(unit, entry.probe) : makeQuestion(unit); if (!seen.has(q.text)) break; }
     seen.add(q.text);
+    q = limitQ(q, kc.choices, entry.probe && entry.probe.tag);
     return { unit, q, retry: false, probe: !!entry.probe, hkey: entry.hkey };
   });
 }
@@ -267,6 +274,7 @@ const BADGES = [
   { id: 'perfect', icon: '✨', name: 'パーフェクトゲーム', cond: (p) => (p.perfect || 0) >= 1 },
   { id: 'comeback', icon: '🌟', name: 'おかえり ステージ クリア', cond: (p) => !!p.callup },
   { id: 'time', icon: '⏪', name: 'タイムマシンに のった', cond: (p) => (p.backRuns || 0) >= 1 },
+  { id: 'kuku9', icon: '✖️', name: '九九マスター', cond: (p) => KUKU_DAN.every((id) => status(p, id) === 'ok') },
   { id: 'cup_j', icon: '🏟️', name: 'Jリーグ ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('j') },
   { id: 'cup_asia', icon: '🏆', name: 'アジアカップ ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('asia') },
   { id: 'cup_kirin', icon: '🍀', name: 'KIRINカップ ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('kirin') },
@@ -505,13 +513,22 @@ function vKid() {
   if (!S.pin) return vPinGate();
   const k = kidOf(); const p = S.kids[k.id]; refreshDay(p);
   let body;
-  if (tab === 'train') body = labCard(k, p) + shapeCard(k, p) + timeMachineCard(k, p) + practiceCard(k, p);
+  if (tab === 'train') body = labCard(k, p) + kukuCard(k, p) + shapeCard(k, p) + timeMachineCard(k, p) + practiceCard(k, p);
   else if (tab === 'gacha') body = gachaTab();
   else if (tab === 'team') body = teamTab();
   else body = homeTab(k, p);
   $app.innerHTML = `${topBar(k, p)}<main>${body}</main>${navBar()}`;
 }
 
+// 九九マスター: だんごとに「できた」を ふやす
+function kukuCard(k, p) {
+  const done = KUKU_DAN.filter((id) => status(p, id) === 'ok').length;
+  const b = (id, label) => `<button class="btn gray kk" data-act="start" data-mode="practice" data-unit="${id}">${ICON[status(p, id)]} ${label}</button>`;
+  return `<section class="panel"><h2 class="sec">KUKU <small>九九マスター</small></h2>
+    <div class="muted">できた だん ${done}/9 ${done === 9 ? '🎉 ぜんぶ マスター!' : '(ぜんぶ できると メダル!)'}</div>
+    <div class="kukugrid">${KUKU_DAN.map((id, i) => b(id, `${i + 1}の だん`)).join('')}</div>
+    <div class="row">${b('g2_kuku_all', '九九 ぜんぶ')}${b('g2_kuku_inv', '□を さがせ')}</div></section>`;
+}
 // かたちクイズ(都道府県・くに): 形から なまえを あてる
 function shapeCard(k, p) {
   const e = k.grade >= 3 ? '' : '_e';
@@ -567,13 +584,15 @@ function vQuiz() {
       <div style="text-align:center"><button class="btn small gray" data-act="speak">🔊 よみあげ</button></div>
       ${locked ? '<div id="wait" class="muted" style="text-align:center">👀 もんだいを よく よんでね…</div>' : ''}
       <div class="choices">
-        ${q.choices.map((c, idx) => `<button class="choice ${a ? (c.ok ? 'ok' : a.idx === idx ? 'ng' : '') : ''}" data-act="ans" data-idx="${idx}" ${a || locked ? 'disabled' : ''}>${c.label}</button>`).join('')}
+        ${q.choices.map((c, idx) => { const out = !a && (it.hinted || []).includes(idx); return `<button class="choice ${a ? (c.ok ? 'ok' : a.idx === idx ? 'ng' : '') : ''} ${out ? 'out' : ''}" data-act="ans" data-idx="${idx}" ${a || locked || out ? 'disabled' : ''}>${c.label}</button>`; }).join('')}
       </div>
       ${a ? feedback(q, a) : `<div class="row" style="margin-top:14px">
+        ${cfg().hint && q.choices.length - (it.hinted || []).length > 2 ? '<button class="btn small gold" data-act="hint">💡 ヒント(ひとつ けす)</button>' : ''}
         <button class="btn small gray" data-act="idk">🤔 わからない</button>
         <button class="btn small gray" data-act="ask">👨 パパに きく</button></div>`}
     </section></main>`;
   const i0 = Q.i;
+  if (cfg().autoRead && !a && !it.spoken) { it.spoken = true; setTimeout(() => { if (view === 'quiz' && Q && Q.i === i0) speak(q.text); }, 350); }
   if (locked) {
     setTimeout(() => {
       if (view !== 'quiz' || !Q || Q.i !== i0 || Q.answered) return;
@@ -700,6 +719,7 @@ const CFG_LABEL = {
   preview: '📋 はじめる まえに「やること」を みせる(じゅんばんも おなじ)', soft: '🌱 「できなかった」を みせない(ひかえ・からの まるを かくす)',
   schedule: '🗓️ 「きょうの やること」リストを ホームに だす', breakAfter: '🍃 1セットごとに きゅうけいを すすめる', big: '🔠 おおきい もじ',
   forgive: '🏆 たいかいで まけても、おなじ しあいから やりなおせる',
+  hint: '💡 「ヒント」ボタンを だす(まちがいの せんたくしを 1つずつ けす)', autoRead: '🔊 もんだいが でたら じどうで よみあげる',
 };
 const LOCK_LABEL = { normal: 'ふつう(1.5〜3.5びょう)', short: 'みじかい(0.6〜1.5びょう)', off: 'なし' };
 const WAIT_LABEL = { normal: 'ふつう(4びょう)', short: 'みじかい(2びょう)', off: 'なし' };
@@ -712,6 +732,7 @@ function cfgCard() {
     return `<div class="cfgbox"><b>${k.name}</b>
       <div class="row">${Object.entries(PRESETS).map(([key, pr]) => `<button class="btn small gray" data-act="cfgp" data-id="${k.id}" data-p="${key}">${pr.name}</button>`).join('')}</div>
       ${sel(k.id, 'setSize', OPTIONS.setSize.map((v) => [v, `${v}もん`]), '1セットの もんだい数')}
+      ${sel(k.id, 'choices', OPTIONS.choices.map((v) => [v, v === 'all' ? 'ぜんぶ' : `${v}つに へらす`]), 'せんたくしの かず')}
       ${sel(k.id, 'lock', OPTIONS.lock.map((v) => [v, LOCK_LABEL[v]]), '「よく よんでね」の まち')}
       ${sel(k.id, 'waitWrong', OPTIONS.waitWrong.map((v) => [v, WAIT_LABEL[v]]), 'まちがえた あとの まち')}
       ${sel(k.id, 'gachaMax', OPTIONS.gachaMax.map((v) => [v, v === 0 ? 'せいげんなし' : `${v}かいまで`]), 'ガチャ 1日の かいすう')}
@@ -874,6 +895,7 @@ function answer(idx, unknown) {
       const spec = tag && tag !== 'unknown' && tag !== 'know_mixup' ? { tag } : null;
       let nq; for (let t = 0; t < 8; t++) { nq = spec ? makeProbe(it.unit, spec) : makeQuestion(it.unit); if (nq.text !== q.text) break; }
       if (nq.text === q.text) nq = makeQuestion(it.unit);
+      nq = limitQ(nq, cfg().choices, spec && spec.tag);
       Q.items.splice(Q.i + 1, 0, { unit: it.unit, q: nq, retry: true });
     }
     Q.xp += 2; Q.answered = { ok, idx, tag, effort: 2, hyp: evs }; it.res = 'ng'; // ちょうせん ポイント(まちがえても ゼロに しない)
@@ -988,6 +1010,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'idk') return answer(null, true);
   else if (a === 'ask') return askPapa();
   else if (a === 'speak') return speak(Q.items[Q.i].q.text);
+  else if (a === 'hint') { const it = Q.items[Q.i]; it.hinted = it.hinted || []; const cand = it.q.choices.map((c, i) => i).filter((i) => !it.q.choices[i].ok && !it.hinted.includes(i)); if (cand.length && it.q.choices.length - it.hinted.length > 2) { it.hinted.push(cand[Math.floor(Math.random() * cand.length)]); Q.hints = (Q.hints || 0) + 1; beep('ok'); } }
   else if (a === 'next') { Q.answered = null; Q.i++; if (Q.i >= Q.items.length) return finish(); Q.lockUntil = Date.now() + lockMs(Q.items[Q.i].q); toTop = true; }
   else if (a === 'synccode') { document.getElementById('synccode').value = sync.newCode(); return; }
   else if (a === 'syncsave') {

@@ -235,7 +235,8 @@ function startFight(oppId) {
   if (oppId === 'mate' || oppId.startsWith('mate:')) { const m = mateOpponent(oppId.split(':')[1]); if (!m) return false; opp = { name: m.name, team: m.team }; }
   else opp = G.cpuTeam(oppId.split(':')[1], Math.random, G.FORMATIONS[Math.floor(Math.random() * G.FORMATIONS.length)].id);
   const res = G.simulate(me, opp);
-  openBattle({ me: slim(me), opp: slim(opp), res, counted: false, mode: 'full' });
+  const pk = res.score.a === res.score.b ? G.shootout(G.ratings(me.team).power, G.ratings(opp.team).power) : null; // どうてん → PK戦
+  openBattle({ me: slim(me), opp: slim(opp), res, pk, counted: false, mode: 'full' });
   return true;
 }
 // ---- たいかい ----------------------------------------------------------------------
@@ -279,10 +280,11 @@ function openBattle(b) {
   const all = b.res.events.map((e, i) => ({ ...e, idx: i, total: b.res.events.length }));
   let evs = all;
   if (b.mode === 'digest') { evs = all.filter((e) => e.type === 'goal'); if (!evs.length) evs = all.filter((e) => e.type === 'save'); if (!evs.length) evs = all.slice(0, 4); }
-  B = { ...b, evs, i: 0, speed: 1, anim: animOn(), matchDone: false, banner: '' };
+  B = { ...b, evs, i: 0, speed: 1, anim: animOn(), matchDone: false, banner: '', pkShown: null };
   X.setView('battle');
   if (B.anim) {
-    M = createMatch({ me: B.me, opp: B.opp, events: evs, speed: B.speed, callbacks: {
+    M = createMatch({ me: B.me, opp: B.opp, events: evs, speed: B.speed, pk: b.pk ? G.pkKicks(b.pk) : null, callbacks: {
+      onPk: ({ phase, kick, shown }) => { if (!B) return; B.pkShown = phase === 'result' ? shown : shown; if (phase === 'result') { X.fx.beep(kick.ok ? (kick.side === 'a' ? 'ok' : 'ng') : 'ng'); if (kick.ok && kick.side === 'a') X.fx.confetti(vw() / 2, vh() * 0.3, 30, 1); } hudUpdate(); },
       onEvent: ({ phase, i, ev }) => {
         if (!B) return;
         if (phase === 'start') { B.minute = Math.round(((ev.idx + 0.5) / ev.total) * 90); hudUpdate(); }
@@ -312,9 +314,20 @@ function hudUpdate(addLog) {
   if (!B || typeof document === 'undefined') return;
   const sc = scoreNow(); const q = (id) => document.getElementById(id);
   if (q('bsa')) q('bsa').textContent = sc.a; if (q('bsb')) q('bsb').textContent = sc.b;
+  if (q('bpk')) q('bpk').outerHTML = pkRow();
   if (q('bmin')) q('bmin').textContent = B.matchDone ? 'おわり' : B.minute ? `${B.minute < 46 ? '前半' : '後半'} ${B.minute}分` : 'キックオフ';
   if (q('bban')) { q('bban').textContent = B.banner || ''; q('bban').className = `bban ${B.banner ? 'on' : ''}`; }
   if (addLog && q('blog')) { const e = B.evs[B.i - 1]; if (e) { q('blog').insertAdjacentHTML('beforeend', logRow(e, true)); q('blog').scrollTop = q('blog').scrollHeight; const em = q('blog').querySelector('.muted'); if (em) em.remove(); } }
+}
+// PK戦の ひょう(⚽ ゴール ・ 🧤 セーブ ・ ✖ はずれ)。しあい中は けった ぶんだけ
+function pkRow() {
+  if (!B || !B.pk) return '<span id="bpk"></span>';
+  const all = G.pkKicks(B.pk);
+  const kicks = !B.anim || B.matchDone ? all : B.pkShown;
+  if (!kicks) return '<span id="bpk"></span>';
+  const mark = (s) => kicks.filter((k) => k.side === s).map((k) => (k.ok ? '⚽' : k.kind === 'save' ? '🧤' : '✖')).join(' ') || '…';
+  const sc = (s) => kicks.filter((k) => k.side === s && k.ok).length;
+  return `<div id="bpk" class="bpk"><b>PK戦</b><div><span>${esc(B.me.name)} <em>${sc('a')}</em></span><small>${mark('a')}</small></div><div><span>${esc(B.opp.name)} <em>${sc('b')}</em></span><small>${mark('b')}</small></div></div>`;
 }
 const logRow = (e, isNew) => `<div class="bl ${e.type} ${e.side === 'a' ? 'me' : 'op'} ${isNew ? 'new' : ''}"><i>${e.type === 'goal' ? '⚽' : e.type === 'save' ? '🧤' : '💨'}</i><span>${esc(e.text)}</span></div>`;
 function tickBattle() { // 「うごきを へらす」ときの ぶんしょうだけの しあい
@@ -353,6 +366,7 @@ export function battleView() {
   return `<div class="quiz-top"><span></span><div class="scoreboard"><span class="sb-l">${esc(B.me.name)} <b id="bsa">${sc.a}</b></span><span class="sb-m">-</span><span class="sb-r"><b id="bsb">${sc.b}</b> ${esc(B.opp.name)}</span></div><span></span></div>
     <main><section class="panel"><div class="vs">${teamHtml(B.me)}<b>VS</b>${teamHtml(B.opp)}</div>
     ${B.anim ? `<div class="mwrap"><canvas id="mcv" class="mcv" aria-label="しあいの えいぞう"></canvas><span id="bmin" class="bmin">${done ? 'おわり' : B.minute ? `${B.minute < 46 ? '前半' : '後半'} ${B.minute}分` : 'キックオフ'}</span><div id="bban" class="bban ${B.banner ? 'on' : ''}">${esc(B.banner)}</div></div>` : ''}
+    ${pkRow()}
     <div class="blog" id="blog">${shown.map((e) => logRow(e)).join('') || '<div class="muted">キックオフ…!</div>'}</div>
     ${done ? `<div class="bresult ${won ? 'win' : sc.a < sc.b || B.pk ? 'lose' : ''}"><b>${result[0]}</b><p>${result[1]}</p></div>
       ${cupPanel}<div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェストを みる</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 もういちど ぜんぶ</button></div>`

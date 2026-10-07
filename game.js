@@ -309,7 +309,7 @@ export const kidStats = (p) => Object.fromEntries(STATS.map((s) => [s, kidStat((
 export const BADGE_BUFFS = {
   goal1: { SHO: 1 }, goal10: { SHO: 2 }, goal50: { SHO: 3 }, goal100: { SHO: 5 }, goal300: { SHO: 8 },
   day3: { STA: 2 }, day7: { STA: 3 }, day30: { STA: 8 },
-  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 },
+  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, kuku9: { SHO: 4, SPD: 2 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 },
   rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 },
   m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 },
 };
@@ -427,10 +427,19 @@ export function cpuTeam(levelId, rnd = Math.random, formation = '442') {
 // ---- PK戦(ひきわけの ときの けっちゃく) -------------------------------------------------
 export function shootout(powerA, powerB, rnd = Math.random) {
   const pa = clamp(0.72 + (powerA - powerB) / 800, 0.62, 0.82); const pb = clamp(0.72 + (powerB - powerA) / 800, 0.62, 0.82);
-  let a = 0; let b = 0;
-  for (let i = 0; i < 5; i++) { if (rnd() < pa) a++; if (rnd() < pb) b++; }
-  while (a === b) { if (rnd() < pa) a++; if (rnd() < pb) b++; if (a === b && rnd() < 0.02) a++; }
-  return { a, b };
+  let a = 0; let b = 0; const kicks = [];
+  const kick = (side, p) => { const ok = rnd() < p; const kind = ok ? 'goal' : rnd() < 0.65 ? 'save' : 'miss'; kicks.push({ side, ok, kind }); if (ok) { if (side === 'a') a++; else b++; } };
+  for (let i = 0; i < 5; i++) { kick('a', pa); kick('b', pb); }
+  for (let i = 0; i < 40 && a === b; i++) { kick('a', pa); kick('b', pb); } // サドンデス
+  if (a === b) { a++; kicks.push({ side: 'a', ok: true, kind: 'goal' }); }
+  return { a, b, kicks };
+}
+// ふるい きろく(kicks が ない)から、じゅんばんを つくる
+export function pkKicks(pk) {
+  if (pk.kicks && pk.kicks.length) return pk.kicks;
+  const R = Math.max(5, pk.a, pk.b); const out = [];
+  for (let i = 0; i < R; i++) { out.push({ side: 'a', ok: i < pk.a, kind: i < pk.a ? 'goal' : 'save' }); out.push({ side: 'b', ok: i < pk.b, kind: i < pk.b ? 'goal' : 'save' }); }
+  return out;
 }
 // かてる かくりつ(PK戦も ふくめた めやす)。ひょうじ用
 export function winChance(me, opp, n = 160, rnd = Math.random) {
