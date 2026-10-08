@@ -27,13 +27,13 @@ function rdp(pts, eps) { // Ramer–Douglas–Peucker
 }
 
 // keep: いちばん 大きい 島に くらべて この わりあい いじょうの 島だけ のこす
-function shapeOf(geometry, keep, eps = 0.7) {
+function shapeOf(geometry, keep, eps = 0.7, dots = false) {
   let rings = ringsOf(geometry);
   const lat = rings.flat().reduce((s, p) => s + p[1], 0) / rings.flat().length;
   const kx = Math.cos((lat * Math.PI) / 180);
   rings = rings.map((r) => r.map(([lo, la]) => [lo * kx, -la]));
   const big = Math.max(...rings.map(area));
-  rings = rings.filter((r) => area(r) >= big * keep);
+  rings = rings.filter((r) => dots || area(r) >= big * keep); // しま ぐには ぜんぶの しまを のこす
   const all = rings.flat();
   const x0 = Math.min(...all.map((p) => p[0])); const x1 = Math.max(...all.map((p) => p[0]));
   const y0 = Math.min(...all.map((p) => p[1])); const y1 = Math.max(...all.map((p) => p[1]));
@@ -42,13 +42,14 @@ function shapeOf(geometry, keep, eps = 0.7) {
   let d = '';
   for (const r of rings) {
     let pts = r.map(([x, y]) => [(x - x0) * s, (y - y0) * s]);
+    const cen = [pts.reduce((m, q) => m + q[0], 0) / pts.length, pts.reduce((m, q) => m + q[1], 0) / pts.length];
     if (pts.length > 1 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop(); // とじた わっかの おわりの 重なり
     let far = 1; let fd = 0; // わっかは 始点から いちばん とおい 点で 2つに わけて けずる
     pts.forEach(([x, y], i) => { const dd = Math.hypot(x - pts[0][0], y - pts[0][1]); if (dd > fd) { fd = dd; far = i; } });
     pts = [...rdp(pts.slice(0, far + 1), eps).slice(0, -1), ...rdp([...pts.slice(far), pts[0]], eps).slice(0, -1)];
     pts = pts.map(([x, y]) => [Math.round(x), Math.round(y)]);
     pts = pts.filter((p, i) => i === 0 || p[0] !== pts[i - 1][0] || p[1] !== pts[i - 1][1]);
-    if (pts.length < 3 || area(pts) < 2) continue;
+    if (pts.length < 3 || area(pts) < 2) { if (dots) d += `M${Math.round(cen[0]) - 1} ${Math.round(cen[1]) - 1}l3 0l0 3l-3 0z`; continue; } // ちいさな しまは 点で あらわす
     d += `M${pts[0][0]} ${pts[0][1]}`;
     for (let i = 1; i < pts.length; i++) d += `l${pts[i][0] - pts[i - 1][0]} ${pts[i][1] - pts[i - 1][1]}`;
     d += 'z';
@@ -69,10 +70,12 @@ for (const [id, n, y, r, c, cy, e] of PREFS) {
   out.pref[id] = { n, y, r, c, cy, e, ...shapeOf(f.geometry, n === '沖縄県' ? 0.1 : 0.12) };
 }
 const byA3 = new Map(world.features.map((f) => [f.properties.ADM0_A3, f]));
+const ALIAS = { PSE: 'PSX', SSD: 'SDS' }; // Natural Earth の コードが ちがう 国
+const DOTS = new Set(['TUV', 'NRU', 'MHL', 'FSM', 'PLW', 'KIR', 'MDV', 'SYC', 'COM', 'CPV', 'STP', 'MUS', 'TON', 'WSM', 'VUT', 'SLB', 'BRB', 'LCA', 'VCT', 'GRD', 'ATG', 'DMA', 'KNA', 'BHS', 'SGP', 'MLT', 'MCO', 'VAT', 'SMR', 'LIE', 'AND', 'BHR', 'BRN']);
 for (const [a3, n, y, k, c, cy, e] of COUNTRIES) {
-  const f = byA3.get(a3);
+  const f = byA3.get(ALIAS[a3] || a3);
   if (!f) { console.error(`国 ${a3} ${n} が みつかりません`); process.exit(1); }
-  out.world[a3] = { n, y, k, c, cy, e, ...shapeOf(f.geometry, 0.08, 0.9) };
+  out.world[a3] = { n, y, k, c, cy, e, ...shapeOf(f.geometry, DOTS.has(a3) ? 0 : 0.08, DOTS.has(a3) ? 0.5 : 0.9, DOTS.has(a3)) };
 }
 const json = JSON.stringify(out);
 await writeFile(new URL('../data/geo.json', import.meta.url), json);

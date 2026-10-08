@@ -5,7 +5,7 @@ import {
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
-  FORMATIONS, slotsOf, refitTeam, CUPS, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
+  FORMATIONS, slotsOf, refitTeam, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
 } from '../game.js';
 
 // ---- 選手データ ----
@@ -270,5 +270,28 @@ for (const f of FORMATIONS) {
   assert.equal(got, 4, 'れんしゅうは セットが 上限でも べつに 4まい もらえる');
   assert.deepEqual(earnStudyTickets(p, { good: 2, total: 5, mode: 'practice' }, '2026-10-07'), {}, '6わり みまんは もらえない');
   const q = { tickets: emptyTickets() }; assert.equal(Object.values(earnStudyTickets(q, { good: 5, total: 5, mode: 'practice', perfect: true }, '2026-10-08')).reduce((a, b) => a + b, 0), 1);
+}
+// ---- ガチャ選手の きょうか ----
+{
+  const pl = ALLP.find((x) => x.rarity === 'legend'); const cm = ALLP.find((x) => x.rarity === 'common');
+  assert.ok(enhCost(0, 'legend') > enhCost(0, 'common') && enhCost(5, 'common') > enhCost(0, 'common'), 'レアほど・かさねるほど ポイントが いる');
+  assert.ok(enhCost(0, 'common') > 1 + 0, 'じぶんの 1レベル(1pt)より たかい');
+  const p = { owned: { [pl.id]: 1 }, pts: { SHO: 3, PAS: 0, SPD: 0, DEF: 0, STA: 0 } };
+  assert.equal(enhance(p, pl.id), false, 'ポイントが たりない'); assert.equal(totalPoints(p), 3);
+  assert.equal(enhance(p, cm.id), false, 'もってない 選手は きょうか できない');
+  p.pts = { SHO: 10, PAS: 20, SPD: 0, DEF: 5, STA: 0 };
+  const cost = enhCost(0, 'legend'); const before = totalPoints(p);
+  assert.equal(enhance(p, pl.id), true); assert.equal(p.plv[pl.id], 1); assert.equal(totalPoints(p), before - cost);
+  assert.ok(p.pts.PAS <= 10 && p.pts.DEF === 5, 'おおい ポイントから へらす');
+  // つよく なる(+3%)、ダブりの レベルと かさなる、うわがきの じょうげん
+  const kid = { name: 'k', face: 'k', stats: Object.fromEntries(STATS.map((s) => [s, 50])) };
+  const snap = (plv, copies) => teamSnapshot({ kid, owned: { [pl.id]: copies }, team: [pl.id, ...Array(10).fill(null)], formation: '442', plv }).find((m) => m.id === pl.id);
+  const base = snap({}, 1); const e5 = snap({ [pl.id]: 5 }, 1);
+  const main = Object.keys(pl.stats).sort((a, b) => pl.stats[b] - pl.stats[a])[0];
+  assert.ok(e5.stats[main] > base.stats[main] && e5.enh === 5);
+  assert.ok(Math.abs(e5.stats[main] / base.stats[main] - 1.15) < 0.04, '5かいで ほぼ +15%');
+  assert.ok(snap({ [pl.id]: 20 }, 6)[main === 'x' ? 'stats' : 'stats'][main] <= STAT_CAP);
+  p.plv[pl.id] = ENH_MAX; p.pts = { SHO: 999, PAS: 0, SPD: 0, DEF: 0, STA: 0 }; assert.equal(enhance(p, pl.id), false, 'MAXで とまる');
+  assert.equal(spendPoints({ pts: { SHO: 1 } }, 5), false);
 }
 console.log('OK: game');

@@ -331,22 +331,42 @@ export const buffText = (id) => {
 
 // ---- チーム編成と つよさ ----------------------------------------------------------------
 const OUT_OF_POSITION = 0.85;
-export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty = 1 }) {
-  return Object.fromEntries(STATS.map((s) => [s, Math.round(base[s] * (1 + 0.04 * level) * (1 + buff[s] / 100) * penalty)]));
+export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty = 1, enh = 0 }) {
+  return Object.fromEntries(STATS.map((s) => [s, Math.min(STAT_CAP, Math.round(base[s] * (1 + 0.04 * level) * (1 + ENH_STEP * enh) * (1 + buff[s] / 100) * penalty))]));
+}
+// ---- ガチャ選手の きょうか(ポイントで)。じぶんより ポイントが たくさん いる ----------------------------------
+export const ENH_MAX = 20;        // 1人の 選手に かけられる きょうかの かず
+export const ENH_STEP = 0.03;     // 1かいで のうりょく +3%(ダブりの レベルアップ(+4%)とは べつ)
+export const STAT_CAP = 140;      // どんなに きょうかしても のうりょくは これ まで
+const ENH_RARITY = { common: 1, uncommon: 1.5, rare: 2, super: 3, legend: 4 };
+export const enhCost = (enh, rarity) => Math.round((3 + enh) * (ENH_RARITY[rarity] || 1));
+export const totalPoints = (p) => STATS.reduce((a, s) => a + ((p.pts || {})[s] || 0), 0);
+// ポイントを つかう(おおい ほうから へらす)。たりないと false
+export function spendPoints(p, n) {
+  if (totalPoints(p) < n) return false;
+  p.pts = { ...emptyStatMap(), ...(p.pts || {}) };
+  for (let i = 0; i < n; i++) { const s = STATS.reduce((m, x) => (p.pts[x] > p.pts[m] ? x : m), STATS[0]); p.pts[s]--; }
+  return true;
+}
+export function enhance(p, id) {
+  const pl = PLAYER_BY_ID[id]; if (!pl || !(p.owned || {})[id]) return false;
+  p.plv = p.plv || {}; const e = p.plv[id] || 0;
+  if (e >= ENH_MAX || !spendPoints(p, enhCost(e, pl.rarity))) return false;
+  p.plv[id] = e + 1; return true;
 }
 const BENCH = { id: 'bench', name: 'ベンチの 子', face: '🪑', pos: 'ALL', rarity: 'common', stats: Object.fromEntries(STATS.map((s) => [s, 30])) };
 // team: 11この わく(選手ID / 'self' / null)。kid: { name, face, stats }
-export function teamSnapshot({ kid, owned = {}, team = [], equip = [], formation = '442' }) {
+export function teamSnapshot({ kid, owned = {}, team = [], equip = [], formation = '442', plv = {} }) {
   const buff = teamBuff(equip);
   return slotsOf(formation).map((slot, i) => {
     const id = team[i];
-    let who; let level = 0; let penalty = 1;
+    let who; let level = 0; let penalty = 1; let enh = 0;
     if (id === 'self') who = { id: 'self', name: kid.name, face: kid.face, pos: 'ALL', rarity: 'kid', stats: kid.stats };
     else if (id && owned[id] && PLAYER_BY_ID[id]) {
-      who = PLAYER_BY_ID[id]; level = levelOf(owned[id]);
+      who = PLAYER_BY_ID[id]; level = levelOf(owned[id]); enh = (plv || {})[id] || 0;
       if (who.pos !== slot) penalty = OUT_OF_POSITION;
     } else who = BENCH;
-    return { slot, id: who.id, name: who.name, face: who.face, img: who.img || '', pos: who.pos, rarity: who.rarity, level, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty }) };
+    return { slot, id: who.id, name: who.name, face: who.face, img: who.img || '', pos: who.pos, rarity: who.rarity, level, enh, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty, enh }) };
   });
 }
 const attSkill = (s) => 0.5 * s.SHO + 0.2 * s.PAS + 0.3 * s.SPD;

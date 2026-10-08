@@ -647,9 +647,20 @@ function fromPool(unit, forced) {
 const RUBY = /\{([^|{}]+)\|([^{}]+)\}/g;
 export const ruby = (s) => String(s).replace(/[<>&"]/g, '').replace(RUBY, '<ruby>$1<rt>$2</rt></ruby>');
 
+const recentEnt = new Map(); // かたち・はた クイズ: さいきんの 県・国は つづけて でない
 function fromKnowledge(unit, forced) {
   const fresh = unit.items.filter((p) => !seenIds.has(p.id));
-  const it = forced || pick(fresh.length ? fresh : unit.items);
+  let pool = fresh.length ? fresh : unit.items;
+  if (unit.geo && !forced) {
+    const recent = recentEnt.get(unit.id) || [];
+    const p2 = pool.filter((x) => !recent.includes(x.ent)); if (p2.length) pool = p2;
+  }
+  const it = forced || pick(pool);
+  if (unit.geo && !forced) {
+    const recent = recentEnt.get(unit.id) || []; recent.push(it.ent);
+    const keep = Math.max(3, Math.min(40, Math.floor(new Set(unit.items.map((x) => x.ent)).size / 2)));
+    recentEnt.set(unit.id, recent.slice(-keep));
+  }
   // かたちクイズは まちがいの せんたくしを その つど えらぶ(ちかい ところを 2つ + ほか)
   const wrong = it.wrong || (() => { const n = shuffle(it.near.slice()); const f = shuffle(it.far.slice()); return [...n.slice(0, 2), ...f, ...n.slice(2)].slice(0, 3); })();
   const lab = (t) => (it.raw ? t : ruby(t)); // かたち・はたの えらびかたは SVG をそのまま つかう
@@ -695,7 +706,9 @@ function makeGeoUnit(id, name, subject, grade, rows, variantsFn) {
     for (const v of variantsFn(o, rows)) {
       let near = []; let far = [];
       if (v.values) far = v.values.filter((x) => x !== v.correct).map((label) => ({ label, note: NOTE }));
-      else {
+      else if (v.onlyFar) { // 「〇〇の くには どれ?」: おなじ グループの ほかの 子は せいかいに なって しまうので、ちがう グループだけ
+        for (const x of rows) if (x[v.group] !== o[v.group]) far.push({ label: v.labelOf(x), note: v.noteOf(x) });
+      } else {
         for (const x of rows) {
           if (x === o) continue;
           const e = { label: v.labelOf(x), note: v.noteOf(x) };
@@ -703,7 +716,7 @@ function makeGeoUnit(id, name, subject, grade, rows, variantsFn) {
         }
         near = near.filter((e) => e.label !== v.correct); far = far.filter((e) => e.label !== v.correct);
       }
-      items.push({ q: v.q, svg: v.svg, correct: v.correct, raw: !!v.raw, why: v.why, hlabel: v.hlabel, near, far, id: `${id}:${items.length}` });
+      items.push({ q: v.q, svg: v.svg, correct: v.correct, raw: !!v.raw, why: v.why, hlabel: v.hlabel, ent: o.n, near, far, id: `${id}:${items.length}` });
     }
   }
   const unit = { id, name, subject, grade, months: [], pre: [], geo: true, items, gen: () => fromKnowledge(unit) };
@@ -733,6 +746,8 @@ export function registerGeo(geo, flags) {
       { q: 'この かたちは どの 地方に ある 県かな?', svg: svgOf(o), correct: REGION_R[o.r], values: REG, hlabel: `${o.n}の ちほう`, why: `${lab(o)}は ${REGION_R[o.r]}ちほうだよ。` },
       { q: `${capName(o)}は どの 都道府県の {県庁所在地|けんちょうしょざいち}かな?`, correct: lab(o), labelOf: lab, noteOf: (x) => `それは ${lab(x)}だよ。${capName(o)}は べつの 県の まちだよ。`, group: 'r', hlabel: `${o.n}の けんちょうしょざいち`,
         why: `${capName(o)}は ${lab(o)}の {県庁所在地|けんちょうしょざいち}。` },
+      { q: `「${o.n}」の よみかたは どれ?`, correct: o.y, labelOf: (x) => x.y, noteOf: (x) => `それは「${x.n}」の よみかただよ。`, group: 'r', hlabel: `${o.n}の よみ`, why: `「${o.n}」は「${o.y}」と よむよ。` },
+      { q: `${REGION_R[o.r]}ちほうに ある 県は どれ?`, correct: lab(o), labelOf: lab, noteOf: (x) => `${lab(x)}は ${REGION_R[x.r]}ちほうの 県だよ。`, group: 'r', onlyFar: true, hlabel: `${o.n}の ちほう`, why: `${lab(o)}は ${REGION_R[o.r]}ちほうに あるよ。` },
     );
     return out;
   };
@@ -752,6 +767,7 @@ export function registerGeo(geo, flags) {
       { q: 'この かたちの くにの しゅとは どこかな?', svg: svgOf(o), correct: capName(o), labelOf: capName, noteOf: (x) => `それは ${lab(x)}の しゅとだよ。`, group: 'k', hlabel: `${o.n}の しゅと`, why: `${lab(o)}の しゅとは ${capName(o)}。` },
       { q: 'この かたちの くには どの たいりくに あるかな?', svg: svgOf(o), correct: CONT_R[o.k], values: CON, hlabel: `${o.n}の たいりく`, why: `${lab(o)}は ${CONT_R[o.k]}に あるよ。` },
       { q: `${capName(o)}は どこの くにの しゅとかな?`, correct: lab(o), labelOf: lab, noteOf: (x) => `それは ${lab(x)}だよ。${capName(o)}は べつの くにの まちだよ。`, group: 'k', hlabel: `${o.n}の しゅと`, why: `${capName(o)}は ${lab(o)}の しゅと。` },
+      { q: `${CONT_R[o.k]}に ある くには どれかな?`, correct: lab(o), labelOf: lab, noteOf: (x) => `${lab(x)}は ${CONT_R[x.k]}の くにだよ。`, group: 'k', onlyFar: true, hlabel: `${o.n}の たいりく`, why: `${lab(o)}は ${CONT_R[o.k]}に あるよ。` },
     );
     return out;
   };
@@ -770,6 +786,7 @@ export function registerGeo(geo, flags) {
     out.push(
       { q: 'この はたの くにの しゅとは どこかな?', svg: flagSvg(o.f), correct: capName(o), labelOf: capName, noteOf: (x) => `それは ${lab(x)}の しゅとだよ。`, group: 'k', hlabel: `${o.n}の しゅと`, why: `${lab(o)}の しゅとは ${capName(o)}。` },
       { q: 'この はたの くには どの たいりくに あるかな?', svg: flagSvg(o.f), correct: CONT_R[o.k], values: CON, hlabel: `${o.n}の たいりく`, why: `${lab(o)}は ${CONT_R[o.k]}に あるよ。` },
+      { q: `${CONT_R[o.k]}の くにの はたは どれかな?`, correct: flagSvg(o.f, 'flag mini'), raw: true, labelOf: (x) => flagSvg(x.f, 'flag mini'), noteOf: (x) => `それは ${lab(x)}の はただよ。${CONT_R[x.k]}の くにだよ。`, group: 'k', onlyFar: true, hlabel: `${o.n}の たいりく`, why: `${lab(o)}は ${CONT_R[o.k]}の くにだよ。` },
     );
     return out;
   };

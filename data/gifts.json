@@ -1,0 +1,5 @@
+{
+  "gifts": [
+    { "id": "2026-10-08-platinum", "msg": "がんばってるね! パパからの ごほうびだよ", "to": { "hibito": { "platinum": 3 }, "yuito": { "platinum": 3 }, "papa": { "platinum": 50 } } }
+  ]
+}

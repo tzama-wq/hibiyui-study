@@ -21,6 +21,7 @@ export function ensureGame(p) {
   if (!Array.isArray(p.team) || p.team.length !== G.TEAM_SIZE) p.team = G.migrateTeam(['self']);
   if (!G.FORMATIONS.some((f) => f.id === p.formation)) p.formation = '442';
   G.ensureCup(p);
+  p.plv = p.plv && typeof p.plv === 'object' ? p.plv : {};
   p.equip = Array.isArray(p.equip) ? p.equip.slice(0, G.MAX_EQUIP) : [];
   p.pts = { ...G.emptyStatMap(), ...(p.pts || {}) };
   p.lv = { ...G.emptyStatMap(), ...(p.lv || {}) };
@@ -29,7 +30,7 @@ export function ensureGame(p) {
 }
 
 export const kidCardOf = (k, p) => ({ name: k.name, face: k.em, stats: G.kidStats(p) });
-export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip, formation: p.formation });
+export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip, formation: p.formation, plv: p.plv });
 export const summaryTeam = (k, p) => snapshotOf(k, p);
 
 // ---- 学習のあとの ごほうび(チケット・強化ポイント) -----------------------------------------
@@ -49,7 +50,7 @@ const ovrOf = (stats, pos) => {
 // イラストが あれば 画像、よみこめなければ 絵文字に もどる
 const faceHtml = (pl) => (pl.img ? `<img class="rc-img" src="${esc(pl.img)}" alt="" loading="lazy" onerror="this.outerHTML='${pl.face}'">` : pl.face);
 function cardHtml(pl, o = {}) {
-  const lv = pl.level ? ` Lv${pl.level}` : '';
+  const lv = (pl.level ? ` Lv${pl.level}` : '') + (pl.enh ? `+${pl.enh}` : '');
   const nm = pl.rarity === 'kid' ? 'じぶん' : G.RARITY_NAME[pl.rarity] || '';
   return `<div class="rcard r-${pl.rarity} ${o.cls || ''}" ${o.attrs || ''}>
     <div class="rc-top"><b class="rc-ovr">${ovrOf(pl.stats, pl.pos)}</b><small>${pl.pos === 'ALL' ? 'ALL' : pl.pos}${pl.nation ? ` ${pl.nation}` : ''}</small></div>
@@ -123,7 +124,7 @@ function stageHtml() {
 const UI = { sub: 'form', slot: null, dexF: 'all', dexSel: null };
 const SUBS = [['form', '🧩', 'へんせい'], ['dex', '📚', 'ずかん'], ['power', '💪', 'つよく'], ['cup', '🏆', 'たいかい'], ['battle', '⚔️', 'フリー'], ['mates', '🤝', 'かぞく']];
 export function teamTab() {
-  const body = { form: formHtml, dex: dexHtml, power: powerHtml, cup: cupHtml, battle: battleMenuHtml, mates: () => X.matesHtml() }[UI.sub]();
+  const body = { form: formHtml, dex: dexHtml, power: powerHtml, cup: cupHtml, battle: battleMenuHtml, mates: () => X.matesHtml() + famTeamsHtml() }[UI.sub]();
   return `<div class="subnav">${SUBS.map(([s, i, l]) => `<button class="${UI.sub === s ? 'on' : ''}" data-act="sub" data-sub="${s}"><span>${i}</span>${l}</button>`).join('')}</div>${body}`;
 }
 
@@ -179,13 +180,20 @@ function dexHtml() {
   const sel = UI.dexSel && G.PLAYER_BY_ID[UI.dexSel];
   return `<section class="panel"><h2 class="sec">COLLECTION <small>ずかん ${n}/${G.PLAYERS.length}</small></h2>
     <div class="chips">${['all', ...G.RARITIES].map((r) => `<button class="chipb ${f === r ? 'on' : ''} r-${r}" data-act="dexf" data-r="${r}">${r === 'all' ? 'ぜんぶ' : G.RARITY_NAME[r]}${r === 'all' ? '' : ` ${G.PLAYERS.filter((x) => x.rarity === r && p.owned[x.id]).length}/${G.PLAYERS.filter((x) => x.rarity === r).length}`}</button>`).join('')}</div>
-    ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>` : ''}
+    ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>${enhHtml(sel, p)}` : ''}
     <div class="muted" style="margin-bottom:6px">※ 有名な 選手を ヒントに した オリジナルの キャラクターだよ(ほんにんとは かんけい ないよ)。</div>
     <div class="dex-grid">${list.map((pl) => p.owned[pl.id]
     ? `<button class="dx got r-${pl.rarity}" data-act="dexsel" data-id="${pl.id}"><span>${pl.img ? `<img class="dx-img" src="${esc(pl.img)}" alt="" loading="lazy" onerror="this.outerHTML='${pl.face}'">` : pl.face}</span><small>${esc(pl.name)}</small>${p.owned[pl.id] > 1 ? `<em>×${p.owned[pl.id]}</em>` : ''}</button>`
     : `<div class="dx r-${pl.rarity}"><span>？</span><small>${G.RARITY_NAME[pl.rarity]}</small></div>`).join('')}</div></section>`;
 }
 
+// ガチャ選手の きょうか(ポイントで)
+function enhHtml(pl, p) {
+  const e = (p.plv || {})[pl.id] || 0; const cost = G.enhCost(e, pl.rarity); const have = G.totalPoints(p);
+  const can = e < G.ENH_MAX && have >= cost;
+  return `<div class="enh"><b>💪 きょうか +${e}/${G.ENH_MAX}</b><small>ポイントで のうりょくが 1かい +3% ふえるよ(いまの ポイント ${have})</small>
+    <button class="btn small ${can ? 'gold' : 'gray'}" data-act="penh" data-id="${pl.id}" ${can ? '' : 'disabled'}>${e >= G.ENH_MAX ? 'MAX' : `きょうか! (${cost}pt)`}</button></div>`;
+}
 function powerHtml() {
   const k = X.kid(); const p = X.p();
   const SUBJ = Object.fromEntries(Object.entries(G.SUBJECT_STAT).map(([sj, st]) => [st, sj]));
@@ -200,11 +208,27 @@ function powerHtml() {
         <button class="btn small ${can ? 'gold' : 'gray'}" data-act="upgrade" data-s="${s}" ${can ? '' : 'disabled'}>${lv >= G.MAX_LEVEL ? 'MAX' : `+ (${cost})`}</button>
         <div class="sr-pts">${p.pts[s]}pt</div></div>`;
   }).join('')}
-    <div class="muted">縦の線(|)が レジェンドの さいだい(99)。</div></section>`;
+    <div class="muted">縦の線(|)が レジェンドの さいだい(99)。</div>
+    <div class="muted">💎 ガチャで ゲットした 選手も、おなじ ポイントで「きょうか」できるよ(ポイントは すこし おおく いるよ)。「ずかん」で 選手を おして ためそう。(ポイント ぜんぶで ${G.totalPoints(p)})</div></section>`;
 }
 
 // ---- 対戦 ----------------------------------------------------------------------
 let B = null; let timer = null; let M = null;
+// かぞくの チームの へんせいを みる(みるだけ)
+function famTeamsHtml() {
+  const others = X.KIDS.filter((k) => k.id !== X.kid().id);
+  return others.map((o) => {
+    const d = X.dataFor(o);
+    if (!Array.isArray(d.team) || d.team.length !== G.TEAM_SIZE) return `<section class="panel"><h2 class="sec">TEAM <small>${esc(o.name)}の チーム</small></h2><div class="muted">まだ とどいてないよ(${esc(o.name)}が アプリを ひらくと みえるよ)</div></section>`;
+    const sl = d.team.map((m) => m.slot);
+    const fm = G.FORMATIONS.find((f) => f.fw === sl.filter((x) => x === 'FW').length && f.mf === sl.filter((x) => x === 'MF').length && f.df === sl.filter((x) => x === 'DF').length);
+    const row = (pos) => `<div class="frow n${d.team.filter((m) => m.slot === pos).length}">${d.team.filter((m) => m.slot === pos).map((m) => `<div class="slot">${cardHtml({ ...m }, { stats: false })}</div>`).join('')}</div>`;
+    return `<section class="panel"><h2 class="sec">TEAM <small>${esc(o.name)}の チーム</small></h2>
+      <div class="power"><b>パワー ${G.ratings(d.team).power}</b><span>${fm ? fm.name : ''}</span></div>
+      <div class="formation">${['FW', 'MF', 'DF', 'GK'].map(row).join('')}</div>
+      <div class="muted">${esc(o.name)}の いまの へんせいだよ(みるだけ)。たいせんは「たいせん」から!</div></section>`;
+  }).join('');
+}
 // かぞく(ひびと・ゆいと・パパ)の うち、チームの きろくが とどいている 人
 function mateOpponents() {
   return X.KIDS.filter((k) => k.id !== X.kid().id).map((other) => {
@@ -439,6 +463,10 @@ export function onAct(a, el) {
     }
     case 'dexf': UI.dexF = el.dataset.r; UI.dexSel = null; return true;
     case 'dexsel': UI.dexSel = UI.dexSel === el.dataset.id ? null : el.dataset.id; return true;
+    case 'penh': {
+      if (G.enhance(p, el.dataset.id)) { X.save(); X.fx.beep('ok'); X.fx.vibrate(20); X.fx.floaty('きょうか!', vw() / 2, vh() * 0.4); } else X.toast('ポイントが たりないよ(べんきょうで ためよう)');
+      return true;
+    }
     case 'upgrade': {
       if (G.upgrade(p, el.dataset.s)) { X.save(); X.fx.beep('ok'); X.fx.vibrate(20); X.fx.floaty('UP!', vw() / 2, vh() * 0.4); }
       return true;

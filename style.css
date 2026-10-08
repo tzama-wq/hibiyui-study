@@ -485,3 +485,7 @@ body.big .nav button small{font-size:13px}
 .choice .flag.mini{border:1px solid #fff;box-shadow:none}.choice .shape.mini path{stroke-width:1.5}
 
 .choice.out{opacity:.25;text-decoration:line-through;filter:grayscale(1)}
+
+.gear{position:relative}.gdot{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#ff3b5c;color:#fff;font:800 10px/16px system-ui;text-align:center}
+
+.enh{margin-top:8px;padding:8px 10px;background:rgba(255,255,255,.05);border-left:4px solid var(--gold);display:flex;flex-direction:column;gap:4px}.enh small{color:var(--mute);font-size:12px}

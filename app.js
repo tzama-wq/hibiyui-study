@@ -1,5 +1,5 @@
 import * as sync from './sync.js';
-import { addPoints, SUBJECT_STAT, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
+import { addPoints, addTickets, SUBJECT_STAT, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen, KUKU_DAN } from './gen.js';
@@ -19,6 +19,7 @@ const RANKS = [
   [11000, 'だいひょうの キャプテン'], [13000, 'ヨーロッパへ ちょうせん'], [15500, 'ヨーロッパの レギュラー'], [18500, 'ヨーロッパの スター'], [22000, 'チャンピオンズリーグの スター'],
   [26000, 'ワールドカップの だいひょう'], [30000, 'ワールドカップの スター'], [35000, 'バロンドールこうほ'], [41000, 'バロンドール'], [50000, 'サッカーの でんせつ'],
 ];
+const esc = (t) => String(t).replace(/[<>&"]/g, '');
 const rankIdx = (name) => RANKS.findIndex((r) => r[1] === name);
 // 1セットの もんだい数は 子どもごとの せってい(cfg.js の setSize。ふつうは 5)
 const MAX_BONUS = 3;
@@ -263,7 +264,8 @@ function animateCounts() {
 const ringSvg = (cls, pct) => `<svg class="${cls}" viewBox="0 0 44 44"><circle class="rg-bg" cx="22" cy="22" r="18"/><circle class="rg-fg" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="113.1" data-ring="${pct}"/></svg>`;
 
 // ---- きょうだい共有 ---------------------------------------------------------
-const summary = (k) => { const p = S.kids[k.id]; return { name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null, team: summaryTeam(k, p) }; };
+const summary = (k) => { const p = S.kids[k.id]; return { name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null, team: summaryTeam(k, p),
+  asks: (p.ask || []).slice(0, 10).map(({ id, date, text, t }) => ({ id, date, text: String(text).slice(0, 600), t })), ack: (S.ack || []).slice(-80) }; };
 // ---- メダル(実績) -------------------------------------------------------------
 const masterCount = (p, k, sj) => skillsUpTo(k.grade).filter((u) => u.subject === sj && ['ok', 'sprout'].includes(status(p, u.id)) && (p.units[u.id] || {}).ok >= 3).length;
 const BADGES = [
@@ -323,8 +325,29 @@ async function syncNow() {
   const k = kidId && kidOf();
   if (k) await sync.push(k.id, summary(k));
   const r = await sync.pull();
-  if (r) { S.remote = r; save(); if (view === 'kid') render(); }
+  if (r) {
+    S.remote = r;
+    const ack = ackSet(); // パパが「おしえたよ」した しつもんは こちらでも けす
+    for (const kk of KIDS) { const pp = S.kids[kk.id]; const n = (pp.ask || []).length; pp.ask = (pp.ask || []).filter((a) => !ack.has(a.id)); }
+    save();
+    const typing = typeof document !== 'undefined' && document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if (view === 'kid' || (view === 'papa' && !typing)) render();
+  }
 }
+// ---- パパへの しつもん(スマホを またいで とどく) -----------------------------------
+const ackSet = () => new Set([...(S.ack || []), ...Object.values(S.remote || {}).flatMap((r) => (r && r.ack) || [])]);
+const plainText = (h) => String(h).replace(/<svg[\s\S]*?<\/svg>/g, '(えの もんだい)').replace(/<rt>[\s\S]*?<\/rt>/g, '').replace(/<[^>]*>/g, '').replace(/\s+\n/g, '\n').trim();
+function asksOf(k) { // この子の まだ こたえていない しつもん(この スマホの ぶん + とどいた ぶん)
+  const p = S.kids[k.id]; const ack = ackSet();
+  const out = (p.ask || []).filter((a) => !ack.has(a.id));
+  const have = new Set(out.map((a) => a.id));
+  for (const a of ((S.remote || {})[k.id] || {}).asks || []) if (a && a.id && !have.has(a.id) && !ack.has(a.id)) { out.push({ ...a, remote: true }); have.add(a.id); }
+  return out.sort((a, b) => (b.t || 0) - (a.t || 0));
+}
+const pendingAsks = () => KIDS.reduce((n, k) => n + asksOf(k).length, 0);
+for (const kk of KIDS) for (const a of S.kids[kk.id].ask || []) { a.id = a.id || `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; a.t = a.t || Date.now(); a.text = plainText(a.text); }
+setInterval(() => { if (sync.enabled() && document.visibilityState === 'visible' && !Q) syncNow(); }, 45000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync.enabled()) syncNow(); });
 const MILESTONES = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000];
 const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'いま' : m < 60 ? `${m}ふん前` : m < 1440 ? `${Math.round(m / 60)}じかん前` : `${Math.round(m / 1440)}日前`; };
 const SUBJECT_ICON = { 算数: '🔢', 国語: '📖', 理科: '🔬', 社会: '🏙️', 生活: '🌱' };
@@ -386,7 +409,20 @@ function siblingsCard() {
 // ---- 画面 -----------------------------------------------------------------
 let tab = 'home';
 let toTop = false;
+// ---- プレゼント(data/gifts.json): ひとりに 1かいだけ うけとれる ---------------------------------------
+let GIFTS = [];
+function claimGifts() {
+  if (!kidId || !GIFTS.length) return;
+  const p = S.kids[kidId]; p.gifts = p.gifts || [];
+  for (const g of GIFTS) {
+    const mine = g.to && g.to[kidId]; if (!mine || p.gifts.includes(g.id)) continue;
+    addTickets(p, mine); p.gifts.push(g.id); save();
+    const txt = Object.entries(mine).map(([t, n]) => `${TK_NAME[t] || t}×${n}`).join(' ');
+    setTimeout(() => { toast(`🎁 プレゼント! ${txt} ${g.msg || ''}`); confetti(innerWidth / 2, innerHeight * 0.3, 140, 1.6); beep('win'); vibrate([60, 40, 100]); }, 500);
+  }
+}
 function render() {
+  claimGifts();
   const k = kidId && kidOf();
   document.documentElement.style.setProperty('--kid', k ? k.color : '#2f7bff');
   applyCfg();
@@ -421,7 +457,7 @@ function topBar(k, p) {
     <div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
     <div class="tb-chips"><span class="chip gold">⚽ <b data-count="${p.goals}" data-key="goals">${p.goals}</b></span><span class="chip">XP <b data-count="${p.xp}" data-key="xp">${p.xp}</b></span></div>
     <button class="gear" data-act="mute" aria-label="おと">${quiet() ? '🔇' : '🔊'}</button>
-    ${S.kidPins[k.id] || S.shared ? '<button class="gear" data-act="lock" aria-label="ロック">🔒</button>' : ''}<button class="gear" data-act="papa" aria-label="パパの へや">⚙</button></header>`;
+    ${S.kidPins[k.id] || S.shared ? '<button class="gear" data-act="lock" aria-label="ロック">🔒</button>' : ''}<button class="gear" data-act="papa" aria-label="パパの へや">⚙${pendingAsks() > 0 && k.adult ? `<b class="gdot">${pendingAsks()}</b>` : ''}</button></header>`;
 }
 function navBar() {
   const items = [['home', '🏠', 'ホーム'], ['train', '🎯', 'れんしゅう'], ['gacha', '🎰', 'ガチャ'], ['team', '🤝', 'チーム']];
@@ -762,7 +798,7 @@ function vPapa() {
       <b>がくしゅうマップ(1ねん〜)</b>
       ${skillsUpTo(k.grade).map((u) => `<div class="muted">${ICON[status(p, u.id)]} ${u.grade}ねん:${u.name}${(() => { const np = u.pre.filter((x) => status(p, x) !== 'ok'); return np.length && ['gap', 'shaky'].includes(status(p, u.id)) ? `(→ まず ${np.map((x) => byId[x].name).join('・')})` : ''; })()}</div>`).join('')}
       <b>パパに きく</b>
-      ${p.ask.length ? p.ask.map((a, i) => `<p style="white-space:pre-wrap;border-left:4px solid #ffcc00;padding-left:8px">${a.date} ${a.text}<br><button class="btn small gray" data-act="askdone" data-id="${k.id}" data-i="${i}">✅ おしえたよ</button></p>`).join('') : '<p class="muted">しつもんは ないよ</p>'}
+      ${(() => { const al = asksOf(k); return al.length ? al.map((a) => `<p style="white-space:pre-wrap;border-left:4px solid #ffcc00;padding-left:8px">${a.date} ${esc(a.text)}${a.remote ? ' <small class="muted">(スマホから とどいたよ)</small>' : ''}<br><button class="btn small gray" data-act="askdone" data-id="${k.id}" data-aid="${a.id}">✅ おしえたよ</button></p>`).join('') : '<p class="muted">しつもんは ないよ</p>'; })()}
       <b>学校の いまの たんげん</b><br>
       <select data-act="override" data-id="${k.id}">
         <option value="">じどう(日付から きめる)</option>
@@ -947,17 +983,21 @@ function finish() {
 
 function askPapa() {
   const k = kidOf(); const p = S.kids[k.id]; const it = Q.items[Q.i]; const q = it.q;
-  const text = `【パパにきく】${k.name}(${k.grade}ねん)\nもんだい:${q.text}\nせんたくし:${q.choices.map((c) => c.label).join(' / ')}`;
-  p.ask.unshift({ date: todayStr(), text: `\n${q.text}\n(${q.choices.map((c) => c.label).join(' / ')})` });
+  const body = `${plainText(q.text)}\n(${q.choices.map((c) => plainText(c.label)).join(' / ')})`;
+  const text = `【パパにきく】${k.name}(${k.grade}ねん)\n${body}`;
+  p.ask.unshift({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, t: Date.now(), date: todayStr(), text: `${k.name}:\n${body}` });
   p.ask = p.ask.slice(0, 30); save();
+  if (sync.enabled()) { syncNow(); toast('パパの スマホに おくったよ!(パパが アプリを ひらくと とどくよ)'); return; }
+  // つながって いない ときは、LINEなどで パパに おくれる ように する
   if (navigator.share) navigator.share({ text }).catch(() => {});
   else if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
-  toast('パパに しつもんを とっておいたよ!');
+  toast('しつもんを とっておいたよ。パパの スマホに とどけるには「パパの へや」で つなぐ せっていが ひつようだよ');
 }
 
 document.addEventListener('click', (e) => {
   lastTap = { x: e.clientX || innerWidth / 2, y: e.clientY || innerHeight / 2 };
   const el = e.target.closest('[data-act]'); if (!el) return;
+  if (/^(SELECT|OPTION|INPUT|TEXTAREA)$/.test(e.target.tagName) || /^(SELECT|INPUT|TEXTAREA)$/.test(el.tagName)) return; // えらぶ とちゅうで がめんを つくりなおすと、プルダウンが とじて しまう
   const a = el.dataset.act;
   if (a === 'bind' && S.shared) {
     kidId = el.dataset.id; unlocked = false; tab = 'home'; view = 'kid'; toTop = true; syncNow();
@@ -1040,7 +1080,7 @@ document.addEventListener('click', (e) => {
     if (navigator.clipboard) navigator.clipboard.writeText(sync.shareLink(el.dataset.id)).then(() => toast('こども用リンクを コピーしたよ'), () => toast('コピーできなかったよ'));
     return;
   }
-  else if (a === 'askdone') { S.kids[el.dataset.id].ask.splice(Number(el.dataset.i), 1); save(); }
+  else if (a === 'askdone') { const aid = el.dataset.aid; const pp = S.kids[el.dataset.id]; pp.ask = (pp.ask || []).filter((x) => x.id !== aid); S.ack = [...(S.ack || []), aid].slice(-120); save(); syncNow(); }
   else if (gameAct(a, el)) { /* ガチャ・へんせい・たいせん など */ }
   render();
 });
@@ -1085,6 +1125,12 @@ try {
   if (r.ok) registerKnowledge((await r.json()).units || []);
 } catch { /* オフラインなど */ }
 
+// プレゼント(パパから)
+try {
+  const r = await fetch('data/gifts.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
+  if (r.ok) GIFTS = (await r.json()).gifts || [];
+} catch { /* オフラインなど */ }
+
 // 都道府県・せかいの くにの かたち(かたちクイズ)
 try {
   const r = await fetch('data/geo.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
@@ -1094,3 +1140,4 @@ try {
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 render();
+syncNow(); // ひらいた ときに じぶんの きろくを おくり、かぞくの きろく・しつもんを うけとる
