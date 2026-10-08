@@ -29,7 +29,8 @@ export function ensureGame(p) {
   if (!p.starter) { G.addTickets(p, { bronze: 3, silver: 1 }); p.starter = true; } // はじめての 1回ぶん
 }
 
-export const kidCardOf = (k, p) => ({ name: k.name, face: k.em, stats: G.kidStats(p) });
+export const kidImg = (k) => `images/players/self_${k.id}.webp`; // ダイヤモンドレアの じぶんカード
+export const kidCardOf = (k, p) => ({ name: k.name, face: k.em, img: kidImg(k), stats: G.kidStats(p) });
 export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip, formation: p.formation, plv: p.plv });
 export const summaryTeam = (k, p) => snapshotOf(k, p);
 
@@ -153,7 +154,7 @@ function pickerHtml(k, p) {
     .sort((a, b) => (b.pos === pos) - (a.pos === pos) || G.RARITIES.indexOf(b.rarity) - G.RARITIES.indexOf(a.rarity) || ovrOf(b.stats, b.pos) - ovrOf(a.stats, a.pos));
   const opt = (id, pl, lv) => `<button class="opt ${p.team[i] === id ? 'cur' : ''}" data-act="place" data-i="${i}" data-id="${id}">${cardHtml({ ...pl, level: lv, offPos: pl.pos !== 'ALL' && pl.pos !== pos }, { stats: false, cls: 'mini' })}
     <span class="opt-info"><b>${esc(pl.name)}</b><small>${pl.pos === 'ALL' ? 'どこでも OK' : pl.pos === pos ? '◎ ぴったり' : '⚠ ポジションが ちがう'}${placed.has(id) && p.team[i] !== id ? ' ・ ほかの わくに いるよ(いれかえ)' : ''}</small></span></button>`;
-  const selfSnap = { name: k.name, face: k.em, pos: 'ALL', rarity: 'kid', stats: G.kidStats(p) };
+  const selfSnap = { name: k.name, face: k.em, img: kidImg(k), pos: 'ALL', rarity: 'kid', stats: G.kidStats(p) };
   return `<div class="picker"><h3>${i + 1}ばんめの わくに だれを いれる?(${pos})</h3>
     ${opt('self', selfSnap, 0)}${owned.map((pl) => opt(pl.id, pl, G.levelOf(p.owned[pl.id]))).join('')}
     ${owned.length ? '' : '<div class="muted">ガチャで 選手を あつめよう!</div>'}
@@ -199,7 +200,7 @@ function powerHtml() {
   const SUBJ = Object.fromEntries(Object.entries(G.SUBJECT_STAT).map(([sj, st]) => [st, sj]));
   return `<section class="panel"><h2 class="sec">POWER UP <small>つよくなる</small></h2>
     <div class="muted">べんきょうで せいかいすると、ポイントが たまるよ。ポイントで ${k.name}を つよくしよう! つよくなると、いつか レジェンド(さいだい 99)も こえられるよ。</div>
-    <div class="kidcard">${cardHtml({ name: k.name, face: k.em, pos: 'ALL', rarity: 'kid', stats: G.kidStats(p) }, { stats: false })}</div>
+    <div class="kidcard">${cardHtml({ name: k.name, face: k.em, img: kidImg(k), pos: 'ALL', rarity: 'kid', stats: G.kidStats(p) }, { stats: false })}</div>
     ${G.STATS.map((s) => {
     const lv = p.lv[s]; const cost = G.upgradeCost(lv); const can = p.pts[s] >= cost && lv < G.MAX_LEVEL;
     return `<div class="stat-row"><div class="sr-name"><b>${G.STAT_NAME[s]}</b><small>${SUBJ[s]}で ゲット</small></div>

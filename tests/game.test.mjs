@@ -5,7 +5,7 @@ import {
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
-  FORMATIONS, slotsOf, refitTeam, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
+  FORMATIONS, slotsOf, refitTeam, MAX_LEVEL, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
 } from '../game.js';
 
 // ---- 選手データ ----
@@ -134,8 +134,8 @@ assert.ok(kidStat(100) > 99, '最大まで強化すると レジェンドより�
   for (let i = 0; i < 5; i++) assert.ok(upgrade(p, 'SHO'));
   assert.equal(p.lv.SHO, 5); assert.equal(p.pts.SHO, 0);
   assert.equal(upgrade(p, 'SHO'), false, 'ポイント不足');
-  p.pts.PAS = 10_000; p.lv.PAS = 100;
-  assert.equal(upgrade(p, 'PAS'), false, 'Lv100が上限');
+  p.pts.PAS = 10_000; p.lv.PAS = 999;
+  assert.equal(upgrade(p, 'PAS'), false, 'Lv999が上限');
 }
 
 // ---- バフ ----
@@ -323,5 +323,16 @@ for (const f of FORMATIONS) {
   const b2 = have(); cupResult(p, 'j', 0, true, false, '2026-10-10'); assert.ok(have() > b2);
   // ふくすうの ほかの たいかいの はじめては じょうげんの せいげんを うけない
   const b3 = have(); cupResult(p, 'asia', 0, true, false, '2026-10-10'); assert.ok(have() > b3);
+}
+// ---- つよく: 999まで ----
+{
+  assert.equal(MAX_LEVEL, 999);
+  const p = { pts: { SHO: 1000, PAS: 0, SPD: 0, DEF: 0, STA: 0 }, lv: { SHO: 998, PAS: 0, SPD: 0, DEF: 0, STA: 0 } };
+  assert.equal(upgrade(p, 'SHO'), true); assert.equal(p.lv.SHO, 999); assert.equal(upgrade(p, 'SHO'), false, '999で とまる');
+  assert.equal(kidStat(999), Math.round(30 + 999 * 1.5));
+  // じぶんは 140 の うわがきに かからない(ガチャ選手だけ)
+  const kid = { name: 'k', face: 'k', stats: Object.fromEntries(STATS.map((s) => [s, kidStat(999)])) };
+  const snap = teamSnapshot({ kid, owned: {}, team: ['self'], formation: '442' });
+  assert.ok(snap[0].stats.SHO > 1000 && ratings(snap).power > 140);
 }
 console.log('OK: game');

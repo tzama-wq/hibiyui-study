@@ -489,3 +489,8 @@ body.big .nav button small{font-size:13px}
 .gear{position:relative}.gdot{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#ff3b5c;color:#fff;font:800 10px/16px system-ui;text-align:center}
 
 .enh{margin-top:8px;padding:8px 10px;background:rgba(255,255,255,.05);border-left:4px solid var(--gold);display:flex;flex-direction:column;gap:4px}.enh small{color:var(--mute);font-size:12px}
+
+/* ダイヤモンドレア(じぶん・ひびと・ゆいと・パパ) */
+.r-kid{--rc:#9ff3ff;--rg1:#2aa6c9;--rg2:#0a2a47}
+.r-kid.rcard{box-shadow:0 0 16px rgba(120,235,255,.7),inset 0 0 14px rgba(255,255,255,.22);background-image:linear-gradient(135deg,rgba(255,255,255,.18),transparent 40%,rgba(180,240,255,.25) 60%,transparent);animation:diamond 3.2s linear infinite}
+@keyframes diamond{50%{box-shadow:0 0 22px rgba(190,250,255,.95),inset 0 0 18px rgba(255,255,255,.35)}}

@@ -300,7 +300,7 @@ export function claimLogin(p, today) {
 }
 
 // ---- 強化(ひびと・ゆいとの つよさ) ----------------------------------------------------
-export const MAX_LEVEL = 100;
+export const MAX_LEVEL = 999; // じぶんの つよさ(つよく)の じょうげん
 export const upgradeCost = (level) => 1 + Math.floor(level / 10);
 export const kidStat = (level) => Math.round(30 + level * 1.5); // Lv47 で レジェンドの さいだい(99)を こえる
 export const emptyStatMap = () => Object.fromEntries(STATS.map((s) => [s, 0]));
@@ -345,8 +345,8 @@ export const buffText = (id) => {
 
 // ---- チーム編成と つよさ ----------------------------------------------------------------
 const OUT_OF_POSITION = 0.85;
-export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty = 1, enh = 0 }) {
-  return Object.fromEntries(STATS.map((s) => [s, Math.min(STAT_CAP, Math.round(base[s] * (1 + 0.04 * level) * (1 + ENH_STEP * enh) * (1 + buff[s] / 100) * penalty))]));
+export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty = 1, enh = 0, cap = STAT_CAP }) {
+  return Object.fromEntries(STATS.map((s) => [s, Math.min(cap, Math.round(base[s] * (1 + 0.04 * level) * (1 + ENH_STEP * enh) * (1 + buff[s] / 100) * penalty))]));
 }
 // ---- ガチャ選手の きょうか(ポイントで)。じぶんより ポイントが たくさん いる ----------------------------------
 export const ENH_MAX = 20;        // 1人の 選手に かけられる きょうかの かず
@@ -375,12 +375,13 @@ export function teamSnapshot({ kid, owned = {}, team = [], equip = [], formation
   return slotsOf(formation).map((slot, i) => {
     const id = team[i];
     let who; let level = 0; let penalty = 1; let enh = 0;
-    if (id === 'self') who = { id: 'self', name: kid.name, face: kid.face, pos: 'ALL', rarity: 'kid', stats: kid.stats };
+    let cap = STAT_CAP;
+    if (id === 'self') { cap = Infinity; who = { id: 'self', name: kid.name, face: kid.face, img: kid.img || '', pos: 'ALL', rarity: 'kid', stats: kid.stats }; }
     else if (id && owned[id] && PLAYER_BY_ID[id]) {
       who = PLAYER_BY_ID[id]; level = levelOf(owned[id]); enh = (plv || {})[id] || 0;
       if (who.pos !== slot) penalty = OUT_OF_POSITION;
     } else who = BENCH;
-    return { slot, id: who.id, name: who.name, face: who.face, img: who.img || '', pos: who.pos, rarity: who.rarity, level, enh, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty, enh }) };
+    return { slot, id: who.id, name: who.name, face: who.face, img: who.img || '', pos: who.pos, rarity: who.rarity, level, enh, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty, enh, cap }) };
   });
 }
 const attSkill = (s) => 0.5 * s.SHO + 0.2 * s.PAS + 0.3 * s.SPD;
