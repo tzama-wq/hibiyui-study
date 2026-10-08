@@ -25,7 +25,10 @@ const rankIdx = (name) => RANKS.findIndex((r) => r[1] === name);
 const MAX_BONUS = 3;
 
 // ---- 保存 -----------------------------------------------------------------
+// ダイヤモンドレアの じぶんカードの えがら(よみこめない ときは えもじ)
+const avaHtml = (k) => `<img class="ava-img" src="images/players/self_${k.id}.webp" alt="" onerror="this.outerHTML='${k.em}'">`;
 const KEY = 'hibiyui.v1';
+const VERSION = '2026-10-09.2'; // パパの へやに ひょうじ(スマホが さいしんか たしかめる ため)
 const newKid = () => ({ badges: [], seen: [], xp: 0, goals: 0, days: [], lastDate: null, units: {}, tags: {}, ask: [], today: { date: null, sets: 0, bonusTotal: 0, bonusDone: 0 } });
 const init = () => ({ kids: Object.fromEntries(KIDS.map((k) => [k.id, newKid()])), override: {} });
 let S;
@@ -417,7 +420,7 @@ function playerCard(k, p) {
   return `<section class="pcard tier-${ab.tier}">
     <div class="pc-shine"></div>
     <div class="pc-left"><div class="pc-ovr"><b data-count="${ab.ovr}" data-key="ovr">${ab.ovr}</b></div><div class="pc-ovr-l">OVR</div><div class="pc-grade">${k.grade}ねん</div></div>
-    <div class="pc-ava">${k.em}</div>
+    <div class="pc-ava">${avaHtml(k)}</div>
     <div class="pc-name">${k.name}</div>
     <div class="pc-rank">${r.name}</div>
     <div class="pc-stats">${Object.entries(ab.stats).map(([sj, v]) => `<div><span>${SUBJECT_ICON[sj]} ${sj}</span><b>${v}</b></div>`).join('')}</div>
@@ -436,7 +439,7 @@ function siblingsCard() {
   const waiting = sync.enabled() && rows.some((r) => r.k.id !== kidId && !(S.remote && S.remote[r.k.id]));
   return `<section class="panel"><h2 class="sec">TEAM <small>かぞくチーム</small></h2>
     ${rows.map((r) => `<div class="mate" style="--kid:${r.k.color}">
-      <div class="mate-ava">${r.k.em}</div>
+      <div class="mate-ava">${avaHtml(r.k)}</div>
       <div class="mate-main"><b>${r.d.name}</b><small>${r.d.grade}ねん ・ ${r.d.rank}${r.k.id === kidId ? ' ・ じぶん' : ''}</small>
         <div class="row"><span class="chip gold">⚽ ${r.d.goals}</span><span class="chip">📅 ${r.d.days}日</span>${r.sel.state === 'in' ? '<span class="chip red">🇯🇵 代表</span>' : (cfg().soft ? '' : '<span class="chip">🪑 ひかえ</span>')}</div>
         ${r.remote && S.remote[r.k.id].t ? `<small class="muted">${ago(S.remote[r.k.id].t)}の きろく</small>` : ''}</div></div>`).join('')}
@@ -486,12 +489,12 @@ function render() {
 function vSetup() {
   $app.innerHTML = `<div class="hero"><div class="logo">⚽ HIBIYUI FC</div><h1>${S.shared ? 'だれが つかう?' : 'このスマホは だれの?'}</h1>
     <p class="sub">${S.shared ? 'じぶんの なまえを えらんで、じぶんの PINを いれてね。' : 'えらぶと、この スマホには その子の がめんだけが でるよ。<br>(かえるときは パパの PINが いるよ)'}</p></div>
-    ${KIDS.map((k) => `<button class="kid-select" style="--kid:${k.color}" data-act="bind" data-id="${k.id}"><span class="ks-ava">${k.em}</span><span class="ks-name">${k.name}</span><span class="ks-sub">${k.grade}ねんせい</span></button>`).join('')}`;
+    ${KIDS.map((k) => `<button class="kid-select" style="--kid:${k.color}" data-act="bind" data-id="${k.id}"><span class="ks-ava">${avaHtml(k)}</span><span class="ks-name">${k.name}</span><span class="ks-sub">${k.grade}ねんせい</span></button>`).join('')}`;
 }
 
 function vLock() {
   const k = kidOf();
-  $app.innerHTML = `<div class="hero"><div class="logo">⚽ HIBIYUI FC</div><div class="pc-ava" style="margin:8px 0">${k.em}</div><h1>${k.name}の PINを いれてね</h1>
+  $app.innerHTML = `<div class="hero"><div class="logo">⚽ HIBIYUI FC</div><div class="pc-ava" style="margin:8px 0">${avaHtml(k)}</div><h1>${k.name}の PINを いれてね</h1>
     <p class="sub">${k.name}だけの 4けたの すうじだよ</p></div>
     <button class="btn gold" data-act="unlock">🔓 PINを いれる</button>
     <div class="center">${S.shared ? '<button class="link" data-act="lock">← べつの 子</button> ' : ''}<button class="link" data-act="papa">👨 パパの へや</button></div>`;
@@ -499,7 +502,7 @@ function vLock() {
 
 function topBar(k, p) {
   const r = rankOf(p.xp);
-  return `<header class="topbar"><div class="tb-ava-wrap">${ringSvg('tb-ring', r.pct / 100)}<div class="tb-ava">${k.em}</div></div>
+  return `<header class="topbar"><div class="tb-ava-wrap">${ringSvg('tb-ring', r.pct / 100)}<div class="tb-ava">${avaHtml(k)}</div></div>
     <div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
     <div class="tb-chips"><span class="chip gold">⚽ <b data-count="${p.goals}" data-key="goals">${p.goals}</b></span><span class="chip">XP <b data-count="${p.xp}" data-key="xp">${p.xp}</b></span></div>
     <button class="gear" data-act="mute" aria-label="おと">${quiet() ? '🔇' : '🔊'}</button>
@@ -875,6 +878,9 @@ function vPapa() {
     <button class="btn small gray" data-act="synctest">🔎 つながりを チェック</button>
     <p class="muted">下の リンクを それぞれの スマホで ひらくと、その子の スマホに なって、おなじ せっていが はいります。</p>
     ${KIDS.map((k) => `<button class="btn small gold" data-act="synccopy" data-id="${k.id}">📋 ${k.name}用リンクを コピー</button>`).join('')}</div>`;
+  const updCard = `<div class="card"><h2>🔄 アプリの バージョン</h2>
+    <p class="muted">いまの バージョン: <b>${VERSION}</b> ・ プレゼントや あたらしい きのうが とどかない ときは、「さいしんに こうしん」を おしてね(ほぞんした きろくは けさないよ)。</p>
+    <button class="btn small gold" data-act="forceupdate">🔄 さいしんに こうしん</button></div>`;
   const pinCard = `<div class="card"><h2>🔐 PIN</h2>
     <p class="muted">子どもの PINは、その子の がめんを ひらくときの かぎです(パパの PINで かんりします)。きめると アプリを ひらくたびに PINを きかれます。</p>
     ${KIDS.map((k) => `<div class="row"><b>${k.name}</b> <span class="chip ${S.kidPins[k.id] ? 'gold' : ''}">${S.kidPins[k.id] ? '設定ずみ' : 'なし'}</span>
@@ -886,7 +892,7 @@ function vPapa() {
   const ownerCard = `<div class="card"><h2>📱 この スマホの もちぬし</h2>
     <p>いまは「<b>${S.bound ? KIDS.find((k) => k.id === S.bound).name : 'きまっていません'}</b>」の スマホです。ほかの子の もんだいは ひらけません。</p>
     ${KIDS.filter((k) => k.id !== S.bound).map((k) => `<button class="btn small gray" data-act="rebind" data-id="${k.id}">${k.name}の スマホに かえる</button>`).join('')}</div>`;
-  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${updCard}${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
     <p class="muted">学校の すすみ具合が ちがう ときは、「いまの たんげん」を えらんでね。</p></main>`;
 }
 
@@ -1113,6 +1119,11 @@ document.addEventListener('click', (e) => {
     const db = document.getElementById('syncdb').value; const fc = document.getElementById('synccode').value;
     if (!sync.validCfg(db, fc)) return toast('URL(https://〜)と コード(10もじいじょう)を いれてね');
     sync.setCfg(db, fc); toast('つないだよ!'); syncNow(); return;
+  }
+  else if (a === 'forceupdate') {
+    toast('こうしん ちゅう…');
+    (async () => { try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); for (const k of await caches.keys()) await caches.delete(k); } catch { /* ignore */ } location.reload(); })();
+    return;
   }
   else if (a === 'synctest') {
     toast('しらべてるよ…');
