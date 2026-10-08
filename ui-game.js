@@ -333,7 +333,7 @@ function openBattle(b) {
 function summaryHtml() {
   const m = G.matchSummary(B.res.events, B.res.score); const s = m.stats;
   const row = (l, a, b) => `<div class="sm-row"><b>${a}</b><span>${l}</span><b>${b}</b></div>`;
-  return `<div class="sm">${row('シュート', s.a.shots, s.b.shots)}${row('セーブ', s.a.saves, s.b.saves)}${row('タックル・カット', s.a.tackles, s.b.tackles)}
+  return `<div class="sm">${row('シュート', s.a.shots, s.b.shots)}${row('セーブ', s.a.saves, s.b.saves)}${row('タックル・カット', s.a.tackles - (s.a.fouls || 0), s.b.tackles - (s.b.fouls || 0))}${(s.a.fouls || s.b.fouls) ? row('ファウル', s.a.fouls || 0, s.b.fouls || 0) : ''}
     ${m.mvp ? `<div class="mvp">⭐ MVP <b>${esc(m.mvp.name)}</b><small>${esc(m.mvp.why)}</small></div>` : ''}</div>`;
 }
 function cupOutHtml() {
@@ -366,7 +366,7 @@ function pkRow() {
   const sc = (s) => kicks.filter((k) => k.side === s && k.ok).length;
   return `<div id="bpk" class="bpk"><b>PK戦</b><div><span>${esc(B.me.name)} <em>${sc('a')}</em></span><small>${mark('a')}</small></div><div><span>${esc(B.opp.name)} <em>${sc('b')}</em></span><small>${mark('b')}</small></div></div>`;
 }
-const logRow = (e, isNew) => `<div class="bl ${e.type} ${e.type === 'tackle' ? (e.side === 'a' ? 'op' : 'me') : e.side === 'a' ? 'me' : 'op'} ${isNew ? 'new' : ''}"><i>${e.type === 'goal' ? '⚽' : e.type === 'save' ? '🧤' : e.type === 'tackle' ? '🛡️' : '💨'}</i><span>${esc(e.text)}</span></div>`;
+const logRow = (e, isNew) => `<div class="bl ${e.type} ${e.type === 'tackle' ? (e.side === 'a' ? 'op' : 'me') : e.side === 'a' ? 'me' : 'op'} ${isNew ? 'new' : ''}"><i>${e.type === 'goal' ? '⚽' : e.type === 'save' ? '🧤' : e.type === 'tackle' ? (e.kind === 'foul' ? (e.card ? '🟨' : '🚩') : '🛡️') : (e.start === 'corner' ? '🚩' : '💨')}</i><span>${esc(e.text)}</span></div>`;
 function tickBattle() { // 「うごきを へらす」ときの ぶんしょうだけの しあい
   clearTimeout(timer);
   if (!B || B.i >= B.evs.length) { finishBattle(); return; }
@@ -387,7 +387,7 @@ function finishBattle() {
   if (won) p.battles.w++; else if (s.a < s.b || B.pk) p.battles.l++; else p.battles.d++;
   if (B.cup) B.cupOut = G.cupResult(p, B.cup.id, B.cup.round, won, !!(X.cfg && X.cfg().forgive), X.today());
   if (B.pk && won) p.pkWins = (p.pkWins || 0) + 1;
-  p.lastMatch = { pk: B.pk || null, me: B.me, opp: B.opp, score: { ...s }, events: B.res.events.map(({ side, type, kind, how, defender, passer, shooter, keeper, score, text }) => ({ side, type, kind, how, defender, passer, shooter, keeper, score, text })) };
+  p.lastMatch = { pk: B.pk || null, me: B.me, opp: B.opp, score: { ...s }, events: B.res.events.map(({ side, type, kind, how, card, start, defender, passer, shooter, keeper, score, text }) => ({ side, type, kind, how, card, start, defender, passer, shooter, keeper, score, text })) };
   X.save();
   if (won) { X.fx.confetti(vw() / 2, vh() * 0.35, 120, 1.5); X.fx.beep('win'); }
 }

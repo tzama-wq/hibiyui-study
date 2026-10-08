@@ -352,7 +352,7 @@ for (const f of FORMATIONS) {
 // ---- ディフェンダーの タックル・カット ----
 {
   const flat = (v, d) => ({ name: 'F', team: SLOT_POS.map((slot, i) => ({ slot, id: `f${i}`, name: `F${d}${i}`, face: '⚽', pos: slot, rarity: 'common', level: 0, offPos: false, stats: Object.fromEntries(STATS.map((x) => [x, v])) })) });
-  const rnd = rngSeed(31); let tk = 0; let all = 0; let dfn = 0; let goals = 0; const types = new Set();
+  const rnd = rngSeed(31); let tk = 0; let all = 0; let dfn = 0; let goals = 0; const types = new Set(); const starts = {};
   for (let g = 0; g < 400; g++) {
     const A = flat(60, 'a'); const B = flat(60, 'b'); const r = simulate(A, B, rnd);
     assert.equal(r.events.length, 12);
@@ -362,9 +362,10 @@ for (const f of FORMATIONS) {
         tk++; const defTeam = e.side === 'a' ? B : A;
         const d = defTeam.team.find((m) => m.name === e.defender); assert.ok(d, 'うばう 人は まもる チームの 人'); assert.ok(['DF', 'MF'].includes(d.slot));
         if (d.slot === 'MF') assert.equal(e.kind, 'intercept', 'MFは インターセプト'); dfn += d.slot === 'DF' ? 1 : 0;
-        assert.match(e.text, /タックル|インターセプト/);
+        assert.match(e.text, /タックル|インターセプト|ファウル/); assert.ok(['tackle', 'intercept', 'foul'].includes(e.kind));
       }
-      if (e.type === 'goal') { goals++; assert.ok(['shot', 'header', 'long'].includes(e.how)); }
+      if (e.type === 'goal') { goals++; assert.ok(['shot', 'header', 'long', 'fk'].includes(e.how)); if (e.start === 'corner') assert.equal(e.how, 'header'); if (e.start === 'freekick') assert.equal(e.how, 'fk'); }
+      assert.ok(['open', 'corner', 'freekick'].includes(e.start)); if (e.type === 'tackle') assert.equal(e.start, 'open'); starts[e.start] = (starts[e.start] || 0) + 1;
     }
     const sm = matchSummary(r.events, r.score);
     assert.equal(sm.stats.a.goals + sm.stats.b.goals, r.score.a + r.score.b);
@@ -374,6 +375,7 @@ for (const f of FORMATIONS) {
   assert.ok(types.has('tackle') && types.has('goal') && types.has('save') && types.has('miss'));
   const share = tk / all; assert.ok(share > 0.18 && share < 0.35, `ディフェンダーが ボールを うばう わりあい ${share.toFixed(2)}`);
   assert.ok(dfn / tk > 0.5, 'DFの タックルが おおい');
+  assert.ok(starts.corner > 100 && starts.freekick > 50, `セットプレー ${JSON.stringify(starts)}`);
   assert.ok(Math.abs(goals / all - 0.2) < 0.12, 'ゴールの わりあいは これまでと ほぼ おなじ');
   // MVP: ゴール+アシストの 人が えらばれる
   const s2 = matchSummary([{ side: 'a', type: 'goal', passer: 'P', shooter: 'S', keeper: 'K' }, { side: 'b', type: 'tackle', defender: 'D', kind: 'tackle', shooter: 'X', passer: 'Y', keeper: 'K2' }], { a: 1, b: 0 });

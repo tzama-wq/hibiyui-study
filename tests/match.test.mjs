@@ -56,6 +56,20 @@ for (const [fa, fb] of [['442', '433'], ['352', '532'], ['451', '343']]) {
   assert.ok(frames * 0.03 < 150, `しあいは 90びょう いない (${(frames * 0.03).toFixed(0)}びょう)`);
   m.destroy();
 }
+// セットプレー(コーナー・フリーキック)・ファウルの えんしゅつも さいごまで うごく
+{
+  const me = { name: 'a', team: team('442', 1) }; const opp = { name: 'b', team: team('352', 2) };
+  const mk = (e, i) => ({ side: i % 2 ? 'b' : 'a', type: 'goal', how: 'shot', start: 'open', kind: '', passer: (i % 2 ? opp : me).team[4].name, shooter: (i % 2 ? opp : me).team[0].name, keeper: 'K', defender: null, score: { a: 0, b: 0 }, text: 't', ...e, idx: i, total: 12 });
+  const evs = [mk({ start: 'corner', how: 'header' }, 0), mk({ start: 'freekick', how: 'fk', type: 'save' }, 1), mk({ start: 'corner', type: 'miss' }, 2), mk({ start: 'freekick', how: 'fk' }, 3),
+    mk({ type: 'tackle', kind: 'foul', card: 'yellow', defender: opp.team[6].name }, 4), mk({ type: 'tackle', kind: 'foul', card: '', defender: me.team[6].name }, 5), mk({ type: 'tackle', kind: 'tackle', defender: opp.team[7].name }, 6), mk({ type: 'tackle', kind: 'intercept', defender: me.team[3].name }, 7)];
+  const log = []; let ended = 0;
+  const m = createMatch({ me, opp, events: evs, rnd: rngSeed(8), callbacks: { onBanner: (b) => log.push(b), onSfx: (n) => log.push(`sfx:${n}`), onEnd: () => ended++ } });
+  m.attach(fakeCanvas); let f = 0;
+  while (!m.done && f < 40000) { m._step(0.03); f++; const bl = m._ball; assert.ok(Number.isFinite(bl.x) && Number.isFinite(bl.y) && bl.x > -40 && bl.x < W + 40 && bl.y > -10 && bl.y < H + 10, `セットプレー ボール ${bl.x},${bl.y}`); for (const k of ['a', 'b']) for (const p of m._players[k]) assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y)); }
+  assert.ok(m.done && ended === 1);
+  assert.ok(log.includes('コーナーキック!') && log.includes('フリーキック!') && log.includes('ファウル!'), 'セットプレー・ファウルの バナー');
+  m.destroy();
+}
 // とばす
 {
   const me = { name: 'a', team: team('442', 1) }; const opp = { name: 'b', team: team('442', 2) };
