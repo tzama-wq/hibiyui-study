@@ -791,7 +791,7 @@ export function registerGeo(geo, flags) {
     return out;
   };
   makeGeoUnit('flag_world', 'せかいの こっき', '社会', 4, flagRows, flagVariants(false, false));
-  makeGeoUnit('flag_world_e', 'せかいの こっき', '生活', 2, flagRows.filter((o) => o.e), flagVariants(true, true));
+  makeGeoUnit('flag_world_e', 'せかいの こっき', '生活', 2, flagRows, flagVariants(true, false)); // ゆいとも ぜんぶの くに・ぜんぶの といかた(こっきは とくいなので しぼらない)
 }
 
 export function registerKokugo(items) {

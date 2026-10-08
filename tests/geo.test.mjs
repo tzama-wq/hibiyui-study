@@ -25,6 +25,7 @@ assert.equal(byId.geo_world.items.length, COUNTRIES.length * 6);
 assert.equal(byId.flag_world.items.length, COUNTRIES.length * 5);
 assert.equal(COUNTRIES.length, 197, '197か国');
 assert.equal(byId.geo_pref_e.items.length, nEasyPref * 2, 'かんたん版は 2しゅるい');
+assert.equal(byId.flag_world_e.items.length, COUNTRIES.length * 5, 'こっきは ゆいとも ぜんぶ(197か国・5しゅるい)');
 assert.ok(unitsOf(2).some((u) => u.id === 'geo_pref_e') && unitsOf(4).some((u) => u.id === 'geo_world'));
 assert.ok(!unitsOf(4).some((u) => u.id === 'geo_pref_e'), '小4に かんたん版は ださない');
 
