@@ -1,5 +1,5 @@
 import * as sync from './sync.js';
-import { addPoints, addTickets, addShards, emptyStatMap, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
+import { addPoints, addTickets, addShards, cupById, ensureCup, emptyStatMap, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen, KUKU_DAN } from './gen.js';
@@ -472,6 +472,10 @@ function claimGifts() {
 }
 function render() {
   claimGifts();
+  if (kidId && S.kids[kidId].shardGift > 0 && !S.kids[kidId].shardGiftShown) { // これまでの ぶんの かけらを おしらせ
+    const pp = S.kids[kidId]; pp.shardGiftShown = 1; save();
+    setTimeout(() => { toast(`💠 いままでの がんばりで ダイヤの かけら +${pp.shardGift}!`); confetti(innerWidth / 2, innerHeight * 0.3, 90, 1.3); beep('win'); }, 1200);
+  }
   const k = kidId && kidOf();
   document.documentElement.style.setProperty('--kid', k ? k.color : '#2f7bff');
   applyCfg();
@@ -1209,6 +1213,29 @@ try {
   if (r.ok) registerGeo(await r.json(), fr && fr.ok ? await fr.json() : null);
 } catch { /* オフラインなど */ }
 
+// ---- いままでの がんばりぶんの ダイヤの かけらを 1かいだけ くばる ----------------------------------------
+// (ダイヤモンドが できる まえに ためた ぶん: できた たんげん・のりこえた かせつ・メダル・パーフェクト・れんしゅうの 週・たいかい)
+const weekKeyOf = (ds) => { const [y, m, d] = ds.split('-').map(Number); const dt = new Date(y, m - 1, d); const j = new Date(y, 0, 1); return `${y}-${Math.floor(((dt - j) / 864e5 + j.getDay()) / 7)}`; };
+function migrateShards() {
+  for (const k of KIDS) {
+    const p = S.kids[k.id]; if (p.shardMig) continue; p.shardMig = 1;
+    let n = 0; p.okSeen = p.okSeen || {};
+    for (const id of Object.keys(p.units || {})) if (status(p, id) === 'ok' && !p.okSeen[id]) { p.okSeen[id] = 1; n += 2; }  // できた たんげん
+    n += (p.hypResolved || 0) * 3 + (p.perfect || 0);                                                                          // のりこえた かせつ・パーフェクト
+    const have = (b) => (p.badges || []).includes(b.id) || b.cond(p, k); n += BADGES.filter(have).length;                      // メダル
+    const byWeek = {}; for (const d of p.days || []) { const w = weekKeyOf(d); byWeek[w] = (byWeek[w] || 0) + 1; }
+    n += Object.values(byWeek).filter((c) => c >= 5).length * 5;                                                              // 1しゅうかんで 5日 れんしゅうした 週
+    if ((byWeek[weekKeyOf(todayStr())] || 0) >= 5) p.wkShard = weekKeyOf(todayStr()); // こんしゅうの ぶんは さらに もらわない
+    const c = ensureCup(p); c.firsts = c.firsts || {};                                                                           // たいかい
+    for (const id of c.cleared) { const cup = cupById(id); if (cup) cup.rounds.forEach((_, i) => { c.firsts[`${id}:${i}`] = 1; }); }
+    if (c.run) for (let r = 0; r < c.run.round; r++) c.firsts[`${c.run.id}:${r}`] = 1;
+    n += Object.keys(c.firsts).length + c.cleared.length * 10;
+    if (n) addShards(p, n);
+    p.shardGift = n;
+  }
+  save();
+}
+migrateShards();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 render();
 syncNow(); // ひらいた ときに じぶんの きろくを おくり、かぞくの きろく・しつもんを うけとる
