@@ -326,7 +326,7 @@ function openBattle(b) {
 }
 function cupOutHtml() {
   const o = B.cupOut; const cup = G.cupById(B.cup.id);
-  const rw = (Object.keys(o.reward || {}).length ? `<p>${rewardText(o.reward)} を ゲット!</p>` : '') + (o.capped ? `<p class="muted">きょうの くりかえしの チケットは ここまで(1日 ${G.MATCH_TICKET_CAP}まい)。はじめて かった ラウンドの チケットは ふくまれないよ。</p>` : '');
+  const rw = (Object.keys(o.reward || {}).length ? `<p>${rewardText(o.reward)} を ゲット!</p>` : '') + (o.capped ? `<p class="muted">きょうの くりかえしの チケットは ここまで(1日 ブロンズ・シルバー・ゴールド・プラチナ それぞれ ${G.MATCH_TICKET_CAP}まいまで)。はじめて かった ラウンドの チケットは ふくまれないよ。</p>` : '');
   if (o.type === 'cleared') return `<div class="cupout win"><b>🏆 ${cup.name} ゆうしょう!</b>${rw}${o.first ? '<p>メダルを ゲットしたよ!(チームが ちょっと つよくなる)</p>' : ''}<button class="btn gold" data-act="sub" data-sub="cup">たいかいへ もどる</button></div>`;
   if (o.type === 'advance') return `<div class="cupout win"><b>✅ しょうり! つぎの ラウンドへ</b>${rw}<p>つぎ: ${cup.rounds[o.round].label} ― ${esc(cup.rounds[o.round].name)}</p><button class="btn gold" data-act="cupfight" data-cup="${cup.id}">⚔ つぎの しあいへ</button></div>`;
   if (o.type === 'retry') return `<div class="cupout"><b>ざんねん…!</b><p>おなじ しあいから もういちど ちょうせんできるよ。</p><button class="btn gold" data-act="cupfight" data-cup="${cup.id}">⚔ もういちど</button></div>`;

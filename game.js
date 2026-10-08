@@ -545,7 +545,7 @@ export const CUPS = [
   ] },
 ];
 export const cupById = (id) => CUPS.find((c) => c.id === id);
-export const MATCH_TICKET_CAP = 10; // くりかえしの たいかいで もらえる チケットの 1日の じょうげん(はじめて かった ラウンド・はじめての ゆうしょうは べつ)
+export const MATCH_TICKET_CAP = 20; // くりかえしの たいかいで もらえる チケットの 1日の じょうげん(ブロンズ・シルバー・ゴールド・プラチナ それぞれ。はじめて かった ラウンド・はじめての ゆうしょうは べつ)
 export const ensureCup = (p) => { p.cup = p.cup || {}; p.cup.cleared = Array.isArray(p.cup.cleared) ? p.cup.cleared : []; p.cup.titles = p.cup.titles || {}; if (p.cup.run && !cupById(p.cup.run.id)) p.cup.run = null; return p.cup; };
 export function cupUnlocked(p, id) {
   const i = CUPS.findIndex((c) => c.id === id); if (i < 0) return false;
@@ -570,9 +570,9 @@ export function cupResult(p, id, round, won, forgive = false, today = '') {
   let reward = mergeTickets(cup.rounds[round].reward, last ? cup.final : null);
   let capped = false;
   if (!firstWin && !firstClear) { // 2かいめいこうの くりかえしは 1日の じょうげんが ある
-    c.mt = c.mt && c.mt.date === today ? c.mt : { date: today, n: 0 };
+    c.mt = c.mt && c.mt.date === today ? c.mt : { date: today };
     const out = {};
-    for (const k of TICKET_ORDER) for (let i = 0; i < (reward[k] || 0); i++) { if (c.mt.n >= MATCH_TICKET_CAP) { capped = true; break; } out[k] = (out[k] || 0) + 1; c.mt.n++; }
+    for (const k of TICKET_ORDER) for (let i = 0; i < (reward[k] || 0); i++) { if ((c.mt[k] || 0) >= MATCH_TICKET_CAP) { capped = true; break; } out[k] = (out[k] || 0) + 1; c.mt[k] = (c.mt[k] || 0) + 1; }
     reward = out;
   }
   addTickets(p, reward);
