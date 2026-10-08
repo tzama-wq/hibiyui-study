@@ -545,7 +545,7 @@ export const CUPS = [
   ] },
 ];
 export const cupById = (id) => CUPS.find((c) => c.id === id);
-export const MATCH_TICKET_CAP = 3; // くりかえしの たいかいで もらえる チケットの 1日の じょうげん(はじめて かった ラウンド・はじめての ゆうしょうは べつ)
+export const MATCH_TICKET_CAP = 10; // くりかえしの たいかいで もらえる チケットの 1日の じょうげん(はじめて かった ラウンド・はじめての ゆうしょうは べつ)
 export const ensureCup = (p) => { p.cup = p.cup || {}; p.cup.cleared = Array.isArray(p.cup.cleared) ? p.cup.cleared : []; p.cup.titles = p.cup.titles || {}; if (p.cup.run && !cupById(p.cup.run.id)) p.cup.run = null; return p.cup; };
 export function cupUnlocked(p, id) {
   const i = CUPS.findIndex((c) => c.id === id); if (i < 0) return false;

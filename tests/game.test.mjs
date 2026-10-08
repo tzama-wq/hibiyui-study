@@ -316,9 +316,9 @@ for (const f of FORMATIONS) {
   assert.equal(p.cup.titles.j, 1);
   const have = () => Object.values(p.tickets).reduce((a, b) => a + b, 0);
   const before = have();
-  // くりかえしは 1日 3まいまで
+  // くりかえしは 1日 MATCH_TICKET_CAP まいまで
   for (let rep = 0; rep < 6; rep++) for (let r = 0; r < 4; r++) cupResult(p, 'j', r, true, false, T);
-  assert.equal(have() - before, MATCH_TICKET_CAP, 'くりかえしで もらえるのは 1日 3まい');
+  assert.equal(have() - before, MATCH_TICKET_CAP, 'くりかえしで もらえるのは 1日の じょうげんまで');
   const rr = cupResult(p, 'j', 0, true, false, T); assert.equal(rr.reward && Object.keys(rr.reward).length, 0);
   // つぎの日は また もらえる
   const b2 = have(); cupResult(p, 'j', 0, true, false, '2026-10-10'); assert.ok(have() > b2);
