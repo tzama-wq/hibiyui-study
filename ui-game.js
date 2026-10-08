@@ -324,6 +324,13 @@ function openBattle(b) {
     } });
   } else tickBattle();
 }
+// しあいの まとめ(シュート・タックル・MVP)
+function summaryHtml() {
+  const m = G.matchSummary(B.res.events, B.res.score); const s = m.stats;
+  const row = (l, a, b) => `<div class="sm-row"><b>${a}</b><span>${l}</span><b>${b}</b></div>`;
+  return `<div class="sm">${row('シュート', s.a.shots, s.b.shots)}${row('セーブ', s.a.saves, s.b.saves)}${row('タックル・カット', s.a.tackles, s.b.tackles)}
+    ${m.mvp ? `<div class="mvp">⭐ MVP <b>${esc(m.mvp.name)}</b><small>${esc(m.mvp.why)}</small></div>` : ''}</div>`;
+}
 function cupOutHtml() {
   const o = B.cupOut; const cup = G.cupById(B.cup.id);
   const rw = (Object.keys(o.reward || {}).length ? `<p>${rewardText(o.reward)} を ゲット!</p>` : '') + (o.capped ? `<p class="muted">きょうの くりかえしの チケットは ここまで(1日 ブロンズ・シルバー・ゴールド・プラチナ それぞれ ${G.MATCH_TICKET_CAP}まいまで)。はじめて かった ラウンドの チケットは ふくまれないよ。</p>` : '');
@@ -354,7 +361,7 @@ function pkRow() {
   const sc = (s) => kicks.filter((k) => k.side === s && k.ok).length;
   return `<div id="bpk" class="bpk"><b>PK戦</b><div><span>${esc(B.me.name)} <em>${sc('a')}</em></span><small>${mark('a')}</small></div><div><span>${esc(B.opp.name)} <em>${sc('b')}</em></span><small>${mark('b')}</small></div></div>`;
 }
-const logRow = (e, isNew) => `<div class="bl ${e.type} ${e.side === 'a' ? 'me' : 'op'} ${isNew ? 'new' : ''}"><i>${e.type === 'goal' ? '⚽' : e.type === 'save' ? '🧤' : '💨'}</i><span>${esc(e.text)}</span></div>`;
+const logRow = (e, isNew) => `<div class="bl ${e.type} ${e.type === 'tackle' ? (e.side === 'a' ? 'op' : 'me') : e.side === 'a' ? 'me' : 'op'} ${isNew ? 'new' : ''}"><i>${e.type === 'goal' ? '⚽' : e.type === 'save' ? '🧤' : e.type === 'tackle' ? '🛡️' : '💨'}</i><span>${esc(e.text)}</span></div>`;
 function tickBattle() { // 「うごきを へらす」ときの ぶんしょうだけの しあい
   clearTimeout(timer);
   if (!B || B.i >= B.evs.length) { finishBattle(); return; }
@@ -375,7 +382,7 @@ function finishBattle() {
   if (won) p.battles.w++; else if (s.a < s.b || B.pk) p.battles.l++; else p.battles.d++;
   if (B.cup) B.cupOut = G.cupResult(p, B.cup.id, B.cup.round, won, !!(X.cfg && X.cfg().forgive), X.today());
   if (B.pk && won) p.pkWins = (p.pkWins || 0) + 1;
-  p.lastMatch = { pk: B.pk || null, me: B.me, opp: B.opp, score: { ...s }, events: B.res.events.map(({ side, type, passer, shooter, keeper, score, text }) => ({ side, type, passer, shooter, keeper, score, text })) };
+  p.lastMatch = { pk: B.pk || null, me: B.me, opp: B.opp, score: { ...s }, events: B.res.events.map(({ side, type, kind, how, defender, passer, shooter, keeper, score, text }) => ({ side, type, kind, how, defender, passer, shooter, keeper, score, text })) };
   X.save();
   if (won) { X.fx.confetti(vw() / 2, vh() * 0.35, 120, 1.5); X.fx.beep('win'); }
 }
@@ -395,7 +402,7 @@ export function battleView() {
     ${pkRow()}
     <div class="blog" id="blog">${shown.map((e) => logRow(e)).join('') || '<div class="muted">キックオフ…!</div>'}</div>
     ${done ? `<div class="bresult ${won ? 'win' : sc.a < sc.b || B.pk ? 'lose' : ''}"><b>${result[0]}</b><p>${result[1]}</p></div>
-      ${cupPanel}<div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェストを みる</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 もういちど ぜんぶ</button></div>`
+      ${summaryHtml()}${cupPanel}<div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェストを みる</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 もういちど ぜんぶ</button></div>`
     : `<div class="row"><button class="btn small gray" data-act="battlespeed">⏩ ${B.speed > 1 ? 'ふつうに もどす' : 'はやおくり'}</button><button class="btn small gray" data-act="battleskip">⏭ とばす</button></div>`}
     <button class="btn gold" data-act="battleend">${done ? 'もどる' : 'やめる'}</button></section></main>`;
 }

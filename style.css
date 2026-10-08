@@ -494,3 +494,6 @@ body.big .nav button small{font-size:13px}
 .r-kid{--rc:#9ff3ff;--rg1:#2aa6c9;--rg2:#0a2a47}
 .r-kid.rcard{box-shadow:0 0 16px rgba(120,235,255,.7),inset 0 0 14px rgba(255,255,255,.22);background-image:linear-gradient(135deg,rgba(255,255,255,.18),transparent 40%,rgba(180,240,255,.25) 60%,transparent);animation:diamond 3.2s linear infinite}
 @keyframes diamond{50%{box-shadow:0 0 22px rgba(190,250,255,.95),inset 0 0 18px rgba(255,255,255,.35)}}
+
+.sm{margin:8px 0;padding:8px 10px;background:rgba(255,255,255,.05)}.sm-row{display:grid;grid-template-columns:34px 1fr 34px;text-align:center;font-size:13px;padding:2px 0}.sm-row b{font-size:15px;color:var(--gold)}.sm-row span{color:var(--mute)}
+.mvp{margin-top:6px;padding:6px 8px;text-align:center;background:linear-gradient(90deg,#4a3700,#241a00);font-size:13px}.mvp b{color:var(--gold);font-size:15px;margin:0 4px}.mvp small{color:var(--mute)}

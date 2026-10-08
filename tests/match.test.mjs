@@ -52,6 +52,7 @@ for (const [fa, fb] of [['442', '433'], ['352', '532'], ['451', '343']]) {
   assert.ok(m.done, 'しあいが おわる'); assert.equal(ended, 1);
   for (let i = 0; i < events.length; i++) assert.ok(['start', 'result', 'end'].every((p) => log.includes(`${p}${i}`)), `チャンス${i}の えんしゅつ`);
   assert.ok(log.includes('HALF TIME') && log.includes('FULL TIME'));
+  if (events.some((e) => e.type === 'tackle')) assert.ok(log.includes('タックル!') || log.includes('カット!'), 'タックルの えんしゅつ');
   assert.ok(frames * 0.03 < 90, `しあいは 90びょう いない (${(frames * 0.03).toFixed(0)}びょう)`);
   m.destroy();
 }

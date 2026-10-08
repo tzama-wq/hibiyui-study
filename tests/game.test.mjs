@@ -5,7 +5,7 @@ import {
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
-  FORMATIONS, slotsOf, refitTeam, MAX_LEVEL, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
+  FORMATIONS, slotsOf, refitTeam, MAX_LEVEL, matchSummary, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
 } from '../game.js';
 
 // ---- 選手データ ----
@@ -348,5 +348,35 @@ for (const f of FORMATIONS) {
   assert.ok(STATS.every((s) => q.pts[s] > 0), '小4: 算数・国語・理科・社会で 5つとも のびる');
   assert.equal(addPoints(q, '体育', 2), null);
   assert.equal(addPoints({}, '算数', 2), 'SHO');
+}
+// ---- ディフェンダーの タックル・カット ----
+{
+  const flat = (v, d) => ({ name: 'F', team: SLOT_POS.map((slot, i) => ({ slot, id: `f${i}`, name: `F${d}${i}`, face: '⚽', pos: slot, rarity: 'common', level: 0, offPos: false, stats: Object.fromEntries(STATS.map((x) => [x, v])) })) });
+  const rnd = rngSeed(31); let tk = 0; let all = 0; let dfn = 0; let goals = 0; const types = new Set();
+  for (let g = 0; g < 400; g++) {
+    const A = flat(60, 'a'); const B = flat(60, 'b'); const r = simulate(A, B, rnd);
+    assert.equal(r.events.length, 12);
+    for (const e of r.events) {
+      all++; types.add(e.type);
+      if (e.type === 'tackle') {
+        tk++; const defTeam = e.side === 'a' ? B : A;
+        const d = defTeam.team.find((m) => m.name === e.defender); assert.ok(d, 'うばう 人は まもる チームの 人'); assert.ok(['DF', 'MF'].includes(d.slot));
+        if (d.slot === 'MF') assert.equal(e.kind, 'intercept', 'MFは インターセプト'); dfn += d.slot === 'DF' ? 1 : 0;
+        assert.match(e.text, /タックル|インターセプト/);
+      }
+      if (e.type === 'goal') { goals++; assert.ok(['shot', 'header', 'long'].includes(e.how)); }
+    }
+    const sm = matchSummary(r.events, r.score);
+    assert.equal(sm.stats.a.goals + sm.stats.b.goals, r.score.a + r.score.b);
+    assert.equal(sm.stats.a.shots + sm.stats.b.shots + sm.stats.a.tackles + sm.stats.b.tackles, 12);
+    if (sm.mvp) assert.ok(sm.mvp.name && ['a', 'b'].includes(sm.mvp.side));
+  }
+  assert.ok(types.has('tackle') && types.has('goal') && types.has('save') && types.has('miss'));
+  const share = tk / all; assert.ok(share > 0.18 && share < 0.35, `ディフェンダーが ボールを うばう わりあい ${share.toFixed(2)}`);
+  assert.ok(dfn / tk > 0.5, 'DFの タックルが おおい');
+  assert.ok(Math.abs(goals / all - 0.2) < 0.12, 'ゴールの わりあいは これまでと ほぼ おなじ');
+  // MVP: ゴール+アシストの 人が えらばれる
+  const s2 = matchSummary([{ side: 'a', type: 'goal', passer: 'P', shooter: 'S', keeper: 'K' }, { side: 'b', type: 'tackle', defender: 'D', kind: 'tackle', shooter: 'X', passer: 'Y', keeper: 'K2' }], { a: 1, b: 0 });
+  assert.equal(s2.mvp.name, 'S');
 }
 console.log('OK: game');

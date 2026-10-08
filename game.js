@@ -428,16 +428,46 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
     const shooter = pickW(cands, cands.map((x) => x.stats.SHO * (fw.includes(x) ? 1 : 0.5)), rnd);
     const p = goalChance(atk.r.att, dfn.r.def);
     const roll = rnd();
-    const type = roll < p ? 'goal' : roll < p + (1 - p) * 0.55 ? 'save' : 'miss';
+    // ゴールの かくりつは まえと おなじ。ゴールに ならない ぶんから、ディフェンダーの タックル・カットを わける
+    let type; let defender = null; let kind = '';
+    if (roll < p) type = 'goal';
+    else {
+      const u = (roll - p) / (1 - p);
+      const tackleP = clamp(0.1 + 0.45 * (dfn.r.def / (atk.r.att + dfn.r.def)), 0.12, 0.42);
+      if (u < tackleP) {
+        type = 'tackle';
+        const cand = [...at(dfn.team, 'DF'), ...at(dfn.team, 'MF')];
+        const d = pickW(cand, cand.map((x) => x.stats.DEF * (x.slot === 'DF' ? 1 : 0.5)), rnd);
+        defender = d.name; kind = d.slot === 'DF' && rnd() < 0.7 ? 'tackle' : 'intercept';
+      } else type = (u - tackleP) / (1 - tackleP) < 0.55 ? 'save' : 'miss';
+    }
     if (type === 'goal') score[atk.key]++;
+    const how = type === 'goal' ? (shooter.slot === 'FW' && rnd() < 0.3 ? 'header' : rnd() < 0.2 ? 'long' : 'shot') : '';
     events.push({
-      side: atk.key, type, passer: passer.name, shooter: shooter.name, keeper: gk.name, score: { ...score },
-      text: type === 'goal' ? `${passer.name}の パスから ${shooter.name}が シュート! ゴール!!`
-        : type === 'save' ? `${shooter.name}の シュートを ${gk.name}が ナイスセーブ!`
-          : `${shooter.name}の シュートは ゴールの 外へ…`,
+      side: atk.key, type, kind, how, defender, passer: passer.name, shooter: shooter.name, keeper: gk.name, score: { ...score },
+      text: type === 'goal' ? (how === 'header' ? `${passer.name}の クロスを ${shooter.name}が ヘディングで ゴール!!` : how === 'long' ? `${shooter.name}が ミドルシュート! ゴール!!` : `${passer.name}の パスから ${shooter.name}が シュート! ゴール!!`)
+        : type === 'tackle' ? (kind === 'tackle' ? `${defender}が ${shooter.name}から ボールを うばった! ナイスタックル!` : `${defender}が ${passer.name}の パスを カット! インターセプト!`)
+          : type === 'save' ? `${shooter.name}の シュートを ${gk.name}が ナイスセーブ!`
+            : `${shooter.name}の シュートは ゴールの 外へ…`,
     });
   }
   return { events, score, ratings: { a: ra, b: rb } };
+}
+
+// しあいの まとめ(シュートの かず・タックル・MVP)
+export function matchSummary(events, score = null) {
+  const st = { a: { shots: 0, goals: 0, saves: 0, tackles: 0 }, b: { shots: 0, goals: 0, saves: 0, tackles: 0 } };
+  const pts = new Map(); const add = (side, name, v, why) => { const k = `${side}|${name}`; const o = pts.get(k) || { side, name, v: 0, why: [] }; o.v += v; if (!o.why.includes(why)) o.why.push(why); pts.set(k, o); };
+  for (const e of events) {
+    const d = e.side === 'a' ? 'b' : 'a';
+    if (e.type === 'tackle') { st[d].tackles++; add(d, e.defender, 2, e.kind === 'intercept' ? 'カット' : 'タックル'); continue; }
+    st[e.side].shots++;
+    if (e.type === 'goal') { st[e.side].goals++; add(e.side, e.shooter, 3, 'ゴール'); if (e.passer && e.passer !== e.shooter) add(e.side, e.passer, 2, 'アシスト'); }
+    else if (e.type === 'save') { st[d].saves++; add(d, e.keeper, 2, 'ナイスセーブ'); }
+  }
+  const win = score ? (score.a > score.b ? 'a' : score.a < score.b ? 'b' : null) : null;
+  const best = [...pts.values()].sort((x, y) => y.v - x.v || (y.side === win) - (x.side === win))[0] || null;
+  return { stats: st, mvp: best ? { name: best.name, side: best.side, why: best.why.join('・') } : null };
 }
 
 // CPUチーム: つよさは「じぶんに あわせない」。いつでも きまった つよさ(おそろしい あいては ほんとうに つよい)
