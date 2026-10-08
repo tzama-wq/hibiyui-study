@@ -181,7 +181,7 @@ function diamondHtml() {
   return `<section class="panel"><h2 class="sec">DIAMOND <small>ダイヤモンド ${owned}/${dl.length}</small></h2>
     <div class="power"><b>💠 ダイヤの かけら ${p.shards}</b><span>ガチャでは でないよ</span></div>
     <div class="muted"><b>かけら</b>は べんきょうで たまるよ: 🔬 かせつを のりこえた(+3)・✅ たんげんが「できた」に なった(+2)・🏅 あたらしい メダル(+1)・✨ パーフェクト(+1)・📅 1しゅうかん れんしゅう(+5)・🏆 たいかいで はじめて かつ(+1)/ゆうしょう(+10)。<br>
-    ダイヤモンドを もらうには ①かけら ${G.DIAMOND.shards}こ ②その ポジションの <b>レジェンドを きょうか +${G.DIAMOND.legendEnh}</b> ③ポジションに あった きょうかの <b>「たつじん」メダル</b>(FW=算数・MF=国語・DF=社会・GK=理科か生活)が ひつよう。</div></section>
+    ダイヤモンドを もらうには ①かけら ${G.DIAMOND.shards}こ ②その ポジションの <b>レジェンドを きょうか +${G.DIAMOND.legendEnh}</b> ③ポジションに あった きょうかの <b>「たつじん」メダル</b>(FW=算数・MF=国語・DF=社会か生活・GK=理科か生活)が ひつよう。</div></section>
     ${dl.map((d) => {
     const r = G.diamondReq(p, d, haveMedalOf);
     const line = (ok, t) => `<div class="dreq ${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${t}</div>`;

@@ -402,6 +402,7 @@ for (const f of FORMATIONS) {
   medals.add('m10_国語'); assert.equal(diamondReq(p, d, have).trial.ok, false, 'FWは 算数');
   medals.add('m10_算数'); assert.equal(diamondReq(p, d, have).can, true);
   assert.equal(claimDiamond(p, d.id, have), true); assert.equal(p.shards, 0); assert.equal(p.owned[d.id], 1); assert.equal(claimDiamond(p, d.id, have), false, '2かいは もらえない');
+  { const dfd = dl.find((x) => x.pos === 'DF'); const dlg = PLAYERS.find((x) => x.rarity === 'legend' && x.pos === 'DF'); const pd = { owned: { [dlg.id]: 1 }, shards: DIAMOND.shards, plv: { [dlg.id]: DIAMOND.legendEnh } }; const hv = (id) => id === 'm10_生活'; assert.equal(diamondReq(pd, dfd, hv).can, true, 'DFは 生活でも OK(小2むけ)'); assert.equal(diamondReq(pd, dfd, (id) => id === 'm10_算数').can, false); }
   // GK: 理科 か 生活 どちらでも
   const gk = dl.find((x) => x.pos === 'GK'); const glg = PLAYERS.find((x) => x.rarity === 'legend' && x.pos === 'GK');
   const p2 = { owned: { [glg.id]: 1 }, shards: DIAMOND.shards, plv: { [glg.id]: DIAMOND.legendEnh } };

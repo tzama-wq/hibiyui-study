@@ -13,7 +13,7 @@ for (const units of Object.values(UNITS)) {
       const q = makeQuestion(u);
       n++;
       const ctx = `${u.id}: ${q.text}`;
-      const know = ['理科', '社会', '生活'].includes(u.subject);
+      const know = !!u.items; // 事実リスト方式(理科・社会・生活・国語のことば)は 3〜4こ
       if (know) assert.ok(q.choices.length === 3 || q.choices.length === 4, `choices ${ctx}`);
       else assert.equal(q.choices.length, 4, `choices!=4 ${ctx}`);
       assert.ok(!/<(?!\/?(small|br|ruby|rt)>)/.test(q.text), `unsafe html ${ctx}`);

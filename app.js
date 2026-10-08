@@ -135,14 +135,16 @@ function buildSet(kid, mode, unitId) {
   } else {
     const review = sk.filter((u) => !cur.includes(u));
     const c = backCandidates(kid);
-    const ko = unitsOf(kid.grade).find((u) => u.subject === '国語');
+    const kos = unitsOf(kid.grade).filter((u) => u.subject === '国語'); // 国語は 漢字+ことばの たんげん。まいにち 2もん
+    const pickKo = () => (kos.length ? kos[Math.floor(Math.random() * kos.length)] : null);
+    const ko = pickKo(); let ko2 = pickKo(); for (let i = 0; i < 6 && kos.length > 1 && ko2 === ko; i++) ko2 = pickKo();
     const month = new Date().getMonth() + 1;
     const know = unitsOf(kid.grade).filter((u) => ['理科', '社会', '生活'].includes(u.subject));
     const knowNow = know.filter((u) => u.months.includes(month));
     const kpool = knowNow.length ? knowNow : know;
     const kn = kpool.length ? kpool[Math.floor(Math.random() * kpool.length)] : null;
     // だいじな じゅんに ならべて、せっていの もんだい数ぶん つかう。「やることを みせる」せっていの ときは じゅんばんを かえない
-    plan = [cur[0], ko || cur[1 % cur.length], kn || cur[2 % cur.length], c.length ? c[0] : weakPick(p, review.length ? review : sk), cur[1 % cur.length]].slice(0, SET_SIZE);
+    plan = [cur[0], ko || cur[1 % cur.length], kn || cur[2 % cur.length], ko2 || cur[1 % cur.length], c.length ? c[0] : weakPick(p, review.length ? review : sk)].slice(0, SET_SIZE);
     if (!kc.preview) plan = shuffle(plan);
     // いま たしかめ中の かせつが あれば、1もん(大きいセットは 2もん)を「たしかめる 問題」に する
     const nProbe = Math.min(2, Math.max(1, Math.floor(SET_SIZE / 3)));
@@ -342,6 +344,41 @@ const BADGES = [
   registerBuffs(Object.fromEntries(more.map((m) => [m.id, m.buff])));
   BADGES.push(...more.map(({ id, icon, name, cond }) => ({ id, icon, name, cond })));
 }
+// メダルを とる じょうけん(「れんしゅう」の メダルだなに ひょうじ)
+const UNIT_JA = () => ({ geo_pref: 'とどうふけんの かたち', geo_world: 'せかいの くにの かたち', flag_world: 'せかいの こっき', geo_pref_e: 'とどうふけんの かたち', geo_world_e: 'せかいの くにの かたち', flag_world_e: 'せかいの こっき' });
+const BASE_DESC = {
+  goal1: 'はじめて もんだいに せいかいする', goal10: 'ぜんぶで 10もん せいかい', goal50: 'ぜんぶで 50もん せいかい', goal100: 'ぜんぶで 100もん せいかい', goal300: 'ぜんぶで 300もん せいかい',
+  day3: 'ぜんぶで 3日 れんしゅう', day7: 'ぜんぶで 7日 れんしゅう', day30: 'ぜんぶで 30日 れんしゅう',
+  hat: '3もん れんぞくで せいかい(ハットトリック)', perfect: 'ミスなしで 1セット ぜんぶ せいかい', comeback: 'おやすみの あとの「かくれステージ」を クリア', time: 'タイムマシンを 1かい あそぶ',
+  kuku9: '九九の 1〜9の だんが ぜんぶ「できた」', hyp1: 'つまずきの かせつを 1つ のりこえる', hyp5: 'つまずきの かせつを 5つ のりこえる',
+  cup_j: 'Jリーグで ゆうしょう', cup_asia: 'アジアカップで ゆうしょう', cup_kirin: 'KIRINカップで ゆうしょう', cup_wc: 'ワールドカップで ゆうしょう',
+  cup_allstar: '世界オールスターで ゆうしょう', cup_isekai: '異世界大会で ゆうしょう', cup_galaxy: '銀河系大会で ゆうしょう', cup_universe: '宇宙最強大会で ゆうしょう',
+};
+function medalDesc(b) {
+  if (BASE_DESC[b.id]) return BASE_DESC[b.id];
+  const id = b.id; let m;
+  if ((m = id.match(/^goal(\d+)$/))) return `ぜんぶで ${m[1]}もん せいかい`;
+  if ((m = id.match(/^day(\d+)$/))) return `ぜんぶで ${m[1]}日 れんしゅう`;
+  if ((m = id.match(/^hat(\d+)$/))) return `ハットトリック(3もん れんぞく せいかい)を ${m[1]}かい`;
+  if ((m = id.match(/^perfect(\d+)$/))) return `ミスなしの セット(パーフェクト)を ${m[1]}かい`;
+  if ((m = id.match(/^time(\d+)$/))) return `タイムマシンを ${m[1]}かい あそぶ`;
+  if ((m = id.match(/^hyp(\d+)$/))) return `つまずきの かせつを ${m[1]}こ のりこえる`;
+  if ((m = id.match(/^kuku_d(\d)$/))) return `九九の ${m[1]}の だんが「できた」(べつの日にも せいかい)`;
+  if (id === 'kuku_all') return '「九九 ぜんぶ」が「できた」'; if (id === 'kuku_inv') return '「□を さがせ」が「できた」';
+  if ((m = id.match(/^ok_(.+)$/))) return `「${UNIT_JA()[m[1]] || m[1]}」の もんだいが「できた」(べつの日にも せいかい)`;
+  if ((m = id.match(/^n(50|200)_(.+)$/))) return `「${UNIT_JA()[m[2]] || m[2]}」で ${m[1]}もん せいかい`;
+  if ((m = id.match(/^titles(\d+)$/))) return `たいかいで ゆうしょうを ぜんぶで ${m[1]}かい`;
+  if ((m = id.match(/^win(\d+)$/))) return `たいせん・たいかいの しあいで ${m[1]}しょう`;
+  if ((m = id.match(/^pk(\d+)$/))) return `PK戦で ${m[1]}しょう`;
+  if ((m = id.match(/^dex(\d+)$/))) return `ずかんに ${m[1]}にん あつめる`;
+  if ((m = id.match(/^legend(\d+)$/))) return `レジェンドを ${m[1]}にん ゲット`;
+  if ((m = id.match(/^enh(\d+)$/))) return `ガチャ選手の きょうかを ぜんぶで ${m[1]}かい`;
+  if (id === 'enhmax') return 'ガチャ選手を きょうか +20(MAX)に する';
+  if (id.startsWith('rank')) return `ランク「${b.name}」まで ポイントを ためる`;
+  if ((m = id.match(/^m(\d+)?_?(.+)$/))) { const n = m[1] || '3'; return `「${m[2]}」で「できた」たんげんを ${n}こ ふやす(それぞれ 3もん せいかい・2日 いじょう)`; }
+  return '';
+}
+for (const b of BADGES) b.desc = medalDesc(b);
 
 // ---- 日本代表の選出 ---------------------------------------------------------
 // 直近7日で need 日以上 れんしゅうすると 選出。かくれステージを クリアすると 追加招集(3日間)。
@@ -539,9 +576,9 @@ function medalShelf(k, p) {
   const have = (b) => (p.badges || []).includes(b.id) || b.cond(p, k);
   const n = BADGES.filter(have).length;
   return `<section class="panel"><h2 class="sec">MEDALS <small>メダル ${n}/${BADGES.length}</small></h2>
-    <div class="medals">${BADGES.filter(have).map((b) => `<div class="medal got" title="${b.name}"><span>${b.icon}</span><small>${b.name}</small></div>`).join('') || '<div class="muted">まだ メダルは ないよ。がんばって ゲットしよう!</div>'}</div>
+    <div class="medals">${BADGES.filter(have).map((b) => `<div class="medal got" title="${b.desc}"><span>${b.icon}</span><small>${b.name}</small></div>`).join('') || '<div class="muted">まだ メダルは ないよ。がんばって ゲットしよう!</div>'}</div>
     <details><summary><b>🔒 まだの メダル(${BADGES.length - n})</b></summary>
-      <div class="medals">${BADGES.filter((b) => !have(b)).map((b) => `<div class="medal" title="${b.name}"><span>🔒</span><small>${b.name}</small></div>`).join('')}</div></details></section>`;
+      <div class="mlist">${BADGES.filter((b) => !have(b)).map((b) => `<div class="mrow"><span>${b.icon}</span><div><b>${b.name}</b><small>${b.desc}</small></div></div>`).join('')}</div></details></section>`;
 }
 
 // 「きょうの やること」リスト(みとおしが あると おちつく子の ため)

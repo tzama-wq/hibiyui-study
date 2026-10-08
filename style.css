@@ -522,3 +522,8 @@ body.big .nav button small{font-size:13px}
 .dia-main{display:flex;gap:10px;align-items:flex-start}.dia-main .rcard{width:104px;flex:none}
 .dia-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.dia-info b{font-size:15px}.dia-info small{color:var(--mute);font-size:11px}
 .dreq{font-size:12px;line-height:1.35}.dreq.ok{color:var(--mint,#19d68a)}
+
+/* メダルの じょうけん リスト */
+.mlist{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.mrow{display:flex;gap:10px;align-items:center;padding:6px 8px;background:rgba(255,255,255,.05);border-left:4px solid #3a4a7a}
+.mrow>span{font-size:22px;filter:grayscale(.6);width:30px;text-align:center}.mrow b{display:block;font-size:13px}.mrow small{display:block;color:var(--mute);font-size:11px;line-height:1.35}

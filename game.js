@@ -484,7 +484,7 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
 }
 
 // ---- ダイヤモンドを てに いれる(かけら + きたえた レジェンド + きょうかの たつじん) -------------------
-export const DIAMOND = { shards: 40, legendEnh: 10, subjects: { FW: ['算数'], MF: ['国語'], DF: ['社会'], GK: ['理科', '生活'] } };
+export const DIAMOND = { shards: 40, legendEnh: 10, subjects: { FW: ['算数'], MF: ['国語'], DF: ['社会', '生活'], GK: ['理科', '生活'] } }; // 小2は 理科・社会が ない ので 生活でも OK
 export const addShards = (p, n) => { p.shards = (p.shards || 0) + n; return n; };
 // haveMedal(id): その メダルを もっているか(「たつじん」メダル m10_教科)
 export function diamondReq(p, d, haveMedal) {
