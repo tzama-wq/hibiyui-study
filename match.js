@@ -3,7 +3,7 @@
 //   const m = createMatch({ me, opp, events, speed, callbacks }); m.attach(canvas); ... m.destroy();
 //   me / opp: { name, team: [{ id, name, slot, rarity }] }   events: simulate の events(各 ev に idx, total を つける)
 
-export const W = 320; export const H = 184;
+export const W = 320; export const H = 212; // したに ベンチと かんきゃくせきの ぶんも ある
 export const PITCH = { x0: 10, x1: 310, y0: 26, y1: 178 };
 export const ZOOM = 2; // カメラの ズーム(せいすう ばいで ドットが ぼやけない)
 const GOAL_HALF = 15; // ゴールの はば(たて)の はんぶん
@@ -55,62 +55,91 @@ export function buildPlan(ev, team, rnd, dteam = null) {
 
 // ---- 見た目 ----------------------------------------------------------------------------
 const hash = (s) => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
-const HAIR = ['#2a1a0e', '#5a3a1c', '#c9a227', '#161616', '#7a3b1d', '#a8481f'];
-const SKIN = ['#f4c7a1', '#e9b58c', '#d39b6b', '#a86f45'];
-const RIVAL = ['#e0453a', '#f2a31b', '#2fbf71', '#9b59d0', '#e84393'];
+const HAIR = ['#2a1a0e', '#5a3a1c', '#c9a227', '#161616', '#7a3b1d', '#a8481f', '#d9d9e0', '#2c4d9c'];
+const SKIN = ['#f4c7a1', '#e9b58c', '#d39b6b', '#a86f45', '#7d4e2d'];
+const RIVAL = ['#e0453a', '#f2a31b', '#2fbf71', '#9b59d0', '#e84393', '#18a0a0'];
+const OL = '#14121c'; // ふちどり(カイロソフトふうの くろい ふち)
 export function look(m, side, teamName) {
   const h = hash(m.id || m.name);
-  const rival = RIVAL[hash(teamName) % RIVAL.length];
+  const th = hash(teamName);
+  const rival = RIVAL[th % RIVAL.length];
   const gk = m.slot === 'GK';
+  const shirt = gk ? (side === 'a' ? '#f2e14a' : '#3bd1c6') : side === 'a' ? '#2f6df6' : rival;
   return {
-    hair: HAIR[h % HAIR.length], skin: SKIN[(h >> 3) % SKIN.length],
-    shirt: gk ? (side === 'a' ? '#f2e14a' : '#3bd1c6') : side === 'a' ? '#2f6df6' : rival,
-    trim: side === 'a' ? '#ffffff' : '#fff6d8', shorts: gk ? '#222' : side === 'a' ? '#ffffff' : '#2a2a2a',
+    hair: HAIR[h % HAIR.length], skin: SKIN[(h >> 3) % SKIN.length], style: (h >> 6) % 6,
+    shirt, trim: side === 'a' ? '#ffffff' : '#fff6d8', shorts: gk ? '#222' : side === 'a' ? '#ffffff' : '#2a2a2a',
+    sock: gk ? '#222' : side === 'a' ? '#2f6df6' : rival, pat: gk ? 0 : (th >> 4) % 4, glove: gk,
     star: m.rarity === 'kid' ? 'kid' : ['rare', 'super', 'legend'].includes(m.rarity) ? m.rarity : '',
   };
 }
 
+// からだの ぶひんを ふちどりつきで かく。list: [x, y, w, h, いろ](あしもとの まんなかが げんてん。みぎむき)
+function drawParts(ctx, ox, oy, flip, list) {
+  ctx.fillStyle = OL;
+  for (const [x, y, w, h] of list) ctx.fillRect(ox + (flip ? -x - w : x) - 1, oy + y - 1, w + 2, h + 2);
+  for (const [x, y, w, h, c] of list) { ctx.fillStyle = c; ctx.fillRect(ox + (flip ? -x - w : x), oy + y, w, h); }
+}
+function bodyParts(a, o) {
+  const f = o.frame || 0; const L = [];
+  const hand = a.glove ? '#ffd23f' : a.skin;
+  const run = f === 1 || f === 2;
+  // あし(うしろ・まえ)
+  const legs = [[-3, f === 1 ? -1 : 0], [1, f === 2 ? -1 : 0]];
+  legs.forEach(([lx, lift], i) => {
+    const bx = run && i === (f === 1 ? 1 : 0) ? lx + 1 : lx; // はなれた あしは うしろへ
+    L.push([bx, -5 + lift, 2, 2, a.skin], [bx, -3 + lift, 2, 2, a.sock], [bx, -1 + lift, 3, 1, '#111']);
+  });
+  if (o.kick > 0) L.push([1, -5, 6, 2, a.skin], [1, -3, 6, 1, a.sock], [7, -5, 2, 2, '#111']); // けりあしを のばす
+  // ズボン・シャツ
+  L.push([-4, -8, 8, 3, a.shorts], [-4, -13, 8, 5, a.shirt]);
+  if (a.pat === 1) L.push([-4, -12, 8, 1, a.trim], [-4, -10, 8, 1, a.trim]);
+  else if (a.pat === 2) L.push([-2, -13, 1, 5, a.trim], [1, -13, 1, 5, a.trim]);
+  else if (a.pat === 3) L.push([-4, -11, 8, 2, a.trim]);
+  L.push([-2, -13, 4, 1, a.trim]);
+  // うで
+  if (o.arms) L.push([-6, -17, 2, 5, a.shirt], [-6, -19, 2, 2, hand], [4, -17, 2, 5, a.shirt], [4, -19, 2, 2, hand]);
+  else {
+    const by = f === 1 ? -13 : f === 2 ? -11 : -12; const fy = f === 1 ? -11 : f === 2 ? -13 : -12;
+    L.push([-6, by, 2, 4, a.shirt], [-6, by + 4, 2, 2, hand], [4, fy, 2, 4, a.shirt], [4, fy + 4, 2, 2, hand]);
+  }
+  // あたま
+  L.push([-3, -19, 6, 6, a.skin]);
+  const st = a.style; const hc = a.hair;
+  if (st === 0) L.push([-3, -20, 6, 2, hc], [-3, -18, 1, 2, hc]);
+  else if (st === 1) L.push([-3, -20, 6, 2, hc], [-3, -22, 2, 2, hc], [0, -22, 2, 2, hc], [2, -21, 1, 1, hc]);
+  else if (st === 2) L.push([-3, -20, 6, 2, hc], [-4, -19, 2, 6, hc]);
+  else if (st === 3) L.push([-4, -22, 8, 4, hc], [-4, -19, 2, 3, hc]);
+  else if (st === 4) L.push([-3, -20, 6, 2, hc], [-6, -18, 3, 2, hc], [-6, -16, 2, 3, hc]);
+  else L.push([-3, -20, 6, 2, hc], [-3, -18, 6, 1, '#e84343']);
+  L.push([-1, -17, 1, 2, OL], [2, -17, 1, 2, OL]);
+  return L;
+}
+function markParts(a) { // せんしゅの めじるし(じぶん・レア いじょう)
+  if (a.star === 'kid') return [[-3, -24, 6, 1, '#ffd23f'], [-3, -26, 1, 2, '#ffd23f'], [0, -27, 1, 3, '#ffd23f'], [2, -26, 1, 2, '#ffd23f']];
+  if (a.star) { const c = a.star === 'legend' ? '#ff9f1c' : a.star === 'super' ? '#ffd23f' : '#9be7ff'; return [[0, -27, 1, 5, c], [-2, -25, 5, 1, c]]; }
+  return [];
+}
 function sprite(ctx, x, y, a, o) {
   x = Math.round(x); y = Math.round(y);
-  const j = Math.round(o.jump || 0);
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x - 3, y, 7, 1);
-  y -= j;
-  const f = o.frame || 0;
-  ctx.fillStyle = a.skin; ctx.fillRect(x - 2, y - 3, 2, 3 - (f === 1 ? 1 : 0)); ctx.fillRect(x + 1, y - 3, 2, 3 - (f === 2 ? 1 : 0));
-  ctx.fillStyle = '#111'; ctx.fillRect(x - 2, y - (f === 1 ? 1 : 1) , 2, 1); ctx.fillRect(x + 1, y - 1, 2, 1);
-  ctx.fillStyle = a.shorts; ctx.fillRect(x - 3, y - 5, 6, 2);
-  ctx.fillStyle = a.shirt; ctx.fillRect(x - 3, y - 10, 6, 5);
-  ctx.fillStyle = a.trim; ctx.fillRect(x - 1, y - 10, 2, 1);
-  ctx.fillStyle = a.skin;
-  if (o.arms) { ctx.fillRect(x - 4, y - 14, 1, 5); ctx.fillRect(x + 3, y - 14, 1, 5); }
-  else if (f === 1) { ctx.fillRect(x - 4, y - 10, 1, 3); ctx.fillRect(x + 3, y - 8, 1, 3); } else if (f === 2) { ctx.fillRect(x - 4, y - 8, 1, 3); ctx.fillRect(x + 3, y - 10, 1, 3); }
-  else { ctx.fillRect(x - 4, y - 9, 1, 3); ctx.fillRect(x + 3, y - 9, 1, 3); }
-  if (o.kick > 0) { ctx.fillStyle = a.skin; ctx.fillRect(x + (o.dir > 0 ? 2 : -7), y - 5, 5, 2); ctx.fillStyle = '#111'; ctx.fillRect(x + (o.dir > 0 ? 6 : -8), y - 5, 2, 2); }
-  ctx.fillRect(x - 2, y - 14, 4, 4);
-  ctx.fillStyle = a.hair; ctx.fillRect(x - 2, y - 15, 4, 2); ctx.fillRect(x - 2, y - 13, 1, 1); ctx.fillRect(x + 1, y - 13, 1, 1);
-  ctx.fillStyle = '#111'; ctx.fillRect(x + (o.dir > 0 ? 0 : -1), y - 12, 1, 1);
-  if (a.star === 'kid') { ctx.fillStyle = '#ffd23f'; ctx.fillRect(x - 2, y - 14, 4, 1); ctx.fillRect(x - 1, y - 19, 2, 2); ctx.fillRect(x - 2, y - 18, 4, 1); }
-  else if (a.star) { ctx.fillStyle = a.star === 'legend' ? '#ff9f1c' : a.star === 'super' ? '#ffd23f' : '#9be7ff'; ctx.fillRect(x, y - 19, 1, 3); ctx.fillRect(x - 1, y - 18, 3, 1); }
+  ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.fillRect(x - 5, y, 10, 1); ctx.fillRect(x - 4, y + 1, 8, 1);
+  drawParts(ctx, x, y - Math.round(o.jump || 0), o.dir < 0, [...bodyParts(a, o), ...markParts(a)]);
 }
 // スライディング・ころんだ すがた(よこむき)
 function slideSprite(ctx, x, y, a, dir) {
   x = Math.round(x); y = Math.round(y);
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x - 8, y, 16, 1);
-  ctx.fillStyle = a.shirt; ctx.fillRect(x - 5, y - 5, 7, 4);
-  ctx.fillStyle = a.shorts; ctx.fillRect(x + (dir > 0 ? 2 : -6), y - 5, 4, 4);
-  ctx.fillStyle = a.skin; ctx.fillRect(x + (dir > 0 ? 6 : -9), y - 4, 4, 2); ctx.fillRect(x + (dir > 0 ? -8 : 6), y - 6, 4, 4);
-  ctx.fillStyle = '#111'; ctx.fillRect(x + (dir > 0 ? 9 : -10), y - 4, 1, 2);
-  ctx.fillStyle = a.hair; ctx.fillRect(x + (dir > 0 ? -8 : 8), y - 7, 3, 2);
+  ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.fillRect(x - 10, y, 20, 1);
+  drawParts(ctx, x, y, dir < 0, [
+    [-9, -8, 6, 6, a.skin], [-9, -9, 6, 2, a.hair], [-6, -6, 1, 2, OL],
+    [-4, -8, 7, 5, a.shirt], [-4, -6, 7, 1, a.trim],
+    [3, -7, 4, 4, a.shorts], [7, -6, 6, 2, a.skin], [11, -6, 3, 2, a.sock], [13, -6, 2, 2, '#111'],
+    [-3, -10, 6, 2, a.shirt], [3, -10, 2, 2, a.skin],
+  ]);
 }
 function diveSprite(ctx, x, y, a, up, dirX) { // よこに とびつく キーパー
   x = Math.round(x); y = Math.round(y);
-  ctx.save(); ctx.translate(x, y - 6); ctx.rotate((up ? -1 : 1) * Math.PI * 0.5 * (dirX > 0 ? -1 : 1) * -1);
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(-3, 5, 7, 1);
-  ctx.fillStyle = a.skin; ctx.fillRect(-2, 2, 2, 3); ctx.fillRect(1, 2, 2, 3);
-  ctx.fillStyle = a.shorts; ctx.fillRect(-3, 0, 6, 2);
-  ctx.fillStyle = a.shirt; ctx.fillRect(-3, -5, 6, 5);
-  ctx.fillStyle = a.skin; ctx.fillRect(-4, -10, 1, 6); ctx.fillRect(3, -10, 1, 6); ctx.fillRect(-2, -9, 4, 4);
-  ctx.fillStyle = a.hair; ctx.fillRect(-2, -10, 4, 2);
+  ctx.save(); ctx.translate(x, y - 9); ctx.rotate((up ? -1 : 1) * Math.PI * 0.5 * (dirX > 0 ? -1 : 1) * -1);
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(-5, 9, 10, 1);
+  drawParts(ctx, 0, 9, false, bodyParts(a, { arms: true, frame: 0 }));
   ctx.restore();
 }
 
@@ -375,37 +404,56 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
 
   // ---- かく ---------------------------------------------------------------------------
   function drawPitch(c) {
-    c.fillStyle = '#0c1a33'; c.fillRect(0, 0, W, H);
-    // かんきゃく
+    c.fillStyle = '#0a1426'; c.fillRect(0, 0, W, H);
     const boost = S.crowd;
-    for (let r = 0; r < 3; r++) for (let x = 0; x < W; x += 4) {
-      const h = hash(`${x}:${r}`); const hop = boost > 0.05 && (h & 3) === 0 ? Math.round(Math.abs(Math.sin(S.anim * 9 + x)) * 3 * boost) : 0;
-      c.fillStyle = ['#e8564a', '#f4c542', '#4aa3e8', '#e8e8e8', '#6fcf97', '#a56de2'][h % 6]; c.fillRect(x, 7 + r * 5 - hop, 3, 3); c.fillStyle = '#d9a784'; c.fillRect(x, 5 + r * 5 - hop, 3, 2);
-    }
-    c.fillStyle = '#1b2d4f'; c.fillRect(0, 20, W, 4);
-    // しばふ
-    for (let i = 0; i < 12; i++) { c.fillStyle = i % 2 ? '#2f8f46' : '#379c4e'; c.fillRect(PITCH.x0 + (i * PW) / 12, PITCH.y0, Math.ceil(PW / 12), PH); }
-    c.fillStyle = '#2a7d3d'; c.fillRect(0, PITCH.y0, PITCH.x0, PH); c.fillRect(PITCH.x1, PITCH.y0, W - PITCH.x1, PH); c.fillRect(0, PITCH.y1, W, H - PITCH.y1);
+    const crowd = (y0, rows, flip) => { // かんきゃくせき(ゴールの ときに はねる)
+      c.fillStyle = '#16233f'; c.fillRect(0, y0 - 2, W, rows * 5 + 5);
+      for (let r = 0; r < rows; r++) for (let x = 0; x < W; x += 4) {
+        const h = hash(`${x}:${r}:${y0}`); const hop = boost > 0.05 && (h & 3) === 0 ? Math.round(Math.abs(Math.sin(S.anim * 9 + x)) * 3 * boost) : 0;
+        const yy = y0 + (flip ? rows - 1 - r : r) * 5 - hop;
+        c.fillStyle = ['#e8564a', '#f4c542', '#4aa3e8', '#e8e8e8', '#6fcf97', '#a56de2', '#ff9f43'][h % 7]; c.fillRect(x, yy + 2, 3, 3);
+        c.fillStyle = ['#d9a784', '#c68b63', '#f0c9a6'][(h >> 3) % 3]; c.fillRect(x, yy, 3, 2);
+      }
+    };
+    crowd(2, 3, false);
+    // こうこくの ボード(うえ・した)
+    const BOARD = ['#e63946', '#2a9d8f', '#f4a261', '#4361ee', '#9b5de5', '#ffbe0b'];
+    const board = (y) => { for (let x = 0; x < W; x += 24) { c.fillStyle = BOARD[(x / 24) % BOARD.length]; c.fillRect(x, y, 23, 6); c.fillStyle = 'rgba(255,255,255,.75)'; c.fillRect(x + 3, y + 2, 5, 2); c.fillRect(x + 10, y + 2, 3, 2); c.fillRect(x + 15, y + 2, 5, 2); } c.fillStyle = '#0c1424'; c.fillRect(0, y + 6, W, 2); };
+    board(PITCH.y0 - 10);
+    // しばふ(かわるがわるの しま + ななめの かげ)
+    for (let i = 0; i < 12; i++) { c.fillStyle = i % 2 ? '#2f8f46' : '#38a04f'; c.fillRect(PITCH.x0 + (i * PW) / 12, PITCH.y0, Math.ceil(PW / 12), PH); }
+    for (let y = PITCH.y0; y < PITCH.y1; y += 8) { c.fillStyle = 'rgba(0,0,0,.05)'; c.fillRect(PITCH.x0, y, PW, 4); }
+    c.fillStyle = '#2a7d3d'; c.fillRect(0, PITCH.y0, PITCH.x0, PH); c.fillRect(PITCH.x1, PITCH.y0, W - PITCH.x1, PH);
+    c.fillStyle = '#237137'; c.fillRect(0, PITCH.y1, W, 8);
+    board(PITCH.y1 + 8);
+    // ベンチ(したがわ)
+    for (const bx of [60, 220]) { c.fillStyle = '#e8e8f0'; c.fillRect(bx, PITCH.y1 + 17, 48, 2); c.fillStyle = '#1c2540'; c.fillRect(bx, PITCH.y1 + 19, 48, 5); for (let k = 0; k < 4; k++) { c.fillStyle = ['#2f6df6', '#ffffff'][(bx > 100 ? 1 : 0)]; c.fillRect(bx + 4 + k * 11, PITCH.y1 + 13, 5, 5); c.fillStyle = '#d9a784'; c.fillRect(bx + 4 + k * 11, PITCH.y1 + 10, 5, 4); } }
+    crowd(PITCH.y1 + 27, 2, true);
     // ライン
-    c.fillStyle = 'rgba(255,255,255,.85)';
+    c.fillStyle = 'rgba(255,255,255,.9)';
     c.fillRect(PITCH.x0, PITCH.y0, PW, 1); c.fillRect(PITCH.x0, PITCH.y1 - 1, PW, 1); c.fillRect(PITCH.x0, PITCH.y0, 1, PH); c.fillRect(PITCH.x1 - 1, PITCH.y0, 1, PH);
-    c.fillRect((PITCH.x0 + PITCH.x1) / 2, PITCH.y0, 1, PH);
-    const mid = (PITCH.x0 + PITCH.x1) / 2;
-    for (let a = 0; a < 64; a++) { const t = (a / 64) * Math.PI * 2; c.fillRect(Math.round(mid + Math.cos(t) * 24), Math.round(CY + Math.sin(t) * 24), 1, 1); }
-    for (const s of [0, 1]) { // ペナルティエリア
-      const x = s ? PITCH.x1 - 38 : PITCH.x0; c.fillRect(x, CY - 36, 38, 1); c.fillRect(x, CY + 36, 38, 1); c.fillRect(s ? x : x + 37, CY - 36, 1, 73);
-      const x2 = s ? PITCH.x1 - 14 : PITCH.x0; c.fillRect(x2, CY - 18, 14, 1); c.fillRect(x2, CY + 18, 14, 1); c.fillRect(s ? x2 : x2 + 13, CY - 18, 1, 37);
+    const mid = (PITCH.x0 + PITCH.x1) / 2; c.fillRect(mid, PITCH.y0, 1, PH);
+    for (let a = 0; a < 72; a++) { const t = (a / 72) * Math.PI * 2; c.fillRect(Math.round(mid + Math.cos(t) * 24), Math.round(CY + Math.sin(t) * 24), 1, 1); }
+    c.fillRect(mid - 1, CY - 1, 3, 3);
+    for (const s2 of [0, 1]) { // ペナルティエリアと スポット
+      const x = s2 ? PITCH.x1 - 38 : PITCH.x0; c.fillRect(x, CY - 36, 38, 1); c.fillRect(x, CY + 36, 38, 1); c.fillRect(s2 ? x : x + 37, CY - 36, 1, 73);
+      const x2 = s2 ? PITCH.x1 - 14 : PITCH.x0; c.fillRect(x2, CY - 18, 14, 1); c.fillRect(x2, CY + 18, 14, 1); c.fillRect(s2 ? x2 : x2 + 13, CY - 18, 1, 37);
+      c.fillRect(s2 ? PITCH.x1 - 46 : PITCH.x0 + 45, CY - 1, 2, 2);
     }
-    // ゴール(あみ)
+    // コーナーフラッグ
+    for (const [fx, fy] of [[PITCH.x0, PITCH.y0], [PITCH.x1, PITCH.y0], [PITCH.x0, PITCH.y1], [PITCH.x1, PITCH.y1]]) { c.fillStyle = '#fff'; c.fillRect(fx, fy - 6, 1, 7); c.fillStyle = '#ff3b3b'; c.fillRect(fx + 1, fy - 6, 4, 3); }
+    // ゴール(あみ・ポスト・かげ)
     const net = ball.net;
-    for (const s of [0, 1]) {
-      const gx = s ? PITCH.x1 : PITCH.x0 - 8;
-      c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(gx, CY - GOAL_HALF, 8, GOAL_HALF * 2);
-      c.fillStyle = 'rgba(255,255,255,.45)';
-      for (let y = CY - GOAL_HALF; y < CY + GOAL_HALF; y += 3) c.fillRect(gx, y, 8, 1);
-      for (let x = 0; x < 8; x += 3) c.fillRect(gx + x, CY - GOAL_HALF, 1, GOAL_HALF * 2);
-      c.fillStyle = '#fff'; c.fillRect(s ? PITCH.x1 - 1 : PITCH.x0 - 8, CY - GOAL_HALF - 1, 9, 2); c.fillRect(s ? PITCH.x1 - 1 : PITCH.x0 - 8, CY + GOAL_HALF - 1, 9, 2);
-      if (net > 0 && S.plan && ((s && S.plan.side === 'a') || (!s && S.plan.side === 'b'))) { c.fillStyle = `rgba(255,255,255,${0.5 * net})`; c.fillRect(gx - 2, CY - GOAL_HALF, 12, GOAL_HALF * 2); }
+    for (const s2 of [0, 1]) {
+      const gx = s2 ? PITCH.x1 : PITCH.x0 - 9;
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(gx, CY - GOAL_HALF - 3, 9, GOAL_HALF * 2 + 8);
+      c.fillStyle = 'rgba(255,255,255,.16)'; c.fillRect(gx, CY - GOAL_HALF, 9, GOAL_HALF * 2);
+      c.fillStyle = 'rgba(255,255,255,.5)';
+      for (let y = CY - GOAL_HALF; y < CY + GOAL_HALF; y += 3) c.fillRect(gx, y, 9, 1);
+      for (let x = 0; x < 9; x += 3) c.fillRect(gx + x, CY - GOAL_HALF, 1, GOAL_HALF * 2);
+      c.fillStyle = '#fff'; c.fillRect(s2 ? PITCH.x1 - 1 : PITCH.x0 - 9, CY - GOAL_HALF - 2, 10, 3); c.fillRect(s2 ? PITCH.x1 - 1 : PITCH.x0 - 9, CY + GOAL_HALF - 1, 10, 3);
+      c.fillStyle = '#cfd3df'; c.fillRect(s2 ? PITCH.x1 + 7 : PITCH.x0 - 9, CY - GOAL_HALF - 2, 2, GOAL_HALF * 2 + 4);
+      if (net > 0 && S.plan && ((s2 && S.plan.side === 'a') || (!s2 && S.plan.side === 'b'))) { c.fillStyle = `rgba(255,255,255,${0.5 * net})`; c.fillRect(gx - 2, CY - GOAL_HALF, 13, GOAL_HALF * 2); }
     }
   }
 
@@ -418,9 +466,11 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     drawPitch(c);
     const all = [...players.a, ...players.b].sort((p, q) => p.y - q.y);
     const drawBall = () => {
-      const bx = Math.round(ball.x); const by = Math.round(ball.y);
-      c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(bx - 1, by + 1, 4, 1);
-      c.fillStyle = '#fff'; c.fillRect(bx - 1, by - 2 - Math.round(ball.z), 3, 3); c.fillStyle = '#222'; c.fillRect(bx, by - 1 - Math.round(ball.z), 1, 1);
+      const bx = Math.round(ball.x); const by = Math.round(ball.y); const bz = Math.round(ball.z);
+      c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(bx - 2, by + 1, 5, 2);
+      c.fillStyle = OL; c.fillRect(bx - 3, by - 5 - bz, 6, 6); c.fillRect(bx - 2, by - 6 - bz, 4, 8);
+      c.fillStyle = '#fff'; c.fillRect(bx - 2, by - 4 - bz, 4, 4); c.fillRect(bx - 1, by - 5 - bz, 2, 6);
+      c.fillStyle = '#2b2b3a'; const ph = Math.floor(S.anim * 12) % 2; c.fillRect(bx - 1 + ph, by - 3 - bz, 2, 2);
     };
     let ballDone = false;
     for (const p of all) {
