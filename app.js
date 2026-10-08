@@ -474,6 +474,8 @@ function ability(k, p) {
     const us = sk.filter((u) => u.subject === sj);
     if (!us.length) continue;
     stats[sj] = Math.round(40 + 59 * (us.reduce((a, u) => a + W[status(p, u.id)], 0) / us.length));
+    // まちがえても TOPの のうりょく・ティアは さがらない(いままでの いちばん たかい あたいを のこす)
+    p.abBest = p.abBest || {}; stats[sj] = Math.max(stats[sj], p.abBest[sj] || 0); p.abBest[sj] = stats[sj];
   }
   const vals = Object.values(stats);
   const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 40;
