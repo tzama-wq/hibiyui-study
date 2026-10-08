@@ -125,6 +125,17 @@ function buildSet(kid, mode, unitId) {
   else if (mode === 'hyp') { // 「たしかめる」ボタン: ひとつの かせつを しらべる 問題だけ
     const h = (p.hyp || {})[unitId];
     plan = h && byId[h.unit] ? Array.from({ length: SET_SIZE }, () => ({ unit: byId[h.unit], probe: specFor(h), hkey: h.key })) : Array(SET_SIZE).fill(cur[0]);
+  } else if (mode === 'weak') { // 「じゃくてんに チャレンジ」: まちがえた ないようの ふくしゅう
+    const items = [];
+    const key = (e) => `${e.unit.id}|${JSON.stringify(e.probe || null)}`;
+    const have = new Set();
+    const push = (e) => { if (items.length >= SET_SIZE || have.has(key(e))) return; have.add(key(e)); items.push(e); };
+    for (const r of (p.revenge || []).filter((x) => byId[x.unit]).sort((a, b) => a.due.localeCompare(b.due) || b.miss - a.miss)) push({ unit: byId[r.unit], probe: r.spec, rkey: r.key });
+    for (const h of activeList(p)) if (byId[h.unit]) push({ unit: byId[h.unit], probe: specFor(h), hkey: h.key });
+    const wu = sk.filter((u) => ['gap', 'shaky'].includes(status(p, u.id)));
+    for (let t = 0; t < 40 && items.length < SET_SIZE && wu.length; t++) { const u = wu[Math.floor(Math.random() * wu.length)]; items.push({ unit: u }); }
+    plan = items.length ? items.map((e) => (e.probe || e.rkey ? e : e.unit)) : [cur[0]];
+    plan = plan.slice(0, SET_SIZE);
   } else if (mode === 'back') {
     const c = backCandidates(kid);
     const pool = c.length ? c : sk.filter((u) => u.grade < kid.grade);
@@ -636,11 +647,24 @@ function homeTab(k, p) {
     ${repChip(k)}
     <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? T(cfg()).again : T(cfg()).start}</b>
       <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : `${cfg().setSize}もん ・ `}${cur.map((u) => u.name).join('、')}</span></button>
+    ${weakChallengeBtn(k, p)}
     ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}
     ${medalShelf(k, p)}
     ${selfCfgCard(k)}`;
 }
 
+// 「じゃくてんに チャレンジ」: まちがえた ないようの ふくしゅう
+function weakCount(k, p) {
+  const keys = new Set((p.revenge || []).filter((r) => byId[r.unit]).map((r) => `${r.unit}|${JSON.stringify(r.spec)}`));
+  const act = activeList(p).filter((h) => byId[h.unit]).length;
+  const wu = skillsUpTo(k.grade).filter((u) => ['gap', 'shaky'].includes(status(p, u.id))).length;
+  return keys.size + act + wu;
+}
+function weakChallengeBtn(k, p) {
+  const n = weakCount(k, p); const soft = cfg().soft || cfg().gentle;
+  if (!n) return `<div class="weak-btn off"><small>CHALLENGE</small><b>💪 ${soft ? 'のびしろに チャレンジ' : 'じゃくてんに チャレンジ'}</b><span>まだ ありません。まちがえた もんだいが たまると ここで ふくしゅう できるよ</span></div>`;
+  return `<button class="weak-btn" data-act="start" data-mode="weak"><small>CHALLENGE</small><b>💪 ${soft ? 'のびしろに チャレンジ' : 'じゃくてんに チャレンジ'}</b><span>まちがえた ないようを ふくしゅう ・ いま ${n}こ ${cfg().gentle ? '・ ヒントつきだから あんしん' : ''}</span></button>`;
+}
 function repCard(k, p) {
   const d = dataFor(k); const sel = d.sel; const need = needDays();
   const set = new Set(d.recent);
@@ -730,7 +754,7 @@ function vQuiz() {
   $app.innerHTML = `
     <div class="quiz-top"><button class="link" data-act="quit">🛋️ やすむ</button>
       <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${Q.i + 1}<small>/${Q.items.length}</small></span>
-        <span class="sb-r">${it.revenge || it.rkey ? '⭐ リベンジ' : tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
+        <span class="sb-r">${it.revenge || it.rkey ? '⭐ リベンジ' : Q.mode === 'weak' ? '💪 じゃくてん' : tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
     <div class="remain">${remain}</div>
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>
     <div class="dots">${Q.items.map((x, i) => `<i class="${x.res || ''} ${i === Q.i ? 'cur' : ''}"></i>`).join('')}</div>
@@ -1090,7 +1114,7 @@ function answer(idx, unknown) {
     beep('ok'); vibrate(25); confetti(lastTap.x, lastTap.y, Q.combo >= 3 ? 70 : 26, Q.combo >= 3 ? 1.3 : 0.8); floaty(`+${xp}`, lastTap.x, lastTap.y - 24);
   } else {
     if (!second) { u.ng++; Q.combo = 0; p.tags[tag] = (p.tags[tag] || 0) + 1; Q.missTags[tag] = (Q.missTags[tag] || 0) + 1; }
-    if (it.rkey) { const r = (p.revenge || []).find((x) => x.key === it.rkey); if (r) { r.due = addDays(1); r.miss++; } } else if (gentle && !second) addRevenge(p, it, q, tag);
+    if (it.rkey) { const r = (p.revenge || []).find((x) => x.key === it.rkey); if (r) { r.due = addDays(1); r.miss++; } } else if (!second) addRevenge(p, it, q, tag); // まちがえた もんだいは ぜんいん おぼえておく(「じゃくてんに チャレンジ」で つかう)
     if ((gentle ? Q.retries < 1 : Q.retries < 3) && !it.retry) {
       Q.retries++;
       // やりなおしは、おなじ 罠が 入った 問題(かせつの たしかめ)。数字は かわる
