@@ -149,6 +149,10 @@ function buildSet(kid, mode, unitId) {
     // いま たしかめ中の かせつが あれば、1もん(大きいセットは 2もん)を「たしかめる 問題」に する
     const nProbe = Math.min(2, Math.max(1, Math.floor(SET_SIZE / 3)));
     nextProbes(p, today, nProbe + 2).filter((h) => byId[h.unit]).slice(0, nProbe).forEach((h, i) => { plan[plan.length - 1 - i] = { unit: byId[h.unit], probe: specFor(h), hkey: h.key }; });
+    if (kc.gentle) { // まえに まちがえた もんだいを、ヒントつきで もういちど(1セット 1〜2もん・やさしい もんだいの あと)
+      const due = dueRevenge(p, SET_SIZE >= 5 ? 2 : 1);
+      due.forEach((r, i) => { const pos = Math.min(plan.length - 1, 1 + i * 2); if (!plan[pos] || !plan[pos].probe) plan[pos] = { unit: byId[r.unit], probe: r.spec, rkey: r.key }; });
+    }
     if (kc.easyStart) { // 「できた」たんげんの やさしい もんだいで はじまり、(かせつの たしかめが ない ときは) おわる
       const done = sk.filter((u) => status(p, u.id) === 'ok');
       const pool = done.length ? done : sk.filter((u) => u.grade < kid.grade);
@@ -165,7 +169,8 @@ function buildSet(kid, mode, unitId) {
     for (let t = 0; t < 8; t++) { q = entry.probe ? makeProbe(unit, entry.probe) : makeQuestion(unit); if (!seen.has(q.text)) break; }
     seen.add(q.text);
     q = limitQ(q, kc.choices, entry.probe && entry.probe.tag);
-    return { unit, q, retry: false, probe: !!entry.probe, hkey: entry.hkey };
+    const rev = entry.rkey ? { revenge: true, rkey: entry.rkey, hinted: assistOne(q) } : {};
+    return { unit, q, retry: false, probe: !!entry.probe, hkey: entry.hkey, ...rev };
   });
 }
 
@@ -342,6 +347,7 @@ const BADGES = [
   [[1, { DEF: 3 }], [5, { DEF: 5 }], [20, { DEF: 7 }]].forEach(([n, b]) => add(`pk${n}`, '🥅', `PK戦 ${n}しょう`, (p) => (p.pkWins || 0) >= n, b));
   [[10, { PAS: 3 }], [30, { PAS: 5 }], [60, { PAS: 7 }], [100, { PAS: 9 }], [200, { PAS: 12 }]].forEach(([n, b]) => add(`dex${n}`, '📚', `ずかん ${n}にん`, (p) => owned(p).length >= n, b));
   [[1, { ALL: 3 }], [3, { ALL: 4 }], [10, { ALL: 6 }]].forEach(([n, b]) => add(`legend${n}`, '👑', `レジェンド ${n}にん ゲット`, (p) => owned(p).filter((id) => (PLAYER_BY_ID[id] || {}).rarity === 'legend').length >= n, b));
+  [[5, { ALL: 3 }], [25, { ALL: 4 }], [100, { ALL: 6 }]].forEach(([n, b]) => add(`ov${n}`, '⭐', `リベンジ のりこえた ${n}こ`, (p) => (p.overcome || 0) >= n, b));
   [[10, { ALL: 2 }], [50, { ALL: 3 }], [200, { ALL: 5 }]].forEach(([n, b]) => add(`try${n}`, '🌱', `ためして みた ${n}かい`, (p) => (p.tries || 0) >= n, b));
   [[5, { SPD: 3 }], [20, { SPD: 6 }], [50, { SPD: 9 }]].forEach(([n, b]) => add(`enh${n}`, '💪', `きょうか ${n}かい`, (p) => enhSum(p) >= n, b));
   add('enhmax', '🔥', 'きょうか MAX', (p) => Object.values(p.plv || {}).some((v) => v >= ENH_MAX), { ALL: 5 });
@@ -384,6 +390,7 @@ function medalDesc(b) {
   if ((m = id.match(/^legend(\d+)$/))) return `レジェンドを ${m[1]}にん ゲット`;
   if ((m = id.match(/^enh(\d+)$/))) return `ガチャ選手の きょうかを ぜんぶで ${m[1]}かい`;
   if ((m = id.match(/^try(\d+)$/))) return `まちがえても ためして みる(ちょうせん)を ${m[1]}かい`;
+  if ((m = id.match(/^ov(\d+)$/))) return `まちがえた もんだいを もういちど ちょうせんして、2かい できて「のりこえた」を ${m[1]}こ`;
   if (id === 'enhmax') return 'ガチャ選手を きょうか +20(MAX)に する';
   if (id.startsWith('rank')) return `ランク「${b.name}」まで ポイントを ためる`;
   if ((m = id.match(/^m(\d+)?_?(.+)$/))) { const n = m[1] || '3'; return `「${m[2]}」で「できた」たんげんを ${n}こ ふやす(それぞれ 3もん せいかい・2日 いじょう)`; }
@@ -723,7 +730,7 @@ function vQuiz() {
   $app.innerHTML = `
     <div class="quiz-top"><button class="link" data-act="quit">🛋️ やすむ</button>
       <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${Q.i + 1}<small>/${Q.items.length}</small></span>
-        <span class="sb-r">${tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
+        <span class="sb-r">${it.revenge || it.rkey ? '⭐ リベンジ' : tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
     <div class="remain">${remain}</div>
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>
     <div class="dots">${Q.items.map((x, i) => `<i class="${x.res || ''} ${i === Q.i ? 'cur' : ''}"></i>`).join('')}</div>
@@ -1020,6 +1027,22 @@ function vRest() {
       <button class="btn gold" data-act="restend">${left > 0 ? 'もう もどる' : 'ホームに もどる'}</button></section></main>`;
 }
 
+// ---- リベンジ(まちがいを のりこえる): まちがえた もんだいは、あとで ヒントつきで もういちど。2かい べつの 日に できたら「のりこえた」 ----
+const ymd = (d) => dstr(d);
+const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return ymd(d); };
+function addRevenge(p, it, q, tag) {
+  if (it.retry && !it.rkey) return;                 // さっきの リベンジ(おなじ セット)は あたらしく ふやさない
+  const spec = q.id ? { itemId: q.id } : (tag && tag !== 'unknown' && tag !== 'know_mixup' ? { tag } : null);
+  if (!spec) return;
+  p.revenge = p.revenge || [];
+  const key = `${it.unit.id}|${spec.itemId || spec.tag}`;
+  const r = p.revenge.find((x) => x.key === key);
+  if (r) { r.miss++; r.due = addDays(1); return; }
+  p.revenge.push({ key, unit: it.unit.id, spec, ok: 0, miss: 1, due: addDays(1), first: todayStr() });
+  p.revenge = p.revenge.slice(-30);
+}
+const dueRevenge = (p, n) => (p.revenge || []).filter((r) => r.due <= todayStr() && byId[r.unit]).sort((a, b) => a.due.localeCompare(b.due)).slice(0, n);
+const assistOne = (q) => { const w = q.choices.map((c, i) => i).filter((i) => !q.choices[i].ok); return w.length > 1 ? [w[Math.floor(Math.random() * w.length)]] : []; };
 function answer(idx, unknown) {
   const k = kidOf(); const p = S.kids[k.id]; const it = Q.items[Q.i]; const q = it.q;
   if (Q.answered) return;
@@ -1042,6 +1065,7 @@ function answer(idx, unknown) {
   if (gentle && !ok && !unknown && !second) { // はじめての まちがい: おこらず、えらんだ ものを けして もういちど
     u.ng++; Q.combo = 0; p.tags[tag] = (p.tags[tag] || 0) + 1; Q.missTags[tag] = (Q.missTags[tag] || 0) + 1;
     it.tried = [idx]; it.hinted = [...(it.hinted || []), idx]; Q.xp += 4; // ちょうせん ポイント
+    addRevenge(p, it, q, tag);   // あとで ヒントつきで もういちど ちょうせん(のりこえる ため)
     beep('try'); floaty('ためしたね!', lastTap.x, lastTap.y - 24);
     save(); render(); return;
   }
@@ -1054,18 +1078,29 @@ function answer(idx, unknown) {
     if (it.unit.grade < k.grade) xp = Math.max(2, Math.round(xp / 2)); // まえの がくねんは ポイントが はんぶん
     Q.xp += xp; p.goals++; it.res = 'ok';
     const st = addPoints(p, it.unit.subject, 2); if (st) Q.pts[st] = (Q.pts[st] || 0) + 2;
-    Q.answered = { ok, idx, xp, rep, hyp: evs };
+    if (it.rkey) { // リベンジの せいこう: 2かい(べつの 日)で「のりこえた」
+      const r = (p.revenge || []).find((x) => x.key === it.rkey);
+      if (r && !it.tried) {
+        r.ok++; r.due = addDays(3); xp += 10; Q.rev = (Q.rev || 0) + 1;
+        if (r.ok >= 2) { p.revenge = p.revenge.filter((x) => x !== r); p.overcome = (p.overcome || 0) + 1; xp += 20; Q.overcome = (Q.overcome || 0) + 1; }
+      }
+    }
+    Q.xp += 0;
+    Q.answered = { ok, idx, xp, rep, hyp: evs, revenge: !!it.rkey, overcome: !!(it.rkey && !(p.revenge || []).some((x) => x.key === it.rkey)) };
     beep('ok'); vibrate(25); confetti(lastTap.x, lastTap.y, Q.combo >= 3 ? 70 : 26, Q.combo >= 3 ? 1.3 : 0.8); floaty(`+${xp}`, lastTap.x, lastTap.y - 24);
   } else {
     if (!second) { u.ng++; Q.combo = 0; p.tags[tag] = (p.tags[tag] || 0) + 1; Q.missTags[tag] = (Q.missTags[tag] || 0) + 1; }
-    if (!gentle && Q.retries < 3 && !it.retry) {
+    if (it.rkey) { const r = (p.revenge || []).find((x) => x.key === it.rkey); if (r) { r.due = addDays(1); r.miss++; } } else if (gentle && !second) addRevenge(p, it, q, tag);
+    if ((gentle ? Q.retries < 1 : Q.retries < 3) && !it.retry) {
       Q.retries++;
       // やりなおしは、おなじ 罠が 入った 問題(かせつの たしかめ)。数字は かわる
       const spec = tag && tag !== 'unknown' && tag !== 'know_mixup' ? { tag } : null;
       let nq; for (let t = 0; t < 8; t++) { nq = spec ? makeProbe(it.unit, spec) : makeQuestion(it.unit); if (nq.text !== q.text) break; }
       if (nq.text === q.text) nq = makeQuestion(it.unit);
       nq = limitQ(nq, cfg().choices, spec && spec.tag);
-      Q.items.splice(Q.i + 1, 0, { unit: it.unit, q: nq, retry: true });
+      const entry = { unit: it.unit, q: nq, retry: true };
+      if (gentle) { entry.revenge = true; entry.hinted = assistOne(nq); Q.items.push(entry); } // さいごに「リベンジ」(ヒントつき)
+      else Q.items.splice(Q.i + 1, 0, entry);
     }
     Q.xp += gentle ? 4 : 2; Q.answered = { ok, idx, tag, effort: gentle ? 4 : 2, hyp: evs, gentle }; it.res = gentle ? 'try' : 'ng'; // ちょうせん ポイント(まちがえても ゼロに しない)
     if (gentle) beep('try'); else { beep('ng'); vibrate([40, 40, 40]); }
@@ -1098,6 +1133,7 @@ function finish() {
   for (const id of new Set(Q.items.map((x) => x.unit.id))) if (status(p, id) === 'ok' && !p.okSeen[id]) { p.okSeen[id] = 1; shards += 2; } // たんげんが「できた」
   shards += newly.length;                                                                  // あたらしい メダル
   if (perfectNow) shards += 1;
+  shards += (Q.overcome || 0) * 2; // リベンジで のりこえた ぶん
   { const wk = (() => { const d = new Date(); const j = new Date(d.getFullYear(), 0, 1); return `${d.getFullYear()}-${Math.floor(((d - j) / 864e5 + j.getDay()) / 7)}`; })();
     const recent = p.days.filter((x) => dayNum(t) - dayNum(x) <= 6).length;
     if (recent >= 5 && p.wkShard !== wk) { p.wkShard = wk; shards += 5; } }                // 1しゅうかんで 5日 れんしゅう
@@ -1108,7 +1144,7 @@ function finish() {
   save();
   const selAfter = dataFor(k).sel.state;
   const tags = Object.entries(Q.missTags).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([x]) => x).filter((x) => x !== 'unknown' || Object.keys(Q.missTags).length === 1);
-  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, capped, shards, pts: Q.pts, hyp: (Q.hyp || []).map((e) => ({ type: e.type, label: hypLabel(e.h) })) };
+  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, capped, shards, overcome: Q.overcome || 0, pts: Q.pts, hyp: (Q.hyp || []).map((e) => ({ type: e.type, label: hypLabel(e.h) })) };
   lastCount.score = 0;
   view = 'result'; toTop = true; render();
   if (Q.result.good >= Math.ceil(Q.result.total * 0.6) || Q.result.rankUp || Q.result.callup || Q.result.newBadges.length || Q.result.hyp.some((e) => e.type === 'resolved')) {
