@@ -205,7 +205,7 @@ function buildPlayers() {
         const top = [...STATS].sort((a, b) => stats[b] - stats[a]).slice(0, 2).map((s) => STAT_PHRASE[s]);
         type = `${p2(EPITHET)}${POS_TYPE[pos]}。${top[0]}と ${top[1]}が とくい`;
       }
-      out.push({ id, name, pos, rarity, face, nation, type, img: hand ? `images/players/${id}.webp` : '', stats });
+      out.push({ id, name, pos, rarity, face, nation, type, img: RARITIES.indexOf(rarity) >= RARITIES.indexOf('rare') ? `images/players/${id}.webp` : '', stats }); // レア いじょうは ぜんいん イラスト つき
     }
   }
   return out;

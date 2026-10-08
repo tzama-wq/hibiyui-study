@@ -27,9 +27,9 @@ for (const p of PLAYERS) {
   assert.equal(!!p.nation, star, `${p.id} 国`);
 }
 assert.equal(PLAYERS.filter((p) => p.type).length, 400);
-assert.equal(PLAYERS.filter((p) => p.img).length, 80, 'イラストが ある モデル入りは 80にん');
-assert.equal(PLAYERS.filter((p) => p.img && p.nation === '🇯🇵').length, 21, '日本人モデルは21人');
-for (const pos of ['FW', 'MF', 'DF', 'GK']) assert.ok(PLAYERS.some((p) => p.img && p.pos === pos), `${pos} のモデル入り`);
+assert.equal(PLAYERS.filter((p) => p.img).length, 400, 'レア以上 400にん ぜんいんに イラスト');
+assert.equal(PLAYERS.filter((p) => p.img && p.nation === '🇯🇵').length >= 21, true, '日本人モデルは 21人 いじょう');
+for (const pos of ['FW', 'MF', 'DF', 'GK']) assert.ok(PLAYERS.some((p) => p.img && p.pos === pos), `${pos} の イラスト`);
 
 // 選手を うしろに ふやしても、もう いる選手の なまえ・のうりょくは かわらない(もっている選手が かわらないように)
 const PIN = {"c01":{"name":"マル・ストライク","pos":"FW","stats":{"SHO":56,"PAS":44,"SPD":50,"DEF":38,"STA":38}},"c40":{"name":"セナ・ロック","pos":"DF","stats":{"SHO":39,"PAS":40,"SPD":42,"DEF":49,"STA":55}},"c80":{"name":"リュウ・ドリーム","pos":"MF","stats":{"SHO":38,"PAS":49,"SPD":42,"DEF":39,"STA":56}},"u01":{"name":"ヒカル・ブレイズ","pos":"FW","stats":{"SHO":65,"PAS":55,"SPD":63,"DEF":52,"STA":56}},"u60":{"name":"ショウ・パス","pos":"MF","stats":{"SHO":54,"PAS":65,"SPD":52,"DEF":50,"STA":63}},"l01":{"name":"キング・ペロ","pos":"FW","stats":{"SHO":96,"PAS":96,"SPD":95,"DEF":93,"STA":91}},"s24":{"name":"テア・シュテーゲル","pos":"GK","stats":{"SHO":74,"PAS":87,"SPD":76,"DEF":86,"STA":76}},"r44":{"name":"ナガノ・ソラ","pos":"DF","stats":{"SHO":63,"PAS":63,"SPD":76,"DEF":70,"STA":74}}};
@@ -301,7 +301,7 @@ for (const f of FORMATIONS) {
   const rarePlus = PLAYERS.filter((p) => ['rare', 'super', 'legend'].includes(p.rarity));
   assert.equal(rarePlus.length, 400);
   assert.ok(rarePlus.every((p) => p.nation && p.type), 'レア いじょうは ぜんいん くにと とくい つき');
-  assert.ok(PLAYERS.filter((p) => p.img).every((p) => p.type && /^images\/players\/[a-z]\d+\.webp$/.test(p.img)), 'イラストは モデル入りだけ');
+  assert.ok(PLAYERS.filter((p) => p.img).every((p) => p.type && /^images\/players\/[a-z]\d+\.webp$/.test(p.img)), 'イラストは レア以上だけ');
   assert.ok(PLAYERS.filter((p) => p.rarity === 'common' || p.rarity === 'uncommon').every((p) => !p.type));
   const s = (id) => PLAYERS.find((p) => p.id === id);
   assert.equal(s('l01').name, 'キング・ペロ'); assert.ok(s('l60') && s('s120') && s('r220'));
