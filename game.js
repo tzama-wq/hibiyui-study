@@ -7,15 +7,17 @@ export const RARITY_NAME = { common: 'コモン', uncommon: 'アンコモン', r
 export const rarityRank = (r) => (r === 'diamond' ? 99 : RARITIES.indexOf(r)); // ダイヤは ガチャに でない(レジェンドの うえ)
 export const BASE_RATES = { common: 60, uncommon: 28, rare: 9.5, super: 2.48, legend: 0.02 }; // 合計100(%)
 // レジェンドの でやすさは チケットで かわる(いいチケットほど でやすい。さいだい 2%)
-export const LEGEND_RATES = { bronze: 0.02, silver: 0.1, gold: 0.5, platinum: 2 };
+export const LEGEND_RATES = { bronze: 0.02, silver: 0.1, gold: 0.5, platinum: 2, god: 100 }; // 神チケットは レジェンド 100%(「1日 100もん」で パパが きょかした ときだけ)
 export const MAX_LEGEND_RATE = 2;
 export const TICKETS = {
   bronze: { name: 'ブロンズ', icon: '🥉', min: 'common' },
   silver: { name: 'シルバー', icon: '🥈', min: 'uncommon' },
   gold: { name: 'ゴールド', icon: '🥇', min: 'rare' },
   platinum: { name: 'プラチナ', icon: '💎', min: 'super' },
+  god: { name: '神', icon: '🎫', min: 'legend' },
 };
 export const TICKET_ORDER = ['bronze', 'silver', 'gold', 'platinum'];
+export const GOD = 'god'; // 神チケット(べんきょうの ごほうびや たいかいでは もらえない。パパが きょかして くばる)
 
 export const STATS = ['SHO', 'PAS', 'SPD', 'DEF', 'STA'];
 export const STAT_NAME = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
@@ -279,7 +281,7 @@ export const levelOf = (copies) => Math.max(0, Math.min(5, (copies || 1) - 1));
 // ---- チケットの かせぎかた ---------------------------------------------------------------
 export const DAILY_STUDY_TICKET_CAP = 6; // 1日に べんきょうで もらえる 上限(ひたすら ちかてつ連打を ふせぐ)
 export const PRACTICE_TICKET_CAP = 4;    // 「すきな れんしゅう」の ぶんは べつわく(きょうの セットで 上限でも、れんしゅうで もらえる)
-export const emptyTickets = () => ({ bronze: 0, silver: 0, gold: 0, platinum: 0 });
+export const emptyTickets = () => ({ bronze: 0, silver: 0, gold: 0, platinum: 0 }); // god(神チケット)は もらった ときに はじめて できる
 export function studyReward({ good, total, mode, perfect }) {
   if (!total || good / total < 0.6) return {};
   let r = perfect ? { silver: 1 } : { bronze: 1 };
@@ -288,7 +290,7 @@ export function studyReward({ good, total, mode, perfect }) {
 }
 export function addTickets(p, reward) {
   p.tickets = { ...emptyTickets(), ...(p.tickets || {}) };
-  for (const [k, v] of Object.entries(reward)) p.tickets[k] += v;
+  for (const [k, v] of Object.entries(reward)) p.tickets[k] = (p.tickets[k] || 0) + v;
 }
 // べんきょうで もらった チケット(1日の上限つき)。もらえた ぶんを かえす
 export function earnStudyTickets(p, info, today) {

@@ -324,7 +324,8 @@ const ringSvg = (cls, pct) => `<svg class="${cls}" viewBox="0 0 44 44"><circle c
 
 // ---- きょうだい共有 ---------------------------------------------------------
 const summary = (k) => { const p = S.kids[k.id]; return { name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null, team: summaryTeam(k, p),
-  asks: (p.ask || []).slice(0, 10).map(({ id, date, text, t }) => ({ id, date, text: String(text).slice(0, 600), t })), ack: (S.ack || []).slice(-80) }; };
+  asks: (p.ask || []).slice(0, 10).map(({ id, date, text, t }) => ({ id, date, text: String(text).slice(0, 600), t })), ack: (S.ack || []).slice(-80),
+  gods: (p.godReq || []).slice(0, 6).map(({ id, date, n, t }) => ({ id, date, n, t })), gok: (S.gok || []).slice(-80) }; };
 // ---- メダル(実績) -------------------------------------------------------------
 const masterCount = (p, k, sj) => skillsUpTo(k.grade).filter((u) => u.subject === sj && ['ok', 'sprout'].includes(status(p, u.id)) && (p.units[u.id] || {}).ok >= 3).length;
 const BADGES = [
@@ -469,7 +470,7 @@ async function syncNow() {
     S.remote = r;
     const ack = ackSet(); // パパが「おしえたよ」した しつもんは こちらでも けす
     for (const kk of KIDS) { const pp = S.kids[kk.id]; const n = (pp.ask || []).length; pp.ask = (pp.ask || []).filter((a) => !ack.has(a.id)); }
-    save();
+    claimGod(); save();
     const typing = typeof document !== 'undefined' && document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
     if (view === 'kid' || (view === 'papa' && !typing)) render();
   }
@@ -484,7 +485,56 @@ function asksOf(k) { // この子の まだ こたえていない しつもん(�
   for (const a of ((S.remote || {})[k.id] || {}).asks || []) if (a && a.id && !have.has(a.id) && !ack.has(a.id)) { out.push({ ...a, remote: true }); have.add(a.id); }
   return out.sort((a, b) => (b.t || 0) - (a.t || 0));
 }
-const pendingAsks = () => KIDS.reduce((n, k) => n + asksOf(k).length, 0);
+const pendingAsks = () => KIDS.reduce((n, k) => n + asksOf(k).length, 0) + godPending().length;
+// ---- 神チケット: 1日で「はじめての もんだい」+「まちがえた もんだい」を 100もん → パパに つうち → パパが OKすると くばられる ----
+const GOD_GOAL = 100;
+const gokSet = () => new Set([...(S.gok || []), ...Object.values(S.remote || {}).flatMap((r) => (r && r.gok) || [])]);
+function godPending() { // パパの OKまち(この スマホの ぶん + とどいた ぶん)
+  const ok = gokSet(); const out = []; const have = new Set();
+  for (const k of KIDS) {
+    const p = S.kids[k.id];
+    const list = [...(p.godReq || []), ...((((S.remote || {})[k.id]) || {}).gods || [])];
+    for (const r of list) { if (!r || !r.id || have.has(r.id) || ok.has(r.id) || (p.godGot || {})[r.id]) continue; have.add(r.id); out.push({ ...r, kid: k }); }
+  }
+  return out.sort((a, b) => (b.t || 0) - (a.t || 0));
+}
+function claimGod() { // パパが OKした もうしこみを、この スマホの こどもに くばる
+  const ok = gokSet(); let n = 0;
+  for (const k of KIDS) {
+    const p = S.kids[k.id];
+    for (const r of p.godReq || []) {
+      p.godGot = p.godGot || {};
+      if (ok.has(r.id) && !p.godGot[r.id]) { p.godGot[r.id] = 1; addTickets(p, { god: 1 }); if (k.id === kidId) n++; }
+    }
+  }
+  if (n) { save(); setTimeout(() => { toast('🎫 パパが OK! 神チケットが とどいたよ! ガチャで つかおう'); confetti(innerWidth / 2, innerHeight * 0.3, 160, 1.7); beep('win'); vibrate([60, 40, 100]); }, 400); }
+}
+function godHook(p, it, q, ok) { // こたえた もんだいが「はじめて」か「まえに まちがえた」なら きょうの かずに いれる
+  const id = q.id; if (!id || it.retry) return;
+  const t = todayStr();
+  const G = (p.godDay = p.godDay && p.godDay.date === t ? p.godDay : { date: t, keys: {}, n: 0 });
+  p.qh = p.qh || {};
+  const eligible = p.qh[id] === undefined || p.qh[id] === 1;
+  if (eligible && !G.keys[id]) {
+    G.keys[id] = 1; G.n++;
+    if (G.n >= GOD_GOAL && !(p.godReq || []).some((r) => r.date === t)) {
+      p.godReq = [{ id: `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, date: t, n: G.n, t: Date.now() }, ...(p.godReq || [])].slice(0, 10);
+      const k = kidOf(); save();
+      toast(`🎫 きょう ${GOD_GOAL}もん たっせい! パパに しらせたよ。OKが でると 神チケットが もらえるよ`); confetti(innerWidth / 2, innerHeight * 0.3, 120, 1.5); beep('win');
+      if (sync.enabled()) syncNow(); else if (navigator.share) navigator.share({ text: `【神チケット】${k.name}が きょう ${GOD_GOAL}もん たっせい! パパの へやで OKしてね` }).catch(() => {});
+    }
+  }
+  p.qh[id] = ok ? 0 : 1;
+}
+function godCard(k, p) {
+  const t = todayStr(); const n = p.godDay && p.godDay.date === t ? p.godDay.n : 0;
+  const waiting = godPending().filter((r) => r.kid.id === k.id);
+  const got = Object.keys(p.godGot || {}).length;
+  const body = waiting.length ? `<span>🎉 ${GOD_GOAL}もん たっせい! パパが OKすると 🎫神チケット(レジェンド 100%)が もらえるよ</span>`
+    : n >= GOD_GOAL ? '<span>🎉 きょうは たっせい! 神チケットは もう もらったか パパに とどいたよ</span>'
+      : `<span>きょう 1日で「はじめての もんだい」+「まちがえた もんだい」を ${GOD_GOAL}もん こたえよう!<br>むげんチャレンジが おすすめ</span>`;
+  return `<div class="god-card"><small>GOD TICKET</small><b>🎫 神チケット チャレンジ</b><div class="god-bar"><i style="width:${Math.min(100, n)}%"></i></div><div class="god-n">きょう ${Math.min(n, GOD_GOAL)} / ${GOD_GOAL}もん${got ? ` ・ これまでに ${got}まい` : ''}</div>${body}</div>`;
+}
 for (const kk of KIDS) for (const a of S.kids[kk.id].ask || []) { a.id = a.id || `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; a.t = a.t || Date.now(); a.text = plainText(a.text); }
 setInterval(() => { if (sync.enabled() && document.visibilityState === 'visible' && !Q) syncNow(); }, 45000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync.enabled()) syncNow(); });
@@ -569,7 +619,7 @@ function claimGifts() {
   }
 }
 function render() {
-  claimGifts();
+  claimGifts(); claimGod();
   if (kidId && S.kids[kidId].shardGift > 0 && !S.kids[kidId].shardGiftShown) { // これまでの ぶんの かけらを おしらせ
     const pp = S.kids[kidId]; pp.shardGiftShown = 1; save();
     setTimeout(() => { toast(`💠 いままでの がんばりで ダイヤの かけら +${pp.shardGift}!`); confetti(innerWidth / 2, innerHeight * 0.3, 90, 1.3); beep('win'); }, 1200);
@@ -680,6 +730,7 @@ function homeTab(k, p) {
       <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : `${cfg().setSize}もん ・ `}${cur.map((u) => u.name).join('、')}</span></button>
     ${weakChallengeBtn(k, p)}
     ${infChallengeBtn(k, p)}
+    ${godCard(k, p)}
     ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}
     ${medalShelf(k, p)}
     ${selfCfgCard(k)}`;
@@ -909,7 +960,7 @@ function feedback(q, a) {
     <button class="btn gold" id="nextbtn" data-act="next" ${wait ? 'disabled' : ''}>${wait ? '📖 せつめいを よんでね…' : (last ? '🏁 けっかを みる' : 'つぎへ ▶')}</button>`;
 }
 
-const TK_NAME = { bronze: '🥉ブロンズ', silver: '🥈シルバー', gold: '🥇ゴールド', platinum: '💎プラチナ' };
+const TK_NAME = { bronze: '🥉ブロンズ', silver: '🥈シルバー', gold: '🥇ゴールド', platinum: '💎プラチナ', god: '🎫神' };
 const STAT_JA = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
 function rewardPanel(R) {
   const tk = Object.entries(R.tickets || {}).filter(([, v]) => v);
@@ -1029,7 +1080,9 @@ function vPapa() {
   const ownerCard = `<div class="card"><h2>📱 この スマホの もちぬし</h2>
     <p>いまは「<b>${S.bound ? KIDS.find((k) => k.id === S.bound).name : 'きまっていません'}</b>」の スマホです。ほかの子の もんだいは ひらけません。</p>
     ${KIDS.filter((k) => k.id !== S.bound).map((k) => `<button class="btn small gray" data-act="rebind" data-id="${k.id}">${k.name}の スマホに かえる</button>`).join('')}</div>`;
-  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${updCard}${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
+  const godList = godPending();
+  const godCardP = `<div class="card"><h2>🎫 神チケット(きょか まち)</h2>${godList.length ? godList.map((r) => `<p style="border-left:4px solid #ffcc00;padding-left:8px"><b>${esc(r.kid.name)}</b>が ${r.date} に 1日 ${r.n}もん たっせい!<br><button class="btn small gold" data-act="godok" data-gid="${r.id}">🎫 きょかして 神チケットを くばる</button></p>`).join('') : '<p class="muted">いまは まち なし(1日 100もん=はじめて+まちがえた もんだい が たっせいされると ここに でるよ)</p>'}</div>`;
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${godCardP}${updCard}${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
     <p class="muted">学校の すすみ具合が ちがう ときは、「いまの たんげん」を えらんでね。</p></main>`;
 }
 
@@ -1143,6 +1196,7 @@ function answer(idx, unknown) {
     beep('try'); floaty('ためしたね!', lastTap.x, lastTap.y - 24);
     save(); render(); return;
   }
+  godHook(p, it, q, ok);
   if (ok) {
     u.ok++; Q.good++; if (!second) Q.combo++;
     let xp = 10 * (Q.mode === 'bonus' ? 2 : 1);
@@ -1333,6 +1387,7 @@ document.addEventListener('click', (e) => {
     if (navigator.clipboard) navigator.clipboard.writeText(sync.shareLink(el.dataset.id)).then(() => toast('こども用リンクを コピーしたよ'), () => toast('コピーできなかったよ'));
     return;
   }
+  else if (a === 'godok') { S.gok = [...(S.gok || []), el.dataset.gid].slice(-120); claimGod(); save(); toast('🎫 きょかしたよ! こどもの スマホに とどくよ(つながって いるとき)'); syncNow(); }
   else if (a === 'askdone') { const aid = el.dataset.aid; const pp = S.kids[el.dataset.id]; pp.ask = (pp.ask || []).filter((x) => x.id !== aid); S.ack = [...(S.ack || []), aid].slice(-120); save(); syncNow(); }
   else if (gameAct(a, el)) { /* ガチャ・へんせい・たいせん など */ }
   render();

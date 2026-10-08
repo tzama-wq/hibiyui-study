@@ -417,3 +417,12 @@ for (const f of FORMATIONS) {
   for (let r = 1; r < 4; r++) cupResult(q, 'j', r, true, false, '2026-10-12'); assert.equal(q.shards, 1 + 3 + 10);
 }
 console.log('OK: game');
+// 神チケット: レジェンド 100%(ふつうの ごほうびの じゅんには はいらない)
+{
+  assert.equal(rates('god').legend, 100); assert.ok(!TICKET_ORDER.includes('god'));
+  const rnd = rngSeed(4242); for (let i = 0; i < 2000; i++) assert.equal(rollRarity('god', rnd), 'legend');
+  const p = { tickets: emptyTickets(), owned: {} }; addTickets(p, { god: 2 }); assert.equal(p.tickets.god, 2);
+  const r = pull(p, 'god', rnd); assert.equal(r.player.rarity, 'legend'); assert.equal(p.tickets.god, 1);
+  assert.ok(Object.keys(studyReward({ good: 5, total: 5, mode: 'normal', perfect: true })).every((k) => k !== 'god'));
+  console.log('OK: 神チケット');
+}

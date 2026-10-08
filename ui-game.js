@@ -64,7 +64,7 @@ function cardHtml(pl, o = {}) {
 const playerOf = (id) => G.PLAYER_BY_ID[id];
 
 export function ticketBar(p) {
-  return `<div class="tickets">${G.TICKET_ORDER.map((t) => `<span class="tk tk-${t} ${p.tickets[t] ? 'has' : ''}">${G.TICKETS[t].icon}<b>${p.tickets[t]}</b><small>${G.TICKETS[t].name}</small></span>`).join('')}</div>`;
+  return `<div class="tickets">${[...G.TICKET_ORDER, ...(p.tickets.god ? [G.GOD] : [])].map((t) => `<span class="tk tk-${t} ${p.tickets[t] ? 'has' : ''}">${G.TICKETS[t].icon}<b>${p.tickets[t]}</b><small>${G.TICKETS[t].name}</small></span>`).join('')}</div>`;
 }
 
 export function loginCard(p) {
@@ -91,13 +91,14 @@ function revealFx(results) {
 export function gachaTab() {
   const p = X.p();
   const lim = gachaLeft(p, X.cfg ? X.cfg() : DEFAULTS, X.today()); // きょうの のこりかいすう(せいげんなしは Infinity)
-  const total = G.TICKET_ORDER.reduce((a, t) => a + p.tickets[t], 0);
+  const shown = [...G.TICKET_ORDER, ...(p.tickets.god ? [G.GOD] : [])];
+  const total = shown.reduce((a, t) => a + (p.tickets[t] || 0), 0);
   const stage = Gs.phase === 'idle' ? '' : stageHtml();
   return `${stage}<section class="panel"><h2 class="sec">GACHA <small>ガチャ</small></h2>
     ${ticketBar(p)}
     <div class="muted">べんきょうで チケットが もらえるよ。ログインボーナスは つづけるほど ごうかに なるよ(やすんでも なくならない)。</div>
     ${(() => { const left = gachaLeft(p, X.cfg ? X.cfg() : DEFAULTS, X.today()); return left === Infinity ? '' : `<div class="muted">きょうの ガチャ: あと ${left}かい(チケットは のこしておけるよ)</div>`; })()}
-    <div class="pull-list">${G.TICKET_ORDER.map((t) => {
+    <div class="pull-list">${shown.map((t) => {
     const n = p.tickets[t];
     return `<div class="pull-row tk-${t}"><div><b>${G.TICKETS[t].icon} ${G.TICKETS[t].name}</b><small>${G.RARITY_NAME[G.TICKETS[t].min]}いじょう かくてい</small></div>
         <button class="btn small" data-act="pull" data-t="${t}" data-n="1" ${n && lim > 0 ? '' : 'disabled'}>1かい</button>

@@ -544,3 +544,9 @@ body.big .nav button small{font-size:13px}
 /* むげんチャレンジ(じゃくてんの した) */
 .inf-btn{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 14px;color:#fff;font:inherit;border:0;background:linear-gradient(135deg,#0f6b6b,#123b6e);border-left:6px solid #27d8ff;box-shadow:0 4px 0 rgba(0,0,0,.35);cursor:pointer}
 .inf-btn small{display:block;font-size:10px;letter-spacing:.14em;color:#9ff3ff}.inf-btn b{display:block;font-size:18px;margin:2px 0}.inf-btn span{display:block;font-size:12px;opacity:.92}
+
+/* 神チケット */
+.god-card{margin:8px 0;padding:12px 14px;color:#fff;background:linear-gradient(135deg,#5b2a86,#b8860b);border-left:6px solid #ffd23f;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+.god-card small{display:block;font-size:10px;letter-spacing:.14em;color:#ffe9a0}.god-card b{display:block;font-size:18px;margin:2px 0}.god-card span{display:block;font-size:12px;opacity:.95}
+.god-bar{height:10px;background:rgba(0,0,0,.35);margin:6px 0 2px}.god-bar i{display:block;height:100%;background:linear-gradient(90deg,#ffd23f,#fff6b0)}.god-n{font-size:12px;margin-bottom:4px}
+.tk-god.has,.pull-row.tk-god{background:linear-gradient(135deg,rgba(255,210,63,.35),rgba(155,89,208,.35));box-shadow:0 0 0 2px #ffd23f inset}
