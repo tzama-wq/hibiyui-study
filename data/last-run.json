@@ -1,6 +1,6 @@
 {
- "date": "2026-10-06",
- "part": 1,
+ "date": "2026-10-08",
+ "part": 0,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -19,111 +19,35 @@
   },
   "2": {
    "asked": 8,
-   "returned": 13,
+   "returned": 9,
    "rejected": {
-    "explain-kanji-out-of-grade": 1,
-    "wrong-shape": 4
+    "target-not-once": 1
    },
    "unverified": 0,
    "accepted": 8,
    "rounds": 2,
    "samples": [
     {
-     "reason": "explain-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "姉",
-      "target": "姉",
-      "reading": "あね",
-      "sentence": "あにの 上の 人は 姉です。",
-      "explain": "おねえさんの ことは 漢字で「姉」と 書きます。",
-      "wrong": [
-       {
-        "text": "妹",
-        "tag": "similar_word"
-       },
-       {
-        "text": "女",
-        "tag": "other"
-       },
-       {
-        "text": "兄",
-        "tag": "similar_word"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
+     "reason": "target-not-once",
      "item": {
       "type": "yomi",
-      "kanji": "室",
-      "target": "教室",
-      "reading": "きょうしつ",
-      "sentence": "教室で べんきょうする。",
-      "explain": "「教室」は「きょうしつ」と よみます。",
+      "kanji": "明",
+      "target": "明るい",
+      "reading": "あかるい",
+      "sentence": "外が明るくなる。",
+      "explain": "「明」は「あか-るい」と読みます。",
       "wrong": [
        {
-        "text": "きょうした",
-        "tag": "similar_word"
-       },
-       {
-        "text": "きょうしち",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "きようしつ",
-        "tag": "small_kana"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "kaki",
-      "kanji": "家",
-      "target": "家",
-      "reading": "いえ",
-      "sentence": "夕方に 家へ かえる。",
-      "explain": "「いえ」は「うかんむり」の「家」と 書きます。",
-      "wrong": [
-       {
-        "text": "矢",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "室",
-        "tag": "similar_word"
-       },
-       {
-        "text": "店",
-        "tag": "similar_word"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "寺",
-      "target": "寺",
-      "reading": "てら",
-      "sentence": "ふるい 寺を 見に行く。",
-      "explain": "「寺」は「てら」と よみます。",
-      "wrong": [
-       {
-        "text": "じ",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "でら",
+        "text": "あがるい",
         "tag": "dakuten"
        },
        {
-        "text": "てり",
-        "tag": "similar_sound"
+        "text": "めいるい",
+        "tag": "onkun_mix"
+       },
+       {
+        "text": "あっかるい",
+        "tag": "small_kana"
        }
       ]
      }
@@ -133,72 +57,20 @@
   },
   "3": {
    "asked": 8,
-   "returned": 10,
-   "rejected": {
-    "sentence-kanji-out-of-grade": 2
-   },
-   "unverified": 0,
+   "returned": 9,
+   "rejected": {},
+   "unverified": 1,
    "accepted": 8,
    "rounds": 2,
-   "samples": [
-    {
-     "reason": "sentence-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "申",
-      "target": "申込",
-      "reading": "もうしこみ",
-      "sentence": "大会の 申込を 出す。",
-      "explain": "「もうしこみ」は「申込」と かきます。",
-      "wrong": [
-       {
-        "text": "神込",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "由込",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "毛し込",
-        "tag": "similar_sound"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "sentence-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "畑",
-      "target": "畑",
-      "reading": "はたけ",
-      "sentence": "畑で 野菜を そだてる。",
-      "explain": "「はたけ」は「畑」と かきます。",
-      "wrong": [
-       {
-        "text": "田",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "火田",
-        "tag": "other"
-       },
-       {
-        "text": "油",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    }
-   ],
+   "samples": [],
    "missing": 0
   },
   "4": {
    "asked": 8,
-   "returned": 9,
+   "returned": 10,
    "rejected": {
-    "wrong-shape": 1
+    "wrong-shape": 1,
+    "sentence-kanji-out-of-grade": 1
    },
    "unverified": 0,
    "accepted": 8,
@@ -208,23 +80,48 @@
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "泣",
-      "target": "泣く",
-      "reading": "なく",
-      "sentence": "赤ちゃんが元気に泣く。",
-      "explain": "「泣く」は「なく」とよみます。",
+      "kanji": "紀",
+      "target": "世紀",
+      "reading": "せいき",
+      "sentence": "新しい世紀が始まる。",
+      "explain": "「世紀」は「せいき」と読みます。",
       "wrong": [
        {
-        "text": "かく",
-        "tag": "similar_sound"
+        "text": "せいぎ",
+        "tag": "dakuten"
        },
        {
-        "text": "はく",
-        "tag": "similar_sound"
+        "text": "せき",
+        "tag": "small_kana"
        },
        {
-        "text": "きゅう",
-        "tag": "onkun_mix"
+        "text": "しき",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "置",
+      "target": "置く",
+      "reading": "おく",
+      "sentence": "本を机の上に置く。",
+      "explain": "「おく」は「置く」と書きます。",
+      "wrong": [
+       {
+        "text": "直く",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "植く",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "真く",
+        "tag": "other"
        }
       ]
      }
