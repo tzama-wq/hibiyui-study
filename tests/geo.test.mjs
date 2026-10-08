@@ -24,7 +24,8 @@ assert.equal(byId.geo_pref.items.length, 47 * 7, 'とい7しゅるい');
 assert.equal(byId.geo_world.items.length, COUNTRIES.length * 6);
 assert.equal(byId.flag_world.items.length, COUNTRIES.length * 5);
 assert.equal(COUNTRIES.length, 197, '197か国');
-assert.equal(byId.geo_pref_e.items.length, nEasyPref * 2, 'かんたん版は 2しゅるい');
+assert.equal(byId.geo_pref_e.items.length, 47 * 7, 'ゆいとも 47都道府県・7しゅるい');
+assert.equal(byId.geo_world_e.items.length, COUNTRIES.length * 6, 'ゆいとも 197か国・6しゅるい');
 assert.equal(byId.flag_world_e.items.length, COUNTRIES.length * 5, 'こっきは ゆいとも ぜんぶ(197か国・5しゅるい)');
 assert.ok(unitsOf(2).some((u) => u.id === 'geo_pref_e') && unitsOf(4).some((u) => u.id === 'geo_world'));
 assert.ok(!unitsOf(4).some((u) => u.id === 'geo_pref_e'), '小4に かんたん版は ださない');
@@ -47,7 +48,7 @@ for (const u of units) {
       kinds.add(`${inQ ? 'Q' : ''}${inC ? 'C' : ''}${strip(q.text).slice(0, 6)}`);
     }
   }
-  assert.ok(kinds.size >= (u.id.endsWith('_e') ? 2 : 4), `${u.id}: といかたが ふえた(${[...kinds].join('|')})`);
+  assert.ok(kinds.size >= 4, `${u.id}: といかたが ふえた(${[...kinds].join('|')})`);
   assert.ok(makeQuestion(u).choices.length === 4);
 }
 // 同じ ぎょうの もんだいが 同じに ならない(7日ぶん ひいても かぶりにくい)

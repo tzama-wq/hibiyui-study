@@ -752,7 +752,7 @@ export function registerGeo(geo, flags) {
     return out;
   };
   makeGeoUnit('geo_pref', '都道府県の かたち', '社会', 4, prefs, prefVariants(false, false));
-  makeGeoUnit('geo_pref_e', 'にほんの かたち', '生活', 2, prefs.filter((o) => o.e), prefVariants(true, true));
+  makeGeoUnit('geo_pref_e', 'にほんの かたち', '生活', 2, prefs, prefVariants(true, false)); // ゆいとも ぜんぶの 県・ぜんぶの といかた
 
   const worldVariants = (whole, small) => (o) => {
     const lab = (x) => rubyName(x.n, x.y, whole);
@@ -772,7 +772,7 @@ export function registerGeo(geo, flags) {
     return out;
   };
   makeGeoUnit('geo_world', 'せかいの くにの かたち', '社会', 4, world, worldVariants(false, false));
-  makeGeoUnit('geo_world_e', 'せかいの くにの かたち', '生活', 2, world.filter((o) => o.e), worldVariants(true, true));
+  makeGeoUnit('geo_world_e', 'せかいの くにの かたち', '生活', 2, world, worldVariants(true, false));
 
   const flagVariants = (whole, small) => (o) => {
     const lab = (x) => rubyName(x.n, x.y, whole);
