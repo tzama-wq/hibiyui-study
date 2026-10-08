@@ -197,7 +197,7 @@ function enhHtml(pl, p) {
 }
 function powerHtml() {
   const k = X.kid(); const p = X.p();
-  const SUBJ = Object.fromEntries(Object.entries(G.SUBJECT_STAT).map(([sj, st]) => [st, sj]));
+  const SUBJ = Object.fromEntries(G.STATS.map((st) => [st, Object.entries(G.SUBJECT_STATS).filter(([, l]) => l.includes(st)).map(([sj]) => sj).join('・')]));
   return `<section class="panel"><h2 class="sec">POWER UP <small>つよくなる</small></h2>
     <div class="muted">べんきょうで せいかいすると、ポイントが たまるよ。ポイントで ${k.name}を つよくしよう! つよくなると、いつか レジェンド(さいだい 99)も こえられるよ。</div>
     <div class="kidcard">${cardHtml({ name: k.name, face: k.em, img: kidImg(k), pos: 'ALL', rarity: 'kid', stats: G.kidStats(p) }, { stats: false })}</div>

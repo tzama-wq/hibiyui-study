@@ -337,4 +337,16 @@ for (const f of FORMATIONS) {
   const snap = teamSnapshot({ kid, owned: {}, team: ['self'], formation: '442' });
   assert.ok(snap[0].stats.SHO > 1000 && ratings(snap).power > 140);
 }
+// ---- ポイントは ぜんぶの のうりょくに わかれる(小2は 生活だけ、小4は 理科・社会だけ) ----
+{
+  const p = { pts: {} };
+  for (let i = 0; i < 60; i++) { addPoints(p, '算数', 2); addPoints(p, '国語', 2); addPoints(p, '生活', 2); }
+  assert.ok(STATS.every((s) => p.pts[s] > 0), '小2: 算数・国語・生活で 5つとも のびる');
+  assert.ok(Math.abs(p.pts.SPD - p.pts.DEF) <= 2 && Math.abs(p.pts.DEF - p.pts.STA) <= 2, '生活は 3つに わける');
+  const q = { pts: {} };
+  for (let i = 0; i < 60; i++) { addPoints(q, '算数', 2); addPoints(q, '国語', 2); addPoints(q, '理科', 2); addPoints(q, '社会', 2); }
+  assert.ok(STATS.every((s) => q.pts[s] > 0), '小4: 算数・国語・理科・社会で 5つとも のびる');
+  assert.equal(addPoints(q, '体育', 2), null);
+  assert.equal(addPoints({}, '算数', 2), 'SHO');
+}
 console.log('OK: game');

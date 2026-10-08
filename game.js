@@ -19,6 +19,9 @@ export const TICKET_ORDER = ['bronze', 'silver', 'gold', 'platinum'];
 export const STATS = ['SHO', 'PAS', 'SPD', 'DEF', 'STA'];
 export const STAT_NAME = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
 export const SUBJECT_STAT = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA' };
+// ポイントの たまる さき(がくねんで けいけんする 教科が ちがっても、ぜんぶの のうりょくが のびる ように、じゅんばんに わける)
+//  小2は 生活(理科・社会が ない)、小4は 理科・社会(生活が ない)。
+export const SUBJECT_STATS = { 算数: ['SHO'], 国語: ['PAS'], 理科: ['SPD', 'STA'], 社会: ['DEF', 'STA'], 生活: ['SPD', 'DEF', 'STA'] };
 // 11にんで しあいをする(4-4-2)。じゅんばん: FW2 → MF4 → DF4 → GK1
 // フォーメーション: わくの じゅんばんは いつも FW → MF → DF → GK。かずが かわるだけ
 export const FORMATIONS = [
@@ -304,10 +307,13 @@ export const MAX_LEVEL = 999; // じぶんの つよさ(つよく)の じょう�
 export const upgradeCost = (level) => 1 + Math.floor(level / 10);
 export const kidStat = (level) => Math.round(30 + level * 1.5); // Lv47 で レジェンドの さいだい(99)を こえる
 export const emptyStatMap = () => Object.fromEntries(STATS.map((s) => [s, 0]));
-export function addPoints(p, subject, n) {
-  const s = SUBJECT_STAT[subject]; if (!s) return;
+export function addPoints(p, subject, n) { // もらった のうりょくを かえす(つぎは 次の のうりょくへ じゅんばんに)
+  const list = SUBJECT_STATS[subject]; if (!list) return null;
   p.pts = { ...emptyStatMap(), ...(p.pts || {}) };
+  p.ptr = p.ptr || {};
+  const s = list[(p.ptr[subject] || 0) % list.length]; p.ptr[subject] = ((p.ptr[subject] || 0) + 1) % (list.length * 60);
   p.pts[s] += n;
+  return s;
 }
 export function upgrade(p, stat) {
   p.pts = { ...emptyStatMap(), ...(p.pts || {}) }; p.lv = { ...emptyStatMap(), ...(p.lv || {}) };

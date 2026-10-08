@@ -1,5 +1,5 @@
 import * as sync from './sync.js';
-import { addPoints, addTickets, registerBuffs, PLAYER_BY_ID, ENH_MAX, SUBJECT_STAT, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
+import { addPoints, addTickets, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen, KUKU_DAN } from './gen.js';
@@ -971,7 +971,7 @@ function answer(idx, unknown) {
     const rep = repBonus(k); xp += rep;
     if (it.unit.grade < k.grade) xp = Math.max(2, Math.round(xp / 2)); // まえの がくねんは ポイントが はんぶん
     Q.xp += xp; p.goals++; it.res = 'ok';
-    const st = SUBJECT_STAT[it.unit.subject]; if (st) { addPoints(p, it.unit.subject, 2); Q.pts[st] = (Q.pts[st] || 0) + 2; }
+    const st = addPoints(p, it.unit.subject, 2); if (st) Q.pts[st] = (Q.pts[st] || 0) + 2;
     Q.answered = { ok, idx, xp, rep, hyp: evs };
     beep('ok'); vibrate(25); confetti(lastTap.x, lastTap.y, Q.combo >= 3 ? 70 : 26, Q.combo >= 3 ? 1.3 : 0.8); floaty(`+${xp}`, lastTap.x, lastTap.y - 24);
   } else {
