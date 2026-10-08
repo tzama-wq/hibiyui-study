@@ -69,7 +69,11 @@ const FACE = {
 };
 const MAIN = { FW: ['SHO', 'SPD'], MF: ['PAS', 'STA'], DF: ['DEF', 'STA'], GK: ['DEF', 'STA'] };
 const RANGE = { common: [36, 56], uncommon: [50, 66], rare: [62, 78], super: [74, 90], legend: [89, 99] };
-const COUNTS = { common: 80, uncommon: 60, rare: 44, super: 24, legend: 12 };
+// レア いじょうは 5ばいに ふやした(うしろに ふやしているので、もう ある 選手の なまえ・のうりょくは かわらない)
+const COUNTS = { common: 80, uncommon: 60, rare: 220, super: 120, legend: 60 };
+const NATIONS = ['🇧🇷', '🇦🇷', '🇫🇷', '🇩🇪', '🇪🇸', '🇮🇹', '🇬🇧', '🇳🇱', '🇵🇹', '🇧🇪', '🇭🇷', '🇺🇾', '🇨🇴', '🇲🇽', '🇺🇸', '🇯🇵', '🇰🇷', '🇸🇳', '🇳🇬', '🇬🇭', '🇲🇦', '🇪🇬', '🇨🇲', '🇨🇮', '🇦🇺', '🇸🇪', '🇳🇴', '🇩🇰', '🇨🇭', '🇵🇱', '🇹🇷', '🇨🇱', '🇪🇨', '🇵🇾', '🇮🇷', '🇸🇦', '🌐'];
+const STAT_PHRASE = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
+const EPITHET = ['ひらめきの', 'ふんえんの', 'だいちの', 'あらしの', 'こおりの', 'ほのおの', 'ひかりの', 'かぜの', 'いなずまの', 'ほしの', 'うみの', 'そらの', 'くろがねの', 'こがねの'];
 // 有名な選手を「モデル」にした オリジナルの キャラクター(名前は もじり。実在の本人とは かんけいない)。
 // [レア度, なまえ, ポジション, 国, かお, とくい(タイプ), とくいな のうりょく]
 const STARS = [
@@ -162,6 +166,7 @@ const STARS = [
   ['rare', 'ナガノ・ソラ', 'DF', '🇯🇵', '🔋', 'スタミナが おばけの 左サイド', ['STA', 'SPD']],
 ];
 
+const POS_TYPE = { FW: 'ストライカー', MF: 'ミッドフィルダー', DF: 'ディフェンダー', GK: 'ゴールキーパー' };
 function buildPlayers() {
   const used = new Set(STARS.map((s) => s[1]));
   const out = [];
@@ -189,7 +194,15 @@ function buildPlayers() {
       }
       const id = `${rarity[0]}${String(i + 1).padStart(2, '0')}`;
       // イラストが あるのは モデル入り(レア以上)。なければ 絵文字の かおを つかう
-      out.push({ id, name, pos, rarity, face, nation, type, img: type ? `images/players/${id}.webp` : '', stats });
+      // イラスト つきの モデル入り(STARS)いがいの レア以上にも、くにと とくいな ところを つける(あとから ふやしても 他の せんしゅは かわらない)
+      const hand = !!stars[i];
+      if (!hand && RARITIES.indexOf(rarity) >= RARITIES.indexOf('rare')) {
+        const r2 = rngSeed(777000 + RARITIES.indexOf(rarity) * 1000 + i); const p2 = (a) => a[Math.floor(r2() * a.length)];
+        nation = p2(NATIONS);
+        const top = [...STATS].sort((a, b) => stats[b] - stats[a]).slice(0, 2).map((s) => STAT_PHRASE[s]);
+        type = `${p2(EPITHET)}${POS_TYPE[pos]}。${top[0]}と ${top[1]}が とくい`;
+      }
+      out.push({ id, name, pos, rarity, face, nation, type, img: hand ? `images/players/${id}.webp` : '', stats });
     }
   }
   return out;
@@ -315,6 +328,7 @@ export const BADGE_BUFFS = {
 };
 export const MAX_EQUIP = 3;
 export const BUFF_CAP = 40;
+export const registerBuffs = (b) => Object.assign(BADGE_BUFFS, b); // メダルの ふえた ぶんの バフ(app.js から とうろく)
 export function teamBuff(equip = []) {
   const out = emptyStatMap();
   for (const id of equip.slice(0, MAX_EQUIP)) {
@@ -500,6 +514,7 @@ export const CUPS = [
   ] },
 ];
 export const cupById = (id) => CUPS.find((c) => c.id === id);
+export const MATCH_TICKET_CAP = 3; // くりかえしの たいかいで もらえる チケットの 1日の じょうげん(はじめて かった ラウンド・はじめての ゆうしょうは べつ)
 export const ensureCup = (p) => { p.cup = p.cup || {}; p.cup.cleared = Array.isArray(p.cup.cleared) ? p.cup.cleared : []; p.cup.titles = p.cup.titles || {}; if (p.cup.run && !cupById(p.cup.run.id)) p.cup.run = null; return p.cup; };
 export function cupUnlocked(p, id) {
   const i = CUPS.findIndex((c) => c.id === id); if (i < 0) return false;
@@ -512,15 +527,25 @@ export function cupOpponent(cup, round, rnd = Math.random) {
 }
 const mergeTickets = (...ts) => ts.reduce((a, t) => { for (const [k, v] of Object.entries(t || {})) a[k] = (a[k] || 0) + v; return a; }, {});
 // しあいの けっかを たいかいに はんえいする。forgive: まけても おなじ しあいから やりなおせる
-export function cupResult(p, id, round, won, forgive = false) {
+export function cupResult(p, id, round, won, forgive = false, today = '') {
   const cup = cupById(id); const c = ensureCup(p); const last = round >= cup.rounds.length - 1;
   if (!won) {
     if (forgive) { c.run = { id, round }; return { type: 'retry', round }; }
     c.run = null; return { type: 'out', round };
   }
-  const reward = mergeTickets(cup.rounds[round].reward, last ? cup.final : null);
+  c.firsts = c.firsts || {};
+  const key = `${id}:${round}`; const firstWin = !c.firsts[key]; c.firsts[key] = 1;
+  const firstClear = last && !(c.titles[id] > 0);
+  let reward = mergeTickets(cup.rounds[round].reward, last ? cup.final : null);
+  let capped = false;
+  if (!firstWin && !firstClear) { // 2かいめいこうの くりかえしは 1日の じょうげんが ある
+    c.mt = c.mt && c.mt.date === today ? c.mt : { date: today, n: 0 };
+    const out = {};
+    for (const k of TICKET_ORDER) for (let i = 0; i < (reward[k] || 0); i++) { if (c.mt.n >= MATCH_TICKET_CAP) { capped = true; break; } out[k] = (out[k] || 0) + 1; c.mt.n++; }
+    reward = out;
+  }
   addTickets(p, reward);
-  if (!last) { c.run = { id, round: round + 1 }; return { type: 'advance', round: round + 1, reward }; }
+  if (!last) { c.run = { id, round: round + 1 }; return { type: 'advance', round: round + 1, reward, capped }; }
   c.run = null; if (!c.cleared.includes(id)) c.cleared.push(id); c.titles[id] = (c.titles[id] || 0) + 1;
-  return { type: 'cleared', reward, first: c.titles[id] === 1 };
+  return { type: 'cleared', reward, first: c.titles[id] === 1, capped };
 }

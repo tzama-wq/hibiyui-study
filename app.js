@@ -1,5 +1,5 @@
 import * as sync from './sync.js';
-import { addPoints, addTickets, SUBJECT_STAT, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
+import { addPoints, addTickets, registerBuffs, PLAYER_BY_ID, ENH_MAX, SUBJECT_STAT, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen, KUKU_DAN } from './gen.js';
@@ -297,6 +297,44 @@ const BADGES = [
   ...[['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱']].map(([sj, icon]) => (
     { id: `m_${sj}`, icon, name: `${sj}の プロ`, cond: (p, k) => masterCount(p, k, sj) >= 3 })),
 ];
+// ---- メダルを 3ばいに(まいにちの がんばり・九九・ちず・たいかい・ガチャ・きょうか・ランク) ----------------------------
+{
+  const unitOk = (p, id) => (p.units[id] || {}).ok || 0;
+  const cupTitles = (p) => Object.values((p.cup || {}).titles || {}).reduce((a, b) => a + b, 0);
+  const owned = (p) => Object.keys(p.owned || {});
+  const enhSum = (p) => Object.values(p.plv || {}).reduce((a, b) => a + b, 0);
+  const SP = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA' };
+  const more = []; const add = (id, icon, name, cond, buff) => more.push({ id, icon, name, cond, buff });
+  [[500, '🏆', { SHO: 10 }], [1000, '💯', { SHO: 12 }], [2000, '🔥', { SHO: 14 }], [3000, '🌋', { SHO: 16 }]].forEach(([n, i, b]) => add(`goal${n}`, i, `${n}ゴール`, (p) => p.goals >= n, b));
+  [[60, '📆', { STA: 10 }], [100, '💯', { STA: 12 }], [200, '🎖️', { STA: 14 }], [365, '🎆', { STA: 16 }]].forEach(([n, i, b]) => add(`day${n}`, i, n === 365 ? '1ねん れんしゅう' : `${n}日 れんしゅう`, (p) => p.days.length >= n, b));
+  [[5, { SHO: 4, PAS: 3 }], [20, { SHO: 6, PAS: 4 }], [50, { SHO: 8, PAS: 6 }]].forEach(([n, b]) => add(`hat${n}`, '🎩', `ハットトリック ${n}かい`, (p) => (p.hat || 0) >= n, b));
+  [[5, { ALL: 4 }], [20, { ALL: 5 }], [50, { ALL: 6 }]].forEach(([n, b]) => add(`perfect${n}`, '✨', `パーフェクト ${n}かい`, (p) => (p.perfect || 0) >= n, b));
+  [[5, { SPD: 6 }], [20, { SPD: 9 }]].forEach(([n, b]) => add(`time${n}`, '⏪', `タイムマシン ${n}かい`, (p) => (p.backRuns || 0) >= n, b));
+  [[10, { ALL: 4 }], [25, { ALL: 5 }], [50, { ALL: 6 }]].forEach(([n, b]) => add(`hyp${n}`, '🧪', `${n}つ のりこえた`, (p) => (p.hypResolved || 0) >= n, b));
+  KUKU_DAN.forEach((id, i) => add(`kuku_d${i + 1}`, '✖️', `九九 ${i + 1}の だん マスター`, (p) => status(p, id) === 'ok', { SHO: 3 }));
+  add('kuku_all', '🧮', '九九 ぜんぶ マスター', (p) => status(p, 'g2_kuku_all') === 'ok', { SHO: 6 });
+  add('kuku_inv', '🔍', '□を さがせ マスター', (p) => status(p, 'g2_kuku_inv') === 'ok', { PAS: 6 });
+  [['geo_pref', '🗾', 'とどうふけん はかせ', 6], ['geo_world', '🌏', 'せかい ちず はかせ', 6], ['flag_world', '🚩', 'こっき はかせ', 6], ['geo_pref_e', '🗾', 'にほんの かたち マスター', 3], ['geo_world_e', '🌏', 'せかいの かたち マスター', 3], ['flag_world_e', '🚩', 'せかいの こっき マスター', 3]]
+    .forEach(([id, i, n, v]) => add(`ok_${id}`, i, n, (p) => status(p, id) === 'ok', { DEF: v }));
+  [['geo_pref', '🗾', 'とどうふけん'], ['geo_world', '🌏', 'せかいの くに'], ['flag_world', '🚩', 'こっき']].forEach(([id, i, n]) => {
+    add(`n50_${id}`, i, `${n} 50もん せいかい`, (p) => unitOk(p, id) >= 50, { DEF: 4 }); add(`n200_${id}`, i, `${n} 200もん せいかい`, (p) => unitOk(p, id) >= 200, { DEF: 8 });
+  });
+  [[2, { ALL: 3 }], [5, { ALL: 4 }], [10, { ALL: 6 }]].forEach(([n, b]) => add(`titles${n}`, '🏆', `たいかい ゆうしょう ${n}かい`, (p) => cupTitles(p) >= n, b));
+  [[1, { SHO: 2 }], [10, { SHO: 4 }], [30, { SHO: 6 }], [100, { SHO: 8 }]].forEach(([n, b]) => add(`win${n}`, '⚔️', `たいせん ${n}しょう`, (p) => ((p.battles || {}).w || 0) >= n, b));
+  [[1, { DEF: 3 }], [5, { DEF: 5 }], [20, { DEF: 7 }]].forEach(([n, b]) => add(`pk${n}`, '🥅', `PK戦 ${n}しょう`, (p) => (p.pkWins || 0) >= n, b));
+  [[10, { PAS: 3 }], [30, { PAS: 5 }], [60, { PAS: 7 }], [100, { PAS: 9 }], [200, { PAS: 12 }]].forEach(([n, b]) => add(`dex${n}`, '📚', `ずかん ${n}にん`, (p) => owned(p).length >= n, b));
+  [[1, { ALL: 3 }], [3, { ALL: 4 }], [10, { ALL: 6 }]].forEach(([n, b]) => add(`legend${n}`, '👑', `レジェンド ${n}にん ゲット`, (p) => owned(p).filter((id) => (PLAYER_BY_ID[id] || {}).rarity === 'legend').length >= n, b));
+  [[5, { SPD: 3 }], [20, { SPD: 6 }], [50, { SPD: 9 }]].forEach(([n, b]) => add(`enh${n}`, '💪', `きょうか ${n}かい`, (p) => enhSum(p) >= n, b));
+  add('enhmax', '🔥', 'きょうか MAX', (p) => Object.values(p.plv || {}).some((v) => v >= ENH_MAX), { ALL: 5 });
+  [['プロ1ねんめ', '🥅', { ALL: 2 }, 'rank_pro'], ['Jリーグ MVP', '🏅', { ALL: 3 }, 'rank_jmvp'], ['チャンピオンズリーグの スター', '🌟', { ALL: 5 }, 'rank_cl'], ['バロンドール', '🏆', { ALL: 6 }, 'rank_ballon']]
+    .forEach(([nm, i, b, id]) => add(id, i, nm, (p) => rankOf(p.xp).i >= rankIdx(nm), b));
+  [['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱']].forEach(([sj, icon]) => {
+    add(`m10_${sj}`, icon, `${sj}の たつじん`, (p, k) => masterCount(p, k, sj) >= 10, { [SP[sj]]: 8 });
+    add(`m20_${sj}`, icon, `${sj}の はかせ`, (p, k) => masterCount(p, k, sj) >= 20, { [SP[sj]]: 10 });
+  });
+  registerBuffs(Object.fromEntries(more.map((m) => [m.id, m.buff])));
+  BADGES.push(...more.map(({ id, icon, name, cond }) => ({ id, icon, name, cond })));
+}
 
 // ---- 日本代表の選出 ---------------------------------------------------------
 // 直近7日で need 日以上 れんしゅうすると 選出。かくれステージを クリアすると 追加招集(3日間)。
@@ -486,7 +524,9 @@ function medalShelf(k, p) {
   const have = (b) => (p.badges || []).includes(b.id) || b.cond(p, k);
   const n = BADGES.filter(have).length;
   return `<section class="panel"><h2 class="sec">MEDALS <small>メダル ${n}/${BADGES.length}</small></h2>
-    <div class="medals">${BADGES.map((b) => `<div class="medal ${have(b) ? 'got' : ''}" title="${b.name}"><span>${have(b) ? b.icon : '🔒'}</span><small>${b.name}</small></div>`).join('')}</div></section>`;
+    <div class="medals">${BADGES.filter(have).map((b) => `<div class="medal got" title="${b.name}"><span>${b.icon}</span><small>${b.name}</small></div>`).join('') || '<div class="muted">まだ メダルは ないよ。がんばって ゲットしよう!</div>'}</div>
+    <details><summary><b>🔒 まだの メダル(${BADGES.length - n})</b></summary>
+      <div class="medals">${BADGES.filter((b) => !have(b)).map((b) => `<div class="medal" title="${b.name}"><span>🔒</span><small>${b.name}</small></div>`).join('')}</div></details></section>`;
 }
 
 // 「きょうの やること」リスト(みとおしが あると おちつく子の ため)

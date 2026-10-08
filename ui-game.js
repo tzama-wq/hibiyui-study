@@ -325,7 +325,7 @@ function openBattle(b) {
 }
 function cupOutHtml() {
   const o = B.cupOut; const cup = G.cupById(B.cup.id);
-  const rw = Object.keys(o.reward || {}).length ? `<p>${rewardText(o.reward)} を ゲット!</p>` : '';
+  const rw = (Object.keys(o.reward || {}).length ? `<p>${rewardText(o.reward)} を ゲット!</p>` : '') + (o.capped ? `<p class="muted">きょうの くりかえしの チケットは ここまで(1日 ${G.MATCH_TICKET_CAP}まい)。はじめて かった ラウンドの チケットは ふくまれないよ。</p>` : '');
   if (o.type === 'cleared') return `<div class="cupout win"><b>🏆 ${cup.name} ゆうしょう!</b>${rw}${o.first ? '<p>メダルを ゲットしたよ!(チームが ちょっと つよくなる)</p>' : ''}<button class="btn gold" data-act="sub" data-sub="cup">たいかいへ もどる</button></div>`;
   if (o.type === 'advance') return `<div class="cupout win"><b>✅ しょうり! つぎの ラウンドへ</b>${rw}<p>つぎ: ${cup.rounds[o.round].label} ― ${esc(cup.rounds[o.round].name)}</p><button class="btn gold" data-act="cupfight" data-cup="${cup.id}">⚔ つぎの しあいへ</button></div>`;
   if (o.type === 'retry') return `<div class="cupout"><b>ざんねん…!</b><p>おなじ しあいから もういちど ちょうせんできるよ。</p><button class="btn gold" data-act="cupfight" data-cup="${cup.id}">⚔ もういちど</button></div>`;
@@ -372,7 +372,8 @@ function finishBattle() {
   const p = X.p(); const s = B.res.score;
   const won = s.a > s.b || (s.a === s.b && B.pk && B.pk.a > B.pk.b);
   if (won) p.battles.w++; else if (s.a < s.b || B.pk) p.battles.l++; else p.battles.d++;
-  if (B.cup) B.cupOut = G.cupResult(p, B.cup.id, B.cup.round, won, !!(X.cfg && X.cfg().forgive));
+  if (B.cup) B.cupOut = G.cupResult(p, B.cup.id, B.cup.round, won, !!(X.cfg && X.cfg().forgive), X.today());
+  if (B.pk && won) p.pkWins = (p.pkWins || 0) + 1;
   p.lastMatch = { pk: B.pk || null, me: B.me, opp: B.opp, score: { ...s }, events: B.res.events.map(({ side, type, passer, shooter, keeper, score, text }) => ({ side, type, passer, shooter, keeper, score, text })) };
   X.save();
   if (won) { X.fx.confetti(vw() / 2, vh() * 0.35, 120, 1.5); X.fx.beep('win'); }
