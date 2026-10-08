@@ -1,5 +1,5 @@
 import * as sync from './sync.js';
-import { addPoints, addTickets, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
+import { addPoints, addTickets, emptyStatMap, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen, KUKU_DAN } from './gen.js';
@@ -458,8 +458,12 @@ function claimGifts() {
   const p = S.kids[kidId]; p.gifts = p.gifts || [];
   for (const g of GIFTS) {
     const mine = g.to && g.to[kidId]; if (!mine || p.gifts.includes(g.id)) continue;
-    addTickets(p, mine); p.gifts.push(g.id); save();
-    const txt = Object.entries(mine).map(([t, n]) => `${TK_NAME[t] || t}×${n}`).join(' ');
+    const { pts, ...tk } = mine; // pts: のうりょく ポイント({SPD: 30})/ それいがい: チケット
+    addTickets(p, tk);
+    p.pts = { ...emptyStatMap(), ...(p.pts || {}) }; for (const [st, n] of Object.entries(pts || {})) if (st in p.pts) p.pts[st] += n;
+    p.gifts.push(g.id); save();
+    const STN = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
+    const txt = [...Object.entries(tk).map(([t, n]) => `${TK_NAME[t] || t}×${n}`), ...Object.entries(pts || {}).map(([st, n]) => `${STN[st] || st} +${n}pt`)].join(' ');
     setTimeout(() => { toast(`🎁 プレゼント! ${txt} ${g.msg || ''}`); confetti(innerWidth / 2, innerHeight * 0.3, 140, 1.6); beep('win'); vibrate([60, 40, 100]); }, 500);
   }
 }

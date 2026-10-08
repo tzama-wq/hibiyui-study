@@ -1,5 +1,45 @@
 {
   "gifts": [
-    { "id": "2026-10-08-platinum", "msg": "がんばってるね! パパからの ごほうびだよ", "to": { "hibito": { "platinum": 3 }, "yuito": { "platinum": 3 }, "papa": { "platinum": 50 } } }
+    {
+      "id": "2026-10-08-platinum",
+      "msg": "がんばってるね! パパからの ごほうびだよ",
+      "to": {
+        "hibito": {
+          "platinum": 3
+        },
+        "yuito": {
+          "platinum": 3
+        },
+        "papa": {
+          "platinum": 50
+        }
+      }
+    },
+    {
+      "id": "2026-10-09-points",
+      "msg": "のうりょくポイントの ほてんだよ",
+      "to": {
+        "yuito": {
+          "pts": {
+            "SPD": 30,
+            "DEF": 30
+          }
+        },
+        "hibito": {
+          "pts": {
+            "STA": 30
+          }
+        },
+        "papa": {
+          "pts": {
+            "SHO": 100,
+            "PAS": 100,
+            "SPD": 100,
+            "DEF": 100,
+            "STA": 100
+          }
+        }
+      }
+    }
   ]
 }
