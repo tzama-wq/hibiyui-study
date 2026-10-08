@@ -150,7 +150,7 @@ function buildSet(kid, mode, unitId) {
     const pickKo = () => (kos.length ? kos[Math.floor(Math.random() * kos.length)] : null);
     const ko = pickKo(); let ko2 = pickKo(); for (let i = 0; i < 6 && kos.length > 1 && ko2 === ko; i++) ko2 = pickKo();
     const month = new Date().getMonth() + 1;
-    const know = unitsOf(kid.grade).filter((u) => ['理科', '社会', '生活'].includes(u.subject) || (u.subject === '算数' && u.items)); // 算数の「ことがら」たんげんも まぜる
+    const know = unitsOf(kid.grade).filter((u) => ['理科', '社会', '生活', '英語', '道徳'].includes(u.subject) || (u.subject === '算数' && u.items)); // 算数の「ことがら」たんげんも まぜる
     const knowNow = know.filter((u) => u.months.includes(month));
     const kpool = knowNow.length ? knowNow : know;
     const kn = kpool.length ? kpool[Math.floor(Math.random() * kpool.length)] : null;
@@ -203,7 +203,13 @@ function toast(msg) {
 // 読みあげ: HTMLタグと【】を とる。読み問題は 答えを 読んでしまわないよう、【】の中は「まる まる」と 読む
 const speakText = (s) => (/読みは|よみは/.test(s) ? s.replace(/【[^】]*】/g, ' まるまる ') : s).replace(/<[^>]*>/g, ' ').replace(/[【】]/g, ' ').replace(/×/g, ' かける ').replace(/÷/g, ' わる ').replace(/\+/g, ' たす ').replace(/−/g, ' ひく ').replace(/=/g, ' は ').replace(/\?/g, '');
 function speak(text) {
-  try { const u = new SpeechSynthesisUtterance(speakText(text)); u.lang = 'ja-JP'; u.rate = 0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch { /* 非対応 */ }
+  try { // 英語の ところは en-US、ほかは ja-JP で じゅんばんに よむ
+    speechSynthesis.cancel();
+    for (const seg of speakText(text).split(/([A-Za-z][A-Za-z0-9'’,.! ]*[A-Za-z0-9!.])/)) {
+      if (!seg.trim()) continue;
+      const u = new SpeechSynthesisUtterance(seg); u.lang = /^[A-Za-z]/.test(seg.trim()) ? 'en-US' : 'ja-JP'; u.rate = 0.9; speechSynthesis.speak(u);
+    }
+  } catch { /* 非対応 */ }
 }
 
 // ---- 動き・音・ふるえ ---------------------------------------------------------
@@ -328,7 +334,7 @@ const BADGES = [
   { id: 'rank_eu', icon: '🌍', name: 'ヨーロッパの スター', cond: (p) => rankOf(p.xp).i >= rankIdx('ヨーロッパの スター') },
   { id: 'rank_wc', icon: '🏆', name: 'ワールドカップの スター', cond: (p) => rankOf(p.xp).i >= rankIdx('ワールドカップの スター') },
   { id: 'rank_max', icon: '👑', name: 'サッカーの でんせつ', cond: (p) => rankOf(p.xp).i >= RANKS.length - 1 },
-  ...[['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱']].map(([sj, icon]) => (
+  ...[['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱'], ['英語', '🔤'], ['道徳', '💛']].map(([sj, icon]) => (
     { id: `m_${sj}`, icon, name: `${sj}の プロ`, cond: (p, k) => masterCount(p, k, sj) >= 3 })),
 ];
 // ---- メダルを 3ばいに(まいにちの がんばり・九九・ちず・たいかい・ガチャ・きょうか・ランク) ----------------------------
@@ -337,7 +343,7 @@ const BADGES = [
   const cupTitles = (p) => Object.values((p.cup || {}).titles || {}).reduce((a, b) => a + b, 0);
   const owned = (p) => Object.keys(p.owned || {});
   const enhSum = (p) => Object.values(p.plv || {}).reduce((a, b) => a + b, 0);
-  const SP = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA' };
+  const SP = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA', 英語: 'PAS', 道徳: 'STA' };
   const more = []; const add = (id, icon, name, cond, buff) => more.push({ id, icon, name, cond, buff });
   [[500, '🏆', { SHO: 10 }], [1000, '💯', { SHO: 12 }], [2000, '🔥', { SHO: 14 }], [3000, '🌋', { SHO: 16 }]].forEach(([n, i, b]) => add(`goal${n}`, i, `${n}ゴール`, (p) => p.goals >= n, b));
   [[60, '📆', { STA: 10 }], [100, '💯', { STA: 12 }], [200, '🎖️', { STA: 14 }], [365, '🎆', { STA: 16 }]].forEach(([n, i, b]) => add(`day${n}`, i, n === 365 ? '1ねん れんしゅう' : `${n}日 れんしゅう`, (p) => p.days.length >= n, b));
@@ -364,7 +370,7 @@ const BADGES = [
   add('enhmax', '🔥', 'きょうか MAX', (p) => Object.values(p.plv || {}).some((v) => v >= ENH_MAX), { ALL: 5 });
   [['プロ1ねんめ', '🥅', { ALL: 2 }, 'rank_pro'], ['Jリーグ MVP', '🏅', { ALL: 3 }, 'rank_jmvp'], ['チャンピオンズリーグの スター', '🌟', { ALL: 5 }, 'rank_cl'], ['バロンドール', '🏆', { ALL: 6 }, 'rank_ballon']]
     .forEach(([nm, i, b, id]) => add(id, i, nm, (p) => rankOf(p.xp).i >= rankIdx(nm), b));
-  [['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱']].forEach(([sj, icon]) => {
+  [['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱'], ['英語', '🔤'], ['道徳', '💛']].forEach(([sj, icon]) => {
     add(`m10_${sj}`, icon, `${sj}の たつじん`, (p, k) => masterCount(p, k, sj) >= 10, { [SP[sj]]: 8 });
     add(`m20_${sj}`, icon, `${sj}の はかせ`, (p, k) => masterCount(p, k, sj) >= 20, { [SP[sj]]: 10 });
   });
@@ -461,8 +467,8 @@ setInterval(() => { if (sync.enabled() && document.visibilityState === 'visible'
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync.enabled()) syncNow(); });
 const MILESTONES = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000];
 const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'いま' : m < 60 ? `${m}ふん前` : m < 1440 ? `${Math.round(m / 60)}じかん前` : `${Math.round(m / 1440)}日前`; };
-const SUBJECT_ICON = { 算数: '🔢', 国語: '📖', 理科: '🔬', 社会: '🏙️', 生活: '🌱' };
-const SUBJECTS = ['算数', '国語', '理科', '社会', '生活'];
+const SUBJECT_ICON = { 算数: '🔢', 国語: '📖', 理科: '🔬', 社会: '🏙️', 生活: '🌱', 英語: '🔤', 道徳: '💛' };
+const SUBJECTS = ['算数', '国語', '理科', '社会', '生活', '英語', '道徳'];
 
 // ---- 選手カード(能力値) ----------------------------------------------------------
 // 教科ごとの「ほんとに できる 度合い」を 40〜99 の 能力値に する。ぜんぶ ⬜ なら 40 から スタート。
@@ -749,13 +755,18 @@ function timeMachineCard(k, p) {
 function vQuiz() {
   const k = kidOf(); const it = Q.items[Q.i]; const q = it.q;
   const tx = T(cfg());
-  const remain = Q.i === Q.items.length - 1 ? 'これが さいごの 1もん' : `あと ${Q.items.length - Q.i - 1}もん`;
+  // 「あと なんもん」は もとの もんだい数で かぞえる(まちがえて ふえる「やりなおし」は べつに ひょうじ)
+  const baseN = Q.items.filter((x) => !x.retry).length;
+  const baseI = Q.items.slice(0, Q.i + 1).filter((x) => !x.retry).length;
+  const baseLeft = baseN - baseI;
+  const retryLeft = Q.items.slice(Q.i + 1).filter((x) => x.retry).length;
+  const remain = it.retry ? (retryLeft > 0 ? `やりなおし あと ${retryLeft}もん` : 'これが ほんとに さいごの 1もん') : (baseLeft > 0 ? `あと ${baseLeft}もん` : 'これが さいごの もんだい') + (retryLeft > 0 ? ` + やりなおし ${retryLeft}もん` : '');
   const pct = Math.round((Q.i / Q.items.length) * 82);
   const a = Q.answered;
   const locked = !a && Date.now() < Q.lockUntil;
   $app.innerHTML = `
     <div class="quiz-top"><button class="link" data-act="quit">🛋️ やすむ</button>
-      <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${Q.i + 1}<small>/${Q.items.length}</small></span>
+      <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${it.retry ? 'やりなおし' : `${baseI}<small>/${baseN}</small>`}</span>
         <span class="sb-r">${it.revenge || it.rkey ? '⭐ リベンジ' : Q.mode === 'weak' ? '💪 じゃくてん' : tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
     <div class="remain">${remain}</div>
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>

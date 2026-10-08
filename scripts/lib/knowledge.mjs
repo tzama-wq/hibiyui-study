@@ -12,7 +12,7 @@
 //       ルビの外側の漢字は、その学年までに習う漢字だけ使える。
 import { allowedSet, kanjiOf } from './kokugo.mjs';
 
-export const SUBJECTS = ['理科', '社会', '生活', '国語', '算数']; // 算数は「考え方・図形・量・グラフ」の ことがらの もんだい(けいさんの もんだいは gen.js)
+export const SUBJECTS = ['理科', '社会', '生活', '国語', '算数', '英語', '道徳']; // 算数は「考え方・図形・量・グラフ」の ことがらの もんだい(けいさんの もんだいは gen.js)
 export const RUBY_RE = /\{([^|{}]+)\|([^{}]+)\}/g;
 export const stripRuby = (s) => String(s).replace(RUBY_RE, '');
 // ルビを外して、表示される文字(ルビの親文字)だけにする。重複判定などに使う

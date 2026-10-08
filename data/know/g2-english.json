@@ -1,0 +1,1549 @@
+{
+ "grade": 2,
+ "subject": "英語",
+ "units": [
+  {
+   "id": "g2_en_food",
+   "name": "くだもの・たべもの",
+   "months": [
+    5,
+    6,
+    9,
+    10
+   ],
+   "pre": [],
+   "items": [
+    {
+     "q": "pizza は なに?",
+     "correct": "ピザ",
+     "wrong": [
+      {
+       "label": "りんご",
+       "note": "それは appleの ことだよ"
+      },
+      {
+       "label": "いちご",
+       "note": "それは strawberryの ことだよ"
+      },
+      {
+       "label": "ケーキ",
+       "note": "それは cakeの ことだよ"
+      }
+     ],
+     "why": "pizzaは ピザの ことだよ。"
+    },
+    {
+     "q": "レモンは えいごで?",
+     "correct": "lemon",
+     "wrong": [
+      {
+       "label": "apple",
+       "note": "それは apple(りんご)だよ"
+      },
+      {
+       "label": "milk",
+       "note": "それは milk(ぎゅうにゅう)だよ"
+      },
+      {
+       "label": "peach",
+       "note": "それは peach(もも)だよ"
+      }
+     ],
+     "why": "レモンは えいごで lemon と いうよ。"
+    },
+    {
+     "q": "cake は なに?",
+     "correct": "ケーキ",
+     "wrong": [
+      {
+       "label": "おちゃ",
+       "note": "それは teaの ことだよ"
+      },
+      {
+       "label": "ぎゅうにゅう",
+       "note": "それは milkの ことだよ"
+      },
+      {
+       "label": "レモン",
+       "note": "それは lemonの ことだよ"
+      }
+     ],
+     "why": "cakeは ケーキの ことだよ。"
+    },
+    {
+     "q": "ぶどうは えいごで?",
+     "correct": "grapes",
+     "wrong": [
+      {
+       "label": "milk",
+       "note": "それは milk(ぎゅうにゅう)だよ"
+      },
+      {
+       "label": "tea",
+       "note": "それは tea(おちゃ)だよ"
+      },
+      {
+       "label": "melon",
+       "note": "それは melon(メロン)だよ"
+      }
+     ],
+     "why": "ぶどうは えいごで grapes と いうよ。"
+    },
+    {
+     "q": "melon は なに?",
+     "correct": "メロン",
+     "wrong": [
+      {
+       "label": "りんご",
+       "note": "それは appleの ことだよ"
+      },
+      {
+       "label": "もも",
+       "note": "それは peachの ことだよ"
+      },
+      {
+       "label": "パン",
+       "note": "それは breadの ことだよ"
+      }
+     ],
+     "why": "melonは メロンの ことだよ。"
+    },
+    {
+     "q": "ケーキは えいごで?",
+     "correct": "cake",
+     "wrong": [
+      {
+       "label": "pizza",
+       "note": "それは pizza(ピザ)だよ"
+      },
+      {
+       "label": "bread",
+       "note": "それは bread(パン)だよ"
+      },
+      {
+       "label": "banana",
+       "note": "それは banana(バナナ)だよ"
+      }
+     ],
+     "why": "ケーキは えいごで cake と いうよ。"
+    },
+    {
+     "q": "ピザは えいごで?",
+     "correct": "pizza",
+     "wrong": [
+      {
+       "label": "ice cream",
+       "note": "それは ice cream(アイスクリーム)だよ"
+      },
+      {
+       "label": "tea",
+       "note": "それは tea(おちゃ)だよ"
+      },
+      {
+       "label": "milk",
+       "note": "それは milk(ぎゅうにゅう)だよ"
+      }
+     ],
+     "why": "ピザは えいごで pizza と いうよ。"
+    },
+    {
+     "q": "メロンは えいごで?",
+     "correct": "melon",
+     "wrong": [
+      {
+       "label": "bread",
+       "note": "それは bread(パン)だよ"
+      },
+      {
+       "label": "apple",
+       "note": "それは apple(りんご)だよ"
+      },
+      {
+       "label": "milk",
+       "note": "それは milk(ぎゅうにゅう)だよ"
+      }
+     ],
+     "why": "メロンは えいごで melon と いうよ。"
+    },
+    {
+     "q": "すっぱい くだものは?",
+     "correct": "lemon",
+     "wrong": [
+      {
+       "label": "cake",
+       "note": "それは ケーキ。あまい おかしだよ"
+      },
+      {
+       "label": "milk",
+       "note": "それは ぎゅうにゅう だよ"
+      }
+     ],
+     "why": "レモンは すっぱいね。"
+    },
+    {
+     "q": "バナナは えいごで?",
+     "correct": "banana",
+     "wrong": [
+      {
+       "label": "peach",
+       "note": "それは peach(もも)だよ"
+      },
+      {
+       "label": "grapes",
+       "note": "それは grapes(ぶどう)だよ"
+      },
+      {
+       "label": "lemon",
+       "note": "それは lemon(レモン)だよ"
+      }
+     ],
+     "why": "バナナは えいごで banana と いうよ。"
+    },
+    {
+     "q": "おちゃは えいごで?",
+     "correct": "tea",
+     "wrong": [
+      {
+       "label": "apple",
+       "note": "それは apple(りんご)だよ"
+      },
+      {
+       "label": "milk",
+       "note": "それは milk(ぎゅうにゅう)だよ"
+      },
+      {
+       "label": "strawberry",
+       "note": "それは strawberry(いちご)だよ"
+      }
+     ],
+     "why": "おちゃは えいごで tea と いうよ。"
+    },
+    {
+     "q": "ぎゅうにゅうは えいごで?",
+     "correct": "milk",
+     "wrong": [
+      {
+       "label": "banana",
+       "note": "それは banana(バナナ)だよ"
+      },
+      {
+       "label": "egg",
+       "note": "それは egg(たまご)だよ"
+      },
+      {
+       "label": "peach",
+       "note": "それは peach(もも)だよ"
+      }
+     ],
+     "why": "ぎゅうにゅうは えいごで milk と いうよ。"
+    },
+    {
+     "q": "lemon は なに?",
+     "correct": "レモン",
+     "wrong": [
+      {
+       "label": "ぎゅうにゅう",
+       "note": "それは milkの ことだよ"
+      },
+      {
+       "label": "メロン",
+       "note": "それは melonの ことだよ"
+      },
+      {
+       "label": "パン",
+       "note": "それは breadの ことだよ"
+      }
+     ],
+     "why": "lemonは レモンの ことだよ。"
+    },
+    {
+     "q": "いちごは えいごで?",
+     "correct": "strawberry",
+     "wrong": [
+      {
+       "label": "cake",
+       "note": "それは cake(ケーキ)だよ"
+      },
+      {
+       "label": "grapes",
+       "note": "それは grapes(ぶどう)だよ"
+      },
+      {
+       "label": "egg",
+       "note": "それは egg(たまご)だよ"
+      }
+     ],
+     "why": "いちごは えいごで strawberry と いうよ。"
+    },
+    {
+     "q": "パンは えいごで?",
+     "correct": "bread",
+     "wrong": [
+      {
+       "label": "milk",
+       "note": "それは milk(ぎゅうにゅう)だよ"
+      },
+      {
+       "label": "pizza",
+       "note": "それは pizza(ピザ)だよ"
+      },
+      {
+       "label": "egg",
+       "note": "それは egg(たまご)だよ"
+      }
+     ],
+     "why": "パンは えいごで bread と いうよ。"
+    },
+    {
+     "q": "たまごは えいごで?",
+     "correct": "egg",
+     "wrong": [
+      {
+       "label": "tea",
+       "note": "それは tea(おちゃ)だよ"
+      },
+      {
+       "label": "peach",
+       "note": "それは peach(もも)だよ"
+      },
+      {
+       "label": "bread",
+       "note": "それは bread(パン)だよ"
+      }
+     ],
+     "why": "たまごは えいごで egg と いうよ。"
+    },
+    {
+     "q": "ももは えいごで?",
+     "correct": "peach",
+     "wrong": [
+      {
+       "label": "pizza",
+       "note": "それは pizza(ピザ)だよ"
+      },
+      {
+       "label": "lemon",
+       "note": "それは lemon(レモン)だよ"
+      },
+      {
+       "label": "tea",
+       "note": "それは tea(おちゃ)だよ"
+      }
+     ],
+     "why": "ももは えいごで peach と いうよ。"
+    },
+    {
+     "q": "りんごは えいごで?",
+     "correct": "apple",
+     "wrong": [
+      {
+       "label": "tea",
+       "note": "それは tea(おちゃ)だよ"
+      },
+      {
+       "label": "melon",
+       "note": "それは melon(メロン)だよ"
+      },
+      {
+       "label": "banana",
+       "note": "それは banana(バナナ)だよ"
+      }
+     ],
+     "why": "りんごは えいごで apple と いうよ。"
+    },
+    {
+     "q": "アイスクリームは えいごで?",
+     "correct": "ice cream",
+     "wrong": [
+      {
+       "label": "pizza",
+       "note": "それは pizza(ピザ)だよ"
+      },
+      {
+       "label": "cake",
+       "note": "それは cake(ケーキ)だよ"
+      },
+      {
+       "label": "grapes",
+       "note": "それは grapes(ぶどう)だよ"
+      }
+     ],
+     "why": "アイスクリームは えいごで ice cream と いうよ。"
+    },
+    {
+     "q": "おいしい あまい おかしは?",
+     "correct": "cake",
+     "wrong": [
+      {
+       "label": "egg",
+       "note": "それは たまご だよ"
+      },
+      {
+       "label": "tea",
+       "note": "それは おちゃ だよ"
+      }
+     ],
+     "why": "ケーキは あまい おかしだよ。"
+    }
+   ]
+  },
+  {
+   "id": "g2_en_body",
+   "name": "からだ",
+   "months": [
+    6,
+    7,
+    9,
+    11
+   ],
+   "pre": [],
+   "items": [
+    {
+     "q": "かおは えいごで?",
+     "correct": "face",
+     "wrong": [
+      {
+       "label": "tooth",
+       "note": "それは tooth(は)だよ"
+      },
+      {
+       "label": "shoulder",
+       "note": "それは shoulder(かた)だよ"
+      },
+      {
+       "label": "eye",
+       "note": "それは eye(め)だよ"
+      }
+     ],
+     "why": "かおは えいごで face と いうよ。"
+    },
+    {
+     "q": "くちは えいごで?",
+     "correct": "mouth",
+     "wrong": [
+      {
+       "label": "finger",
+       "note": "それは finger(ゆび)だよ"
+      },
+      {
+       "label": "eye",
+       "note": "それは eye(め)だよ"
+      },
+      {
+       "label": "knee",
+       "note": "それは knee(ひざ)だよ"
+      }
+     ],
+     "why": "くちは えいごで mouth と いうよ。"
+    },
+    {
+     "q": "うでは えいごで?",
+     "correct": "arm",
+     "wrong": [
+      {
+       "label": "face",
+       "note": "それは face(かお)だよ"
+      },
+      {
+       "label": "hand",
+       "note": "それは hand(て)だよ"
+      },
+      {
+       "label": "tooth",
+       "note": "それは tooth(は)だよ"
+      }
+     ],
+     "why": "うでは えいごで arm と いうよ。"
+    },
+    {
+     "q": "ては えいごで?",
+     "correct": "hand",
+     "wrong": [
+      {
+       "label": "nose",
+       "note": "それは nose(はな)だよ"
+      },
+      {
+       "label": "knee",
+       "note": "それは knee(ひざ)だよ"
+      },
+      {
+       "label": "face",
+       "note": "それは face(かお)だよ"
+      }
+     ],
+     "why": "ては えいごで hand と いうよ。"
+    },
+    {
+     "q": "かたは えいごで?",
+     "correct": "shoulder",
+     "wrong": [
+      {
+       "label": "mouth",
+       "note": "それは mouth(くち)だよ"
+      },
+      {
+       "label": "arm",
+       "note": "それは arm(うで)だよ"
+      },
+      {
+       "label": "knee",
+       "note": "それは knee(ひざ)だよ"
+      }
+     ],
+     "why": "かたは えいごで shoulder と いうよ。"
+    },
+    {
+     "q": "face は どこ?",
+     "correct": "かお",
+     "wrong": [
+      {
+       "label": "はな",
+       "note": "それは noseの ことだよ"
+      },
+      {
+       "label": "みみ",
+       "note": "それは earの ことだよ"
+      },
+      {
+       "label": "ひざ",
+       "note": "それは kneeの ことだよ"
+      }
+     ],
+     "why": "faceは かおの ことだよ。"
+    },
+    {
+     "q": "arm は どこ?",
+     "correct": "うで",
+     "wrong": [
+      {
+       "label": "め",
+       "note": "それは eyeの ことだよ"
+      },
+      {
+       "label": "は",
+       "note": "それは toothの ことだよ"
+      },
+      {
+       "label": "ゆび",
+       "note": "それは fingerの ことだよ"
+      }
+     ],
+     "why": "armは うでの ことだよ。"
+    },
+    {
+     "q": "ゆびは えいごで?",
+     "correct": "finger",
+     "wrong": [
+      {
+       "label": "ear",
+       "note": "それは ear(みみ)だよ"
+      },
+      {
+       "label": "face",
+       "note": "それは face(かお)だよ"
+      },
+      {
+       "label": "mouth",
+       "note": "それは mouth(くち)だよ"
+      }
+     ],
+     "why": "ゆびは えいごで finger と いうよ。"
+    },
+    {
+     "q": "Clap your hands. なにを する?",
+     "correct": "てを たたく",
+     "wrong": [
+      {
+       "label": "あしを ふむ",
+       "note": "それは Stamp your feet だよ"
+      },
+      {
+       "label": "めを とじる",
+       "note": "それは Close your eyes だよ"
+      }
+     ],
+     "why": "clap は てを たたく こと。"
+    },
+    {
+     "q": "finger は どこ?",
+     "correct": "ゆび",
+     "wrong": [
+      {
+       "label": "て",
+       "note": "それは handの ことだよ"
+      },
+      {
+       "label": "ひざ",
+       "note": "それは kneeの ことだよ"
+      },
+      {
+       "label": "かた",
+       "note": "それは shoulderの ことだよ"
+      }
+     ],
+     "why": "fingerは ゆびの ことだよ。"
+    },
+    {
+     "q": "ひざは えいごで?",
+     "correct": "knee",
+     "wrong": [
+      {
+       "label": "tooth",
+       "note": "それは tooth(は)だよ"
+      },
+      {
+       "label": "nose",
+       "note": "それは nose(はな)だよ"
+      },
+      {
+       "label": "face",
+       "note": "それは face(かお)だよ"
+      }
+     ],
+     "why": "ひざは えいごで knee と いうよ。"
+    },
+    {
+     "q": "Touch your nose. どこを さわる?",
+     "correct": "はな",
+     "wrong": [
+      {
+       "label": "みみ",
+       "note": "それは ear だよ"
+      },
+      {
+       "label": "くち",
+       "note": "それは mouth だよ"
+      }
+     ],
+     "why": "nose は はな だよ。"
+    },
+    {
+     "q": "めは えいごで?",
+     "correct": "eye",
+     "wrong": [
+      {
+       "label": "arm",
+       "note": "それは arm(うで)だよ"
+      },
+      {
+       "label": "mouth",
+       "note": "それは mouth(くち)だよ"
+      },
+      {
+       "label": "finger",
+       "note": "それは finger(ゆび)だよ"
+      }
+     ],
+     "why": "めは えいごで eye と いうよ。"
+    },
+    {
+     "q": "eye は どこ?",
+     "correct": "め",
+     "wrong": [
+      {
+       "label": "ひざ",
+       "note": "それは kneeの ことだよ"
+      },
+      {
+       "label": "みみ",
+       "note": "それは earの ことだよ"
+      },
+      {
+       "label": "かた",
+       "note": "それは shoulderの ことだよ"
+      }
+     ],
+     "why": "eyeは めの ことだよ。"
+    },
+    {
+     "q": "はなは えいごで?",
+     "correct": "nose",
+     "wrong": [
+      {
+       "label": "mouth",
+       "note": "それは mouth(くち)だよ"
+      },
+      {
+       "label": "head",
+       "note": "それは head(あたま)だよ"
+      },
+      {
+       "label": "ear",
+       "note": "それは ear(みみ)だよ"
+      }
+     ],
+     "why": "はなは えいごで nose と いうよ。"
+    },
+    {
+     "q": "あたまは えいごで?",
+     "correct": "head",
+     "wrong": [
+      {
+       "label": "nose",
+       "note": "それは nose(はな)だよ"
+      },
+      {
+       "label": "face",
+       "note": "それは face(かお)だよ"
+      },
+      {
+       "label": "hand",
+       "note": "それは hand(て)だよ"
+      }
+     ],
+     "why": "あたまは えいごで head と いうよ。"
+    },
+    {
+     "q": "みみは えいごで?",
+     "correct": "ear",
+     "wrong": [
+      {
+       "label": "nose",
+       "note": "それは nose(はな)だよ"
+      },
+      {
+       "label": "face",
+       "note": "それは face(かお)だよ"
+      },
+      {
+       "label": "knee",
+       "note": "それは knee(ひざ)だよ"
+      }
+     ],
+     "why": "みみは えいごで ear と いうよ。"
+    },
+    {
+     "q": "くちの なかの「は」は えいごで?",
+     "correct": "tooth",
+     "wrong": [
+      {
+       "label": "head",
+       "note": "それは head(あたま)だよ"
+      },
+      {
+       "label": "ear",
+       "note": "それは ear(みみ)だよ"
+      },
+      {
+       "label": "shoulder",
+       "note": "それは shoulder(かた)だよ"
+      }
+     ],
+     "why": "くちの なかの「は」は えいごで tooth と いうよ。"
+    }
+   ]
+  },
+  {
+   "id": "g2_en_weather",
+   "name": "てんき",
+   "months": [
+    6,
+    7,
+    9,
+    10
+   ],
+   "pre": [],
+   "items": [
+    {
+     "q": "It's rainy. の ときに もって いくものは?",
+     "correct": "かさ",
+     "wrong": [
+      {
+       "label": "ぼうし",
+       "note": "それは ひざしを さける ものだよ"
+      },
+      {
+       "label": "マフラー",
+       "note": "それは さむい ひに つかうよ"
+      }
+     ],
+     "why": "rainy は あめ。かさを もって いこう。"
+    },
+    {
+     "q": "「くもり」は えいごで?",
+     "correct": "cloudy",
+     "wrong": [
+      {
+       "label": "sunny",
+       "note": "それは sunny(はれ)だよ"
+      },
+      {
+       "label": "rainy",
+       "note": "それは rainy(あめ)だよ"
+      },
+      {
+       "label": "windy",
+       "note": "それは windy(かぜが つよい)だよ"
+      }
+     ],
+     "why": "くもりは えいごで cloudy と いうよ。"
+    },
+    {
+     "q": "hot は どんな てんき?",
+     "correct": "あつい",
+     "wrong": [
+      {
+       "label": "かぜが つよい",
+       "note": "それは windyの ことだよ"
+      },
+      {
+       "label": "あめ",
+       "note": "それは rainyの ことだよ"
+      },
+      {
+       "label": "さむい",
+       "note": "それは coldの ことだよ"
+      }
+     ],
+     "why": "hotは あついの ことだよ。"
+    },
+    {
+     "q": "How's the weather? は どんな いみ?",
+     "correct": "てんきは どう?",
+     "wrong": [
+      {
+       "label": "なんじ?",
+       "note": "それは What time is it? だよ"
+      },
+      {
+       "label": "げんき?",
+       "note": "それは How are you? だよ"
+      }
+     ],
+     "why": "weather は てんき という いみ。"
+    },
+    {
+     "q": "rainy は どんな てんき?",
+     "correct": "あめ",
+     "wrong": [
+      {
+       "label": "かぜが つよい",
+       "note": "それは windyの ことだよ"
+      },
+      {
+       "label": "はれ",
+       "note": "それは sunnyの ことだよ"
+      },
+      {
+       "label": "あつい",
+       "note": "それは hotの ことだよ"
+      }
+     ],
+     "why": "rainyは あめの ことだよ。"
+    },
+    {
+     "q": "「かぜが つよい」は えいごで?",
+     "correct": "windy",
+     "wrong": [
+      {
+       "label": "warm",
+       "note": "それは warm(あたたかい)だよ"
+      },
+      {
+       "label": "cold",
+       "note": "それは cold(さむい)だよ"
+      },
+      {
+       "label": "sunny",
+       "note": "それは sunny(はれ)だよ"
+      }
+     ],
+     "why": "かぜが つよいは えいごで windy と いうよ。"
+    },
+    {
+     "q": "「さむい」は えいごで?",
+     "correct": "cold",
+     "wrong": [
+      {
+       "label": "warm",
+       "note": "それは warm(あたたかい)だよ"
+      },
+      {
+       "label": "snowy",
+       "note": "それは snowy(ゆき)だよ"
+      },
+      {
+       "label": "sunny",
+       "note": "それは sunny(はれ)だよ"
+      }
+     ],
+     "why": "さむいは えいごで cold と いうよ。"
+    },
+    {
+     "q": "cloudy は どんな てんき?",
+     "correct": "くもり",
+     "wrong": [
+      {
+       "label": "あめ",
+       "note": "それは rainyの ことだよ"
+      },
+      {
+       "label": "かぜが つよい",
+       "note": "それは windyの ことだよ"
+      },
+      {
+       "label": "はれ",
+       "note": "それは sunnyの ことだよ"
+      }
+     ],
+     "why": "cloudyは くもりの ことだよ。"
+    },
+    {
+     "q": "「あめ」は えいごで?",
+     "correct": "rainy",
+     "wrong": [
+      {
+       "label": "warm",
+       "note": "それは warm(あたたかい)だよ"
+      },
+      {
+       "label": "cool",
+       "note": "それは cool(すずしい)だよ"
+      },
+      {
+       "label": "cloudy",
+       "note": "それは cloudy(くもり)だよ"
+      }
+     ],
+     "why": "あめは えいごで rainy と いうよ。"
+    },
+    {
+     "q": "cold は どんな てんき?",
+     "correct": "さむい",
+     "wrong": [
+      {
+       "label": "かぜが つよい",
+       "note": "それは windyの ことだよ"
+      },
+      {
+       "label": "すずしい",
+       "note": "それは coolの ことだよ"
+      },
+      {
+       "label": "あめ",
+       "note": "それは rainyの ことだよ"
+      }
+     ],
+     "why": "coldは さむいの ことだよ。"
+    },
+    {
+     "q": "「すずしい」は えいごで?",
+     "correct": "cool",
+     "wrong": [
+      {
+       "label": "windy",
+       "note": "それは windy(かぜが つよい)だよ"
+      },
+      {
+       "label": "sunny",
+       "note": "それは sunny(はれ)だよ"
+      },
+      {
+       "label": "cloudy",
+       "note": "それは cloudy(くもり)だよ"
+      }
+     ],
+     "why": "すずしいは えいごで cool と いうよ。"
+    },
+    {
+     "q": "How's the weather? に こたえるのは?",
+     "correct": "It's sunny.",
+     "wrong": [
+      {
+       "label": "I'm fine.",
+       "note": "それは げんきですか への こたえ"
+      },
+      {
+       "label": "Thank you.",
+       "note": "それは ありがとう だよ"
+      }
+     ],
+     "why": "てんきを きかれたら It is ~ で こたえるよ。"
+    },
+    {
+     "q": "「はれ」は えいごで?",
+     "correct": "sunny",
+     "wrong": [
+      {
+       "label": "cold",
+       "note": "それは cold(さむい)だよ"
+      },
+      {
+       "label": "rainy",
+       "note": "それは rainy(あめ)だよ"
+      },
+      {
+       "label": "cool",
+       "note": "それは cool(すずしい)だよ"
+      }
+     ],
+     "why": "はれは えいごで sunny と いうよ。"
+    },
+    {
+     "q": "「ゆき」は えいごで?",
+     "correct": "snowy",
+     "wrong": [
+      {
+       "label": "cool",
+       "note": "それは cool(すずしい)だよ"
+      },
+      {
+       "label": "hot",
+       "note": "それは hot(あつい)だよ"
+      },
+      {
+       "label": "cloudy",
+       "note": "それは cloudy(くもり)だよ"
+      }
+     ],
+     "why": "ゆきは えいごで snowy と いうよ。"
+    },
+    {
+     "q": "「あたたかい」は えいごで?",
+     "correct": "warm",
+     "wrong": [
+      {
+       "label": "cold",
+       "note": "それは cold(さむい)だよ"
+      },
+      {
+       "label": "rainy",
+       "note": "それは rainy(あめ)だよ"
+      },
+      {
+       "label": "snowy",
+       "note": "それは snowy(ゆき)だよ"
+      }
+     ],
+     "why": "あたたかいは えいごで warm と いうよ。"
+    },
+    {
+     "q": "「あつい」は えいごで?",
+     "correct": "hot",
+     "wrong": [
+      {
+       "label": "sunny",
+       "note": "それは sunny(はれ)だよ"
+      },
+      {
+       "label": "cold",
+       "note": "それは cold(さむい)だよ"
+      },
+      {
+       "label": "cloudy",
+       "note": "それは cloudy(くもり)だよ"
+      }
+     ],
+     "why": "あついは えいごで hot と いうよ。"
+    }
+   ]
+  },
+  {
+   "id": "g2_en_greet",
+   "name": "あいさつ・じこしょうかい",
+   "months": [
+    4,
+    5,
+    6,
+    9
+   ],
+   "pre": [],
+   "items": [
+    {
+     "q": "What is your name? は どんな いみ?",
+     "correct": "なまえは なんですか",
+     "wrong": [
+      {
+       "label": "なんさい ですか",
+       "note": "それは How old are you? だよ"
+      },
+      {
+       "label": "どこに いますか",
+       "note": "それは Where are you? だよ"
+      }
+     ],
+     "why": "name は なまえ だよ。"
+    },
+    {
+     "q": "Good morning. は いつ いう?",
+     "correct": "あさ",
+     "wrong": [
+      {
+       "label": "よる",
+       "note": "それは Good night だよ"
+      },
+      {
+       "label": "ひるすぎ",
+       "note": "それは Good afternoon だよ"
+      }
+     ],
+     "why": "morning は あさ という いみ。"
+    },
+    {
+     "q": "Good afternoon. は いつ いう?",
+     "correct": "ひるすぎ",
+     "wrong": [
+      {
+       "label": "あさ",
+       "note": "それは Good morning だよ"
+      },
+      {
+       "label": "ねる まえ",
+       "note": "それは Good night だよ"
+      }
+     ],
+     "why": "afternoon は ひるすぎ という いみ。"
+    },
+    {
+     "q": "I'm seven. は どんな いみ?",
+     "correct": "7さい です",
+     "wrong": [
+      {
+       "label": "7こ もってる",
+       "note": "それは I have seven だよ"
+      },
+      {
+       "label": "7じ です",
+       "note": "それは It is seven o'clock だよ"
+      }
+     ],
+     "why": "I am の あとに かずを いうと ねんれいに なるよ。"
+    },
+    {
+     "q": "How old are you? は どんな いみ?",
+     "correct": "なんさい?",
+     "wrong": [
+      {
+       "label": "なまえは なんですか",
+       "note": "それは What is your name? だよ"
+      },
+      {
+       "label": "げんき ですか",
+       "note": "それは How are you? だよ"
+      }
+     ],
+     "why": "old は としが うえ という いみで ねんれいを きくよ。"
+    },
+    {
+     "q": "Sorry. と いわれたら?",
+     "correct": "That's OK.",
+     "wrong": [
+      {
+       "label": "Good morning.",
+       "note": "それは おはよう だよ"
+      },
+      {
+       "label": "Nice to meet you.",
+       "note": "それは はじめまして だよ"
+      }
+     ],
+     "why": "だいじょうぶだよ は That is OK だよ。"
+    },
+    {
+     "q": "Thank you. と いわれたら?",
+     "correct": "You're welcome.",
+     "wrong": [
+      {
+       "label": "Nice to meet you.",
+       "note": "それは はじめまして だよ"
+      },
+      {
+       "label": "Good afternoon.",
+       "note": "それは こんにちは だよ"
+      }
+     ],
+     "why": "どういたしまして は You are welcome だよ。"
+    },
+    {
+     "q": "「またね」は えいごで?",
+     "correct": "See you.",
+     "wrong": [
+      {
+       "label": "Nice to meet you.",
+       "note": "それは はじめまして だよ"
+      },
+      {
+       "label": "Good morning.",
+       "note": "それは おはよう だよ"
+      }
+     ],
+     "why": "またね は See you だよ。"
+    },
+    {
+     "q": "なまえを きかれて「わたしは ケンです」は?",
+     "correct": "I'm Ken.",
+     "wrong": [
+      {
+       "label": "Thank you.",
+       "note": "それは ありがとう だよ"
+      },
+      {
+       "label": "Goodbye.",
+       "note": "それは さようなら だよ"
+      },
+      {
+       "label": "Good night.",
+       "note": "それは おやすみなさい だよ"
+      }
+     ],
+     "why": "I am ~ で じぶんの なまえを いえるよ。"
+    },
+    {
+     "q": "How are you? に こたえるのは?",
+     "correct": "I'm fine, thank you.",
+     "wrong": [
+      {
+       "label": "Good night.",
+       "note": "それは おやすみなさい だよ"
+      },
+      {
+       "label": "Goodbye.",
+       "note": "それは さようなら だよ"
+      }
+     ],
+     "why": "げんきですか と きかれたら I am fine と いうよ。"
+    },
+    {
+     "q": "What is your name? に こたえるのは?",
+     "correct": "My name is Aya.",
+     "wrong": [
+      {
+       "label": "I am nine years old.",
+       "note": "それは 9さいと いう いみ"
+      },
+      {
+       "label": "I like blue and green.",
+       "note": "それは あおと みどりが すきと いう いみ"
+      }
+     ],
+     "why": "My name is ~ で なまえを いうよ。"
+    },
+    {
+     "q": "はじめて あった ときの あいさつは?",
+     "correct": "Nice to meet you.",
+     "wrong": [
+      {
+       "label": "See you.",
+       "note": "それは またね だよ"
+      },
+      {
+       "label": "Good night.",
+       "note": "それは おやすみなさい だよ"
+      }
+     ],
+     "why": "はじめまして は Nice to meet you だよ。"
+    }
+   ]
+  },
+  {
+   "id": "g2_en_family",
+   "name": "かぞく・ともだち",
+   "months": [
+    5,
+    6,
+    10,
+    11
+   ],
+   "pre": [],
+   "items": [
+    {
+     "q": "「ともだち」は えいごで?",
+     "correct": "friend",
+     "wrong": [
+      {
+       "label": "family",
+       "note": "それは family(かぞく)だよ"
+      },
+      {
+       "label": "father",
+       "note": "それは father(おとうさん)だよ"
+      },
+      {
+       "label": "baby",
+       "note": "それは baby(あかちゃん)だよ"
+      }
+     ],
+     "why": "ともだちは えいごで friend と いうよ。"
+    },
+    {
+     "q": "「せんせい」は えいごで?",
+     "correct": "teacher",
+     "wrong": [
+      {
+       "label": "mother",
+       "note": "それは mother(おかあさん)だよ"
+      },
+      {
+       "label": "baby",
+       "note": "それは baby(あかちゃん)だよ"
+      },
+      {
+       "label": "family",
+       "note": "それは family(かぞく)だよ"
+      }
+     ],
+     "why": "せんせいは えいごで teacher と いうよ。"
+    },
+    {
+     "q": "「おかあさん」は えいごで?",
+     "correct": "mother",
+     "wrong": [
+      {
+       "label": "teacher",
+       "note": "それは teacher(せんせい)だよ"
+      },
+      {
+       "label": "brother",
+       "note": "それは brother(おとこの きょうだい)だよ"
+      },
+      {
+       "label": "baby",
+       "note": "それは baby(あかちゃん)だよ"
+      }
+     ],
+     "why": "おかあさんは えいごで mother と いうよ。"
+    },
+    {
+     "q": "Dad は だれの ことを いう?",
+     "correct": "おとうさん",
+     "wrong": [
+      {
+       "label": "おかあさん",
+       "note": "それは Mom だよ"
+      },
+      {
+       "label": "せんせい",
+       "note": "それは teacher だよ"
+      }
+     ],
+     "why": "Dad は おとうさん だよ。"
+    },
+    {
+     "q": "baby は だれ?",
+     "correct": "あかちゃん",
+     "wrong": [
+      {
+       "label": "おんなの きょうだい",
+       "note": "それは sisterの ことだよ"
+      },
+      {
+       "label": "おかあさん",
+       "note": "それは motherの ことだよ"
+      },
+      {
+       "label": "おとこの きょうだい",
+       "note": "それは brotherの ことだよ"
+      }
+     ],
+     "why": "babyは あかちゃんの ことだよ。"
+    },
+    {
+     "q": "grandfather は だれ?",
+     "correct": "おじいさん",
+     "wrong": [
+      {
+       "label": "おとうさん",
+       "note": "それは fatherの ことだよ"
+      },
+      {
+       "label": "ともだち",
+       "note": "それは friendの ことだよ"
+      },
+      {
+       "label": "おかあさん",
+       "note": "それは motherの ことだよ"
+      }
+     ],
+     "why": "grandfatherは おじいさんの ことだよ。"
+    },
+    {
+     "q": "「おとうさん」は えいごで?",
+     "correct": "father",
+     "wrong": [
+      {
+       "label": "baby",
+       "note": "それは baby(あかちゃん)だよ"
+      },
+      {
+       "label": "mother",
+       "note": "それは mother(おかあさん)だよ"
+      },
+      {
+       "label": "family",
+       "note": "それは family(かぞく)だよ"
+      }
+     ],
+     "why": "おとうさんは えいごで father と いうよ。"
+    },
+    {
+     "q": "「おとこの きょうだい」は えいごで?",
+     "correct": "brother",
+     "wrong": [
+      {
+       "label": "sister",
+       "note": "それは sister(おんなの きょうだい)だよ"
+      },
+      {
+       "label": "mother",
+       "note": "それは mother(おかあさん)だよ"
+      },
+      {
+       "label": "baby",
+       "note": "それは baby(あかちゃん)だよ"
+      }
+     ],
+     "why": "おとこの きょうだいは えいごで brother と いうよ。"
+    },
+    {
+     "q": "「おばあさん」は えいごで?",
+     "correct": "grandmother",
+     "wrong": [
+      {
+       "label": "brother",
+       "note": "それは brother(おとこの きょうだい)だよ"
+      },
+      {
+       "label": "baby",
+       "note": "それは baby(あかちゃん)だよ"
+      },
+      {
+       "label": "mother",
+       "note": "それは mother(おかあさん)だよ"
+      }
+     ],
+     "why": "おばあさんは えいごで grandmother と いうよ。"
+    },
+    {
+     "q": "「あかちゃん」は えいごで?",
+     "correct": "baby",
+     "wrong": [
+      {
+       "label": "family",
+       "note": "それは family(かぞく)だよ"
+      },
+      {
+       "label": "mother",
+       "note": "それは mother(おかあさん)だよ"
+      },
+      {
+       "label": "teacher",
+       "note": "それは teacher(せんせい)だよ"
+      }
+     ],
+     "why": "あかちゃんは えいごで baby と いうよ。"
+    },
+    {
+     "q": "「おんなの きょうだい」は えいごで?",
+     "correct": "sister",
+     "wrong": [
+      {
+       "label": "father",
+       "note": "それは father(おとうさん)だよ"
+      },
+      {
+       "label": "brother",
+       "note": "それは brother(おとこの きょうだい)だよ"
+      },
+      {
+       "label": "grandfather",
+       "note": "それは grandfather(おじいさん)だよ"
+      }
+     ],
+     "why": "おんなの きょうだいは えいごで sister と いうよ。"
+    },
+    {
+     "q": "family は だれ?",
+     "correct": "かぞく",
+     "wrong": [
+      {
+       "label": "せんせい",
+       "note": "それは teacherの ことだよ"
+      },
+      {
+       "label": "おとうさん",
+       "note": "それは fatherの ことだよ"
+      },
+      {
+       "label": "おじいさん",
+       "note": "それは grandfatherの ことだよ"
+      }
+     ],
+     "why": "familyは かぞくの ことだよ。"
+    },
+    {
+     "q": "Mom は だれの ことを いう?",
+     "correct": "おかあさん",
+     "wrong": [
+      {
+       "label": "おとうさん",
+       "note": "それは Dad だよ"
+      },
+      {
+       "label": "おばあさん",
+       "note": "それは Grandma だよ"
+      }
+     ],
+     "why": "Mom は おかあさん だよ。"
+    },
+    {
+     "q": "brother は だれ?",
+     "correct": "おとこの きょうだい",
+     "wrong": [
+      {
+       "label": "せんせい",
+       "note": "それは teacherの ことだよ"
+      },
+      {
+       "label": "あかちゃん",
+       "note": "それは babyの ことだよ"
+      },
+      {
+       "label": "かぞく",
+       "note": "それは familyの ことだよ"
+      }
+     ],
+     "why": "brotherは おとこの きょうだいの ことだよ。"
+    },
+    {
+     "q": "「おじいさん」は えいごで?",
+     "correct": "grandfather",
+     "wrong": [
+      {
+       "label": "sister",
+       "note": "それは sister(おんなの きょうだい)だよ"
+      },
+      {
+       "label": "mother",
+       "note": "それは mother(おかあさん)だよ"
+      },
+      {
+       "label": "teacher",
+       "note": "それは teacher(せんせい)だよ"
+      }
+     ],
+     "why": "おじいさんは えいごで grandfather と いうよ。"
+    },
+    {
+     "q": "「かぞく」は えいごで?",
+     "correct": "family",
+     "wrong": [
+      {
+       "label": "sister",
+       "note": "それは sister(おんなの きょうだい)だよ"
+      },
+      {
+       "label": "baby",
+       "note": "それは baby(あかちゃん)だよ"
+      },
+      {
+       "label": "father",
+       "note": "それは father(おとうさん)だよ"
+      }
+     ],
+     "why": "かぞくは えいごで family と いうよ。"
+    }
+   ]
+  }
+ ]
+}
