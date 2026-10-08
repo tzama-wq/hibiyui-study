@@ -70,6 +70,21 @@ for (const [fa, fb] of [['442', '433'], ['352', '532'], ['451', '343']]) {
   assert.ok(log.includes('コーナーキック!') && log.includes('フリーキック!') && log.includes('ファウル!'), 'セットプレー・ファウルの バナー');
   m.destroy();
 }
+// ファウルの あとは フリーキック / オフサイド(ゴールには ならない・さいごまで うごく)
+{
+  const me = { name: 'a', team: team('442', 1) }; const opp = { name: 'b', team: team('352', 2) };
+  const mk = (e, i) => ({ side: i % 2 ? 'b' : 'a', type: 'tackle', how: '', start: 'open', kind: '', passer: (i % 2 ? opp : me).team[4].name, shooter: (i % 2 ? opp : me).team[0].name, keeper: 'K', defender: (i % 2 ? me : opp).team[6].name, score: { a: 0, b: 0 }, text: 't', idx: i, total: 4, ...e });
+  const evs = [mk({ kind: 'foul', fk: 'save' }, 0), mk({ kind: 'foul', fk: 'miss', card: 'yellow' }, 1), mk({ kind: 'offside' }, 2), mk({ kind: 'offside' }, 3)];
+  const log = []; let ended = 0; let flags = 0; let fkShots = 0;
+  const m = createMatch({ me, opp, events: evs, rnd: rngSeed(5), callbacks: { onBanner: (b) => log.push(b), onSfx: (n) => log.push(`sfx:${n}`), onEnd: () => ended++ } });
+  m.attach(fakeCanvas); let f = 0;
+  while (!m.done && f < 40000) { m._step(0.03); f++; if (m._state.flag) flags++; const st = m._state.step || m._state.steps[m._state.si]; if (st && st.type === 'shot' && st.fk) fkShots++; const bl = m._ball; assert.ok(Number.isFinite(bl.x) && Number.isFinite(bl.y) && bl.x > -40 && bl.x < W + 40, 'ボールが へんな ところに いかない'); }
+  assert.ok(m.done && ended === 1);
+  assert.ok(log.filter((b) => b === 'ファウル!').length === 2 && log.filter((b) => b === 'フリーキック!').length === 2, 'ファウルごとに フリーキック');
+  assert.ok(log.filter((b) => b === 'オフサイド!').length === 2 && flags > 0, 'オフサイドの バナー・はた');
+  assert.ok(fkShots > 0, 'フリーキックの シュート');
+  m.destroy();
+}
 // とばす
 {
   const me = { name: 'a', team: team('442', 1) }; const opp = { name: 'b', team: team('442', 2) };

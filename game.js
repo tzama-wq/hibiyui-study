@@ -455,7 +455,7 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
     const p = goalChance(atk.r.att, dfn.r.def);
     const roll = rnd();
     // ゴールの かくりつは まえと おなじ。ゴールに ならない ぶんから、ディフェンダーの タックル・カットを わける
-    let type; let defender = null; let kind = ''; let card = '';
+    let type; let defender = null; let kind = ''; let card = ''; let fk = '';
     if (roll < p) type = 'goal';
     else {
       const u = (roll - p) / (1 - p);
@@ -465,7 +465,8 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
         const cand = [...at(dfn.team, 'DF'), ...at(dfn.team, 'MF')];
         const d = pickW(cand, cand.map((x) => x.stats.DEF * (x.slot === 'DF' ? 1 : 0.5)), rnd);
         defender = d.name; kind = d.slot === 'DF' && rnd() < 0.7 ? 'tackle' : 'intercept';
-        if (kind === 'tackle' && rnd() < 0.14) { kind = 'foul'; card = rnd() < 0.3 ? 'yellow' : ''; } // ひっかけて ファウル
+        if (kind === 'tackle' && rnd() < 0.14) { kind = 'foul'; card = rnd() < 0.3 ? 'yellow' : ''; fk = rnd() < 0.5 ? 'save' : 'miss'; } // ひっかけて ファウル → フリーキック(スコアは かわらない)
+        else if (kind === 'intercept' && rnd() < 0.2) kind = 'offside'; // ぬけだして オフサイド
       } else type = (u - tackleP) / (1 - tackleP) < 0.55 ? 'save' : 'miss';
     }
     if (type === 'goal') score[atk.key]++;
@@ -473,9 +474,9 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
     const start = type === 'tackle' ? 'open' : (rnd() < 0.12 ? 'freekick' : rnd() < 0.16 ? 'corner' : 'open');
     const how = type === 'goal' ? (start === 'corner' ? 'header' : start === 'freekick' ? 'fk' : shooter.slot === 'FW' && rnd() < 0.3 ? 'header' : rnd() < 0.2 ? 'long' : 'shot') : '';
     events.push({
-      side: atk.key, type, kind, how, card, start, defender, passer: passer.name, shooter: shooter.name, keeper: gk.name, score: { ...score },
+      side: atk.key, type, kind, how, card, fk, start, defender, passer: passer.name, shooter: shooter.name, keeper: gk.name, score: { ...score },
       text: type === 'goal' ? (start === 'corner' ? `コーナーキック! ${passer.name}の クロスを ${shooter.name}が ヘディングで ゴール!!` : start === 'freekick' ? `フリーキック! ${shooter.name}が けった! ゴール!!` : how === 'header' ? `${passer.name}の クロスを ${shooter.name}が ヘディングで ゴール!!` : how === 'long' ? `${shooter.name}が ミドルシュート! ゴール!!` : `${passer.name}の パスから ${shooter.name}が シュート! ゴール!!`)
-        : type === 'tackle' ? (kind === 'foul' ? `${defender}が ${shooter.name}を ひっかけた! ファウル!${card ? ' イエローカード!' : ''}` : kind === 'tackle' ? `${defender}が ${shooter.name}から ボールを うばった! ナイスタックル!` : `${defender}が ${passer.name}の パスを カット! インターセプト!`)
+        : type === 'tackle' ? (kind === 'foul' ? `${defender}が ${shooter.name}を ひっかけた! ファウル!${card ? ' イエローカード!' : ''} フリーキック! ${fk === 'save' ? `${gk.name}が キャッチ!` : 'ボールは ゴールの 外へ…'}` : kind === 'offside' ? `${shooter.name}が ぬけだした! でも オフサイド!` : kind === 'tackle' ? `${defender}が ${shooter.name}から ボールを うばった! ナイスタックル!` : `${defender}が ${passer.name}の パスを カット! インターセプト!`)
           : type === 'save' ? (start === 'corner' ? `コーナーキックから ${shooter.name}の ヘッドを ${gk.name}が セーブ!` : start === 'freekick' ? `フリーキック! ${shooter.name}の ボールを ${gk.name}が キャッチ!` : `${shooter.name}の シュートを ${gk.name}が ナイスセーブ!`)
             : (start === 'corner' ? `コーナーキックから ${shooter.name}の ヘッドは ゴールの 上へ…` : start === 'freekick' ? `フリーキック! ${shooter.name}の ボールは ゴールの 外へ…` : `${shooter.name}の シュートは ゴールの 外へ…`),
     });
@@ -512,7 +513,7 @@ export function matchSummary(events, score = null) {
   const pts = new Map(); const add = (side, name, v, why) => { const k = `${side}|${name}`; const o = pts.get(k) || { side, name, v: 0, why: [] }; o.v += v; if (!o.why.includes(why)) o.why.push(why); pts.set(k, o); };
   for (const e of events) {
     const d = e.side === 'a' ? 'b' : 'a';
-    if (e.type === 'tackle') { st[d].tackles++; if (e.kind === 'foul') { st[d].fouls = (st[d].fouls || 0) + 1; continue; } add(d, e.defender, 2, e.kind === 'intercept' ? 'カット' : 'タックル'); continue; }
+    if (e.type === 'tackle') { st[d].tackles++; if (e.kind === 'foul') { st[d].fouls = (st[d].fouls || 0) + 1; continue; } if (e.kind === 'offside') { st[e.side].offsides = (st[e.side].offsides || 0) + 1; continue; } add(d, e.defender, 2, e.kind === 'intercept' ? 'カット' : 'タックル'); continue; }
     st[e.side].shots++;
     if (e.type === 'goal') { st[e.side].goals++; add(e.side, e.shooter, 3, 'ゴール'); if (e.passer && e.passer !== e.shooter) add(e.side, e.passer, 2, 'アシスト'); }
     else if (e.type === 'save') { st[d].saves++; add(d, e.keeper, 2, 'ナイスセーブ'); }

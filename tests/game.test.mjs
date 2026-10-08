@@ -361,8 +361,8 @@ for (const f of FORMATIONS) {
       if (e.type === 'tackle') {
         tk++; const defTeam = e.side === 'a' ? B : A;
         const d = defTeam.team.find((m) => m.name === e.defender); assert.ok(d, 'うばう 人は まもる チームの 人'); assert.ok(['DF', 'MF'].includes(d.slot));
-        if (d.slot === 'MF') assert.equal(e.kind, 'intercept', 'MFは インターセプト'); dfn += d.slot === 'DF' ? 1 : 0;
-        assert.match(e.text, /タックル|インターセプト|ファウル/); assert.ok(['tackle', 'intercept', 'foul'].includes(e.kind));
+        if (d.slot === 'MF') assert.ok(['intercept', 'offside'].includes(e.kind), 'MFは インターセプト(か オフサイド)'); dfn += d.slot === 'DF' ? 1 : 0;
+        assert.match(e.text, /タックル|インターセプト|ファウル|オフサイド/); assert.ok(['tackle', 'intercept', 'foul', 'offside'].includes(e.kind)); if (e.kind === 'foul') assert.ok(['save', 'miss'].includes(e.fk), 'ファウルの あとは フリーキック');
       }
       if (e.type === 'goal') { goals++; assert.ok(['shot', 'header', 'long', 'fk'].includes(e.how)); if (e.start === 'corner') assert.equal(e.how, 'header'); if (e.start === 'freekick') assert.equal(e.how, 'fk'); }
       assert.ok(['open', 'corner', 'freekick'].includes(e.start)); if (e.type === 'tackle') assert.equal(e.start, 'open'); starts[e.start] = (starts[e.start] || 0) + 1;

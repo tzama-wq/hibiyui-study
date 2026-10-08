@@ -51,7 +51,7 @@ export function buildPlan(ev, team, rnd, dteam = null) {
   else aim = rnd() < 0.5 ? { dy: side * (GOAL_HALF + 7 + rnd() * 10), over: false, net: false, wide: true } : { dy: side * rnd() * 8, over: true, net: false };
   const def = ev.type === 'tackle' && dteam ? dteam.findIndex((m) => m.name === ev.defender) : -1; // ボールを うばう ディフェンダー
   const start = ev.type === 'tackle' ? 'open' : ev.start || 'open'; // コーナーキック / フリーキック
-  return { chain: uniq, shooter, gk, aim, type: ev.type, side: ev.side, def, kind: ev.kind || 'tackle', card: ev.card || '', start, taker: uniq.length > 1 ? uniq[uniq.length - 2] : uniq[0], header: (ev.how === 'header' && ev.type === 'goal') || (start === 'corner') };
+  return { chain: uniq, shooter, gk, aim, type: ev.type, side: ev.side, def, kind: ev.kind || 'tackle', card: ev.card || '', fk: ev.fk === 'save' ? 'save' : 'miss', start, taker: uniq.length > 1 ? uniq[uniq.length - 2] : uniq[0], header: (ev.how === 'header' && ev.type === 'goal') || (start === 'corner') };
 }
 
 // ---- 見た目 ----------------------------------------------------------------------------
@@ -210,6 +210,8 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     const steps = []; const chain = plan.chain;
     const sp = plan.type !== 'tackle' && (plan.start === 'corner' || plan.start === 'freekick'); // セットプレー
     const cut = plan.type === 'tackle' && plan.kind === 'intercept'; // さいごの パスを カットされる
+    const off = plan.type === 'tackle' && plan.kind === 'offside'; // はしりこんだ ところで オフサイド
+    const foul = plan.type === 'tackle' && plan.kind === 'foul';   // ファウルの あとは フリーキック
     if (sp) {
       steps.push({ type: 'setpiece', kind: plan.start, dur: 1.5 });
       if (plan.start === 'corner') { steps.push({ type: 'cross', from: plan.taker, to: plan.shooter, dur: 0.85 }); steps.push({ type: 'shot', who: plan.shooter, dur: 0.45, goalX }); }
@@ -220,11 +222,17 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     }
     if (sp) { /* せっとぴーすは じょうの とおり */ }
     else if (cut) { /* パスが カットされて おわり */ }
+    else if (off) { steps.push({ type: 'offside', who: plan.shooter, dur: 1.0 }); }
     else if (plan.type === 'tackle') { steps.push({ type: 'dribble', who: plan.shooter, dur: 0.35 }); steps.push({ type: 'steal', who: plan.shooter, dur: 0.8 }); }
     else { steps.push({ type: 'dribble', who: plan.shooter, dur: plan.header ? 0.05 : 0.35 }); steps.push({ type: 'shot', who: plan.shooter, dur: plan.header ? 0.45 : 0.55, goalX }); }
     steps.push({ type: 'after', dur: plan.type === 'goal' ? 1.5 : plan.type === 'tackle' ? 1.3 : 1.15 });
+    if (foul) { // ファウルされた チームの フリーキック(ゴールには ならない: スコアは そのまま)
+      steps.push({ type: 'setpiece', kind: 'freekick', who: plan.taker, dur: 1.4 });
+      steps.push({ type: 'shot', who: plan.taker, dur: 0.75, goalX, fk: true, fkOut: plan.fk });
+      steps.push({ type: 'after', second: true, fkOut: plan.fk, dur: 1.1 });
+    }
     if (plan.type === 'goal' && replay && S.speed <= 1.6) steps.push({ type: 'replay', dur: 3 });
-    hist.length = 0; trail.length = 0;
+    hist.length = 0; trail.length = 0; S.flag = null;
     S.steps = steps; S.si = 0; S.t = 0; S.step = null;
     cb.onEvent && cb.onEvent({ phase: 'start', i: n, ev });
   }
@@ -239,6 +247,12 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     else if (st.type === 'shot') { say(`${nm(st.who)}の シュート!!`); if (!S.plan.header) sfx('kick'); burst(ball.x, ball.y, 6, ['#fff', '#ffe066', '#ffd23f'], { spread: 40, up: 14, life: 0.35 }); }
     else if (st.type === 'steal') { say(S.plan.kind === 'foul' ? `${defPlayer().m.name}が ひっかけた!` : `${defPlayer().m.name}が タックル!`); sfx('tackle'); }
     else if (st.type === 'setpiece') { setPiece(st); }
+    else if (st.type === 'offside') {
+      const r = P[st.who]; const dirA = atk === 'a' ? 1 : -1; const defs = players[dfn].filter((p) => p.m.slot !== 'GK');
+      const line = dirA > 0 ? Math.max(...defs.map((p) => p.x)) : Math.min(...defs.map((p) => p.x));
+      S.flag = { x: line, t: 2.2 }; r.tx = r.x; r.ty = r.y; r.arms = true; players[dfn].forEach((p) => { p.tx = p.x; p.ty = p.y; });
+      say(`${r.m.name}が ぬけだした! …オフサイド!`); nextBanner('オフサイド!', 1.1); sfx('whistle');
+    }
     else if (st.type === 'cross') { const f = P[st.from]; f.kick = 0.35; say(`${f.m.name}の クロス!`); sfx('kick'); }
     if (st.type === 'replay') {
       const fr = hist.slice(Math.max(0, (S.goalMark || hist.length) - 84), Math.min(hist.length, (S.goalMark || hist.length) + 6));
@@ -252,6 +266,13 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       shape([P[st.from], P[st.to]], u);
       const q = toPx(atk, lerp(Math.max(L.ax, 0.3), 0.78, u * u), lerp(L.ay, 0.5 + (Math.sin(st.to * 7 + S.idx) * 0.16), u));
       r.tx = q.x; r.ty = q.y;
+      const offLast = S.plan.kind === 'offside' && S.plan.type === 'tackle' && st.k === st.n - 1;
+      if (offLast) { // さいごの パスの うけ手は、まもりの ラインより まえへ(オフサイド)
+        const dirO = atk === 'a' ? 1 : -1; const ds = players[dfn].filter((p) => p.m.slot !== 'GK');
+        const ln = dirO > 0 ? Math.max(...ds.map((p) => p.x)) : Math.min(...ds.map((p) => p.x));
+        const ox = Math.max(PITCH.x0 + 10, Math.min(PITCH.x1 - 10, ln + dirO * 11)); r.tx = ox; r.ty = lerp(r.y, CY + (Math.sin(S.idx * 3) * 18), 0.6); q.x = ox; q.y = r.ty;
+        ds.forEach((p) => { p.tx = p.x; p.ty = p.y; });
+      }
       if (S.plan.header && st.k === st.n - 1) { const h = toPx(atk, 0.86, 0.5 + Math.sin(S.idx * 5) * 0.1); r.tx = h.x; r.ty = h.y; st.arc = 20; } // クロス → ヘディング
       st.sx = f.x; st.sy = f.y; ball.hold = null; st.arc = st.arc || 6 + (Math.abs(f.x - q.x) > 80 ? 8 : 0);
       if (st.cut) { // うけ手の てまえで ディフェンダーが カット
@@ -260,7 +281,7 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       }
       // まもる人が ボールに よる
       const near = players[dfn].filter((p) => p.m.slot !== 'GK').sort((a, b) => Math.hypot(a.x - q.x, a.y - q.y) - Math.hypot(b.x - q.x, b.y - q.y)).slice(0, 2);
-      near.forEach((p, j) => { p.tx = lerp(p.x, q.x, 0.6 - j * 0.2); p.ty = lerp(p.y, q.y, 0.6 - j * 0.2); });
+      if (!offLast) near.forEach((p, j) => { p.tx = lerp(p.x, q.x, 0.6 - j * 0.2); p.ty = lerp(p.y, q.y, 0.6 - j * 0.2); });
     }
     if (st.type === 'cross') { const f = P[st.from]; ball.hold = null; st.sx = ball.x; st.sy = ball.y; st.arc = 24; void f; }
     if (st.type === 'dribble') {
@@ -275,24 +296,27 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     if (st.type === 'shot') {
       const s = P[st.who]; if (!S.plan.header) s.kick = 0.35; const keeper = players[dfn][S.plan.gk >= 0 ? lay[dfn].rows.GK[0] : 0];
       const A = S.plan.aim; ball.hold = null; st.sx = ball.x; st.sy = ball.y;
-      const ty = CY + A.dy;
-      if (S.plan.type === 'goal') { st.tx = st.goalX + (atk === 'a' ? 5 : -5); st.ty = ty; keeper.dive = { up: A.dy > 0, t: 0, ty: CY - A.dy * 1.2, tx: keeper.x, late: true }; }
-      else if (S.plan.type === 'save') { st.tx = keeper.x - (atk === 'a' ? 5 : -5); st.ty = ty; keeper.dive = { up: ty < CY, t: 0, ty, tx: keeper.x, late: false }; }
+      const outT = st.fkOut || S.plan.type; // ファウルの フリーキックは セーブか はずれ
+      const ty = CY + (outT === 'save' && st.fkOut ? (A.dy > 0 ? 1 : -1) * 6 : A.dy);
+      if (outT === 'goal') { st.tx = st.goalX + (atk === 'a' ? 5 : -5); st.ty = ty; keeper.dive = { up: A.dy > 0, t: 0, ty: CY - A.dy * 1.2, tx: keeper.x, late: true }; }
+      else if (outT === 'save') { st.tx = keeper.x - (atk === 'a' ? 5 : -5); st.ty = ty; keeper.dive = { up: ty < CY, t: 0, ty, tx: keeper.x, late: false }; }
       else { st.tx = st.goalX + (atk === 'a' ? 16 : -16); st.ty = ty; st.high = A.over ? 18 : 3; }
       if (st.fk) { st.high = A.over ? 24 : 15; st.curve = (A.dy > 0 ? 1 : -1) * 9; s.kick = 0.4; sfx('kick'); }
       st.keeper = keeper;
       s.dir = atk === 'a' ? 1 : -1;
     }
     if (st.type === 'after') {
-      const type = S.plan.type;
-      if (cb.onEvent) cb.onEvent({ phase: 'result', i: S.idx, ev: events[S.idx] });
+      const type = st.second ? st.fkOut : S.plan.type;
+      if (cb.onEvent && !st.second) cb.onEvent({ phase: 'result', i: S.idx, ev: events[S.idx] });
       S.goalMark = type === 'goal' ? hist.length : S.goalMark;
-      say(type === 'goal' ? `ゴール!! ${nm(S.plan.shooter)}!` : type === 'save' ? 'ナイスセーブ!' : type === 'tackle' ? (S.plan.kind === 'foul' ? (S.plan.card ? 'ファウル! イエローカード!' : 'ファウル!') : S.plan.kind === 'intercept' ? 'パスカット!' : 'ナイスタックル!') : 'ああっ ざんねん…');
+      say(type === 'goal' ? `ゴール!! ${nm(S.plan.shooter)}!` : type === 'save' ? 'ナイスセーブ!' : type === 'tackle' ? (S.plan.kind === 'foul' ? (S.plan.card ? 'ファウル! イエローカード!' : 'ファウル!') : S.plan.kind === 'offside' ? 'オフサイド!' : S.plan.kind === 'intercept' ? 'パスカット!' : 'ナイスタックル!') : st.second ? 'フリーキックは ざんねん…' : 'ああっ ざんねん…');
       sfx(type === 'goal' ? 'goal' : type === 'save' ? 'save' : type === 'tackle' ? 'tackle' : 'miss');
       if (type === 'goal') { const gx = atk === 'a' ? PITCH.x1 : PITCH.x0; burst(gx, CY, 70, ['#ffc93c', '#27d8ff', '#ff4d5e', '#fff', '#19d68a'], { spread: 120, up: 55, life: 1.4, size: 2 }); }
       if (type === 'tackle' && S.plan.kind === 'foul') {
         const d = defPlayer(); ball.hold = players[atk][S.plan.shooter]; S.crowd = 0.3; sfx('whistle');
         nextBanner('ファウル!', 1.0); if (S.plan.card) S.card = { p: d, t: 1.4 };
+      } else if (type === 'tackle' && S.plan.kind === 'offside') {
+        const d = defPlayer(); ball.hold = null; d.tx = ball.x; d.ty = ball.y; d.dir = atk === 'a' ? -1 : 1; S.crowd = 0.2;
       } else if (type === 'tackle') {
         const d = defPlayer(); const dirA = atk === 'a' ? 1 : -1; ball.hold = d;
         d.tx = d.x - dirA * 34; d.ty = lerp(d.y, CY, 0.3); d.dir = -dirA; S.crowd = 0.5;
@@ -313,7 +337,8 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     const atk = S.plan.side; const dfn = atk === 'a' ? 'b' : 'a'; const dirA = atk === 'a' ? 1 : -1;
     const goalX = atk === 'a' ? PITCH.x1 : PITCH.x0; const P = players[atk]; const D = players[dfn];
     const snapTo = (p, x, y) => { p.tx = x; p.ty = y; p.x = lerp(p.x, x, 0.55); p.y = lerp(p.y, y, 0.55); };
-    const taker = P[S.plan.taker]; const shooter = P[S.plan.shooter];
+    const taker = P[S.plan.taker]; const shooter = P[st.who != null ? st.who : S.plan.shooter];
+    players.a.concat(players.b).forEach((p) => { p.fallen = false; p.slide = false; p.celebrate = false; p.arms = false; });
     const side = S.idx % 2 ? 1 : -1;
     nextBanner(st.kind === 'corner' ? 'コーナーキック!' : 'フリーキック!', 1.1); sfx('whistle');
     say(st.kind === 'corner' ? `コーナーキック! ${taker.m.name}が けります` : `フリーキック! ${shooter.m.name}が ねらう`);
@@ -373,10 +398,11 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
         const dd = clamp01((S.t - (k.dive.late ? 0.12 : 0.05)) / (k.dive.late ? 0.4 : 0.35)); k.dive.t = dd;
         k.x = lerp(k.dive.tx, k.dive.tx + (S.plan.side === 'a' ? 1 : -1) * -1, dd); k.y = lerp(k.dive.y0 != null ? k.dive.y0 : (k.dive.y0 = k.y), k.dive.ty, ease(dd)); k.tx = k.x; k.ty = k.y;
       }
-      if (S.plan.type === 'save' && u > 0.92) { st.saved = true; }
+      if ((st.fkOut || S.plan.type) === 'save' && u > 0.92) { st.saved = true; }
     } else if (st.type === 'after') {
-      const type = S.plan.type;
-      if (type === 'tackle') { const d = S.plan.kind === 'foul' ? players[atk][S.plan.shooter] : defPlayer(); const h = holderPx(d); ball.x = h.x; ball.y = h.y; ball.z = 0; }
+      const type = st.second ? st.fkOut : S.plan.type;
+      if (type === 'tackle' && S.plan.kind === 'offside') { /* ボールは その ばしょ */ }
+      else if (type === 'tackle') { const d = S.plan.kind === 'foul' ? players[atk][S.plan.shooter] : defPlayer(); const h = holderPx(d); ball.x = h.x; ball.y = h.y; ball.z = 0; }
       else if (type === 'goal') { ball.net = Math.max(0, 1 - S.t / 1.2); const sh = P[S.plan.shooter]; sh.jump = Math.abs(Math.sin(S.t * 7)) * 5; }
       else if (type === 'save') {
         const k = st.keeperRef || (st.keeperRef = (() => { const dfn = atk === 'a' ? 'b' : 'a'; return players[dfn][lay[dfn].rows.GK[0]]; })());
@@ -457,6 +483,7 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     // えんしゅつの げんすい
     for (const k of ['a', 'b']) for (const p of players[k]) if (p.kick > 0) p.kick -= dt;
     if (S.card) { S.card.t -= dt; if (S.card.t <= 0) S.card = null; }
+    if (S.flag) { S.flag.t -= dt; if (S.flag.t <= 0) S.flag = null; }
     S.shake = Math.max(0, S.shake - dt); S.flash = Math.max(0, S.flash - dt); S.crowd = Math.max(0, S.crowd - dt * 0.35);
     // せんしゅの いどう
     for (const k of ['a', 'b']) for (const p of players[k]) {
@@ -583,6 +610,7 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       else sprite(c, p.x, p.y, p.look, { frame: p.frame, jump: p.jump, arms: p.arms, dir: p.dir, kick: p.kick });
     }
     if (!ballDone) drawBall();
+    if (S.flag) { const fx = Math.round(S.flag.x); c.fillStyle = 'rgba(255,255,255,.6)'; for (let y = PITCH.y0; y < PITCH.y1; y += 6) c.fillRect(fx, y, 1, 3); const fy = Math.round(Math.min(PITCH.y1, cam.y + H / ZOOM - 8)); c.fillStyle = OL; c.fillRect(fx - 1, fy - 18, 3, 20); c.fillStyle = '#ffd23f'; c.fillRect(fx + 2, fy - 18, 9, 7); c.fillStyle = OL; c.fillRect(fx + 2, fy - 12, 9, 1); }
     if (S.card) { const cp = S.card.p; c.fillStyle = OL; c.fillRect(Math.round(cp.x) - 3, Math.round(cp.y) - 36, 6, 8); c.fillStyle = '#ffd23f'; c.fillRect(Math.round(cp.x) - 2, Math.round(cp.y) - 35, 4, 6); }
     for (const q of fxp) { c.globalAlpha = Math.max(0, 1 - q.t / q.l); c.fillStyle = q.c; c.fillRect(Math.round(q.x), Math.round(q.y), q.s, q.s); }
     c.globalAlpha = 1;
