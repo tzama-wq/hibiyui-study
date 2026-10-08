@@ -1165,7 +1165,7 @@ document.addEventListener('change', (e) => {
 });
 
 gameInit({
-  KIDS, kid: () => kidOf(), p: () => S.kids[kidId], cfg: () => cfg(), render: () => render(), toast, save, today: todayStr, BADGES,
+  KIDS, kid: () => kidOf(), p: () => S.kids[kidId], cfg: () => cfg(), quiet: () => quiet(), render: () => render(), toast, save, today: todayStr, BADGES,
   haveBadge: (b) => (S.kids[kidId].badges || []).includes(b.id) || b.cond(S.kids[kidId], kidOf()),
   dataFor, matesHtml: () => repCard(kidOf(), S.kids[kidId]) + siblingsCard(),
   setView: (v) => { view = v; toTop = true; },

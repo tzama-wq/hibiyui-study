@@ -3,6 +3,7 @@
 import * as G from './game.js';
 import { DEFAULTS, gachaLeft, addGachaPulls } from './cfg.js';
 import { createMatch } from './match.js';
+import { createSfx } from './sfx.js';
 
 let X; // ctx
 export function gameInit(ctx) { X = ctx; }
@@ -214,7 +215,7 @@ function powerHtml() {
 }
 
 // ---- 対戦 ----------------------------------------------------------------------
-let B = null; let timer = null; let M = null;
+let B = null; let timer = null; let M = null; let SFX = null;
 // かぞくの チームの へんせいを みる(みるだけ)
 function famTeamsHtml() {
   const others = X.KIDS.filter((k) => k.id !== X.kid().id);
@@ -308,7 +309,11 @@ function openBattle(b) {
   B = { ...b, evs, i: 0, speed: 1, anim: animOn(), matchDone: false, banner: '', pkShown: null };
   X.setView('battle');
   if (B.anim) {
+    SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false)); SFX.bgmStart();
     M = createMatch({ me: B.me, opp: B.opp, events: evs, speed: B.speed, pk: b.pk ? G.pkKicks(b.pk) : null, callbacks: {
+      onSfx: (n) => SFX && SFX.play(n),
+      onCommentary: (t) => { if (B) B.cm = t; const e = typeof document !== 'undefined' && document.getElementById('bcm'); if (e) e.textContent = t; },
+      onReplay: (on) => { if (B) B.replay = on; const w = typeof document !== 'undefined' && document.querySelector('.mwrap'); if (w) w.classList.toggle('rp', !!on); },
       onPk: ({ phase, kick, shown }) => { if (!B) return; B.pkShown = phase === 'result' ? shown : shown; if (phase === 'result') { X.fx.beep(kick.ok ? (kick.side === 'a' ? 'ok' : 'ng') : 'ng'); if (kick.ok && kick.side === 'a') X.fx.confetti(vw() / 2, vh() * 0.3, 30, 1); } hudUpdate(); },
       onEvent: ({ phase, i, ev }) => {
         if (!B) return;
@@ -320,7 +325,7 @@ function openBattle(b) {
         }
       },
       onBanner: (t) => { B.banner = t; hudUpdate(); setTimeout(() => { if (B && B.banner === t) { B.banner = ''; hudUpdate(); } }, 1500); },
-      onEnd: () => { if (!B) return; B.i = B.evs.length; B.matchDone = true; B.minute = 90; finishBattle(); X.render(); },
+      onEnd: () => { if (!B) return; B.i = B.evs.length; B.matchDone = true; B.minute = 90; if (SFX) SFX.bgmStop(); finishBattle(); X.render(); },
     } });
   } else tickBattle();
 }
@@ -339,7 +344,7 @@ function cupOutHtml() {
   if (o.type === 'retry') return `<div class="cupout"><b>ざんねん…!</b><p>おなじ しあいから もういちど ちょうせんできるよ。</p><button class="btn gold" data-act="cupfight" data-cup="${cup.id}">⚔ もういちど</button></div>`;
   return `<div class="cupout lose"><b>はいたい…</b><p>${cup.name}は 1かいせんから やりなおし。ガチャで 選手を あつめて、れんしゅうで つよく なって また ちょうせんしよう!</p><button class="btn gray" data-act="cupfight" data-cup="${cup.id}">⚔ 1かいせんから</button></div>`;
 }
-function stopMatch() { if (M) { M.destroy(); M = null; } }
+function stopMatch() { if (M) { M.destroy(); M = null; } if (SFX) SFX.bgmStop(); }
 const scoreNow = () => { if (B.matchDone || (!B.anim && B.i >= B.evs.length)) return B.res.score; const e = B.evs[B.i - 1]; return e ? e.score : { a: 0, b: 0 }; };
 // がめんを つくりなおさずに、スコアなどを その場で かきかえる(映像の canvas を こわさない)
 function hudUpdate(addLog) {
@@ -398,7 +403,7 @@ export function battleView() {
   if (B.anim && M) setTimeout(() => { const cv = typeof document !== 'undefined' && document.getElementById('mcv'); if (cv && M) M.attach(cv); }, 0);
   return `<div class="quiz-top"><span></span><div class="scoreboard"><span class="sb-l">${esc(B.me.name)} <b id="bsa">${sc.a}</b></span><span class="sb-m">-</span><span class="sb-r"><b id="bsb">${sc.b}</b> ${esc(B.opp.name)}</span></div><span></span></div>
     <main><section class="panel"><div class="vs">${teamHtml(B.me)}<b>VS</b>${teamHtml(B.opp)}</div>
-    ${B.anim ? `<div class="mwrap"><canvas id="mcv" class="mcv" aria-label="しあいの えいぞう"></canvas><span id="bmin" class="bmin">${done ? 'おわり' : B.minute ? `${B.minute < 46 ? '前半' : '後半'} ${B.minute}分` : 'キックオフ'}</span><div id="bban" class="bban ${B.banner ? 'on' : ''}">${esc(B.banner)}</div></div>` : ''}
+    ${B.anim ? `<div class="mwrap"><canvas id="mcv" class="mcv" aria-label="しあいの えいぞう"></canvas><span id="bmin" class="bmin">${done ? 'おわり' : B.minute ? `${B.minute < 46 ? '前半' : '後半'} ${B.minute}分` : 'キックオフ'}</span><div id="bban" class="bban ${B.banner ? 'on' : ''}">${esc(B.banner)}</div><div id="bcm" class="bcm">${esc(B.cm || '')}</div></div>` : ''}
     ${pkRow()}
     <div class="blog" id="blog">${shown.map((e) => logRow(e)).join('') || '<div class="muted">キックオフ…!</div>'}</div>
     ${done ? `<div class="bresult ${won ? 'win' : sc.a < sc.b || B.pk ? 'lose' : ''}"><b>${result[0]}</b><p>${result[1]}</p></div>

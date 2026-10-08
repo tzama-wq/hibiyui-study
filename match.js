@@ -148,7 +148,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
 const ease = (t) => t * t * (3 - 2 * t);
 
-export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, callbacks = {}, pk = null }) {
+export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, callbacks = {}, pk = null, replay = true }) {
   const sides = { a: me, b: opp };
   const players = { a: [], b: [] };
   const lay = { a: layout(me.team), b: layout(opp.team) };
@@ -163,6 +163,18 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
   const S = { idx: -1, step: null, steps: [], si: 0, t: 0, pause: 1.1, banner: null, done: false, shake: 0, crowd: 0, anim: 0, flash: 0, speed, plan: null, started: false };
   let canvas = null; let ctx = null; let raf = 0; let last = 0; let dead = false;
   const cb = callbacks;
+  const say = (t) => cb.onCommentary && cb.onCommentary(t); // じっきょう
+  const sfx = (n) => cb.onSfx && cb.onSfx(n);              // こうかおん
+  // えんしゅつ: ほこり・ひばな・かみふぶき(Math.random: しあいの けっかの らんすうを みださない)
+  const fxp = [];
+  const burst = (x, y, n, colors, o = {}) => { for (let i = 0; i < n; i++) fxp.push({ x, y, vx: (Math.random() - 0.5) * (o.spread || 50), vy: -Math.random() * (o.up || 25) - 4, t: 0, l: (o.life || 0.7) * (0.6 + Math.random() * 0.6), c: colors[Math.floor(Math.random() * colors.length)], s: o.size || 2 }); };
+  const trail = []; // ボールの きせき
+  const hist = []; let histT = 0; // リプレイ用の きろく(1びょう 30こま)
+  const snap = () => ({ b: [ball.x, ball.y, ball.z, ball.net], c: [cam.x, cam.y], p: [...players.a, ...players.b].map((p) => [p.x, p.y, p.frame, p.dir, p.jump, p.arms ? 1 : 0, p.slide ? 1 : 0, p.fallen ? 1 : 0, p.kick || 0, p.dive ? [p.dive.up, p.dive.t] : 0]) });
+  const applyFrame = (f) => {
+    ball.x = f.b[0]; ball.y = f.b[1]; ball.z = f.b[2]; ball.net = f.b[3]; cam.x = f.c[0]; cam.y = f.c[1];
+    [...players.a, ...players.b].forEach((p, i) => { const q = f.p[i]; p.x = q[0]; p.y = q[1]; p.frame = q[2]; p.dir = q[3]; p.jump = q[4]; p.arms = !!q[5]; p.slide = !!q[6]; p.fallen = !!q[7]; p.kick = q[8]; p.dive = q[9] ? { up: q[9][0], t: q[9][1] } : null; p.tx = p.x; p.ty = p.y; });
+  };
 
   // たいけい(ふだんの ばしょ)に もどす。こうげき中の チームは 前へ、まもる チームは うしろへ
   function formation(atkSide) {
@@ -191,7 +203,9 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     if (cut) { /* パスが カットされて おわり */ }
     else if (plan.type === 'tackle') { steps.push({ type: 'dribble', who: plan.shooter, dur: 0.35 }); steps.push({ type: 'steal', who: plan.shooter, dur: 0.8 }); }
     else { steps.push({ type: 'dribble', who: plan.shooter, dur: plan.header ? 0.05 : 0.35 }); steps.push({ type: 'shot', who: plan.shooter, dur: plan.header ? 0.45 : 0.55, goalX }); }
-    steps.push({ type: 'after', dur: plan.type === 'goal' ? 2.1 : plan.type === 'tackle' ? 1.3 : 1.15 });
+    steps.push({ type: 'after', dur: plan.type === 'goal' ? 1.5 : plan.type === 'tackle' ? 1.3 : 1.15 });
+    if (plan.type === 'goal' && replay && S.speed <= 1.6) steps.push({ type: 'replay', dur: 3 });
+    hist.length = 0; trail.length = 0;
     S.steps = steps; S.si = 0; S.t = 0; S.step = null;
     cb.onEvent && cb.onEvent({ phase: 'start', i: n, ev });
   }
@@ -199,6 +213,16 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
   function startStep(st) {
     const atk = S.plan.side; const dfn = atk === 'a' ? 'b' : 'a'; const P = players[atk];
     st.began = true;
+    const nm = (i) => (P[i] ? P[i].m.name : '');
+    if (st.type === 'hold') say(`${nm(st.who)}が ボールを もった`);
+    else if (st.type === 'pass') { say(st.cut ? `${nm(st.from)}の パスを…!` : `${nm(st.from)}から ${nm(st.to)}へ パス!`); sfx('pass'); }
+    else if (st.type === 'dribble') say(`${nm(st.who)}が ドリブルで しかける!`);
+    else if (st.type === 'shot') { say(`${nm(st.who)}の シュート!!`); if (!S.plan.header) sfx('kick'); burst(ball.x, ball.y, 6, ['#fff', '#ffe066', '#ffd23f'], { spread: 40, up: 14, life: 0.35 }); }
+    else if (st.type === 'steal') { say(`${defPlayer().m.name}が タックル!`); sfx('tackle'); }
+    if (st.type === 'replay') {
+      const fr = hist.slice(Math.max(0, (S.goalMark || hist.length) - 84), Math.min(hist.length, (S.goalMark || hist.length) + 6));
+      st.frames = fr.length ? fr : [snap()]; st.dur = Math.max(0.5, st.frames.length / 20); S.rp = true; say('リプレイ'); cb.onReplay && cb.onReplay(true);
+    }
     if (st.type === 'hold') { ball.hold = P[st.who]; }
     if (st.type === 'pass') {
       const r = P[st.to]; const f = P[st.from];
@@ -223,6 +247,7 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     if (st.type === 'steal') { // ディフェンダーが ボールを うばう(スライディング)
       const d = defPlayer(); const c = P[st.who]; st.defP = d; st.carrier = c;
       ball.hold = c; d.tx = c.x + c.dir * 7; d.ty = c.y; d.dir = c.dir > 0 ? -1 : 1; st.sx = ball.x; st.sy = ball.y;
+      burst(c.x, c.y, 10, ['#e8e0c8', '#cbbf9a', '#b8a77a'], { spread: 40, up: 12, life: 0.6, size: 2 });
     }
     if (st.type === 'shot') {
       const s = P[st.who]; if (!S.plan.header) s.kick = 0.35; const keeper = players[dfn][S.plan.gk >= 0 ? lay[dfn].rows.GK[0] : 0];
@@ -237,6 +262,10 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     if (st.type === 'after') {
       const type = S.plan.type;
       if (cb.onEvent) cb.onEvent({ phase: 'result', i: S.idx, ev: events[S.idx] });
+      S.goalMark = type === 'goal' ? hist.length : S.goalMark;
+      say(type === 'goal' ? `ゴール!! ${nm(S.plan.shooter)}!` : type === 'save' ? 'ナイスセーブ!' : type === 'tackle' ? (S.plan.kind === 'intercept' ? 'パスカット!' : 'ナイスタックル!') : 'ああっ ざんねん…');
+      sfx(type === 'goal' ? 'goal' : type === 'save' ? 'save' : type === 'tackle' ? 'tackle' : 'miss');
+      if (type === 'goal') { const gx = atk === 'a' ? PITCH.x1 : PITCH.x0; burst(gx, CY, 70, ['#ffc93c', '#27d8ff', '#ff4d5e', '#fff', '#19d68a'], { spread: 120, up: 55, life: 1.4, size: 2 }); }
       if (type === 'tackle') {
         const d = defPlayer(); const dirA = atk === 'a' ? 1 : -1; ball.hold = d;
         d.tx = d.x - dirA * 34; d.ty = lerp(d.y, CY, 0.3); d.dir = -dirA; S.crowd = 0.5;
@@ -268,7 +297,8 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       const r = P[st.to]; const tx = st.cut ? st.px : r.x + r.dir * 2; const ty = st.cut ? st.py : r.y;
       ball.x = lerp(st.sx, tx, ease(u)); ball.y = lerp(st.sy, ty, ease(u)); ball.z = Math.sin(u * Math.PI) * st.arc * (st.cut ? 0.6 : 1);
       if (u >= 1) { ball.hold = st.cut ? st.defP : r; }
-    } else if (st.type === 'dribble') { const h = holderPx(P[st.who]); ball.x = h.x; ball.y = h.y; ball.z = 0; }
+    } else if (st.type === 'replay') { applyFrame(st.frames[Math.min(st.frames.length - 1, Math.floor(S.t * 20))]); }
+    else if (st.type === 'dribble') { const h = holderPx(P[st.who]); ball.x = h.x; ball.y = h.y; ball.z = 0; }
     else if (st.type === 'steal') {
       const d = st.defP; const c = st.carrier;
       if (u < 0.35) { const h = holderPx(c); ball.x = h.x; ball.y = h.y; ball.z = 0; }
@@ -325,7 +355,7 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     const kp = q.keeper;
     if (q.stage === 'ready') {
       if (q.t >= 0.95) {
-        q.stage = 'shot'; q.t = 0; q.sx = ball.x; q.sy = ball.y;
+        q.stage = 'shot'; q.t = 0; q.sx = ball.x; q.sy = ball.y; sfx('kick');
         const dy = (rnd() < 0.5 ? -1 : 1) * (7 + rnd() * 7);
         if (K.kind === 'goal') { q.tx = PITCH.x1 + 5; q.ty = CY + dy; kp.dive = { up: dy > 0, t: 0, ty: CY - dy * 1.2, late: true, y0: kp.y }; }
         else if (K.kind === 'save') { q.tx = PITCH.x1 - 6; q.ty = CY + dy * 0.8; kp.dive = { up: dy < 0, t: 0, ty: CY + dy * 0.8, late: false, y0: kp.y }; }
@@ -340,6 +370,7 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       if (u >= 1) {
         q.stage = 'after'; q.t = 0;
         if (K.kind === 'goal') { S.shake = 0.35; S.crowd = 1; S.flash = 0.25; ball.net = 1; q.kicker.arms = true; } else if (K.kind === 'save') { S.crowd = 0.4; q.ex = ball.x - 22; q.ey = ball.y + (ball.y < CY ? -18 : 18); q.bx = ball.x; q.by = ball.y; }
+        sfx(K.kind === 'goal' ? 'goal' : K.kind === 'save' ? 'save' : 'miss');
         cb.onPk && cb.onPk({ phase: 'result', i: q.i, kick: K, shown: q.kicks.slice(0, q.i + 1) });
       }
       return;
@@ -353,10 +384,12 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       startKick(q.i + 1);
     }
   }
-  function nextBanner(text, dur) { S.banner = { text, t: dur }; cb.onBanner && cb.onBanner(text); }
+  function nextBanner(text, dur) {
+    if (/TIME|PK/.test(text)) sfx('whistle'); S.banner = { text, t: dur }; cb.onBanner && cb.onBanner(text); }
 
   function step(dt) {
     S.anim += dt;
+    for (let i = fxp.length - 1; i >= 0; i--) { const q = fxp[i]; q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 70 * dt; if (q.t >= q.l) fxp.splice(i, 1); }
     // カメラ: ボールを おいかける(すこし ゴールの ほうを みる)
     const lead = S.plan ? (S.plan.side === 'a' ? 18 : -18) : 0;
     const tx = Math.max(0, Math.min(W - W / ZOOM, ball.x + lead - W / ZOOM / 2));
@@ -375,7 +408,7 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       if (!p.celebrate) p.jump = 0;
     }
     if (S.done) return;
-    if (S.pause > 0) { S.pause -= dt; if (S.pause <= 0 && !S.started) { S.started = true; beginEvent(0); S.pause = 0; } else if (S.pause <= 0 && S.pk && !S.pk.on) { S.pk.on = true; startKick(0); } else if (S.pause <= 0 && S.next) { const n = S.next; S.next = null; players.a.concat(players.b).forEach((p) => { p.celebrate = false; p.arms = false; p.dive = null; p.slide = false; p.fallen = false; p.kick = 0; }); beginEvent(n); } return; }
+    if (S.pause > 0) { S.pause -= dt; if (S.pause <= 0 && !S.started) { S.started = true; sfx('whistle'); beginEvent(0); S.pause = 0; } else if (S.pause <= 0 && S.pk && !S.pk.on) { S.pk.on = true; startKick(0); } else if (S.pause <= 0 && S.next) { const n = S.next; S.next = null; players.a.concat(players.b).forEach((p) => { p.celebrate = false; p.arms = false; p.dive = null; p.slide = false; p.fallen = false; p.kick = 0; }); beginEvent(n); } return; }
     if (S.pk && S.pk.on) { stepPk(dt); return; }
     if (!S.started) return;
     const st = S.steps[S.si];
@@ -383,8 +416,14 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
     if (!st.began) startStep(st);
     S.t += dt;
     updateStep(st, dt);
+    if (!S.rp) { // リプレイ用に きろく(30こま/びょう)・ボールの きせき
+      histT += dt; while (histT >= 1 / 30) { histT -= 1 / 30; hist.push(snap()); if (hist.length > 240) hist.shift(); }
+      const lt = trail[trail.length - 1];
+      if (!ball.hold && (!lt || Math.hypot(ball.x - lt.x, ball.y - lt.y) > 2.5)) { trail.push({ x: ball.x, y: ball.y, z: ball.z, t: S.anim }); if (trail.length > 8) trail.shift(); }
+    }
     if (S.t >= st.dur) {
       S.si++; S.t = 0;
+      if (st.type === 'replay') { S.rp = false; cb.onReplay && cb.onReplay(false); }
       if (S.si >= S.steps.length) { // 1かい おわり
         const n = S.idx + 1;
         if (cb.onEvent) cb.onEvent({ phase: 'end', i: S.idx, ev: events[S.idx] });
@@ -472,6 +511,9 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       c.fillStyle = '#fff'; c.fillRect(bx - 2, by - 4 - bz, 4, 4); c.fillRect(bx - 1, by - 5 - bz, 2, 6);
       c.fillStyle = '#2b2b3a'; const ph = Math.floor(S.anim * 12) % 2; c.fillRect(bx - 1 + ph, by - 3 - bz, 2, 2);
     };
+    // ボールの きせき
+    for (const q of trail) { const age = S.anim - q.t; if (age > 0.28 || age < 0) continue; c.globalAlpha = (1 - age / 0.28) * 0.45; c.fillStyle = '#fff'; c.fillRect(Math.round(q.x) - 1, Math.round(q.y) - 2 - Math.round(q.z), 3, 3); }
+    c.globalAlpha = 1;
     let ballDone = false;
     for (const p of all) {
       if (!ballDone && ball.y < p.y) { drawBall(); ballDone = true; }
@@ -481,7 +523,21 @@ export function createMatch({ me, opp, events, speed = 1, rnd = Math.random, cal
       else sprite(c, p.x, p.y, p.look, { frame: p.frame, jump: p.jump, arms: p.arms, dir: p.dir, kick: p.kick });
     }
     if (!ballDone) drawBall();
+    for (const q of fxp) { c.globalAlpha = Math.max(0, 1 - q.t / q.l); c.fillStyle = q.c; c.fillRect(Math.round(q.x), Math.round(q.y), q.s, q.s); }
+    c.globalAlpha = 1;
     c.restore();
+    // ボールを もっている 人の なまえ
+    const hp = ball.hold; if (hp && !S.done && !(S.pk && S.pk.on) && hp.m) {
+      const label = String(hp.m.name).slice(0, 9); c.font = 'bold 9px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      const sx = (hp.x - cam.x) * ZOOM; const sy = (hp.y - 31 - cam.y) * ZOOM; const tw = c.measureText(label).width + 6;
+      c.fillStyle = 'rgba(0,0,0,.62)'; c.fillRect(Math.round(sx - tw / 2), Math.round(sy - 6), Math.round(tw), 12);
+      c.fillStyle = hp.k === 'a' ? '#9fd0ff' : '#ffd0a0'; c.fillText(label, Math.round(sx), Math.round(sy));
+    }
+    if (S.rp) { // リプレイ: すこし セピア + うえしたの くろおび
+      c.fillStyle = 'rgba(255,215,140,.10)'; c.fillRect(0, 0, W, H);
+      c.fillStyle = '#000'; c.fillRect(0, 0, W, 10); c.fillRect(0, H - 10, W, 10);
+      c.fillStyle = '#ff3b3b'; c.fillRect(8, 14, 34, 11); c.fillStyle = '#fff'; c.font = 'bold 8px sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('REPLAY', 11, 20);
+    }
     if (S.flash > 0) { c.fillStyle = `rgba(255,255,255,${S.flash * 0.7})`; c.fillRect(0, 0, W, H); }
   }
 
