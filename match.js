@@ -70,7 +70,7 @@ export function look(m, side, teamName) {
     hair: HAIR[h % HAIR.length], skin: SKIN[(h >> 3) % SKIN.length], style: (h >> 6) % 6,
     shirt, trim: side === 'a' ? '#ffffff' : '#fff6d8', shorts: gk ? '#222' : side === 'a' ? '#ffffff' : '#2a2a2a',
     sock: gk ? '#222' : side === 'a' ? '#2f6df6' : rival, pat: gk ? 0 : (th >> 4) % 4, glove: gk,
-    star: m.rarity === 'kid' ? 'kid' : ['rare', 'super', 'legend'].includes(m.rarity) ? m.rarity : '',
+    star: m.rarity === 'kid' ? 'kid' : ['rare', 'super', 'legend', 'diamond'].includes(m.rarity) ? m.rarity : '',
   };
 }
 
@@ -117,6 +117,7 @@ function bodyParts(a, o) {
 }
 function markParts(a) { // せんしゅの めじるし(じぶん・レア いじょう)
   if (a.star === 'kid') return [[-3, -24, 6, 1, '#ffd23f'], [-3, -26, 1, 2, '#ffd23f'], [0, -27, 1, 3, '#ffd23f'], [2, -26, 1, 2, '#ffd23f']];
+  if (a.star === 'diamond') return [[0, -29, 1, 6, '#ffffff'], [-3, -26, 7, 1, '#9ff3ff'], [-1, -28, 3, 5, '#9ff3ff'], [0, -27, 1, 3, '#ffffff']];
   if (a.star) { const c = a.star === 'legend' ? '#ff9f1c' : a.star === 'super' ? '#ffd23f' : '#9be7ff'; return [[0, -27, 1, 5, c], [-2, -25, 5, 1, c]]; }
   return [];
 }

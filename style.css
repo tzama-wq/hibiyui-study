@@ -512,3 +512,13 @@ body.big .nav button small{font-size:13px}
 
 .bcm{position:absolute;left:0;right:0;bottom:0;padding:4px 8px;font:800 12px/1.3 system-ui;color:#fff;background:linear-gradient(0deg,rgba(0,0,0,.7),rgba(0,0,0,0));text-shadow:0 1px 0 #000;pointer-events:none;min-height:22px}
 .mwrap.rp{border-color:#ff3b3b}
+
+/* ダイヤモンド(レジェンドの うえ) */
+:root{--r-diamond:#9ff3ff}
+.r-diamond{--rc:var(--r-diamond);--rg1:#2aa6c9;--rg2:#0a2a47}
+.r-diamond.rcard{box-shadow:0 0 18px rgba(120,235,255,.75),inset 0 0 14px rgba(255,255,255,.25);background-image:linear-gradient(135deg,rgba(255,255,255,.2),transparent 40%,rgba(180,240,255,.28) 60%,transparent);animation:diamond 3.2s linear infinite}
+.chipb.r-diamond{color:#9ff3ff}
+.dia{opacity:.92}.dia.got{opacity:1;border-color:#9ff3ff}
+.dia-main{display:flex;gap:10px;align-items:flex-start}.dia-main .rcard{width:104px;flex:none}
+.dia-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.dia-info b{font-size:15px}.dia-info small{color:var(--mute);font-size:11px}
+.dreq{font-size:12px;line-height:1.35}.dreq.ok{color:var(--mint,#19d68a)}

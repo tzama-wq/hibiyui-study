@@ -5,29 +5,29 @@ import {
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
-  FORMATIONS, slotsOf, refitTeam, MAX_LEVEL, matchSummary, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
+  FORMATIONS, slotsOf, refitTeam, MAX_LEVEL, matchSummary, DIAMOND, diamondReq, claimDiamond, addShards, rarityRank, DIAMOND_CAP, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
 } from '../game.js';
 
 // ---- 選手データ ----
-assert.equal(PLAYERS.length, 540);
-assert.equal(new Set(PLAYERS.map((p) => p.id)).size, 540);
-assert.equal(new Set(PLAYERS.map((p) => p.name)).size, 540, '名前が重複');
+assert.equal(PLAYERS.length, 552);
+assert.equal(new Set(PLAYERS.map((p) => p.id)).size, 552);
+assert.equal(new Set(PLAYERS.map((p) => p.name)).size, 552, '名前が重複');
 for (const r of RARITIES) assert.ok(PLAYERS.some((p) => p.rarity === r), r);
 assert.equal(PLAYERS.filter((p) => p.rarity === 'legend').length, 60);
-for (const [r, n] of Object.entries({ common: 80, uncommon: 60, rare: 220, super: 120, legend: 60 })) assert.equal(PLAYERS.filter((p) => p.rarity === r).length, n, r);
-for (const p of PLAYERS) for (const s of STATS) assert.ok(p.stats[s] >= 30 && p.stats[s] <= 99, `${p.id} ${s}`);
+for (const [r, n] of Object.entries({ common: 80, uncommon: 60, rare: 220, super: 120, legend: 60, diamond: 12 })) assert.equal(PLAYERS.filter((p) => p.rarity === r).length, n, r);
+for (const p of PLAYERS) for (const s of STATS) assert.ok(p.stats[s] >= 30 && p.stats[s] <= (p.rarity === 'diamond' ? 140 : 99), `${p.id} ${s}`);
 for (const pos of ['FW', 'MF', 'DF', 'GK']) assert.ok(PLAYERS.some((p) => p.pos === pos && p.rarity === 'common'), `${pos} コモン`);
 const avg = (r) => { const l = PLAYERS.filter((p) => p.rarity === r); return l.reduce((a, p) => a + STATS.reduce((x, s) => x + p.stats[s], 0) / 5, 0) / l.length; };
 for (let i = 1; i < RARITIES.length; i++) assert.ok(avg(RARITIES[i]) > avg(RARITIES[i - 1]), `平均が ${RARITIES[i]} で逆転`);
 
 // モデル入りの選手(レア〜レジェンド)には 国と タイプが ある。名前は もじり(本人の名前は つかわない)
 for (const p of PLAYERS) {
-  const star = ['rare', 'super', 'legend'].includes(p.rarity);
+  const star = ['rare', 'super', 'legend', 'diamond'].includes(p.rarity);
   assert.equal(!!p.type, star, `${p.id} タイプ`);
   assert.equal(!!p.nation, star, `${p.id} 国`);
 }
-assert.equal(PLAYERS.filter((p) => p.type).length, 400);
-assert.equal(PLAYERS.filter((p) => p.img).length, 400, 'レア以上 400にん ぜんいんに イラスト');
+assert.equal(PLAYERS.filter((p) => p.type).length, 412);
+assert.equal(PLAYERS.filter((p) => p.img).length, 412, 'レア以上 + ダイヤ 412にん ぜんいんに イラスト');
 assert.equal(PLAYERS.filter((p) => p.img && p.nation === '🇯🇵').length >= 21, true, '日本人モデルは 21人 いじょう');
 for (const pos of ['FW', 'MF', 'DF', 'GK']) assert.ok(PLAYERS.some((p) => p.img && p.pos === pos), `${pos} の イラスト`);
 
@@ -380,5 +380,39 @@ for (const f of FORMATIONS) {
   // MVP: ゴール+アシストの 人が えらばれる
   const s2 = matchSummary([{ side: 'a', type: 'goal', passer: 'P', shooter: 'S', keeper: 'K' }, { side: 'b', type: 'tackle', defender: 'D', kind: 'tackle', shooter: 'X', passer: 'Y', keeper: 'K2' }], { a: 1, b: 0 });
   assert.equal(s2.mvp.name, 'S');
+}
+// ---- ダイヤモンド ----
+{
+  const dl = PLAYERS.filter((p) => p.rarity === 'diamond');
+  assert.equal(dl.length, 12); assert.deepEqual(['FW', 'MF', 'DF', 'GK'].map((x) => dl.filter((d) => d.pos === x).length), [3, 3, 3, 3]);
+  assert.ok(dl.every((d) => Math.max(...Object.values(d.stats)) > 118 && Math.min(...Object.values(d.stats)) > 85), 'レジェンドより つよい');
+  assert.ok(rarityRank('diamond') > rarityRank('legend'));
+  // ガチャでは でない
+  const rnd = rngSeed(4); const seen = new Set();
+  for (let i = 0; i < 20000; i++) { const q = { tickets: { bronze: 0, silver: 0, gold: 0, platinum: 1 }, owned: {} }; const r = pull(q, 'platinum', rnd); if (r) seen.add(r.player.rarity); }
+  assert.ok(!seen.has('diamond'), 'ダイヤは ガチャに でない');
+  // じょうけん: かけら・きたえた レジェンド・たつじん メダル
+  const d = dl.find((x) => x.pos === 'FW'); const lg = PLAYERS.find((x) => x.rarity === 'legend' && x.pos === 'FW');
+  const medals = new Set(); const have = (id) => medals.has(id);
+  const p = { owned: {}, shards: 0, plv: {} };
+  assert.equal(claimDiamond(p, d.id, have), false);
+  addShards(p, DIAMOND.shards); assert.equal(diamondReq(p, d, have).can, false, 'レジェンドと メダルが ない');
+  p.owned[lg.id] = 1; p.plv[lg.id] = DIAMOND.legendEnh - 1; assert.equal(diamondReq(p, d, have).legend.ok, false);
+  p.plv[lg.id] = DIAMOND.legendEnh; assert.equal(diamondReq(p, d, have).can, false, 'メダルが ない');
+  medals.add('m10_国語'); assert.equal(diamondReq(p, d, have).trial.ok, false, 'FWは 算数');
+  medals.add('m10_算数'); assert.equal(diamondReq(p, d, have).can, true);
+  assert.equal(claimDiamond(p, d.id, have), true); assert.equal(p.shards, 0); assert.equal(p.owned[d.id], 1); assert.equal(claimDiamond(p, d.id, have), false, '2かいは もらえない');
+  // GK: 理科 か 生活 どちらでも
+  const gk = dl.find((x) => x.pos === 'GK'); const glg = PLAYERS.find((x) => x.rarity === 'legend' && x.pos === 'GK');
+  const p2 = { owned: { [glg.id]: 1 }, shards: DIAMOND.shards, plv: { [glg.id]: DIAMOND.legendEnh } };
+  assert.equal(diamondReq(p2, gk, have).can, false); medals.add('m10_生活'); assert.equal(diamondReq(p2, gk, have).can, true);
+  // ダイヤの のうりょくは 180 まで(レジェンドは 140)
+  const kid = { name: 'k', face: 'k', stats: Object.fromEntries(STATS.map((s) => [s, 50])) };
+  const snapd = teamSnapshot({ kid, owned: { [d.id]: 6 }, team: [d.id, ...Array(10).fill(null)], formation: '442', plv: { [d.id]: 20 } })[0];
+  assert.ok(Math.max(...Object.values(snapd.stats)) > 140 && Math.max(...Object.values(snapd.stats)) <= DIAMOND_CAP);
+  // たいかいの はじめての しょうりで かけら
+  const q = { tickets: emptyTickets() }; cupResult(q, 'j', 0, true, false, '2026-10-12'); assert.equal(q.shards, 1);
+  cupResult(q, 'j', 0, true, false, '2026-10-12'); assert.equal(q.shards, 1, 'くりかえしは かけらなし');
+  for (let r = 1; r < 4; r++) cupResult(q, 'j', r, true, false, '2026-10-12'); assert.equal(q.shards, 1 + 3 + 10);
 }
 console.log('OK: game');

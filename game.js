@@ -3,7 +3,8 @@
 
 // ---- 基本のきまり ----------------------------------------------------------------
 export const RARITIES = ['common', 'uncommon', 'rare', 'super', 'legend'];
-export const RARITY_NAME = { common: 'コモン', uncommon: 'アンコモン', rare: 'レア', super: 'スーパーレア', legend: 'レジェンド' };
+export const RARITY_NAME = { common: 'コモン', uncommon: 'アンコモン', rare: 'レア', super: 'スーパーレア', legend: 'レジェンド', diamond: 'ダイヤモンド' };
+export const rarityRank = (r) => (r === 'diamond' ? 99 : RARITIES.indexOf(r)); // ダイヤは ガチャに でない(レジェンドの うえ)
 export const BASE_RATES = { common: 60, uncommon: 28, rare: 9.5, super: 2.48, legend: 0.02 }; // 合計100(%)
 // レジェンドの でやすさは チケットで かわる(いいチケットほど でやすい。さいだい 2%)
 export const LEGEND_RATES = { bronze: 0.02, silver: 0.1, gold: 0.5, platinum: 2 };
@@ -210,7 +211,31 @@ function buildPlayers() {
   }
   return out;
 }
-export const PLAYERS = buildPlayers();
+// ---- ダイヤモンド(レジェンドの うえ)。ガチャでは でない。かけら + れんしゅうの しれんで もらえる ----
+const DIAMOND_DEF = [
+  ['ブリリアント・ボルト', 'FW', '⚡', 'ひかりの はやさで ゴールを うばう ダイヤの エース', ['SHO', 'SPD']],
+  ['クリスタル・キング', 'FW', '👑', 'けっしょうの かんむりを かぶった 王さま ストライカー', ['SHO', 'PAS']],
+  ['ルミナス・ノヴァ', 'FW', '🌠', 'すいせいの ように かけぬける ドリブラー', ['SPD', 'SHO']],
+  ['プリズム・マエストロ', 'MF', '🎼', 'ピッチを しきする ダイヤの しれいとう', ['PAS', 'STA']],
+  ['ミラージュ・ソウル', 'MF', '🪞', 'かがみの ように あいての うごきを よむ', ['PAS', 'SPD']],
+  ['ダイヤ・コンダクター', 'MF', '🎻', 'パスで おんがくを かなでる てんさい', ['PAS', 'STA']],
+  ['アダマント・ウォール', 'DF', '🧱', 'こわれない けっしょうの かべ', ['DEF', 'STA']],
+  ['ホワイト・ガーディアン', 'DF', '🛡️', 'しろい たての しゅごしん', ['DEF', 'STA']],
+  ['スターダスト・ナイト', 'DF', '✨', 'ほしくずを まとった きし', ['DEF', 'SPD']],
+  ['アイス・バリア', 'GK', '🧊', 'こおりの バリアで ゴールを まもる', ['DEF', 'STA']],
+  ['ホライゾン・ガード', 'GK', '🌅', 'ちへいせんまで みとおす しゅごしん', ['DEF', 'PAS']],
+  ['クリア・ゴッドハンド', 'GK', '🧤', 'すきとおった かみの て', ['DEF', 'STA']],
+];
+function buildDiamonds() {
+  return DIAMOND_DEF.map(([name, pos, face, type, main], i) => {
+    const rnd = rngSeed(88000 + i);
+    const stats = {};
+    for (const s of STATS) stats[s] = Math.round(main.includes(s) ? 118 + rnd() * 10 : 88 + rnd() * 18);
+    const id = `d${String(i + 1).padStart(2, '0')}`;
+    return { id, name, pos, rarity: 'diamond', face, nation: '🌐', type, img: `images/players/${id}.webp`, stats };
+  });
+}
+export const PLAYERS = [...buildPlayers(), ...buildDiamonds()];
 export const PLAYER_BY_ID = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
 
 // ---- ガチャ ---------------------------------------------------------------------
@@ -358,7 +383,8 @@ export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty
 export const ENH_MAX = 20;        // 1人の 選手に かけられる きょうかの かず
 export const ENH_STEP = 0.03;     // 1かいで のうりょく +3%(ダブりの レベルアップ(+4%)とは べつ)
 export const STAT_CAP = 140;      // どんなに きょうかしても のうりょくは これ まで
-const ENH_RARITY = { common: 1, uncommon: 1.5, rare: 2, super: 3, legend: 4 };
+const ENH_RARITY = { common: 1, uncommon: 1.5, rare: 2, super: 3, legend: 4, diamond: 6 };
+export const DIAMOND_CAP = 180;  // ダイヤモンドの のうりょく じょうげん(レジェンドは 140)
 export const enhCost = (enh, rarity) => Math.round((3 + enh) * (ENH_RARITY[rarity] || 1));
 export const totalPoints = (p) => STATS.reduce((a, s) => a + ((p.pts || {})[s] || 0), 0);
 // ポイントを つかう(おおい ほうから へらす)。たりないと false
@@ -384,7 +410,7 @@ export function teamSnapshot({ kid, owned = {}, team = [], equip = [], formation
     let cap = STAT_CAP;
     if (id === 'self') { cap = Infinity; who = { id: 'self', name: kid.name, face: kid.face, img: kid.img || '', pos: 'ALL', rarity: 'kid', stats: kid.stats }; }
     else if (id && owned[id] && PLAYER_BY_ID[id]) {
-      who = PLAYER_BY_ID[id]; level = levelOf(owned[id]); enh = (plv || {})[id] || 0;
+      who = PLAYER_BY_ID[id]; level = levelOf(owned[id]); enh = (plv || {})[id] || 0; if (who.rarity === 'diamond') cap = DIAMOND_CAP;
       if (who.pos !== slot) penalty = OUT_OF_POSITION;
     } else who = BENCH;
     return { slot, id: who.id, name: who.name, face: who.face, img: who.img || '', pos: who.pos, rarity: who.rarity, level, enh, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty, enh, cap }) };
@@ -455,6 +481,29 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
     });
   }
   return { events, score, ratings: { a: ra, b: rb } };
+}
+
+// ---- ダイヤモンドを てに いれる(かけら + きたえた レジェンド + きょうかの たつじん) -------------------
+export const DIAMOND = { shards: 40, legendEnh: 10, subjects: { FW: ['算数'], MF: ['国語'], DF: ['社会'], GK: ['理科', '生活'] } };
+export const addShards = (p, n) => { p.shards = (p.shards || 0) + n; return n; };
+// haveMedal(id): その メダルを もっているか(「たつじん」メダル m10_教科)
+export function diamondReq(p, d, haveMedal) {
+  const have = p.shards || 0;
+  const best = Math.max(-1, ...Object.keys(p.owned || {}).map((id) => PLAYER_BY_ID[id]).filter((x) => x && x.rarity === 'legend' && x.pos === d.pos).map((x) => (p.plv || {})[x.id] || 0));
+  const sj = DIAMOND.subjects[d.pos] || [];
+  const r = {
+    shards: { have, need: DIAMOND.shards, ok: have >= DIAMOND.shards },
+    legend: { best, need: DIAMOND.legendEnh, ok: best >= DIAMOND.legendEnh },
+    trial: { subjects: sj, ok: sj.some((s) => haveMedal(`m10_${s}`)) },
+    owned: !!(p.owned || {})[d.id],
+  };
+  r.can = !r.owned && r.shards.ok && r.legend.ok && r.trial.ok;
+  return r;
+}
+export function claimDiamond(p, id, haveMedal) {
+  const d = PLAYER_BY_ID[id]; if (!d || d.rarity !== 'diamond') return false;
+  if (!diamondReq(p, d, haveMedal).can) return false;
+  p.shards -= DIAMOND.shards; p.owned = p.owned || {}; p.owned[id] = 1; return true;
 }
 
 // しあいの まとめ(シュートの かず・タックル・MVP)
@@ -615,7 +664,8 @@ export function cupResult(p, id, round, won, forgive = false, today = '') {
     reward = out;
   }
   addTickets(p, reward);
-  if (!last) { c.run = { id, round: round + 1 }; return { type: 'advance', round: round + 1, reward, capped }; }
+  const shards = (firstWin ? 1 : 0) + (firstClear ? 10 : 0); if (shards) addShards(p, shards); // はじめての しょうり・ゆうしょうで ダイヤの かけら
+  if (!last) { c.run = { id, round: round + 1 }; return { type: 'advance', round: round + 1, reward, capped, shards }; }
   c.run = null; if (!c.cleared.includes(id)) c.cleared.push(id); c.titles[id] = (c.titles[id] || 0) + 1;
-  return { type: 'cleared', reward, first: c.titles[id] === 1, capped };
+  return { type: 'cleared', reward, first: c.titles[id] === 1, capped, shards };
 }

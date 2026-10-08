@@ -21,7 +21,7 @@ export function ensureGame(p) {
   if (Array.isArray(p.team) && p.team.length === 5) p.team = G.migrateTeam(p.team); // 5にんの ころの へんせいを ひきつぐ
   if (!Array.isArray(p.team) || p.team.length !== G.TEAM_SIZE) p.team = G.migrateTeam(['self']);
   if (!G.FORMATIONS.some((f) => f.id === p.formation)) p.formation = '442';
-  G.ensureCup(p);
+  G.ensureCup(p); p.shards = Number(p.shards) || 0;
   p.plv = p.plv && typeof p.plv === 'object' ? p.plv : {};
   p.equip = Array.isArray(p.equip) ? p.equip.slice(0, G.MAX_EQUIP) : [];
   p.pts = { ...G.emptyStatMap(), ...(p.pts || {}) };
@@ -124,9 +124,9 @@ function stageHtml() {
 
 // ---- チーム(へんせい・ずかん・つよく・たいせん・きょうだい) -----------------------------------------
 const UI = { sub: 'form', slot: null, dexF: 'all', dexSel: null };
-const SUBS = [['form', '🧩', 'へんせい'], ['dex', '📚', 'ずかん'], ['power', '💪', 'つよく'], ['cup', '🏆', 'たいかい'], ['battle', '⚔️', 'フリー'], ['mates', '🤝', 'かぞく']];
+const SUBS = [['form', '🧩', 'へんせい'], ['dex', '📚', 'ずかん'], ['diamond', '💎', 'ダイヤ'], ['power', '💪', 'つよく'], ['cup', '🏆', 'たいかい'], ['battle', '⚔️', 'フリー'], ['mates', '🤝', 'かぞく']];
 export function teamTab() {
-  const body = { form: formHtml, dex: dexHtml, power: powerHtml, cup: cupHtml, battle: battleMenuHtml, mates: () => X.matesHtml() + famTeamsHtml() }[UI.sub]();
+  const body = { form: formHtml, dex: dexHtml, diamond: diamondHtml, power: powerHtml, cup: cupHtml, battle: battleMenuHtml, mates: () => X.matesHtml() + famTeamsHtml() }[UI.sub]();
   return `<div class="subnav">${SUBS.map(([s, i, l]) => `<button class="${UI.sub === s ? 'on' : ''}" data-act="sub" data-sub="${s}"><span>${i}</span>${l}</button>`).join('')}</div>${body}`;
 }
 
@@ -152,7 +152,7 @@ function pickerHtml(k, p) {
   const i = UI.slot; const pos = G.slotsOf(p.formation)[i];
   const placed = new Set(p.team.filter(Boolean));
   const owned = Object.keys(p.owned).map(playerOf).filter(Boolean)
-    .sort((a, b) => (b.pos === pos) - (a.pos === pos) || G.RARITIES.indexOf(b.rarity) - G.RARITIES.indexOf(a.rarity) || ovrOf(b.stats, b.pos) - ovrOf(a.stats, a.pos));
+    .sort((a, b) => (b.pos === pos) - (a.pos === pos) || G.rarityRank(b.rarity) - G.rarityRank(a.rarity) || ovrOf(b.stats, b.pos) - ovrOf(a.stats, a.pos));
   const opt = (id, pl, lv) => `<button class="opt ${p.team[i] === id ? 'cur' : ''}" data-act="place" data-i="${i}" data-id="${id}">${cardHtml({ ...pl, level: lv, offPos: pl.pos !== 'ALL' && pl.pos !== pos }, { stats: false, cls: 'mini' })}
     <span class="opt-info"><b>${esc(pl.name)}</b><small>${pl.pos === 'ALL' ? 'どこでも OK' : pl.pos === pos ? '◎ ぴったり' : '⚠ ポジションが ちがう'}${placed.has(id) && p.team[i] !== id ? ' ・ ほかの わくに いるよ(いれかえ)' : ''}</small></span></button>`;
   const selfSnap = { name: k.name, face: k.em, img: kidImg(k), pos: 'ALL', rarity: 'kid', stats: G.kidStats(p) };
@@ -172,16 +172,37 @@ function equipHtml(p) {
     <div class="equip-list">${have.length ? have.map((b) => `<button class="eq ${p.equip.includes(b.id) ? 'on' : ''}" data-act="equip" data-id="${b.id}"><span>${b.icon}</span><b>${b.name}</b><small>${G.buffText(b.id)}</small></button>`).join('') : '<div class="muted">メダルを ゲットすると、ここで そうびできるよ。</div>'}</div></section>`;
 }
 
+// ダイヤモンド: かけらを ためて、きたえた レジェンドと きょうかの しれんを こえて もらう
+const haveMedalOf = (id) => { const b = (X.BADGES || []).find((x) => x.id === id); return !!(b && X.haveBadge(b)); };
+function diamondHtml() {
+  const p = X.p(); const dl = G.PLAYERS.filter((x) => x.rarity === 'diamond');
+  const POSJA = { FW: 'フォワード', MF: 'ミッドフィルダー', DF: 'ディフェンダー', GK: 'キーパー' };
+  const owned = dl.filter((x) => p.owned[x.id]).length;
+  return `<section class="panel"><h2 class="sec">DIAMOND <small>ダイヤモンド ${owned}/${dl.length}</small></h2>
+    <div class="power"><b>💠 ダイヤの かけら ${p.shards}</b><span>ガチャでは でないよ</span></div>
+    <div class="muted"><b>かけら</b>は べんきょうで たまるよ: 🔬 かせつを のりこえた(+3)・✅ たんげんが「できた」に なった(+2)・🏅 あたらしい メダル(+1)・✨ パーフェクト(+1)・📅 1しゅうかん れんしゅう(+5)・🏆 たいかいで はじめて かつ(+1)/ゆうしょう(+10)。<br>
+    ダイヤモンドを もらうには ①かけら ${G.DIAMOND.shards}こ ②その ポジションの <b>レジェンドを きょうか +${G.DIAMOND.legendEnh}</b> ③ポジションに あった きょうかの <b>「たつじん」メダル</b>(FW=算数・MF=国語・DF=社会・GK=理科か生活)が ひつよう。</div></section>
+    ${dl.map((d) => {
+    const r = G.diamondReq(p, d, haveMedalOf);
+    const line = (ok, t) => `<div class="dreq ${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${t}</div>`;
+    return `<section class="panel dia ${r.owned ? 'got' : ''}"><div class="dia-main">${cardHtml({ ...d, level: 0 }, { stats: false })}
+      <div class="dia-info"><b>${esc(d.name)}</b><small>${POSJA[d.pos]} ・ ${esc(d.type)}</small>
+        ${r.owned ? '<div class="dreq ok">🎉 もっているよ!</div>' : `${line(r.shards.ok, `かけら ${r.shards.have}/${r.shards.need}`)}
+        ${line(r.legend.ok, `${POSJA[d.pos]}の レジェンドを きょうか +${r.legend.need}(いま ${r.legend.best < 0 ? 'レジェンドが いないよ' : `+${r.legend.best}`})`)}
+        ${line(r.trial.ok, `${r.trial.subjects.join('か')}の「たつじん」メダル`)}
+        <button class="btn small ${r.can ? 'gold' : 'gray'}" data-act="dclaim" data-id="${d.id}" ${r.can ? '' : 'disabled'}>💎 ゲット!</button>`}</div></div></section>`;
+  }).join('')}`;
+}
 function dexHtml() {
   const p = X.p();
   const n = Object.keys(p.owned).length;
   const f = UI.dexF;
   // もっている選手を さきに(レア度の たかい じゅん)、あとは まだの 選手
   const list = G.PLAYERS.filter((pl) => f === 'all' || pl.rarity === f)
-    .sort((a, b) => (!!p.owned[b.id] - !!p.owned[a.id]) || (G.RARITIES.indexOf(b.rarity) - G.RARITIES.indexOf(a.rarity)));
+    .sort((a, b) => (!!p.owned[b.id] - !!p.owned[a.id]) || (G.rarityRank(b.rarity) - G.rarityRank(a.rarity)));
   const sel = UI.dexSel && G.PLAYER_BY_ID[UI.dexSel];
   return `<section class="panel"><h2 class="sec">COLLECTION <small>ずかん ${n}/${G.PLAYERS.length}</small></h2>
-    <div class="chips">${['all', ...G.RARITIES].map((r) => `<button class="chipb ${f === r ? 'on' : ''} r-${r}" data-act="dexf" data-r="${r}">${r === 'all' ? 'ぜんぶ' : G.RARITY_NAME[r]}${r === 'all' ? '' : ` ${G.PLAYERS.filter((x) => x.rarity === r && p.owned[x.id]).length}/${G.PLAYERS.filter((x) => x.rarity === r).length}`}</button>`).join('')}</div>
+    <div class="chips">${['all', ...G.RARITIES, 'diamond'].map((r) => `<button class="chipb ${f === r ? 'on' : ''} r-${r}" data-act="dexf" data-r="${r}">${r === 'all' ? 'ぜんぶ' : G.RARITY_NAME[r]}${r === 'all' ? '' : ` ${G.PLAYERS.filter((x) => x.rarity === r && p.owned[x.id]).length}/${G.PLAYERS.filter((x) => x.rarity === r).length}`}</button>`).join('')}</div>
     ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>${enhHtml(sel, p)}` : ''}
     <div class="muted" style="margin-bottom:6px">※ 有名な 選手を ヒントに した オリジナルの キャラクターだよ(ほんにんとは かんけい ないよ)。</div>
     <div class="dex-grid">${list.map((pl) => p.owned[pl.id]
@@ -477,6 +498,10 @@ export function onAct(a, el) {
     }
     case 'dexf': UI.dexF = el.dataset.r; UI.dexSel = null; return true;
     case 'dexsel': UI.dexSel = UI.dexSel === el.dataset.id ? null : el.dataset.id; return true;
+    case 'dclaim': {
+      if (G.claimDiamond(p, el.dataset.id, haveMedalOf)) { X.save(); X.fx.beep('win'); X.fx.vibrate([60, 40, 100]); X.fx.confetti(vw() / 2, vh() * 0.35, 160, 1.7); X.toast('💎 ダイヤモンドを ゲット! すごい!'); }
+      return true;
+    }
     case 'penh': {
       if (G.enhance(p, el.dataset.id)) { X.save(); X.fx.beep('ok'); X.fx.vibrate(20); X.fx.floaty('きょうか!', vw() / 2, vh() * 0.4); } else X.toast('ポイントが たりないよ(べんきょうで ためよう)');
       return true;

@@ -1,5 +1,5 @@
 import * as sync from './sync.js';
-import { addPoints, addTickets, emptyStatMap, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
+import { addPoints, addTickets, addShards, emptyStatMap, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen, KUKU_DAN } from './gen.js';
@@ -779,9 +779,10 @@ const STAT_JA = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 
 function rewardPanel(R) {
   const tk = Object.entries(R.tickets || {}).filter(([, v]) => v);
   const pts = Object.entries(R.pts || {}).filter(([, v]) => v);
-  if (!tk.length && !pts.length && !R.capped) return '';
+  if (!tk.length && !pts.length && !R.capped && !R.shards) return '';
   return `<section class="panel gold"><h2 class="sec">REWARD <small>ごほうび</small></h2>
     ${tk.length ? `<div class="reward-row">${tk.map(([k, v]) => `<span class="chip gold">${TK_NAME[k]} ×${v}</span>`).join(' ')} <small class="muted">ガチャで つかえるよ</small></div>` : `<div class="muted">${R.capped ? 'きょうは もう たくさん チケットを もらったよ。また あした!' : '6わり いじょう せいかいで チケットが もらえるよ(つぎは がんばろう!)'}</div>`}
+    ${R.shards ? `<div class="reward-row"><span class="chip">💠 ダイヤの かけら +${R.shards}</span> <small class="muted">「チーム → ダイヤ」で つかうよ</small></div>` : ''}
     ${pts.length ? `<div class="reward-row">${pts.map(([k, v]) => `<span class="chip">${STAT_JA[k]} +${v}pt</span>`).join(' ')} <small class="muted">「チーム → つよく」で つかえるよ</small></div>` : ''}</section>`;
 }
 
@@ -1020,13 +1021,24 @@ function finish() {
   const newly = BADGES.filter((b) => !(p.badges || []).includes(b.id) && b.cond(p, k));
   p.badges = [...(p.badges || []), ...newly.map((b) => b.id)];
   const perfectNow = Q.good === Q.items.length && !Object.keys(Q.missTags).length;
+  // ダイヤの かけら(べんきょうの せいかで たまる)
+  let shards = 0;
+  for (const e of Q.hyp || []) if (e.type === 'resolved') shards += 3;                   // かせつを のりこえた
+  p.okSeen = p.okSeen || {};
+  for (const id of new Set(Q.items.map((x) => x.unit.id))) if (status(p, id) === 'ok' && !p.okSeen[id]) { p.okSeen[id] = 1; shards += 2; } // たんげんが「できた」
+  shards += newly.length;                                                                  // あたらしい メダル
+  if (perfectNow) shards += 1;
+  { const wk = (() => { const d = new Date(); const j = new Date(d.getFullYear(), 0, 1); return `${d.getFullYear()}-${Math.floor(((d - j) / 864e5 + j.getDay()) / 7)}`; })();
+    const recent = p.days.filter((x) => dayNum(t) - dayNum(x) <= 6).length;
+    if (recent >= 5 && p.wkShard !== wk) { p.wkShard = wk; shards += 5; } }                // 1しゅうかんで 5日 れんしゅう
+  if (shards) addShards(p, shards);
   const info = { good: Q.good, total: Q.items.length, mode: Q.mode, perfect: perfectNow };
   const gotTickets = awardStudy(p, info, t);
   const capped = !Object.keys(gotTickets).length && Object.keys(studyReward(info)).length > 0;
   save();
   const selAfter = dataFor(k).sel.state;
   const tags = Object.entries(Q.missTags).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([x]) => x).filter((x) => x !== 'unknown' || Object.keys(Q.missTags).length === 1);
-  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, capped, pts: Q.pts, hyp: (Q.hyp || []).map((e) => ({ type: e.type, label: hypLabel(e.h) })) };
+  Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, capped, shards, pts: Q.pts, hyp: (Q.hyp || []).map((e) => ({ type: e.type, label: hypLabel(e.h) })) };
   lastCount.score = 0;
   view = 'result'; toTop = true; render();
   if (Q.result.good >= Math.ceil(Q.result.total * 0.6) || Q.result.rankUp || Q.result.callup || Q.result.newBadges.length || Q.result.hyp.some((e) => e.type === 'resolved')) {
