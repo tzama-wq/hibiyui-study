@@ -540,3 +540,7 @@ body.big .nav button small{font-size:13px}
 .weak-btn{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 14px;color:#fff;font:inherit;border:0;background:linear-gradient(135deg,#7a2e8f,#3a1f6e);border-left:6px solid #ffb02e;box-shadow:0 4px 0 rgba(0,0,0,.35);cursor:pointer}
 .weak-btn small{display:block;font-size:10px;letter-spacing:.14em;color:#ffd9a0}.weak-btn b{display:block;font-size:18px;margin:2px 0}.weak-btn span{display:block;font-size:12px;opacity:.9}
 .weak-btn.off{opacity:.55;cursor:default;background:linear-gradient(135deg,#2a3558,#1d2542)}
+
+/* むげんチャレンジ(じゃくてんの した) */
+.inf-btn{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 14px;color:#fff;font:inherit;border:0;background:linear-gradient(135deg,#0f6b6b,#123b6e);border-left:6px solid #27d8ff;box-shadow:0 4px 0 rgba(0,0,0,.35);cursor:pointer}
+.inf-btn small{display:block;font-size:10px;letter-spacing:.14em;color:#9ff3ff}.inf-btn b{display:block;font-size:18px;margin:2px 0}.inf-btn span{display:block;font-size:12px;opacity:.92}

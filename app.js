@@ -114,7 +114,30 @@ function limitQ(q, n, keepTag) { // keepTag: たしかめる もんだいの「�
   const ok = q.choices.find((c) => c.ok); const wrong = shuffle(q.choices.filter((c) => !c.ok)).sort((x, y) => (y.tag === keepTag) - (x.tag === keepTag)).slice(0, m - 1);
   return { ...q, choices: shuffle([ok, ...wrong]) };
 }
+// ---- むげんチャレンジ: まだ「できて」いない もんだいを ぜんぶ じゅんばんに。やめても きろくは のこる ----
+const infOf = (p) => (p.inf = p.inf || { cleared: {}, count: 0, round: 1 });
+function infPool(kid) {
+  const p = S.kids[kid.id]; const I = infOf(p); const out = [];
+  for (const u of skillsUpTo(kid.grade)) {
+    if (status(p, u.id) === 'ok') continue; // もう「できた」たんげんは のぞく
+    if (u.items && !u.geo) { for (const it of u.items) if (!I.cleared[it.id]) out.push({ unit: u, key: it.id, itemId: it.id }); }
+    else if (!I.cleared[`u:${u.id}`]) out.push({ unit: u, key: `u:${u.id}` });
+  }
+  return out;
+}
+function buildInf(kid, n) {
+  const p = S.kids[kid.id]; const I = infOf(p); const kc = cfgOf(S, kid.id);
+  let pool = infPool(kid);
+  if (!pool.length && Object.keys(I.cleared).length) { I.cleared = {}; I.round++; pool = infPool(kid); } // ぜんぶ おわったら 2しゅうめ
+  const seen = new Set();
+  return shuffle(pool).slice(0, n).map((e) => {
+    let q; for (let t = 0; t < 6; t++) { q = e.itemId ? makeProbe(e.unit, { itemId: e.itemId }) : makeQuestion(e.unit); if (!seen.has(q.text)) break; }
+    seen.add(q.text);
+    return { unit: e.unit, q: limitQ(q, kc.choices), retry: false, probe: false, inf: e.key };
+  });
+}
 function buildSet(kid, mode, unitId) {
+  if (mode === 'endless') return buildInf(kid, 10);
   const p = S.kids[kid.id];
   const kc = cfgOf(S, kid.id); const SET_SIZE = kc.setSize;
   const sk = skillsUpTo(kid.grade);
@@ -656,6 +679,7 @@ function homeTab(k, p) {
     <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? T(cfg()).again : T(cfg()).start}</b>
       <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : `${cfg().setSize}もん ・ `}${cur.map((u) => u.name).join('、')}</span></button>
     ${weakChallengeBtn(k, p)}
+    ${infChallengeBtn(k, p)}
     ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}
     ${medalShelf(k, p)}
     ${selfCfgCard(k)}`;
@@ -667,6 +691,11 @@ function weakCount(k, p) {
   const act = activeList(p).filter((h) => byId[h.unit]).length;
   const wu = skillsUpTo(k.grade).filter((u) => ['gap', 'shaky'].includes(status(p, u.id))).length;
   return keys.size + act + wu;
+}
+function infChallengeBtn(k, p) {
+  const I = infOf(p); const left = infPool(k).length; const total = left + Object.keys(I.cleared).length;
+  const state = I.count ? `${I.round}しゅうめ ・ クリア ${Object.keys(I.cleared).length} / ${total}もん ・ つづきから` : `まだ ${left}もん ・ ぜんぶ でるよ`;
+  return `<button class="inf-btn" data-act="start" data-mode="endless"><small>INFINITE CHALLENGE</small><b>♾️ むげんチャレンジ</b><span>${left ? `まだ できて ない もんだいを ぜんぶ ・ とちゅうで やめても きろくは のこるよ<br>${state}` : 'ぜんぶ「できた」! すごい!'}</span></button>`;
 }
 function weakChallengeBtn(k, p) {
   const n = weakCount(k, p); const soft = cfg().soft || cfg().gentle;
@@ -760,14 +789,15 @@ function vQuiz() {
   const baseI = Q.items.slice(0, Q.i + 1).filter((x) => !x.retry).length;
   const baseLeft = baseN - baseI;
   const retryLeft = Q.items.slice(Q.i + 1).filter((x) => x.retry).length;
-  const remain = it.retry ? (retryLeft > 0 ? `やりなおし あと ${retryLeft}もん` : 'これが ほんとに さいごの 1もん') : (baseLeft > 0 ? `あと ${baseLeft}もん` : 'これが さいごの もんだい') + (retryLeft > 0 ? ` + やりなおし ${retryLeft}もん` : '');
+  const inf = Q.mode === 'endless' ? infOf(S.kids[k.id]) : null;
+  const remain = inf ? `♾️ これまでに ${inf.count}もん クリア` : it.retry ? (retryLeft > 0 ? `やりなおし あと ${retryLeft}もん` : 'これが ほんとに さいごの 1もん') : (baseLeft > 0 ? `あと ${baseLeft}もん` : 'これが さいごの もんだい') + (retryLeft > 0 ? ` + やりなおし ${retryLeft}もん` : '');
   const pct = Math.round((Q.i / Q.items.length) * 82);
   const a = Q.answered;
   const locked = !a && Date.now() < Q.lockUntil;
   $app.innerHTML = `
     <div class="quiz-top"><button class="link" data-act="quit">🛋️ やすむ</button>
-      <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${it.retry ? 'やりなおし' : `${baseI}<small>/${baseN}</small>`}</span>
-        <span class="sb-r">${it.revenge || it.rkey ? '⭐ リベンジ' : Q.mode === 'weak' ? '💪 じゃくてん' : tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
+      <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${inf ? `♾️<small>${inf.count}</small>` : it.retry ? 'やりなおし' : `${baseI}<small>/${baseN}</small>`}</span>
+        <span class="sb-r">${it.revenge || it.rkey ? '⭐ リベンジ' : Q.mode === 'endless' ? '♾️ むげん' : Q.mode === 'weak' ? '💪 じゃくてん' : tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
     <div class="remain">${remain}</div>
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>
     <div class="dots">${Q.items.map((x, i) => `<i class="${x.res || ''} ${i === Q.i ? 'cur' : ''}"></i>`).join('')}</div>
@@ -1024,8 +1054,10 @@ const lockMs = (q) => lockMsFor(qplain(q.text).length, cfg());
 function startQuiz(mode, unitId) {
   const k = kidOf();
   setSeen(S.kids[k.id].seen || []);
-  Q = { mode, items: buildSet(k, mode, unitId), i: 0, good: 0, xp: 0, combo: 0, hat: false, answered: null, retries: 0, lockUntil: 0, pts: {}, missTags: {}, startXp: S.kids[k.id].xp };
-  if (cfg().preview) { view = 'preview'; toTop = true; render(); return; } // はじめる まえに「やること」を みせる
+  const built = buildSet(k, mode, unitId);
+  if (!built.length) { toast('ぜんぶ「できた」! すごい!'); return; }
+  Q = { mode, items: built, i: 0, good: 0, xp: 0, combo: 0, hat: false, answered: null, retries: 0, lockUntil: 0, pts: {}, missTags: {}, startXp: S.kids[k.id].xp };
+  if (cfg().preview && mode !== 'endless') { view = 'preview'; toTop = true; render(); return; } // はじめる まえに「やること」を みせる
   beginQuiz();
 }
 function beginQuiz() {
@@ -1087,6 +1119,11 @@ function answer(idx, unknown) {
   const c = unknown ? null : q.choices[idx];
   const ok = !!(c && c.ok);
   const tag = ok ? null : unknown ? 'unknown' : c.tag;
+  if (ok && it.inf) { // むげんチャレンジ: できた もんだいは きろく(やめても つづきから)
+    const I = infOf(p); const t0 = todayStr();
+    if (!I.cleared[it.inf]) { I.cleared[it.inf] = 1; I.count++; if (I.count % 50 === 0) { addTickets(p, { bronze: 1 }); Q.infTicket = (Q.infTicket || 0) + 1; } }
+    if (!p.days.includes(t0)) p.days.push(t0); p.lastDate = t0;
+  }
   const gentle = !!cfg().gentle; const second = !!it.tried; // まちがいが にがて モード: はじめての まちがいは せめず、もういちど えらべる
   const u = (p.units[it.unit.id] = p.units[it.unit.id] || { ok: 0, ng: 0, h: [] });
   u.h = (u.h || []).concat(ok ? 1 : 0).slice(-6);
@@ -1258,8 +1295,10 @@ document.addEventListener('click', (e) => {
   else if (a === 'papa') { if (!askPin()) return; view = 'papa'; toTop = true; }
   else if (a === 'start') { toTop = true; return startQuiz(el.dataset.mode, el.dataset.unit); }
   else if (a === 'quit') {
-    if (!confirm('ここで ひとやすみ する?(ここまでの ポイントは とっておくよ)')) return;
+    const endless = Q && Q.mode === 'endless';
+    if (!confirm(endless ? 'ここで やめる?(ここまでの きろくは のこるよ。つぎは つづきから!)' : 'ここで ひとやすみ する?(ここまでの ポイントは とっておくよ)')) return;
     const pq = S.kids[kidId];
+    if (endless) { const kq = kidOf(); const nb = BADGES.filter((b) => !(pq.badges || []).includes(b.id) && b.cond(pq, kq)); pq.badges = [...(pq.badges || []), ...nb.map((b) => b.id)]; if (nb.length) { addShards(pq, nb.length); toast(`🏅 あたらしい メダル ${nb.map((b) => b.name).join('・')}`); } else toast(`♾️ ${infOf(pq).count}もん クリア! つづきは また こんど`); save(); }
     if (Q && Q.xp) { pq.xp += Q.xp; Q.xp = 0; save(); toast('ここまでの ポイントは とっておいたよ'); }
     view = 'kid'; toTop = true;
   }
@@ -1268,7 +1307,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'ask') return askPapa();
   else if (a === 'speak') return speak(Q.items[Q.i].q.text);
   else if (a === 'hint') { const it = Q.items[Q.i]; it.hinted = it.hinted || []; const cand = it.q.choices.map((c, i) => i).filter((i) => !it.q.choices[i].ok && !it.hinted.includes(i)); if (cand.length && it.q.choices.length - it.hinted.length > 2) { it.hinted.push(cand[Math.floor(Math.random() * cand.length)]); Q.hints = (Q.hints || 0) + 1; beep('ok'); } }
-  else if (a === 'next') { Q.answered = null; Q.i++; if (Q.i >= Q.items.length) return finish(); Q.lockUntil = Date.now() + lockMs(Q.items[Q.i].q); toTop = true; }
+  else if (a === 'next') { Q.answered = null; Q.i++; if (Q.i >= Q.items.length) { if (Q.mode === 'endless') { Q.items = buildInf(kidOf(), 10); Q.i = 0; Q.retries = 0; if (!Q.items.length) { toast('ぜんぶ「できた」! すごい!'); view = 'kid'; toTop = true; render(); return; } } else return finish(); } Q.lockUntil = Date.now() + lockMs(Q.items[Q.i].q); toTop = true; }
   else if (a === 'synccode') { document.getElementById('synccode').value = sync.newCode(); return; }
   else if (a === 'syncsave') {
     const db = document.getElementById('syncdb').value; const fc = document.getElementById('synccode').value;
