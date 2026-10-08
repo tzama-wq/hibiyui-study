@@ -322,7 +322,7 @@ export const kidStats = (p) => Object.fromEntries(STATS.map((s) => [s, kidStat((
 export const BADGE_BUFFS = {
   goal1: { SHO: 1 }, goal10: { SHO: 2 }, goal50: { SHO: 3 }, goal100: { SHO: 5 }, goal300: { SHO: 8 },
   day3: { STA: 2 }, day7: { STA: 3 }, day30: { STA: 8 },
-  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, kuku9: { SHO: 4, SPD: 2 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 },
+  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, kuku9: { SHO: 4, SPD: 2 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 }, cup_allstar: { ALL: 7 }, cup_isekai: { ALL: 8 }, cup_galaxy: { ALL: 9 }, cup_universe: { ALL: 12 },
   rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 }, rank_eu: { ALL: 4 }, rank_wc: { ALL: 5 }, rank_max: { ALL: 6 },
   m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 },
 };
@@ -512,6 +512,36 @@ export const CUPS = [
     { label: '準々決勝', name: 'スペイン代表', power: 92, style: 'att', reward: { platinum: 1 } },
     { label: '準決勝', name: 'アルゼンチン代表', power: 98, style: 'bal', reward: { platinum: 1 } },
     { label: '決勝', name: 'ブラジル代表', power: 105, style: 'att', reward: { platinum: 1 } },
+  ] },
+  // ---- ここから「ちょうじん」クラス(じぶんを 999まで きたえた チームが ひつよう) ----
+  { id: 'allstar', name: '世界オールスター', icon: '🌟', sub: 'せかいじゅうの スターが あつまった! ゆめの チーム', badge: 'cup_allstar', final: { platinum: 3, gold: 3 }, rounds: [
+    { label: '1かいせん', name: 'ヨーロッパ オールスターズ', power: 115, style: 'bal', reward: { platinum: 1 } },
+    { label: '2かいせん', name: '南アメリカ オールスターズ', power: 125, style: 'att', reward: { platinum: 1 } },
+    { label: '準決勝', name: 'アフリカ・アジア オールスターズ', power: 135, style: 'def', reward: { platinum: 1 } },
+    { label: '決勝', name: 'せかい オールスターズ', power: 150, style: 'bal', reward: { platinum: 1 } },
+    { label: 'エキシビション', name: 'ドリーム レジェンズ', power: 165, style: 'att', reward: { platinum: 2 } },
+  ] },
+  { id: 'isekai', name: '異世界大会', icon: '🐉', sub: 'まほうと ドラゴンの せかいで たたかえ!', badge: 'cup_isekai', final: { platinum: 4, gold: 4 }, rounds: [
+    { label: 'はじまりの 草原', name: 'スライム王国', power: 170, style: 'def', reward: { platinum: 1 } },
+    { label: 'ゴブリンの 森', name: 'ゴブリン れんごう', power: 182, style: 'att', reward: { platinum: 1 } },
+    { label: 'エルフの 里', name: 'エルフの 森 代表', power: 195, style: 'bal', reward: { platinum: 1 } },
+    { label: 'ドラゴンの 山', name: 'ドラゴンナイツ', power: 210, style: 'att', reward: { platinum: 2 } },
+    { label: '魔王城', name: '魔王軍', power: 230, style: 'def', reward: { platinum: 2 } },
+  ] },
+  { id: 'galaxy', name: '銀河系大会', icon: '🌌', sub: 'ほしぼしを めぐる たび。わくせいの 代表と しょうぶ!', badge: 'cup_galaxy', final: { platinum: 5, gold: 5 }, rounds: [
+    { label: '月', name: 'ムーン ラビッツ', power: 225, style: 'bal', reward: { platinum: 2 } },
+    { label: '火星', name: 'マーズ ウォリアーズ', power: 235, style: 'att', reward: { platinum: 2 } },
+    { label: '木星', name: 'ジュピター ジャイアンツ', power: 246, style: 'def', reward: { platinum: 2 } },
+    { label: '土星', name: 'サターン リングス', power: 258, style: 'bal', reward: { platinum: 2 } },
+    { label: '天の川', name: 'ミルキーウェイ ギャラクシーズ', power: 275, style: 'att', reward: { platinum: 3 } },
+  ] },
+  { id: 'universe', name: '宇宙最強大会', icon: '🚀', sub: 'うちゅうで いちばん つよい チームを きめる!', badge: 'cup_universe', final: { platinum: 10, gold: 10 }, rounds: [
+    { label: '1かいせん', name: 'ブラックホール FC', power: 285, style: 'def', reward: { platinum: 2 } },
+    { label: '2かいせん', name: 'ダークマター ユナイテッド', power: 297, style: 'bal', reward: { platinum: 2 } },
+    { label: '準々決勝', name: 'ビッグバン ストライカーズ', power: 310, style: 'att', reward: { platinum: 3 } },
+    { label: '準決勝', name: 'ちょうしんせい オールスターズ', power: 324, style: 'bal', reward: { platinum: 3 } },
+    { label: '決勝', name: 'じくうの はしゃ', power: 340, style: 'def', reward: { platinum: 4 } },
+    { label: '最終決戦', name: 'うちゅうの かみ コスモス', power: 360, style: 'att', reward: { platinum: 5 } },
   ] },
 ];
 export const cupById = (id) => CUPS.find((c) => c.id === id);

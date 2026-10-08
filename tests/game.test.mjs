@@ -239,11 +239,12 @@ for (const f of FORMATIONS) {
 // ---- たいかい ----
 {
   const all = CUPS.flatMap((c) => c.rounds.map((r) => r.power));
-  assert.deepEqual(CUPS.map((c) => c.id), ['j', 'asia', 'kirin', 'wc']);
+  assert.deepEqual(CUPS.map((c) => c.id), ['j', 'asia', 'kirin', 'wc', 'allstar', 'isekai', 'galaxy', 'universe']);
   for (const c of CUPS) for (let i = 1; i < c.rounds.length; i++) assert.ok(c.rounds[i].power > c.rounds[i - 1].power, `${c.name}: ラウンドごとに つよく なる`);
   const finals = CUPS.map((c) => c.rounds.at(-1).power);
   for (let i = 1; i < finals.length; i++) assert.ok(finals[i] > finals[i - 1], 'たいかいの けっしょうは じゅんばんに つよく なる');
-  assert.ok(Math.min(...all) <= 36 && Math.max(...all) >= 100, 'はばが ひろい');
+  assert.ok(Math.min(...all) <= 36 && Math.max(...all) >= 350, 'はばが ひろい');
+  assert.ok(CUPS.every((c) => cupById(c.id).badge && BADGE_BUFFS[c.badge]), 'たいかいごとに メダルと バフ');
   assert.ok(CUPS.every((c) => c.rounds.every((r) => r.name && r.label && r.reward)));
   const p = { tickets: emptyTickets() };
   assert.ok(cupUnlocked(p, 'j') && !cupUnlocked(p, 'asia') && !cupUnlocked(p, 'wc'));
