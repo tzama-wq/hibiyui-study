@@ -90,4 +90,13 @@ assert.equal(estimateMinutes(3), 2); assert.equal(estimateMinutes(5), 3); assert
   assert.equal(DEFAULTS.hint, false); assert.equal(DEFAULTS.choices, 'all');
   assert.ok(applyPreset(S, 'y', 'asd').calm && !applyPreset(S, 'y', 'asd').hint, 'ASD は ヒントなし・うごきを へらす');
 }
+// まちがいが にがてな 子
+{
+  const S = {}; const c = applyPreset(S, 'y', 'gentle');
+  assert.equal(c.gentle, true); assert.equal(c.easyStart, true); assert.equal(c.choices, '3'); assert.equal(c.setSize, 3); assert.equal(c.soft, true); assert.equal(c.hint, true); assert.equal(c.forgive, true);
+  assert.equal(DEFAULTS.gentle, false); assert.equal(DEFAULTS.easyStart, false);
+  const tg = T(c); const all = JSON.stringify([tg.ok, tg.ng, tg.resultHigh, tg.resultLow, tg.score({ total: 5, good: 2, xp: 30, hat: false })]);
+  for (const bad of ['ざんねん', 'おしい', 'まちがい', 'ミス', 'LOSE', '×', 'キーパー']) assert.ok(!all.includes(bad), `せめる ことばが ある: ${bad}`);
+  assert.match(tg.ng, /ためして/); assert.equal(tg.retryNote, ''); assert.doesNotMatch(tg.score({ total: 5, good: 2, xp: 30, hat: false }), /5もん/, 'ぜんたいの かずと くらべない');
+}
 console.log('OK: cfg');

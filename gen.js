@@ -813,7 +813,7 @@ export function registerKokugo(items) {
 export const skillsUpTo = (grade) => Object.keys(UNITS).map(Number).filter((g) => g <= grade).sort().flatMap((g) => UNITS[g]);
 
 export function currentUnits(grade, month, overrideId) {
-  const all = unitsOf(grade).filter((u) => u.subject === '算数');
+  const all = unitsOf(grade).filter((u) => u.subject === '算数' && !u.items); // けいさん・ずけいの もんだい(ことがらの たんげんは べつ)
   const ov = all.find((u) => u.id === overrideId);
   if (ov) return [ov];
   const cur = all.filter((u) => u.months.includes(month));

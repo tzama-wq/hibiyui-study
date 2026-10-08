@@ -13,6 +13,8 @@ export const DEFAULTS = {
   big: false,          // おおきい もじ
   forgive: false,      // たいかいで まけても、おなじ しあいから やりなおせる(はいたいに ならない)
   choices: 'all',      // せんたくしの かず: all(ぜんぶ)/ 3 / 2 (へらすと えらびやすい)
+  gentle: false,       // まちがいが にがて: まちがえても 赤い ×・ブザー なし。もういちど えらべる。「ためして みたね」と ほめる
+  easyStart: false,    // 1もんめと さいごは「できた」たんげんの やさしい もんだい(せいこうで はじまり・おわる)
   hint: false,         // 「ヒント」ボタン(まちがいの せんたくしを 1つずつ けす)
   autoRead: false,     // もんだいが でたら じどうで よみあげる
   lock: 'normal',      // 「よく よんでね」の まち: normal / short / off
@@ -26,6 +28,8 @@ export const PRESETS = {
   asd: { name: 'ASD(みとおし・かんかくが だいじ)に やさしい', set: { calm: true, quiet: true, plain: true, preview: true, soft: true, schedule: true, lock: 'short', gachaMax: 3, forgive: true } },
   // 境界知能(IQ 70〜84 くらい)に よく ある ニーズ: ゆっくり・短く・えらびやすく・ことばを やさしく・くりかえし。
   bif: { name: 'ゆっくり じっくり(境界知能)に やさしい', set: { setSize: 3, plain: true, soft: true, preview: true, schedule: true, breakAfter: true, lock: 'normal', waitWrong: 'normal', choices: '3', hint: true, autoRead: true, forgive: true, gachaMax: 5 } },
+  // まちがいが とても にがて な 子(まちがいを ひどく いやがる・かんぺきを もとめる)
+  gentle: { name: 'まちがいが にがてな 子に やさしい', set: { gentle: true, easyStart: true, soft: true, plain: true, hint: true, choices: '3', setSize: 3, breakAfter: true, forgive: true, lock: 'normal', waitWrong: 'normal', gachaMax: 5 } },
   reset: { name: 'ぜんぶ ふつうに もどす', set: {} },
 };
 
@@ -36,7 +40,7 @@ export const OPTIONS = {
   waitWrong: ['normal', 'short', 'off'],
   gachaMax: [0, 1, 3, 5, 10],
 };
-export const BOOLS = ['calm', 'quiet', 'plain', 'preview', 'soft', 'schedule', 'breakAfter', 'big', 'forgive', 'hint', 'autoRead'];
+export const BOOLS = ['calm', 'quiet', 'plain', 'preview', 'soft', 'schedule', 'breakAfter', 'big', 'forgive', 'hint', 'autoRead', 'gentle', 'easyStart'];
 
 // ---- 読みだし・書きこみ ---------------------------------------------------------------
 export function sanitize(c) {
@@ -123,4 +127,17 @@ const PLAIN = {
   again: 'もういちど やる',
   mode: { bonus: 'ごほうび ステージ', back: 'むかしの ふくしゅう', retry: 'もういちど', probe: 'かくにん', normal: 'もんだい' },
 };
-export const T = (cfg) => (cfg.plain ? PLAIN : NORMAL);
+const GENTLE = {
+  ok: '✅ できた!',
+  combo: (n) => `${n}もん つづけて できた!`,
+  ng: '🌱 ためして みたね! いい ちょうせんだよ',
+  retryNote: '',
+  retryNow: '',
+  resultHigh: '🌟 ぜんぶ ちょうせん できたね! すごい!',
+  resultLow: '🌟 ぜんぶ ちょうせん できたね! すごい!',
+  score: (R) => `${R.good}もん できたよ ・ +${R.xp}ポイント ${R.hat ? '・3もん つづけて できた' : ''}`,
+  start: 'はじめる',
+  again: 'もういちど やる',
+  mode: { bonus: 'ごほうび ステージ', back: 'むかしの ふくしゅう', retry: 'もういちど', probe: 'かくにん', normal: 'もんだい' },
+};
+export const T = (cfg) => (cfg.gentle ? GENTLE : cfg.plain ? PLAIN : NORMAL);

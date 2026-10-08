@@ -527,3 +527,11 @@ body.big .nav button small{font-size:13px}
 .mlist{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .mrow{display:flex;gap:10px;align-items:center;padding:6px 8px;background:rgba(255,255,255,.05);border-left:4px solid #3a4a7a}
 .mrow>span{font-size:22px;filter:grayscale(.6);width:30px;text-align:center}.mrow b{display:block;font-size:13px}.mrow small{display:block;color:var(--mute);font-size:11px;line-height:1.35}
+
+/* まちがいが にがて モード: 赤を つかわない */
+.gnote{margin:8px 0;padding:8px 10px;background:rgba(39,216,255,.10);border-left:4px solid var(--cyan);font-size:14px;font-weight:700}
+.fb.gentle{border-left-color:var(--cyan)}
+.dots i.try{background:#5fb3ff}
+.choice.out{opacity:.3}
+
+.choice.try{background:linear-gradient(135deg,#2a3f6e,#1d2b52)!important;border-color:#5fb3ff!important;color:#cfe4ff!important;opacity:.85}

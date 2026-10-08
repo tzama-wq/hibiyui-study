@@ -12,7 +12,7 @@
 //       ルビの外側の漢字は、その学年までに習う漢字だけ使える。
 import { allowedSet, kanjiOf } from './kokugo.mjs';
 
-export const SUBJECTS = ['理科', '社会', '生活', '国語'];
+export const SUBJECTS = ['理科', '社会', '生活', '国語', '算数']; // 算数は「考え方・図形・量・グラフ」の ことがらの もんだい(けいさんの もんだいは gen.js)
 export const RUBY_RE = /\{([^|{}]+)\|([^{}]+)\}/g;
 export const stripRuby = (s) => String(s).replace(RUBY_RE, '');
 // ルビを外して、表示される文字(ルビの親文字)だけにする。重複判定などに使う
@@ -51,7 +51,7 @@ export function validateFile(file, kanji) {
     if (!Array.isArray(u.items) || u.items.length < MIN_ITEMS) errs.push(`${w}: 問題が ${MIN_ITEMS} 問より少ない (${u.items?.length || 0})`);
     (u.items || []).forEach((it, i) => {
       const ww = `${w}#${i + 1}`;
-      checkText('q', it.q, 70, allowed, errs, ww);
+      checkText('q', it.q, file.subject === '国語' ? 160 : 70, allowed, errs, ww); // 国語は みじかい ぶんしょうを のせられる
       checkText('correct', it.correct, 24, allowed, errs, ww);
       checkText('why', it.why, 90, allowed, errs, ww);
       if (qs.has(it.q)) errs.push(`${ww}: 同じ問題文が重複`);
