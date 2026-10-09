@@ -76,13 +76,13 @@ function status(p, id) {
     const rate = h ? h.reduce((a, b) => a + b, 0) / h.length : u.ok / n;
     base = rate >= 0.75 ? 'ok' : rate >= 0.5 ? 'shaky' : 'gap';
   }
-  // 1日だけの「できた」は まだ「できた」にしない(答えを おぼえただけかも。べつの日に もういちど たしかめる)
-  if (base === 'ok' && (u.d || []).length < 2) return 'sprout';
+  // 1かい せいかいしただけの「できた」は まだ「できた」にしない(答えを おぼえただけかも)。べつの日に せいかい、または 2もん せいかいで「できた」
+  if (base === 'ok' && (u.d || []).length < 2 && u.ok < 2) return 'sprout';
   return base;
 }
 const lastCorrectDay = (p, id) => { const d = (p.units[id] || {}).d || []; return d[d.length - 1]; };
-// いま たしかめる ひつようが ある単元か(sprout は べつの日に)
-const needs = (p, id) => { const st = status(p, id); return st !== 'ok' && !(st === 'sprout' && lastCorrectDay(p, id) === todayStr()); };
+// いま たしかめる ひつようが ある単元か(sprout は もう1かい せいかい)
+const needs = (p, id) => status(p, id) !== 'ok';
 const ICON = { ok: '✅', sprout: '🌱', shaky: '🔸', gap: '🔻', unknown: '⬜' };
 const WEIGHT = { ok: 0.1, sprout: 0.5, shaky: 0.6, gap: 0.9, unknown: 0.3 };
 
@@ -420,9 +420,9 @@ function medalDesc(b) {
   if ((m = id.match(/^perfect(\d+)$/))) return `ミスなしの セット(パーフェクト)を ${m[1]}かい`;
   if ((m = id.match(/^time(\d+)$/))) return `タイムマシンを ${m[1]}かい あそぶ`;
   if ((m = id.match(/^hyp(\d+)$/))) return `つまずきの かせつを ${m[1]}こ のりこえる`;
-  if ((m = id.match(/^kuku_d(\d)$/))) return `九九の ${m[1]}の だんが「できた」(べつの日にも せいかい)`;
+  if ((m = id.match(/^kuku_d(\d)$/))) return `九九の ${m[1]}の だんが「できた」(2もん せいかい、または べつの日にも せいかい)`;
   if (id === 'kuku_all') return '「九九 ぜんぶ」が「できた」'; if (id === 'kuku_inv') return '「□を さがせ」が「できた」';
-  if ((m = id.match(/^ok_(.+)$/))) return `「${UNIT_JA()[m[1]] || m[1]}」の もんだいが「できた」(べつの日にも せいかい)`;
+  if ((m = id.match(/^ok_(.+)$/))) return `「${UNIT_JA()[m[1]] || m[1]}」の もんだいが「できた」(2もん せいかい、または べつの日にも せいかい)`;
   if ((m = id.match(/^n(50|200)_(.+)$/))) return `「${UNIT_JA()[m[2]] || m[2]}」で ${m[1]}もん せいかい`;
   if ((m = id.match(/^titles(\d+)$/))) return `たいかいで ゆうしょうを ぜんぶで ${m[1]}かい`;
   if ((m = id.match(/^win(\d+)$/))) return `たいせん・たいかいの しあいで ${m[1]}しょう`;
@@ -814,7 +814,7 @@ function timeMachineCard(k, p) {
   return `<section class="panel tm"><h2 class="sec">TIME MACHINE <small>タイムマシン チェック</small></h2>
     <div class="muted">むかしの がくねんまで もどって、「ぬけてる ところ」を さがすよ。みつかったら ラッキー! そこを なおせば ぐんと つよくなる。</div>
     ${grades.map((g) => `<div style="margin:8px 0"><b>${g}ねん</b> ${SUBJECTS.map((sj) => { const us = sk.filter((u) => u.grade === g && u.subject === sj); return us.length ? `<span style="white-space:nowrap">${SUBJECT_ICON[sj]}${us.map((u) => `<span title="${u.name}">${ICON[status(p, u.id)]}</span>`).join('')}</span>` : ''; }).join(' ')}</div>`).join('')}
-    <div class="muted">✅ほんとに できた 🌱できたかも(べつの日に もういちど) 🔸あやしい 🔻ぬけてる ⬜まだ</div>
+    <div class="muted">✅ほんとに できた 🌱できたかも(もう1かい せいかいで ✅) 🔸あやしい 🔻ぬけてる ⬜まだ</div>
     ${todo + weak.length + due > 0 ? '<button class="match-btn alt" data-act="start" data-mode="back"><small>TIME MACHINE</small><b>⏪ タイムマシンに のる</b><span>5もん ・ むかしの ぬけを さがす</span></button>' : '<b>ぜんぶ チェックずみ! すごい!</b>'}
   </section>`;
 }
