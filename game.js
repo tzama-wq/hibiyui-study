@@ -488,6 +488,7 @@ export function simulate(a, b, rnd = Math.random, phases = 6) {
 
 // ---- ダイヤモンドを てに いれる(かけら + きたえた レジェンド + きょうかの たつじん) -------------------
 export const DIAMOND = { shards: 40, legendEnh: 10, subjects: { FW: ['算数'], MF: ['国語', '英語'], DF: ['社会', '生活', '道徳'], GK: ['理科', '生活'] } }; // 小2は 理科・社会が ない ので 生活でも OK
+export const DIAMOND_MAX_COPIES = 6; // おなじ ダイヤは レベル5(6まい)まで こうかんできる
 export const addShards = (p, n) => { p.shards = (p.shards || 0) + n; return n; };
 // haveMedal(id): その メダルを もっているか(「たつじん」メダル m10_教科)
 export function diamondReq(p, d, haveMedal) {
@@ -498,15 +499,17 @@ export function diamondReq(p, d, haveMedal) {
     shards: { have, need: DIAMOND.shards, ok: have >= DIAMOND.shards },
     legend: { best, need: DIAMOND.legendEnh, ok: best >= DIAMOND.legendEnh },
     trial: { subjects: sj, ok: sj.some((s) => haveMedal(`m10_${s}`)) },
-    owned: !!(p.owned || {})[d.id],
+    copies: (p.owned || {})[d.id] || 0,                 // こうかんした かいすう
+    max: DIAMOND_MAX_COPIES,
   };
+  r.owned = r.copies >= DIAMOND_MAX_COPIES;             // レベル5(6まい)で うちどめ
   r.can = !r.owned && r.shards.ok && r.legend.ok && r.trial.ok;
   return r;
 }
 export function claimDiamond(p, id, haveMedal) {
   const d = PLAYER_BY_ID[id]; if (!d || d.rarity !== 'diamond') return false;
   if (!diamondReq(p, d, haveMedal).can) return false;
-  p.shards -= DIAMOND.shards; p.owned = p.owned || {}; p.owned[id] = 1; return true;
+  p.shards -= DIAMOND.shards; p.owned = p.owned || {}; p.owned[id] = (p.owned[id] || 0) + 1; return true;
 }
 
 // しあいの まとめ(シュートの かず・タックル・MVP)

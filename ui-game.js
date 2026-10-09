@@ -186,12 +186,14 @@ function diamondHtml() {
     ${dl.map((d) => {
     const r = G.diamondReq(p, d, haveMedalOf);
     const line = (ok, t) => `<div class="dreq ${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${t}</div>`;
-    return `<section class="panel dia ${r.owned ? 'got' : ''}"><div class="dia-main">${cardHtml({ ...d, level: 0 }, { stats: false })}
+    const lv = G.levelOf(r.copies);
+    return `<section class="panel dia ${r.copies ? 'got' : ''}"><div class="dia-main">${cardHtml({ ...d, level: lv }, { stats: false })}
       <div class="dia-info"><b>${esc(d.name)}</b><small>${POSJA[d.pos]} ・ ${esc(d.type)}</small>
-        ${r.owned ? '<div class="dreq ok">🎉 もっているよ!</div>' : `${line(r.shards.ok, `かけら ${r.shards.have}/${r.shards.need}`)}
+        <div class="dreq ${r.copies ? 'ok' : ''}">🔁 こうかん ${r.copies}かい / さいだい ${r.max}かい(レベル ${lv} / 5)</div>
+        ${r.owned ? '<div class="dreq ok">🎉 レベル5! これいじょう こうかんできないよ</div>' : `${line(r.shards.ok, `かけら ${r.shards.have}/${r.shards.need}`)}
         ${line(r.legend.ok, `${POSJA[d.pos]}の レジェンドを きょうか +${r.legend.need}(いま ${r.legend.best < 0 ? 'レジェンドが いないよ' : `+${r.legend.best}`})`)}
         ${line(r.trial.ok, `${r.trial.subjects.join('か')}の「たつじん」メダル`)}
-        <button class="btn small ${r.can ? 'gold' : 'gray'}" data-act="dclaim" data-id="${d.id}" ${r.can ? '' : 'disabled'}>💎 ゲット!</button>`}</div></div></section>`;
+        <button class="btn small ${r.can ? 'gold' : 'gray'}" data-act="dclaim" data-id="${d.id}" ${r.can ? '' : 'disabled'}>💎 ${r.copies ? `もういちど こうかん(${r.copies + 1}かいめ)` : 'ゲット!'}</button>`}</div></div></section>`;
   }).join('')}`;
 }
 function dexHtml() {

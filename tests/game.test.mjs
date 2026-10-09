@@ -401,7 +401,9 @@ for (const f of FORMATIONS) {
   p.plv[lg.id] = DIAMOND.legendEnh; assert.equal(diamondReq(p, d, have).can, false, 'メダルが ない');
   medals.add('m10_国語'); assert.equal(diamondReq(p, d, have).trial.ok, false, 'FWは 算数');
   medals.add('m10_算数'); assert.equal(diamondReq(p, d, have).can, true);
-  assert.equal(claimDiamond(p, d.id, have), true); assert.equal(p.shards, 0); assert.equal(p.owned[d.id], 1); assert.equal(claimDiamond(p, d.id, have), false, '2かいは もらえない');
+  assert.equal(claimDiamond(p, d.id, have), true); assert.equal(p.shards, 0); assert.equal(p.owned[d.id], 1); assert.equal(diamondReq(p, d, have).copies, 1); assert.equal(claimDiamond(p, d.id, have), false, 'かけらが たりない うちは もらえない');
+  for (let n = 2; n <= 6; n++) { addShards(p, DIAMOND.shards); assert.equal(claimDiamond(p, d.id, have), true, `${n}かいめ`); assert.equal(p.owned[d.id], n); }
+  addShards(p, DIAMOND.shards); assert.equal(diamondReq(p, d, have).owned, true); assert.equal(claimDiamond(p, d.id, have), false, 'レベル5(6かい)で うちどめ'); p.shards = 0;
   { const dfd = dl.find((x) => x.pos === 'DF'); const dlg = PLAYERS.find((x) => x.rarity === 'legend' && x.pos === 'DF'); const pd = { owned: { [dlg.id]: 1 }, shards: DIAMOND.shards, plv: { [dlg.id]: DIAMOND.legendEnh } }; const hv = (id) => id === 'm10_生活'; assert.equal(diamondReq(pd, dfd, hv).can, true, 'DFは 生活でも OK(小2むけ)'); assert.equal(diamondReq(pd, dfd, (id) => id === 'm10_算数').can, false); }
   // GK: 理科 か 生活 どちらでも
   const gk = dl.find((x) => x.pos === 'GK'); const glg = PLAYERS.find((x) => x.rarity === 'legend' && x.pos === 'GK');
