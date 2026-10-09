@@ -1,5 +1,5 @@
 {
- "date": "2026-10-08",
+ "date": "2026-10-09",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -19,35 +19,61 @@
   },
   "2": {
    "asked": 8,
-   "returned": 9,
+   "returned": 10,
    "rejected": {
-    "target-not-once": 1
+    "sentence-kanji-out-of-grade": 1,
+    "wrong-shape": 1
    },
    "unverified": 0,
    "accepted": 8,
    "rounds": 2,
    "samples": [
     {
-     "reason": "target-not-once",
+     "reason": "sentence-kanji-out-of-grade",
      "item": {
-      "type": "yomi",
-      "kanji": "明",
-      "target": "明るい",
-      "reading": "あかるい",
-      "sentence": "外が明るくなる。",
-      "explain": "「明」は「あか-るい」と読みます。",
+      "type": "kaki",
+      "kanji": "母",
+      "target": "お母さん",
+      "reading": "おかあさん",
+      "sentence": "お母さんと いっしょに 買い物に 行く。",
+      "explain": "「おかあさん」は「お母さん」と書きます。",
       "wrong": [
        {
-        "text": "あがるい",
-        "tag": "dakuten"
+        "text": "お毎さん",
+        "tag": "similar_kanji"
        },
        {
-        "text": "めいるい",
-        "tag": "onkun_mix"
+        "text": "お女さん",
+        "tag": "similar_word"
        },
        {
-        "text": "あっかるい",
-        "tag": "small_kana"
+        "text": "お姉さん",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "毛",
+      "target": "毛",
+      "reading": "け",
+      "sentence": "犬の 毛は ふわふわして いる。",
+      "explain": "からだに はえる「け」は「毛」と書きます。",
+      "wrong": [
+       {
+        "text": "手",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "気",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "糸",
+        "tag": "similar_word"
        }
       ]
      }
@@ -58,45 +84,73 @@
   "3": {
    "asked": 8,
    "returned": 9,
-   "rejected": {},
-   "unverified": 1,
-   "accepted": 8,
-   "rounds": 2,
-   "samples": [],
-   "missing": 0
-  },
-  "4": {
-   "asked": 8,
-   "returned": 10,
    "rejected": {
-    "wrong-shape": 1,
-    "sentence-kanji-out-of-grade": 1
+    "wrong-dup": 1
    },
    "unverified": 0,
    "accepted": 8,
    "rounds": 2,
    "samples": [
     {
-     "reason": "wrong-shape",
+     "reason": "wrong-dup",
      "item": {
       "type": "yomi",
-      "kanji": "紀",
-      "target": "世紀",
-      "reading": "せいき",
-      "sentence": "新しい世紀が始まる。",
-      "explain": "「世紀」は「せいき」と読みます。",
+      "kanji": "談",
+      "target": "相談",
+      "reading": "そうだん",
+      "sentence": "お父さんに相談する。",
+      "explain": "「相談」は「そうだん」と読みます。",
       "wrong": [
        {
-        "text": "せいぎ",
+        "text": "そうだん",
+        "tag": "other"
+       },
+       {
+        "text": "そうたん",
         "tag": "dakuten"
        },
        {
-        "text": "せき",
-        "tag": "small_kana"
+        "text": "しょうだん",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 0
+  },
+  "4": {
+   "asked": 8,
+   "returned": 9,
+   "rejected": {
+    "wrong-shape": 1,
+    "sentence-kanji-out-of-grade": 1
+   },
+   "unverified": 0,
+   "accepted": 7,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "英",
+      "target": "英語",
+      "reading": "えいご",
+      "sentence": "学校で英語を楽しく学ぶ。",
+      "explain": "「えいご」は「英語」と書きます。",
+      "wrong": [
+       {
+        "text": "栄語",
+        "tag": "similar_sound"
        },
        {
-        "text": "しき",
-        "tag": "similar_sound"
+        "text": "央語",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "英話",
+        "tag": "similar_word"
        }
       ]
      }
@@ -104,30 +158,30 @@
     {
      "reason": "sentence-kanji-out-of-grade",
      "item": {
-      "type": "kaki",
-      "kanji": "置",
-      "target": "置く",
-      "reading": "おく",
-      "sentence": "本を机の上に置く。",
-      "explain": "「おく」は「置く」と書きます。",
+      "type": "yomi",
+      "kanji": "英",
+      "target": "英語",
+      "reading": "えいご",
+      "sentence": "英語の授業が始まる。",
+      "explain": "「英語」は「えいご」と読みます。",
       "wrong": [
        {
-        "text": "直く",
-        "tag": "similar_kanji"
+        "text": "えご",
+        "tag": "long_vowel"
        },
        {
-        "text": "植く",
-        "tag": "similar_kanji"
+        "text": "えいこ",
+        "tag": "dakuten"
        },
        {
-        "text": "真く",
-        "tag": "other"
+        "text": "えいごう",
+        "tag": "long_vowel"
        }
       ]
      }
     }
    ],
-   "missing": 0
+   "missing": 1
   }
  }
 }
