@@ -174,7 +174,7 @@ export async function startPlay3D(o) {
   function updateHud(dt) {
     hudT -= dt; if (hudT > 0) return; hudT = 0.1;
     hud.sa.textContent = S.score.a; hud.sb.textContent = S.score.b;
-    const m = sim.minuteNow(); hud.tm.textContent = S.extra ? `延長 ${Math.max(0, Math.ceil(60 - (S.clock - o.halfSec * 2 || 0)))}` : `${m}'`;
+    hud.tm.textContent = S.extra ? `延長 ${Math.max(0, Math.ceil(60 - (S.clock - S.e2)))}` : sim.clockText();
     const b = S.bannerT > 0 ? S.banner : ''; if (b !== lastBanner) { lastBanner = b; hud.banner.textContent = b; hud.banner.classList.toggle('on', !!b); }
     hud.msg.textContent = S.msg || '';
     const att = sim.ball.owner && sim.ball.owner.side === 'a';

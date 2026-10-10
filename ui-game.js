@@ -295,7 +295,7 @@ async function startPlayMatch(me, opp, cup) {
 }
 function finishPlayMatch(me, opp, cup, r) {
   const goals = r.events.filter((e) => e.type === 'goal'); let a = 0; let b = 0;
-  const events = goals.map((g) => { if (g.side === 'a') a++; else b++; return { side: g.side, type: 'goal', kind: '', how: 'shot', card: '', start: 'open', defender: null, passer: g.assist || g.scorer, shooter: g.scorer, keeper: '', score: { a, b }, text: `${g.minute}ぷん ${g.scorer}の ゴール!!${g.assist ? ` (アシスト ${g.assist})` : ''}` }; });
+  const events = goals.map((g) => { if (g.side === 'a') a++; else b++; return { side: g.side, type: 'goal', kind: '', how: 'shot', card: '', start: 'open', defender: null, passer: g.assist || g.scorer, shooter: g.scorer, keeper: '', score: { a, b }, text: `${g.mt || g.minute}ぷん ${g.scorer}の ゴール!!${g.assist ? ` (アシスト ${g.assist})` : ''}` }; });
   const score = { a: r.score.a, b: r.score.b };
   const pk = score.a === score.b ? G.shootout(G.ratings(me.team).power, G.ratings(opp.team).power) : null;
   const res = { events, score };

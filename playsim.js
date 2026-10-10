@@ -58,14 +58,31 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     ph: 'kickoff', phT: 0, half: 1, clock: 0, // clock: じっさいの びょう(ぜんはん+こうはん)
     score: { a: 0, b: 0 }, events: [], shots: { a: 0, b: 0 }, fouls: { a: 0, b: 0 }, offsides: { a: 0, b: 0 }, poss: { a: 0.001, b: 0.001 },
     restart: null, dead: 0, banner: '', bannerT: 0, msg: '', done: false, ctrl: 0, ctrlLock: 0, kickSide: 'a', extra: false, golden: false, winner: null,
-    celebrate: null, flash: 0, cards: [], snd: [], restartFresh: false, lostAt: { a: -99, b: -99 }, gainedAt: { a: -99, b: -99 }, auto: !!autoOpt,
+    celebrate: null, flash: 0, cards: [], snd: [], e1: halfSec, e2: halfSec * 2, base1: halfSec, add: { 1: 0, 2: 0 }, mark: { goals: 0, fouls: 0, cards: 0, pen: 0 }, restartCount: { penalty: 0 }, restartFresh: false, lostAt: { a: -99, b: -99 }, gainedAt: { a: -99, b: -99 }, auto: !!autoOpt,
   };
   const snd = (n) => { if (S.snd.length < 20) S.snd.push(n); };
   const input = { mx: 0, mz: 0, sprint: false };
   const pressed = { pass: false, shoot: false, lob: false, tackle: false, switch: false }; const shootCharge = { on: false, t: 0 };
   const log = (t) => { S.msg = t; };
   const banner = (t, d = 1.4) => { S.banner = t; S.bannerT = d; };
-  const minuteNow = () => { const tot = halfSec * 2; const f = clamp(S.clock / tot, 0, 1); return Math.round(f * 90); };
+  // アディショナルタイム: ぜんはん・こうはんの おわりに「+なんぷん」。ゴール・ファウル・カードが おおい ほど ながい(1〜5ふん)
+  const addSec = (m) => (m * halfSec) / 45; // ゲームないの なんぷんを じっさいの なんびょうに するか
+  function addedMinutes() {
+    const g = S.events.length - S.mark.goals; const f = S.fouls.a + S.fouls.b - S.mark.fouls; const c = S.cards.length - S.mark.cards; const pen = S.restartCount.penalty - S.mark.pen;
+    return clamp(1 + Math.round(g * 0.9 + f * 0.28 + c * 0.8 + pen * 1.2), 1, 5);
+  }
+  const minuteNow = () => { // ゲームないの ふん(ぜんはん 0〜45・こうはん 45〜90)。アディショナルは 45/90 の まま
+    if (S.clock < S.base1) return Math.min(45, Math.floor((S.clock / halfSec) * 45));
+    if (S.clock < S.e1) return 45;
+    const c2 = S.clock - S.e1; if (c2 < halfSec) return 45 + Math.min(45, Math.floor((c2 / halfSec) * 45));
+    return 90;
+  };
+  const clockText = () => { // がめんの ひょうじ: 12' / 45+2' / 90+1'
+    const m = minuteNow(); if (S.extra) return `えんちょう`;
+    if (S.clock >= S.base1 && S.clock < S.e1) return `45+${Math.max(1, Math.ceil(((S.clock - S.base1) / halfSec) * 45))}'`;
+    if (S.half === 2 && S.clock >= S.e1 + halfSec) return `90+${Math.max(1, Math.ceil(((S.clock - S.e1 - halfSec) / halfSec) * 45))}'`;
+    return `${m}'`;
+  };
 
   // ---- ならべる ------------------------------------------------------------------
   function formation(side, atkSide) {
@@ -180,14 +197,16 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
 
   // ---- タックル ------------------------------------------------------------------
   function tackle(d, c, slide) {
+    if (S.restartFresh && S.restart && ball.owner === S.restart.taker && d !== S.restart.taker) return false; // けるまえは ボールを うばえない(フリーキック・ゴールキックなど)
     snd('tackle');
     const dx = c.x - d.x; const dz = c.z - d.z; const dist = len(dx, dz);
-    const range = slide ? 2.4 : 1.55; if (dist > range) return false;
+    const human = !auto && d.side === 'a' && d.idx === S.ctrl; // にんげんの アシスト: すこし とおくても タックルできる
+    const range = (slide ? 2.4 : 1.55) + (human ? 0.5 : 0); if (dist > range) return false;
     d.cd = slide ? 1.0 : 0.7; d.act = slide ? 'slide' : 'tackle'; d.actT = slide ? 0.55 : 0.3; d.dir = Math.atan2(dz, dx);
     if (slide) { d.vx = Math.cos(d.dir) * 9; d.vz = Math.sin(d.dir) * 9; }
     const behind = Math.cos(angDiff(Math.atan2(d.z - c.z, d.x - c.x), c.dir)) < -0.35; // ディフェンダーが うしろから
     const drib = mul((c.stats.SPD + c.stats.SHO) / 2, 0.8, 1.5); const df = mul(d.stats.DEF, 0.8, 1.5);
-    const pOk = clamp(0.42 + (df - drib) * 1.2 + (slide ? 0.1 : 0) - (c.sprint ? 0.06 : 0), 0.18, 0.86);
+    const pOk = clamp(0.42 + (df - drib) * 1.2 + (slide ? 0.1 : 0) - (c.sprint ? 0.06 : 0) + (human ? 0.1 : 0) + (d.side === 'b' ? (aiLevel - 1) * 0.35 : 0), 0.18, 0.88); // つよい てきほど タックルが うまい
     const roll = rnd();
     const foulP = behind ? (slide ? 0.4 : 0.22) : (slide ? 0.2 : 0.04);
     if (roll < pOk) { // せいこう
@@ -222,7 +241,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
 
   // ---- デッドボール(スローイン・ゴールキック・コーナー・フリーキック) ----------------------
   function deadBall(r, text) {
-    snd('whistle'); S.ph = 'dead'; S.phT = 0; S.restart = r; S.restartAt = S.clock; S.restartFresh = true; S.dead = r.type === 'penalty' ? 2.2 : 1.6;
+    snd('whistle'); S.ph = 'dead'; S.phT = 0; S.restart = r; S.restartAt = S.clock; S.restartFresh = true; if (r.type === 'penalty') S.restartCount.penalty++; S.dead = r.type === 'penalty' ? 2.2 : 1.6;
     ball.owner = null; ball.vx = ball.vy = ball.vz = 0; ball.y = 0.11; ball.offside = null; ball.free = 0.1; ball.indirectBy = null; ball.pen = false; ball.target = null; ball.shotBy = null;
     ball.x = r.x; ball.z = r.z;
     if (text) banner(text, 1.5);
@@ -289,7 +308,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     }
     S.score[side]++; const sc = ball.lastP && ball.lastP.side === side ? ball.lastP : (ball.shotBy || ball.lastP);
     const ass = ball.prevP && ball.prevP.side === side && ball.prevP !== sc ? ball.prevP : null;
-    S.events.push({ side, type: 'goal', scorer: sc ? sc.name : '', assist: ass ? ass.name : '', minute: minuteNow(), own: sc ? sc.side !== side : false, from: S.restart && S.restartAt != null && S.clock - S.restartAt < 7 ? S.restart.type : 'open' });
+    S.events.push({ side, type: 'goal', scorer: sc ? sc.name : '', assist: ass ? ass.name : '', minute: minuteNow(), mt: clockText(), own: sc ? sc.side !== side : false, from: S.restart && S.restartAt != null && S.clock - S.restartAt < 7 ? S.restart.type : 'open' });
     snd('goal'); S.ph = 'goal'; S.phT = 0; S.celebrate = { side, p: sc }; S.flash = 0.4; banner('ゴール!!', 2.2); log(`ゴール!! ${sc ? sc.name : ''}`);
     ball.owner = null; ball.vx *= 0.15; ball.vz *= 0.15; ball.vy = 0; ball.x = clamp(ball.x, -HX - 1, HX + 1);
     if (S.golden) { S.winner = side; }
@@ -310,7 +329,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     } else { pressed.pass = pressed.lob = false; if (shootCharge.release) { shootCharge.release = false; shootCharge.t = 0; } }
     if (shootCharge.on) shootCharge.t = Math.min(1.2, shootCharge.t + dt);
     if (!has) {
-      if (pressed.tackle) { pressed.tackle = false; const c = ball.owner && ball.owner.side === 'b' ? ball.owner : null; if (c && p.cd <= 0 && p.stun <= 0) { if (len(c.x - p.x, c.z - p.z) <= 1.6) tackle(p, c, false); else { p.act = 'lunge'; p.actT = 0.35; p.cd = 0.5; } } }
+      if (pressed.tackle) { pressed.tackle = false; const c = ball.owner && ball.owner.side === 'b' ? ball.owner : null; if (c && p.cd <= 0 && p.stun <= 0) { if (len(c.x - p.x, c.z - p.z) <= 2.1) tackle(p, c, false); else { p.act = 'lunge'; p.actT = 0.35; p.cd = 0.5; } } }
       if (pressed.shoot) { pressed.shoot = false; const c = ball.owner && ball.owner.side === 'b' ? ball.owner : null; if (c && p.cd <= 0 && p.stun <= 0) tackle(p, c, true); else if (p.cd <= 0 && p.stun <= 0) { p.act = 'slide'; p.actT = 0.5; p.cd = 0.9; p.vx = Math.cos(p.dir) * 9; p.vz = Math.sin(p.dir) * 9; } }
     }
     pressed.tackle = false;
@@ -332,6 +351,18 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     if (q) passTo(p, q, 1, len(q.x - p.x, q.z - p.z) > 32);
   }
   function aiThink(p, dt) {
+    if (S.restartFresh && S.restart && ball.owner === S.restart.taker && p.side !== S.restart.side && p.slot !== 'GK') { // ルール: けるまえは まもりは はなれて まつ(9.15m。スローインは 2m。ゴールキック・ペナルティは エリアの そと)
+      const r = S.restart; const away = r.type === 'throw' ? 2.9 : 9.6; const dNow = len(p.x - ball.x, p.z - ball.z); p.wantSprint = false;
+      if (dNow < away + 2) { // ちかくに いる 人は そのばで まつ(ちかすぎたら そとへ おしだす)
+        if (dNow < away) { const a2 = Math.atan2(p.z - ball.z, p.x - ball.x) || 0.1; p.tx = ball.x + Math.cos(a2) * (away + 0.4); p.tz = ball.z + Math.sin(a2) * (away + 0.4); } else { p.tx = p.x; p.tz = p.z; }
+      } else {
+        let tx = p.hx; let tz = p.hz; const dd = len(tx - ball.x, tz - ball.z);
+        if (dd < away + 1) { const a2 = Math.atan2(tz - ball.z, tx - ball.x) || 0.1; tx = ball.x + Math.cos(a2) * (away + 1.2); tz = ball.z + Math.sin(a2) * (away + 1.2); }
+        if ((r.type === 'goalkick' || r.type === 'penalty') && Math.abs(tz) < FIELD.PAh + 0.5) { const es = r.type === 'goalkick' ? Math.sign(r.x) : sgn(r.side); if (tx * es > HX - FIELD.PAd - 0.5) tx = es * (HX - FIELD.PAd - 2.5); }
+        p.tx = clamp(tx, -HX + 2, HX - 2); p.tz = clamp(tz, -HZ + 2, HZ - 2);
+      }
+      return;
+    }
     if (S.ph !== 'play') { p.wantSprint = false; return; } // やすみの あいだは ならんだ ばしょで まつ(タックルも しない)
     p.aiT -= dt; if (p.aiT > 0 && !p.forceThink) return; p.aiT = (0.14 + rnd() * 0.1) / (p.side === 'b' ? aiLevel : 1); p.forceThink = false;
     const s = p.side; const sg = sgn(s); const own = ball.owner; const mine = own && own.side === s; const T = tact[s];
@@ -411,7 +442,19 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     let wx = 0; let wz = 0; let sprint = false;
     if (p.stun > 0) { p.stun -= dt; p.vx *= 0.9; p.vz *= 0.9; }
     else if (p.act === 'slide' && p.actT > 0) { /* すべり */ p.vx *= 0.96; p.vz *= 0.96; }
-    else if (humanDrive) { wx = input.mx; wz = input.mz; sprint = !!input.sprint; const m = len(wx, wz); if (m > 1) { wx /= m; wz /= m; } }
+    else if (humanDrive) {
+      wx = input.mx; wz = input.mz; sprint = !!input.sprint; const m = len(wx, wz); if (m > 1) { wx /= m; wz /= m; }
+      // アシスト: ボールが ルーズ か あいてが もっている とき、じどうで ボールに ちかづく(スティックを はなすと ぜんぶ おまかせ。うごかすと その ほうこうが ゆうせん)
+      if (S.ph === 'play' && ball.owner !== p && !(ball.owner && ball.owner.side === 'a') && S.assist !== false) {
+        const tgt = ball.owner ? { x: ball.owner.x + ball.owner.vx * 0.25, z: ball.owner.z + ball.owner.vz * 0.25 } : { x: ball.x + ball.vx * 0.35, z: ball.y > 2 ? ball.z : ball.z + ball.vz * 0.35 };
+        const dx = tgt.x - p.x; const dz = tgt.z - p.z; const d = len(dx, dz);
+        if (d < 34 && !(len(ball.vx, ball.vz) > 15 && !ball.owner && d > 10)) {
+          const ax = dx / Math.max(d, 0.001); const az = dz / Math.max(d, 0.001);
+          if (m < 0.2) { wx = ax; wz = az; sprint = d > 7; }
+          else { wx = wx * 0.7 + ax * 0.3; wz = wz * 0.7 + az * 0.3; const mm = len(wx, wz); if (mm > 1) { wx /= mm; wz /= mm; } }
+        }
+      }
+    }
     else {
       const dx = p.tx - p.x; const dz = p.tz - p.z; const d = len(dx, dz);
       if (d > 0.35) { const k = Math.min(1, d / 2.5); wx = (dx / d) * k; wz = (dz / d) * k; }
@@ -475,7 +518,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     let best = null; let bd = 1e9;
     for (const s of ['a', 'b']) for (const p of players[s]) {
       if (p.off || p.stun > 0 || p.cd > 0.3 && p === ball.lastP) continue;
-      const rr = p.slot === 'GK' ? 1.15 : 0.82 + (p.act === 'slide' ? 0.7 : 0) + (p === ball.target ? 0.8 : 0);
+      const rr = p.slot === 'GK' ? 1.15 : 0.82 + (p.act === 'slide' ? 0.7 : 0) + (p === ball.target ? 0.8 : 0) + (!auto && p.side === 'a' && p.idx === S.ctrl ? 0.5 : 0); // にんげんの せんしゅは ひろいやすい
       const d = len(p.x - ball.x, p.z - ball.z); if (d > rr) continue;
       if (sp > 17 && p.slot !== 'GK' && p !== ball.target && rnd() > 0.35 * mul(p.stats.DEF, 0.8, 1.3)) continue; // はやすぎて トラップ しっぱい
       const sc = d - (p === ball.target ? 0.3 : 0) - (p.stats.SPD / 400);
@@ -507,12 +550,17 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     const live = S.ph === 'play';
     if (live) { S.clock += dt; if (ball.owner) S.poss[ball.owner.side] += dt; }
     // じかん
-    const tot = halfSec * 2;
-    if (live && !S.extra && S.half === 1 && S.clock >= halfSec) { S.half = 2; S.ph = 'half'; S.phT = 0; snd('whistle'); banner('ハーフタイム', 2.2); }
-    if (live && !S.extra && S.half === 2 && S.clock >= tot) { endRegulation(); }
-    if (live && S.extra && S.clock >= tot + extraSec) { finish(null); }
+    if (live && !S.extra && S.half === 1 && !S.add[1] && S.clock >= S.base1) { // ぜんはん ロスタイム
+      const n = addedMinutes(); S.add[1] = n; S.e1 = S.base1 + addSec(n); S.e2 = S.e1 + halfSec; banner(`アディショナルタイム +${n}ぷん`, 2.6); snd('whistle');
+    }
+    if (live && !S.extra && S.half === 1 && S.clock >= S.e1) { S.half = 2; S.ph = 'half'; S.phT = 0; snd('whistle'); banner('ハーフタイム', 2.2); S.mark = { goals: S.events.length, fouls: S.fouls.a + S.fouls.b, cards: S.cards.length, pen: S.restartCount.penalty }; }
+    if (live && !S.extra && S.half === 2 && !S.add[2] && S.clock >= S.e1 + halfSec) { // こうはん ロスタイム
+      const n = addedMinutes(); S.add[2] = n; S.e2 = S.e1 + halfSec + addSec(n); banner(`アディショナルタイム +${n}ぷん`, 2.6); snd('whistle');
+    }
+    if (live && !S.extra && S.half === 2 && S.add[2] && S.clock >= S.e2) { endRegulation(); }
+    if (live && S.extra && S.clock >= S.e2 + extraSec) { finish(null); }
     if (S.ph === 'half' && S.phT > 2.4) kickoff('b');
-    if (S.ph === 'goal' && S.phT > 3.0) { if (S.golden) finish(S.winner); else if (S.half === 2 && S.clock >= tot && !S.extra) endRegulation(); else kickoff(other(S.celebrate.side)); }
+    if (S.ph === 'goal' && S.phT > 3.0) { if (S.golden) finish(S.winner); else if (S.half === 2 && S.add[2] && S.clock >= S.e2 && !S.extra) endRegulation(); else kickoff(other(S.celebrate.side)); }
     if (S.ph === 'kickoff' || S.ph === 'dead') { S.dead -= dt; if (S.dead <= 0) { S.ph = 'play'; S.phT = 0; ball.free = 0.15; } }
     if (S.ph === 'end') { return; }
     // ひとの そうさ
@@ -556,7 +604,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
   function endRegulation() {
     if (S.score.a !== S.score.b) return finish(null);
     S.extra = true; S.golden = true; S.ph = 'half'; S.phT = 0; banner('ひきわけ! ゴールデンゴール', 2.4); S.half = 3;
-    S.clock = halfSec * 2;
+    S.clock = S.e2;
   }
   function finish(winnerSide) {
     snd('whistle'); S.done = true; S.ph = 'end'; S.winner = winnerSide; banner('しゅうりょう!', 3);
@@ -570,7 +618,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
   kickoff('a');
   S.ph = 'kickoff'; S.dead = 1.6;
   return {
-    state: S, players, ball, input, homes, press, release, step, charge: shootCharge, teams, aiLevel, ctrlP, minuteNow, FIELD,
+    state: S, players, ball, input, homes, press, release, step, charge: shootCharge, teams, aiLevel, ctrlP, minuteNow, clockText, FIELD,
     setAuto, setTactic(t) { if (TACTICS[t]) tact.a = TACTICS[t]; }, _foul: foul, _dead: deadBall, _out: outOfPlay, _tact: tact,
     skip() { /* しあいを すぐ おわらせる(テスト・とばす用) */ let n = 0; while (!S.done && n++ < 200000) step(1 / 30); },
   };

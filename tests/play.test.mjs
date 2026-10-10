@@ -141,4 +141,41 @@ for (const [pa, pb, seed] of [[60, 60, 11], [90, 60, 12], [60, 120, 13]]) {
   const hi = run('attack'); const lo = run('counter');
   assert.ok(hi > lo + 1, `アタックは ラインが たかい (${hi.toFixed(1)} > ${lo.toFixed(1)})`);
 }
+
+// ---- アディショナルタイム: ぜんはん・こうはんに +なんぷん が つく ----
+{
+  const sim = createPlay({ me: mk(80, '442', 5), opp: mk(80, '433', 6), halfSec: 60, rnd: rngSeed(41), auto: true });
+  let t = 0; const seen = new Set(); let maxClock = 0;
+  while (!sim.state.done && t < 600) { sim.step(1 / 30); t += 1 / 30; seen.add(sim.clockText()); maxClock = Math.max(maxClock, sim.state.clock); }
+  assert.ok(sim.state.done);
+  assert.ok(sim.state.add[1] >= 1 && sim.state.add[1] <= 5, `ぜんはん +${sim.state.add[1]}`); assert.ok(sim.state.add[2] >= 1 && sim.state.add[2] <= 5, `こうはん +${sim.state.add[2]}`);
+  assert.ok([...seen].some((x) => /^45\+\d/.test(x)), `45+ ひょうじ (${[...seen].filter((x) => x.includes('+')).join(',')})`); assert.ok([...seen].some((x) => /^90\+\d/.test(x)), '90+ ひょうじ');
+  assert.ok(maxClock > 120 + 0.9 * (60 / 45) * 2, `ロスタイムぶん ながく なる (${maxClock.toFixed(1)})`);
+}
+// ---- リスタート: けるまえに あいてが ボールに むらがらない / うばえない ----
+{
+  const sim = createPlay({ me: mk(80, '442', 5), opp: mk(60, '442', 6), halfSec: 60, rnd: rngSeed(42) });
+  for (let i = 0; i < 100; i++) sim.step(1 / 30);
+  for (const kind of ['free', 'goalkick', 'throw', 'corner']) {
+    const spot = kind === 'goalkick' ? { x: -47, z: 0 } : kind === 'throw' ? { x: 10, z: 34 } : kind === 'corner' ? { x: 52.5, z: 33.5 } : { x: 20, z: 5 };
+    sim._dead({ type: kind, side: 'a', ...spot }, 'x'); sim.state.ctrl = sim.state.restart.taker.idx; const taker = sim.state.restart.taker;
+    let minD = 99; let stolen = false;
+    for (let i = 0; i < 270; i++) { sim.step(1 / 30); if (sim.state.ph === 'play' && sim.state.restartFresh) { for (const q of sim.players.b) if (q.slot !== 'GK') minD = Math.min(minD, Math.hypot(q.x - sim.ball.x, q.z - sim.ball.z)); } if (sim.state.restartFresh === false) break; if (sim.ball.owner && sim.ball.owner !== taker) { stolen = true; break; } }
+    assert.ok(!stolen, `${kind}: けるまえに ボールを とられない`);
+    if (kind === 'free' || kind === 'corner') assert.ok(minD > 8.5, `${kind}: あいては はなれて まつ (${minD.toFixed(1)})`); if (kind === 'throw') assert.ok(minD > 2.2, `スローイン: 2m (${minD.toFixed(1)})`);
+    if (kind === 'goalkick') for (const q of sim.players.b) if (q.slot !== 'GK' && sim.state.restartFresh) assert.ok(!(q.x < -52.5 + 16.5 + 0.2 && Math.abs(q.z) < 20.7), 'ゴールキック: あいては エリアの そと');
+    // 7びょう たっても にんげんが けらないと じどうで けつ
+    for (let i = 0; i < 420 && sim.state.restartFresh; i++) sim.step(1 / 30); assert.ok(!sim.state.restartFresh, `${kind}: じどうで けつ`);
+  }
+}
+// ---- アシスト: スティックを はなしても ボールに ちかづく ----
+{
+  const sim = createPlay({ me: mk(80, '442', 5), opp: mk(60, '442', 6), halfSec: 60, rnd: rngSeed(43) });
+  for (let i = 0; i < 100; i++) sim.step(1 / 30);
+  const p = sim.players.a.find((x) => x.slot === 'MF'); sim.state.ctrl = p.idx; sim.state.ctrlLock = 99; p.x = 0; p.z = 0;
+  sim.ball.owner = null; sim.ball.x = 12; sim.ball.z = 6; sim.ball.vx = 0; sim.ball.vz = 0; sim.ball.free = 0; sim.input.mx = 0; sim.input.mz = 0;
+  for (const o of sim.players.b) { o.x = 40; o.z = 20; o.tx = 40; o.tz = 20; } for (const o of sim.players.a) if (o !== p) { o.x = -30; o.tx = -30; o.z = -20; o.tz = -20; }
+  let got = false; for (let i = 0; i < 150 && !got; i++) { sim.step(1 / 30); for (const o of sim.players.b) { o.x = 40; o.z = 20; } if (sim.ball.owner === p) got = true; }
+  assert.ok(got, 'スティックを はなしても じどうで ボールを ひろう');
+}
 console.log('OK: play');
