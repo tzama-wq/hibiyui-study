@@ -550,3 +550,44 @@ body.big .nav button small{font-size:13px}
 .god-card small{display:block;font-size:10px;letter-spacing:.14em;color:#ffe9a0}.god-card b{display:block;font-size:18px;margin:2px 0}.god-card span{display:block;font-size:12px;opacity:.95}
 .god-bar{height:10px;background:rgba(0,0,0,.35);margin:6px 0 2px}.god-bar i{display:block;height:100%;background:linear-gradient(90deg,#ffd23f,#fff6b0)}.god-n{font-size:12px;margin-bottom:4px}
 .tk-god.has,.pull-row.tk-god{background:linear-gradient(135deg,rgba(255,210,63,.35),rgba(155,89,208,.35));box-shadow:0 0 0 2px #ffd23f inset}
+
+/* ---- じぶんで うごかす しあい(3D・よこむき) ---- */
+.p3d{position:fixed;inset:0;z-index:9999;background:#000;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;font-family:inherit}
+.p3d-cv{width:100%;height:100%;display:block}
+.p3d-hud{position:absolute;inset:0;pointer-events:none}
+.p3d-score{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(6,10,22,.78);border:2px solid #27d8ff;padding:4px 14px;color:#fff;font-weight:800;font-size:15px;white-space:nowrap}
+.p3d-score b{font-size:24px;min-width:22px;text-align:center;color:#ffd23f}.p3d-score i{font-style:normal;font-size:13px;background:#27d8ff;color:#06101e;padding:1px 8px}
+.p3d-score .ta,.p3d-score .tb{max-width:24vw;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.p3d-pausebtn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);right:calc(env(safe-area-inset-right,0px) + 8px);pointer-events:auto;background:rgba(6,10,22,.78);color:#fff;border:2px solid #fff;font-size:18px;width:40px;height:36px;cursor:pointer}
+.p3d-banner{position:absolute;top:26%;left:0;right:0;text-align:center;font-size:clamp(28px,7vw,56px);font-weight:900;color:#fff;text-shadow:0 3px 0 #1d3fa8,0 0 18px rgba(39,216,255,.9);opacity:0;transform:scale(.7);transition:opacity .15s,transform .15s}
+.p3d-banner.on{opacity:1;transform:scale(1)}
+.p3d-msg{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);left:50%;transform:translateX(-50%);max-width:46vw;text-align:center;background:rgba(6,10,22,.6);color:#fff;font-size:12px;padding:2px 10px}
+.p3d-msg:empty{display:none}
+.p3d-tag{position:absolute;top:calc(env(safe-area-inset-top,0px) + 46px);left:50%;transform:translateX(-50%);color:#ffd23f;font-weight:800;font-size:12px;background:rgba(6,10,22,.55);padding:1px 8px}
+.p3d-ctl{position:absolute;bottom:34%;right:15%;width:120px;opacity:0}.p3d-ctl.on{opacity:1}.p3d-ctl i{display:block;height:10px;background:rgba(0,0,0,.55);border:1px solid #fff}.p3d-ctl u{display:block;height:100%;width:0;background:linear-gradient(90deg,#27d8ff,#ffd23f,#ff4d5e)}
+.p3d-pad{position:absolute;inset:0;pointer-events:auto}
+.p3d-stick{position:absolute;left:calc(env(safe-area-inset-left,0px) + 4vw);bottom:calc(env(safe-area-inset-bottom,0px) + 8vh);width:112px;height:112px;border-radius:50%;background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.55);pointer-events:none}
+.p3d-knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.65);border:3px solid #fff}
+.p3d-btns{position:absolute;right:calc(env(safe-area-inset-right,0px) + 3vw);bottom:calc(env(safe-area-inset-bottom,0px) + 5vh);width:230px;height:170px}
+.pb{position:absolute;width:78px;height:78px;border-radius:50%;border:3px solid #fff;color:#fff;font:inherit;font-weight:900;font-size:13px;line-height:1.1;cursor:pointer;touch-action:none;box-shadow:0 4px 0 rgba(0,0,0,.4);padding:0}
+.pb.on{transform:scale(.92);filter:brightness(1.3)}
+.pb-a{right:0;bottom:46px;background:#1fa35a}.pb-b{right:82px;bottom:0;background:#e0453a}.pb-c{right:82px;bottom:92px;background:#3a6df0}.pb-d{left:0;bottom:22px;width:68px;height:68px;background:#d99a1a;font-size:12px}
+.p3d-rot{position:absolute;inset:0;background:rgba(6,10,22,.94);color:#fff;display:none;align-items:center;justify-content:center;text-align:center;font-size:22px;font-weight:800;line-height:1.6;pointer-events:auto;z-index:3}
+.p3d.portrait .p3d-rot{display:flex}
+.p3d-menu{position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;pointer-events:auto;z-index:4}.p3d-menu[hidden]{display:none}
+.p3d-menubox{background:#0e1830;border:3px solid #27d8ff;padding:18px 26px;display:flex;flex-direction:column;gap:10px;min-width:220px;text-align:center;color:#fff}.p3d-menubox b{font-size:20px}
+
+/* 🎮 じぶんで うごかす の きりかえ */
+.playtog{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}.playtog .playlen{display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%}.playtog small{color:var(--mute);font-size:11px}
+
+/* ---- よこむき(ランドスケープ)の ときの まとめ ---- */
+@media (orientation:landscape) and (max-height:560px){
+  main{max-width:860px;margin-left:auto;margin-right:auto}
+  .choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .choice{margin:0}
+  .q{font-size:22px}.pitch{display:none}
+  .quiz-top{padding-top:4px;padding-bottom:4px}
+  .pc-ava{font-size:56px}
+  .cpu-list,.pull-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tabbar,nav.tabs{padding-bottom:2px}
+}

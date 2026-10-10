@@ -4,6 +4,7 @@ import * as G from './game.js';
 import { DEFAULTS, gachaLeft, addGachaPulls } from './cfg.js';
 import { createMatch } from './match.js';
 import { createSfx } from './sfx.js';
+import { startPlay3D } from './play3d.js';
 
 let X; // ctx
 export function gameInit(ctx) { X = ctx; }
@@ -263,6 +264,43 @@ function mateOpponents() {
     return null;
   }).filter(Boolean);
 }
+// ---- 🎮 じぶんで うごかす(3D・よこむき) -------------------------------------------------
+const playOn = (p) => (p.playMode === undefined ? !(X.cfg && X.cfg().calm) : !!p.playMode);
+const PLAY_LEN = { 60: 'みじかい(2ふん)', 90: 'ふつう(3ふん)', 150: 'ながい(5ふん)' };
+function playToggleHtml(p) {
+  const on = playOn(p); const len = Number(p.playLen) || 90;
+  return `<div class="playtog"><button class="chipb ${on ? 'on' : ''}" data-act="playmode" data-v="1">🎮 じぶんで うごかす</button><button class="chipb ${on ? '' : 'on'}" data-act="playmode" data-v="0">▶ オート(みるだけ)</button>
+    ${on ? `<div class="playlen">${Object.entries(PLAY_LEN).map(([k, v]) => `<button class="chipb ${len === Number(k) ? 'on' : ''}" data-act="playlen" data-v="${k}">${v}</button>`).join('')}<small>スマホは よこむきで あそぶよ</small></div>` : ''}</div>`;
+}
+let PG = null; // いま あそんでいる 3Dの しあい
+async function startPlayMatch(me, opp, cup) {
+  const p = X.p(); stopMatch(); if (PG) { PG.destroy(); PG = null; }
+  X.toast('🎮 しあいを じゅんびしているよ…');
+  SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false));
+  const sfxMap = { kick: 'kick', pass: 'pass', tackle: 'tackle', whistle: 'whistle', goal: 'goal', save: 'save' };
+  try {
+    PG = await startPlay3D({
+      me, opp, halfSec: Number(p.playLen) || 90, calm: !!(X.cfg && X.cfg().calm),
+      onSfx: (n) => { if (SFX && sfxMap[n]) SFX.play(sfxMap[n]); },
+      onQuit: () => { PG = null; if (SFX) SFX.bgmStop(); X.setView('kid'); X.render(); },
+      onEnd: (r) => { PG = null; if (SFX) SFX.bgmStop(); finishPlayMatch(me, opp, cup, r); },
+    });
+    if (SFX && !(X.quiet && X.quiet())) SFX.bgmStart();
+  } catch (e) { PG = null; X.toast('3Dを ひらけなかったよ。オートで しあいを するね'); return false; }
+  return true;
+}
+function finishPlayMatch(me, opp, cup, r) {
+  const goals = r.events.filter((e) => e.type === 'goal'); let a = 0; let b = 0;
+  const events = goals.map((g) => { if (g.side === 'a') a++; else b++; return { side: g.side, type: 'goal', kind: '', how: 'shot', card: '', start: 'open', defender: null, passer: g.assist || g.scorer, shooter: g.scorer, keeper: '', score: { a, b }, text: `${g.minute}ぷん ${g.scorer}の ゴール!!${g.assist ? ` (アシスト ${g.assist})` : ''}` }; });
+  const score = { a: r.score.a, b: r.score.b };
+  const pk = score.a === score.b ? G.shootout(G.ratings(me.team).power, G.ratings(opp.team).power) : null;
+  const res = { events, score };
+  openBattle({ me: slim(me), opp: slim(opp), res, pk, counted: false, mode: 'full', cup, noAnim: true, playStats: { shots: r.shots, fouls: r.fouls, offsides: r.offsides, poss: r.poss, extra: r.extra } });
+  X.render();
+}
+const playStatsHtml = () => { const s = B.playStats; if (!s) return ''; const tp = (s.poss.a + s.poss.b) || 1; const pa = Math.round((s.poss.a / tp) * 100);
+  const row = (n, x, y) => `<div class="sr"><b>${x}</b><span>${n}</span><b>${y}</b></div>`;
+  return `<div class="sm">${row('シュート', s.shots.a, s.shots.b)}${row('ボールを もっていた', `${pa}%`, `${100 - pa}%`)}${row('ファウル', s.fouls.a, s.fouls.b)}${s.offsides.a || s.offsides.b ? row('オフサイド', s.offsides.a, s.offsides.b) : ''}</div>`; };
 const mateOpponent = (id) => { const l = mateOpponents(); return id ? l.find((m) => m.id === id) : l[0]; };
 function battleMenuHtml() {
   const k = X.kid(); const p = X.p();
@@ -270,7 +308,8 @@ function battleMenuHtml() {
   const mates = mateOpponents();
   return `<section class="panel"><h2 class="sec">MATCH <small>たいせん</small></h2>
     <div class="power"><b>${k.name}の チーム パワー ${r.power}</b><span>${p.battles.w}勝 ${p.battles.d}分 ${p.battles.l}敗</span></div>
-    <div class="muted">へんせいした チームで たいせん! (どちらが かつかは うんも あるよ)</div>
+    ${playToggleHtml(p)}
+    <div class="muted">へんせいした チームで たいせん! ${playOn(p) ? '(🎮 じぶんで うごかして たたかうよ。つよい チームほど はやく うごけるよ)' : '(どちらが かつかは うんも あるよ)'}</div>
     ${mates.length ? mates.map((mate) => `<button class="match-btn alt" data-act="fight" data-opp="mate:${mate.id}"><small>VS FAMILY</small><b>⚔️ ${esc(mate.name)}と たいせん</b><span>あいての パワー ${mate.power}</span></button>`).join('') : '<div class="muted">かぞくの チームは、かぞくが アプリを ひらくと あらわれるよ。</div>'}
     ${p.lastMatch ? `<div class="replay"><b>🎬 まえの しあい</b> <span>${esc(p.lastMatch.me.name)} ${p.lastMatch.score.a} - ${p.lastMatch.score.b} ${esc(p.lastMatch.opp.name)}</span>
       <div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェスト(ゴールだけ)</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 ぜんぶ みる</button></div></div>` : ''}
@@ -284,6 +323,7 @@ function startFight(oppId) {
   let opp;
   if (oppId === 'mate' || oppId.startsWith('mate:')) { const m = mateOpponent(oppId.split(':')[1]); if (!m) return false; opp = { name: m.name, team: m.team }; }
   else opp = G.cpuTeam(oppId.split(':')[1], Math.random, G.FORMATIONS[Math.floor(Math.random() * G.FORMATIONS.length)].id);
+  if (playOn(p) && typeof document !== 'undefined') { startPlayMatch(me, opp, null); return true; }
   const res = G.simulate(me, opp);
   const pk = res.score.a === res.score.b ? G.shootout(G.ratings(me.team).power, G.ratings(opp.team).power) : null; // どうてん → PK戦
   openBattle({ me: slim(me), opp: slim(opp), res, pk, counted: false, mode: 'full' });
@@ -319,6 +359,7 @@ function startCup(id) {
   p.cup.run = { id, round };
   const me = { name: `${k.name}の チーム`, team: snapshotOf(k, p) };
   const opp = G.cupOpponent(cup, round);
+  if (playOn(p) && typeof document !== 'undefined') { startPlayMatch(me, opp, { id, round }); return true; }
   const res = G.simulate(me, opp);
   const pk = res.score.a === res.score.b ? G.shootout(G.ratings(me.team).power, G.ratings(opp.team).power) : null;
   openBattle({ me: slim(me), opp: slim(opp), res, pk, counted: false, mode: 'full', cup: { id, round } });
@@ -330,7 +371,7 @@ function openBattle(b) {
   const all = b.res.events.map((e, i) => ({ ...e, idx: i, total: b.res.events.length }));
   let evs = all;
   if (b.mode === 'digest') { evs = all.filter((e) => e.type === 'goal'); if (!evs.length) evs = all.filter((e) => e.type === 'save'); if (!evs.length) evs = all.slice(0, 4); }
-  B = { ...b, evs, i: 0, speed: 1, anim: animOn(), matchDone: false, banner: '', pkShown: null };
+  B = { ...b, evs, i: 0, speed: 1, anim: (b.noAnim || !evs.length) ? false : animOn(), matchDone: false, banner: '', pkShown: null };
   X.setView('battle');
   if (B.anim) {
     SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false)); SFX.bgmStart();
@@ -431,7 +472,7 @@ export function battleView() {
     ${pkRow()}
     <div class="blog" id="blog">${shown.map((e) => logRow(e)).join('') || '<div class="muted">キックオフ…!</div>'}</div>
     ${done ? `<div class="bresult ${won ? 'win' : sc.a < sc.b || B.pk ? 'lose' : ''}"><b>${result[0]}</b><p>${result[1]}</p></div>
-      ${summaryHtml()}${cupPanel}<div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェストを みる</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 もういちど ぜんぶ</button></div>`
+      ${B.playStats ? playStatsHtml() : summaryHtml()}${cupPanel}<div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェストを みる</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 もういちど ぜんぶ</button></div>`
     : `<div class="row"><button class="btn small gray" data-act="battlespeed">⏩ ${B.speed > 1 ? 'ふつうに もどす' : 'はやおくり'}</button><button class="btn small gray" data-act="battleskip">⏭ とばす</button></div>`}
     <button class="btn gold" data-act="battleend">${done ? 'もどる' : 'やめる'}</button></section></main>`;
 }
@@ -514,6 +555,8 @@ export function onAct(a, el) {
       return true;
     }
     case 'fight': return startFight(el.dataset.opp);
+    case 'playmode': p.playMode = el.dataset.v === '1'; X.save(); return true;
+    case 'playlen': p.playLen = Number(el.dataset.v) || 90; X.save(); return true;
     case 'cupfight': return startCup(el.dataset.cup);
     case 'battleskip': if (B) { clearTimeout(timer); if (M) M.skip(); else { B.i = B.evs.length; finishBattle(); } } return true;
     case 'battlespeed': if (B && M) { B.speed = B.speed > 1 ? 1 : 2.5; M.setSpeed(B.speed); X.render(); } return true;
