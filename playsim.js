@@ -154,11 +154,14 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
   }
   function passTo(p, q, power = 1, lob = false) {
     const err = (1 - clamp(p.stats.PAS / 140, 0, 0.9)) * 0.1 * (lob ? 1.5 : 1);
-    const d = len(q.x - p.x, q.z - p.z); const sp = clamp(8 + d * (lob ? 0.62 : 0.6), 10, lob ? 27 : 23) * power;
-    const t = d / sp; const lx = q.x + q.vx * t * 0.8; const lz = q.z + q.vz * t * 0.8; // さきまわり
+    const d = len(q.x - p.x, q.z - p.z);
+    // ロング(たかい ボール): ちゃくちするまでの じかん T から いきおいを きめる(とどく きょりは さいだい 48m。ゴールキックが あいての ゴールまで とどかない)
+    const T = clamp(0.75 + Math.min(d, 48) * 0.03, 1.0, 2.2);
+    const sp = lob ? (Math.min(d, 48) / T) * 1.05 * clamp(power, 0.5, 1.1) : clamp(8 + d * 0.6, 10, 23) * power;
+    const t = d / Math.max(1, sp); const lx = q.x + q.vx * Math.min(t, T) * 0.8; const lz = q.z + q.vz * Math.min(t, T) * 0.8; // さきまわり
     let a = Math.atan2(lz - p.z, lx - p.x) + (rnd() - 0.5) * 2 * err;
     p.dir = a; offsideSnapshot(p);
-    kick(p, Math.cos(a) * sp, Math.sin(a) * sp, lob ? 5 + d * 0.16 : 0, lob ? 'lob' : 'pass');
+    kick(p, Math.cos(a) * sp, Math.sin(a) * sp, lob ? 4.9 * T : 0, lob ? 'lob' : 'pass');
     ball.target = q; return q;
   }
   function shootAt(p, aimZ, power) { // power 0..1
@@ -447,8 +450,8 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     }
     ball.free = Math.max(0, ball.free - dt); ball.passT += dt;
     ball.vy -= 9.8 * dt; ball.x += ball.vx * dt; ball.z += ball.vz * dt; ball.y += ball.vy * dt;
-    if (ball.y < 0.11) { ball.y = 0.11; if (ball.vy < -1.4) ball.vy = -ball.vy * 0.5; else ball.vy = 0; }
-    const fr = ball.y <= 0.12 ? 0.6 : 0.05; const sp = len(ball.vx, ball.vz); if (sp > 0) { const k = Math.max(0, 1 - (fr * dt * (sp > 0.3 ? 1 : 3))); ball.vx *= k; ball.vz *= k; if (sp < 0.15) { ball.vx = ball.vz = 0; } }
+    if (ball.y < 0.11) { ball.y = 0.11; if (ball.vy < -1.4) { ball.vy = -ball.vy * 0.45; if (ball.kind !== 'shot') { ball.vx *= 0.62; ball.vz *= 0.62; } } else ball.vy = 0; } // ちゃくちで スピードが おちる(ロングボールが ころがりすぎない)
+    const fr = ball.y <= 0.12 ? 0.9 : 0.05; const sp = len(ball.vx, ball.vz); if (sp > 0) { const k = Math.max(0, 1 - (fr * dt * (sp > 0.3 ? 1 : 3))); ball.vx *= k; ball.vz *= k; if (sp < 0.15) { ball.vx = ball.vz = 0; } }
   }
   function pickups(dt) {
     if (ball.owner || S.ph === 'goal') return;
