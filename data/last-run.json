@@ -1,5 +1,5 @@
 {
- "date": "2026-10-10",
+ "date": "2026-10-11",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -31,32 +31,32 @@
    "asked": 8,
    "returned": 9,
    "rejected": {
-    "wrong-shape": 1
+    "sentence-kanji-out-of-grade": 1
    },
    "unverified": 0,
    "accepted": 8,
    "rounds": 2,
    "samples": [
     {
-     "reason": "wrong-shape",
+     "reason": "sentence-kanji-out-of-grade",
      "item": {
       "type": "yomi",
-      "kanji": "速",
-      "target": "速い",
-      "reading": "はやい",
-      "sentence": "あの 車は とても 速い。",
-      "explain": "「速」は「はや」と よみます。",
+      "kanji": "階",
+      "target": "階段",
+      "reading": "かいだん",
+      "sentence": "階段をいそいでのぼる。",
+      "explain": "「階段」は「かいだん」と読みます。",
       "wrong": [
        {
-        "text": "はかい",
-        "tag": "similar_sound"
+        "text": "かいたん",
+        "tag": "dakuten"
        },
        {
-        "text": "はよい",
-        "tag": "other"
+        "text": "がいだん",
+        "tag": "dakuten"
        },
        {
-        "text": "そくい",
+        "text": "きざはしだん",
         "tag": "onkun_mix"
        }
       ]
@@ -67,12 +67,65 @@
   },
   "4": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 10,
+   "rejected": {
+    "wrong-shape": 2
+   },
    "unverified": 0,
    "accepted": 8,
-   "rounds": 1,
-   "samples": [],
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "静",
+      "target": "静か",
+      "reading": "しずか",
+      "sentence": "夜の公園は静かだ。",
+      "explain": "「静か」は「しずか」と読みます。",
+      "wrong": [
+       {
+        "text": "すずか",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "しづか",
+        "tag": "dakuten"
+       },
+       {
+        "text": "せいか",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "飯",
+      "target": "ご飯",
+      "reading": "ごはん",
+      "sentence": "温かいご飯を食べる。",
+      "explain": "「ごはん」は「ご飯」と書きます。",
+      "wrong": [
+       {
+        "text": "ご飲",
+        "tag": "similar_word"
+       },
+       {
+        "text": "ご板",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "ご坂",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   }
  }
