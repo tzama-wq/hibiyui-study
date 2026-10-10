@@ -9,11 +9,11 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 9,
+   "returned": 8,
    "rejected": {},
-   "unverified": 1,
+   "unverified": 0,
    "accepted": 8,
-   "rounds": 2,
+   "rounds": 1,
    "samples": [],
    "missing": 0
   },
@@ -29,12 +29,40 @@
   },
   "3": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 9,
+   "rejected": {
+    "wrong-shape": 1
+   },
    "unverified": 0,
    "accepted": 8,
-   "rounds": 1,
-   "samples": [],
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "速",
+      "target": "速い",
+      "reading": "はやい",
+      "sentence": "あの 車は とても 速い。",
+      "explain": "「速」は「はや」と よみます。",
+      "wrong": [
+       {
+        "text": "はかい",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "はよい",
+        "tag": "other"
+       },
+       {
+        "text": "そくい",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   },
   "4": {
