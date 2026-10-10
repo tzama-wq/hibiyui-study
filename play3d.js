@@ -78,7 +78,7 @@ export async function startPlay3D(o) {
       <div class="p3d-btns"><button class="pb pb-d" data-b="sprint">ダッシュ</button><button class="pb pb-c" data-b="lob">ロング</button><button class="pb pb-a" data-b="pass">パス</button><button class="pb pb-b" data-b="shoot">シュート</button></div></div>
     <div class="p3d-intro"><div class="pi-vs"><div class="pi-team a"><small>HOME</small><b class="pi-na"></b><span class="pi-pa"></span><em class="pi-ka"></em></div><i>VS</i><div class="pi-team b"><small>AWAY</small><b class="pi-nb"></b><span class="pi-pb"></span><em class="pi-kb"></em></div></div><div class="pi-info"></div><div class="pi-count"></div><div class="pi-skip">タップで スキップ ▶</div></div>
     <div class="p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
-    <div class="p3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn" data-m="skipintro" hidden>⏭ オープニングを とばす</button><button class="btn" data-m="skip">⏭ しあいを スキップ(のこりは じどうで)</button><button class="btn" data-m="mode"></button><div class="p3d-tactics"><small>せんじゅつ</small><button class="chipb" data-t="attack">アタック</button><button class="chipb" data-t="balance">バランス</button><button class="chipb" data-t="counter">カウンター</button></div><button class="btn gray" data-m="quit">しあいを やめる</button></div></div>`;
+    <div class="p3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn" data-m="skipintro" hidden>⏭ オープニングを とばす</button><button class="btn" data-m="skip">⏭ しあいを スキップ(のこりは じどうで)</button><button class="btn" data-m="mode"></button><button class="btn" data-m="swap"></button><div class="p3d-tactics"><small>せんじゅつ</small><button class="chipb" data-t="attack">アタック</button><button class="chipb" data-t="balance">バランス</button><button class="chipb" data-t="counter">カウンター</button></div><button class="btn gray" data-m="quit">しあいを やめる</button></div></div>`;
   (o.root || document.body).appendChild(root);
   const prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; // うしろの がめんが うごかない ように
   const cv = root.querySelector('.p3d-cv');
@@ -154,10 +154,13 @@ export async function startPlay3D(o) {
   const togglePause = () => setPause(!paused);
   root.querySelector('.p3d-pausebtn').addEventListener('click', togglePause);
   const tacts = { attack: 'アタック(たかい ラインで はやく プレス)', balance: 'バランス', counter: 'カウンター(ひくく まもって はやい こうげき)' }; let curTact = o.tactic || 'balance';
+  // ボタンの ならびを いれかえ(ダッシュ ↔ パス/タックル)。えらんだ ものは このスマホに おぼえる
+  const SWAP_KEY = 'hibiyui.p3d.swap'; let swapped = true; try { const v = localStorage.getItem(SWAP_KEY); if (v !== null) swapped = v === '1'; } catch { /* ok */ }
+  const syncSwap = () => { root.classList.toggle('swap', swapped); menu.querySelector('[data-m=swap]').textContent = `🔁 ボタンの ばしょ(${swapped ? 'ダッシュが みぎ' : 'パス・タックルが みぎ'})を いれかえる`; };
   const syncMode = () => { root.classList.toggle('watch', watch); root.querySelector('.p3d-modebtn').textContent = watch ? '🎮 そうさする' : '👀 みる'; menu.querySelector('[data-m=mode]').textContent = watch ? '🎮 じぶんで そうさする' : '👀 かんせんに きりかえる'; menu.querySelectorAll('[data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === curTact)); };
   const toggleMode = () => { watch = !watch; sim.setAuto(watch); sid = null; syncMode(); };
   root.querySelector('.p3d-modebtn').addEventListener('click', toggleMode);
-  menu.addEventListener('click', (e) => { const tb = e.target.closest('[data-t]'); if (tb) { curTact = tb.dataset.t; sim.setTactic(curTact); syncMode(); hud.msg.textContent = `せんじゅつ: ${tacts[curTact]}`; return; } const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'mode') { toggleMode(); setPause(false); } else if (m.dataset.m === 'skipintro') { endIntro(); setPause(false); } else if (m.dataset.m === 'skip') { skipMatch(); } else { if (o.onQuit) { destroy(); o.onQuit(); } else destroy(); } });
+  menu.addEventListener('click', (e) => { const tb = e.target.closest('[data-t]'); if (tb) { curTact = tb.dataset.t; sim.setTactic(curTact); syncMode(); hud.msg.textContent = `せんじゅつ: ${tacts[curTact]}`; return; } const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'mode') { toggleMode(); setPause(false); } else if (m.dataset.m === 'swap') { swapped = !swapped; try { localStorage.setItem(SWAP_KEY, swapped ? '1' : '0'); } catch { /* ok */ } syncSwap(); } else if (m.dataset.m === 'skipintro') { endIntro(); setPause(false); } else if (m.dataset.m === 'skip') { skipMatch(); } else { if (o.onQuit) { destroy(); o.onQuit(); } else destroy(); } });
   const resize = () => {
     const w = root.clientWidth || innerWidth; const h = root.clientHeight || innerHeight; renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.fov = w / h < 1.5 ? 48 : 40; camera.updateProjectionMatrix(); portrait = h > w * 1.05; root.classList.toggle('portrait', portrait);
@@ -267,7 +270,7 @@ export async function startPlay3D(o) {
     root.remove(); document.body.style.overflow = prevOverflow;
     try { if (document.fullscreenElement) document.exitFullscreen(); if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch { /* ok */ }
   }
-  syncMode(); sim.setTactic(curTact);
+  syncMode(); syncSwap(); sim.setTactic(curTact);
   raf = requestAnimationFrame(frame);
   return { destroy, sim, pause: () => setPause(true), root, renderer };
 }

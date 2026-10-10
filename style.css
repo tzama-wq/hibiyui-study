@@ -625,3 +625,7 @@ body.big .nav button small{font-size:13px}
 /* メダルの チャレンジボタン・けっかだけ みる */
 .mrow .mgo{margin-left:auto;white-space:nowrap;font-size:11px;padding:6px 8px;align-self:center}
 .cpurow{display:flex;gap:6px;align-items:stretch}.cpurow>.btn:first-child{flex:1;text-align:left}.cpurow .inst{white-space:nowrap}
+
+/* ボタンの いれかえ: ダッシュを おおきい みぎの ボタンに、パス/タックルを ひだりの ボタンに */
+.p3d.swap .pb-a{right:auto;left:0;bottom:22px;width:68px;height:68px;font-size:12px}
+.p3d.swap .pb-d{left:auto;right:0;bottom:46px;width:78px;height:78px;font-size:13px}
