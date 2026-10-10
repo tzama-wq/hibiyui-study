@@ -554,7 +554,7 @@ body.big .nav button small{font-size:13px}
 /* ---- じぶんで うごかす しあい(3D・よこむき) ---- */
 .p3d{position:fixed;inset:0;z-index:9999;background:#000;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;font-family:inherit}
 .p3d-cv{width:100%;height:100%;display:block}
-.p3d-hud{position:absolute;inset:0;pointer-events:none}
+.p3d-hud{position:absolute;inset:0;pointer-events:none;z-index:5}
 .p3d-score{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(6,10,22,.78);border:2px solid #27d8ff;padding:4px 14px;color:#fff;font-weight:800;font-size:15px;white-space:nowrap}
 .p3d-score b{font-size:24px;min-width:22px;text-align:center;color:#ffd23f}.p3d-score i{font-style:normal;font-size:13px;background:#27d8ff;color:#06101e;padding:1px 8px}
 .p3d-score .ta,.p3d-score .tb{max-width:24vw;overflow:hidden;text-overflow:ellipsis;font-size:12px}
@@ -565,7 +565,7 @@ body.big .nav button small{font-size:13px}
 .p3d-msg:empty{display:none}
 .p3d-tag{position:absolute;top:calc(env(safe-area-inset-top,0px) + 46px);left:50%;transform:translateX(-50%);color:#ffd23f;font-weight:800;font-size:12px;background:rgba(6,10,22,.55);padding:1px 8px}
 .p3d-ctl{position:absolute;bottom:34%;right:15%;width:120px;opacity:0}.p3d-ctl.on{opacity:1}.p3d-ctl i{display:block;height:10px;background:rgba(0,0,0,.55);border:1px solid #fff}.p3d-ctl u{display:block;height:100%;width:0;background:linear-gradient(90deg,#27d8ff,#ffd23f,#ff4d5e)}
-.p3d-pad{position:absolute;inset:0;pointer-events:auto}
+.p3d-pad{position:absolute;inset:0;pointer-events:auto;z-index:1}
 .p3d-stick{position:absolute;left:calc(env(safe-area-inset-left,0px) + 4vw);bottom:calc(env(safe-area-inset-bottom,0px) + 8vh);width:112px;height:112px;border-radius:50%;background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.55);pointer-events:none}
 .p3d-knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.65);border:3px solid #fff}
 .p3d-btns{position:absolute;right:calc(env(safe-area-inset-right,0px) + 3vw);bottom:calc(env(safe-area-inset-bottom,0px) + 5vh);width:230px;height:170px}
@@ -598,3 +598,26 @@ body.big .nav button small{font-size:13px}
 .p3d-stats{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);left:calc(env(safe-area-inset-left,0px) + 8px);width:118px;background:rgba(6,10,22,.6);padding:4px 6px;color:#fff;font-size:10px;line-height:1.1}
 .p3d-stats:empty{display:none}.p3d-stats div{display:flex;align-items:center;gap:4px;margin:2px 0}.p3d-stats span{width:44px}.p3d-stats i{flex:1;height:6px;background:rgba(255,255,255,.18);display:block}.p3d-stats u{display:block;height:100%}.p3d-stats b{width:22px;text-align:right;font-size:10px}
 .p3d-tactics{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center}.p3d-tactics small{width:100%;color:#9ff3ff}.p3d-tactics .chipb{font-size:12px;padding:6px 10px}
+
+/* 3D しあいの オープニング */
+.p3d-intro{position:absolute;inset:0;z-index:3;display:none;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(6,10,22,.55),rgba(6,10,22,.15) 45%,rgba(6,10,22,.65));color:#fff;text-align:center;cursor:pointer}
+.p3d.intro .p3d-intro{display:flex}.p3d.intro .p3d-pad,.p3d.intro .p3d-stats,.p3d.intro .p3d-modebtn{opacity:.0;pointer-events:none}
+.pi-vs{display:flex;align-items:center;gap:clamp(10px,4vw,40px);animation:piIn .8s ease-out both}
+.pi-team{min-width:30vw;padding:10px 14px;background:rgba(6,10,22,.72);border-top:4px solid #2f6df6}.pi-team.b{border-top-color:#e0453a}
+.pi-team small{display:block;font-size:10px;letter-spacing:.2em;color:#9ff3ff}.pi-team b{display:block;font-size:clamp(16px,4.2vw,30px);margin:2px 0}.pi-team span{display:block;color:#ffd23f;font-weight:800}.pi-team em{display:block;font-style:normal;font-size:12px;opacity:.9}
+.pi-vs i{font-style:normal;font-size:clamp(24px,7vw,54px);font-weight:900;color:#ffd23f;text-shadow:0 3px 0 #1d3fa8}
+.pi-info{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 34px);left:0;right:0;font-size:12px;opacity:.95}
+.pi-count{position:absolute;top:48%;left:0;right:0;font-size:clamp(40px,12vw,96px);font-weight:900;text-shadow:0 4px 0 #1d3fa8,0 0 22px rgba(39,216,255,.9);color:#fff}
+.pi-count.pop{animation:piPop .9s ease-out both}
+.pi-skip{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);right:calc(env(safe-area-inset-right,0px) + 14px);font-size:12px;background:rgba(0,0,0,.55);padding:3px 10px;border:1px solid #fff}
+.p3d-intro.go .pi-vs{opacity:0;transition:opacity .5s}
+@keyframes piIn{from{transform:translateY(-30px);opacity:0}to{transform:none;opacity:1}}
+@keyframes piPop{0%{transform:scale(2.2);opacity:0}25%{transform:scale(1);opacity:1}100%{transform:scale(.9);opacity:.85}}
+@media(prefers-reduced-motion:reduce){.pi-vs,.pi-count.pop{animation:none}}
+/* ポーズ メニューを よこむきでも おさまる ように */
+.p3d-menu{z-index:8}.p3d-menu [hidden]{display:none!important}
+.p3d-menubox{max-height:94vh;overflow:auto;display:grid!important;grid-template-columns:1fr 1fr;gap:8px 10px!important;padding:12px 16px!important;min-width:min(520px,92vw)!important;width:min(560px,94vw)}
+.p3d-menubox>b{grid-column:1/-1;font-size:18px}
+.p3d-menubox .btn{margin:0;padding:10px 8px;font-size:13px}
+.p3d-menubox .p3d-tactics,.p3d-menubox [data-m=quit]{grid-column:1/-1}
+@media (orientation:portrait){.p3d-menubox{grid-template-columns:1fr}}

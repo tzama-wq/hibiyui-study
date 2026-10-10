@@ -360,3 +360,7 @@ IFAB の Laws of the Game(11〜17じょう)と、コーチング しりょうを
 - **あそびかた**: 🎮 じぶんで うごかす / 👀 3Dで かんせん(ぜんいん AI。とちゅうで 🎮 そうさに きりかえ OK)/ ▶ オート(2Dで みるだけ)。
 - **せんじゅつ**(しあいの まえ・ポーズで かえられる): アタック=たかい ラインで はやく プレス・はばを つかう / バランス / カウンター=ひくく まもり コンパクトに、うばったら フォワードが いっきに はしる。てきの せんじゅつは たいかいの スタイル(att/bal/def)で きまる。ボールを うしなった ちょくごは ちかくの みんなで うばいかえす(ゲーゲンプレス)。
 - さんこう: [IFAB Laws of the Game(FAに よる ほんやく・ほんもん)](https://www.thefa.com/football-rules-governance/lawsandrules/laws/football-11-11/law-12---fouls-and-misconduct) ・ [オフサイド](https://www.thefa.com/football-rules-governance/lawsandrules/laws/football-11-11/law-11---offside) ・ [ゴールキック](https://www.thefa.com/football-rules-governance/lawsandrules/laws/football-11-11/law-16---the-goal-kick) ・ [ペナルティキック](https://www.thefa.com/football-rules-governance/lawsandrules/laws/football-11-11/law-14---the-penalty-kick) ・ [サッカーの せんじゅつ(Wikipedia)](https://en.wikipedia.org/wiki/Association_football_tactics)
+
+## 3Dしあい: オープニング・ポーズ・スキップ
+- しあいの まえに **オープニング**(カメラが スタジアムを ぐるっと まわる → チームしょうかい(パワー・エース)→ そうさの せつめい → 3・2・1 → キックオフ)。タップか ポーズの「オープニングを とばす」で スキップ。
+- **⏸ ポーズ**: つづける / しあいを スキップ(のこりを じどうで すすめて けっかへ)/ かんせん↔そうさ / せんじゅつ / しあいを やめる。みぎうえの「👀 みる」「🎮 そうさする」も いつでも おせる(ボタンを タッチパッドの うえに だした。まえは パッドが うえに かぶって おせなかった)。

@@ -76,8 +76,9 @@ export async function startPlay3D(o) {
       <button class="p3d-modebtn" aria-label="かんせん/そうさ"></button><button class="p3d-pausebtn" aria-label="ポーズ">⏸</button><div class="p3d-stats"></div><div class="p3d-banner"></div><div class="p3d-msg"></div><div class="p3d-ctl"><b></b><i><u></u></i></div><div class="p3d-tag"></div></div>
     <div class="p3d-pad"><div class="p3d-stick"><div class="p3d-knob"></div></div>
       <div class="p3d-btns"><button class="pb pb-d" data-b="sprint">ダッシュ</button><button class="pb pb-c" data-b="lob">ロング</button><button class="pb pb-a" data-b="pass">パス</button><button class="pb pb-b" data-b="shoot">シュート</button></div></div>
+    <div class="p3d-intro"><div class="pi-vs"><div class="pi-team a"><small>HOME</small><b class="pi-na"></b><span class="pi-pa"></span><em class="pi-ka"></em></div><i>VS</i><div class="pi-team b"><small>AWAY</small><b class="pi-nb"></b><span class="pi-pb"></span><em class="pi-kb"></em></div></div><div class="pi-info"></div><div class="pi-count"></div><div class="pi-skip">タップで スキップ ▶</div></div>
     <div class="p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
-    <div class="p3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">つづける</button><button class="btn" data-m="mode"></button><div class="p3d-tactics"><small>せんじゅつ</small><button class="chipb" data-t="attack">アタック</button><button class="chipb" data-t="balance">バランス</button><button class="chipb" data-t="counter">カウンター</button></div><button class="btn gray" data-m="quit">しあいを やめる</button></div></div>`;
+    <div class="p3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn" data-m="skipintro" hidden>⏭ オープニングを とばす</button><button class="btn" data-m="skip">⏭ しあいを スキップ(のこりは じどうで)</button><button class="btn" data-m="mode"></button><div class="p3d-tactics"><small>せんじゅつ</small><button class="chipb" data-t="attack">アタック</button><button class="chipb" data-t="balance">バランス</button><button class="chipb" data-t="counter">カウンター</button></div><button class="btn gray" data-m="quit">しあいを やめる</button></div></div>`;
   (o.root || document.body).appendChild(root);
   const prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; // うしろの がめんが うごかない ように
   const cv = root.querySelector('.p3d-cv');
@@ -149,14 +150,14 @@ export async function startPlay3D(o) {
   // ---- ポーズ・たて むき ----------------------------------------------------------
   let paused = false; let dead = false; let portrait = false;
   const menu = root.querySelector('.p3d-menu');
-  const setPause = (v) => { paused = v; menu.hidden = !v; };
+  const setPause = (v) => { paused = v; menu.hidden = !v; menu.querySelector('[data-m=skipintro]').hidden = !(intro && v); };
   const togglePause = () => setPause(!paused);
   root.querySelector('.p3d-pausebtn').addEventListener('click', togglePause);
   const tacts = { attack: 'アタック(たかい ラインで はやく プレス)', balance: 'バランス', counter: 'カウンター(ひくく まもって はやい こうげき)' }; let curTact = o.tactic || 'balance';
   const syncMode = () => { root.classList.toggle('watch', watch); root.querySelector('.p3d-modebtn').textContent = watch ? '🎮 そうさする' : '👀 みる'; menu.querySelector('[data-m=mode]').textContent = watch ? '🎮 じぶんで そうさする' : '👀 かんせんに きりかえる'; menu.querySelectorAll('[data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === curTact)); };
   const toggleMode = () => { watch = !watch; sim.setAuto(watch); sid = null; syncMode(); };
   root.querySelector('.p3d-modebtn').addEventListener('click', toggleMode);
-  menu.addEventListener('click', (e) => { const tb = e.target.closest('[data-t]'); if (tb) { curTact = tb.dataset.t; sim.setTactic(curTact); syncMode(); hud.msg.textContent = `せんじゅつ: ${tacts[curTact]}`; return; } const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'mode') { toggleMode(); setPause(false); } else { if (o.onQuit) { destroy(); o.onQuit(); } else destroy(); } });
+  menu.addEventListener('click', (e) => { const tb = e.target.closest('[data-t]'); if (tb) { curTact = tb.dataset.t; sim.setTactic(curTact); syncMode(); hud.msg.textContent = `せんじゅつ: ${tacts[curTact]}`; return; } const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'mode') { toggleMode(); setPause(false); } else if (m.dataset.m === 'skipintro') { endIntro(); setPause(false); } else if (m.dataset.m === 'skip') { skipMatch(); } else { if (o.onQuit) { destroy(); o.onQuit(); } else destroy(); } });
   const resize = () => {
     const w = root.clientWidth || innerWidth; const h = root.clientHeight || innerHeight; renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.fov = w / h < 1.5 ? 48 : 40; camera.updateProjectionMatrix(); portrait = h > w * 1.05; root.classList.toggle('portrait', portrait);
@@ -219,13 +220,44 @@ export async function startPlay3D(o) {
   function frame(ts) {
     if (dead) return;
     const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts; tt += dt;
-    if (!paused && !portrait) {
+    if (intro) { if (!paused && !portrait) { intro.t += dt; introStep(); } }
+    else if (!paused && !portrait) {
       acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); acc -= 1 / 60; }
       while (S.snd.length) { const nm = S.snd.shift(); if (o.onSfx) o.onSfx(nm); }
       if (S.done && !ended) { endT += dt; if (endT > 2.6) { ended = true; finish(); } }
     }
-    syncScene(dt, tt); updateHud(dt); renderer.render(scene, camera);
+    syncScene(dt, tt); if (intro) introCamera(); updateHud(dt); renderer.render(scene, camera);
     raf = requestAnimationFrame(frame);
+  }
+  // ---- オープニング(カメラが スタジアムを まわって、チームしょうかい → 3・2・1 → キックオフ) ----
+  const keyman = (t) => t.team.slice().sort((u, v) => (v.stats.SHO + v.stats.PAS + v.stats.SPD + v.stats.DEF) - (u.stats.SHO + u.stats.PAS + u.stats.SPD + u.stats.DEF))[0];
+  const powerOf = (t) => Math.round(t.team.reduce((a, m) => a + (m.stats.SHO + m.stats.PAS + m.stats.SPD + m.stats.DEF + m.stats.STA) / 5, 0) / Math.max(1, t.team.length));
+  const TACT_NAME = { attack: 'アタック', balance: 'バランス', counter: 'カウンター' };
+  let intro = { t: 0, dur: 6.2, whistle: false };
+  const iEl = root.querySelector('.p3d-intro');
+  root.querySelector('.pi-na').textContent = o.me.name; root.querySelector('.pi-nb').textContent = o.opp.name;
+  root.querySelector('.pi-pa').textContent = `パワー ${powerOf(o.me)}`; root.querySelector('.pi-pb').textContent = `パワー ${powerOf(o.opp)}`;
+  { const ka = keyman(o.me); const kb = keyman(o.opp); root.querySelector('.pi-ka').textContent = `エース: ${ka.name}`; root.querySelector('.pi-kb').textContent = `エース: ${kb.name}`; }
+  root.querySelector('.pi-info').innerHTML = watch ? '👀 かんせんモード ・ とちゅうで 🎮 そうさに かえられるよ' : '🎮 ひだり: うごく ・ みぎ: パス/シュート(おして ためる)/ロング/ダッシュ ・ せんじゅつ: ' + (TACT_NAME[o.tactic || 'balance']);
+  root.classList.add('intro');
+  const introCount = root.querySelector('.pi-count');
+  function introStep() {
+    const t = intro.t;
+    if (t > 3.4 && t < 6.2) { const n = Math.ceil(6.2 - t); const txt = n >= 3 ? '3' : n === 2 ? '2' : n === 1 ? '1' : ''; if (introCount.textContent !== txt) { introCount.textContent = txt; introCount.classList.remove('pop'); void introCount.offsetWidth; introCount.classList.add('pop'); } }
+    if (t >= 5.4 && !intro.whistle) { intro.whistle = true; introCount.textContent = 'キックオフ!'; introCount.classList.remove('pop'); void introCount.offsetWidth; introCount.classList.add('pop'); iEl.classList.add('go'); if (o.onSfx) o.onSfx('whistle'); }
+    if (t >= intro.dur) endIntro();
+  }
+  function endIntro() { if (!intro) return; intro = null; root.classList.remove('intro'); iEl.classList.remove('go'); S.snd.length = 0; hud.msg.textContent = ''; acc = 0; }
+  function introCamera() { // ぞらっと うえから ぐるっと まわって、いつもの アングルに おりてくる
+    const t = clamp(intro.t / 4.8, 0, 1); const e = t * t * (3 - 2 * t);
+    const ang = (1 - e) * 2.3 - 0.0; const rad = 30 + (1 - e) * 70; const h = 29 + (1 - e) * 40;
+    const cx = cam.x; const cz = cam.z;
+    camera.position.set(cx + Math.sin(ang) * rad * 0.9, h, cz + Math.cos(ang) * rad * 0.62 + 38 * e); camera.lookAt(cx, 0, cz - 1.5 * e);
+  }
+  iEl.addEventListener('pointerdown', (e) => { endIntro(); e.preventDefault(); });
+  function skipMatch() { // しあいを スキップ: のこりを AI で いっきに すすめて けっかへ
+    setPause(false); intro = null; root.classList.remove('intro'); sim.setAuto(true); let n = 0; while (!S.done && n++ < 120000) sim.step(1 / 30);
+    S.snd.length = 0; ended = true; finish();
   }
   function finish() { const r = { score: { ...S.score }, events: S.events, winner: S.winner, shots: { ...S.shots }, fouls: { ...S.fouls }, offsides: { ...S.offsides }, poss: { ...S.poss }, cards: S.cards, extra: S.extra }; destroy(); if (o.onEnd) o.onEnd(r); }
   function destroy() {
