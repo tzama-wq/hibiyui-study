@@ -265,22 +265,26 @@ function mateOpponents() {
   }).filter(Boolean);
 }
 // ---- 🎮 じぶんで うごかす(3D・よこむき) -------------------------------------------------
-const playOn = (p) => (p.playMode === undefined ? !(X.cfg && X.cfg().calm) : !!p.playMode);
+// あそびかた: 'play'=じぶんで うごかす / 'watch'=3Dで かんせん / 'auto'=オート(2Dで みるだけ)
+const playKind = (p) => (p.playMode === true ? 'play' : p.playMode === false ? 'auto' : ['play', 'watch', 'auto'].includes(p.playMode) ? p.playMode : (X.cfg && X.cfg().calm ? 'auto' : 'play'));
+const playOn = (p) => playKind(p) !== 'auto';
+const TACT_JA = { attack: ['アタック', 'たかい ラインで はやく プレス。うらを ねらわれやすい'], balance: ['バランス', 'ほどよく まもって ほどよく せめる'], counter: ['カウンター', 'ひくく まもって、うばったら いっきに はしる'] };
 const PLAY_LEN = { 60: 'みじかい(2ふん)', 90: 'ふつう(3ふん)', 150: 'ながい(5ふん)' };
 function playToggleHtml(p) {
-  const on = playOn(p); const len = Number(p.playLen) || 90;
-  return `<div class="playtog"><button class="chipb ${on ? 'on' : ''}" data-act="playmode" data-v="1">🎮 じぶんで うごかす</button><button class="chipb ${on ? '' : 'on'}" data-act="playmode" data-v="0">▶ オート(みるだけ)</button>
-    ${on ? `<div class="playlen">${Object.entries(PLAY_LEN).map(([k, v]) => `<button class="chipb ${len === Number(k) ? 'on' : ''}" data-act="playlen" data-v="${k}">${v}</button>`).join('')}<small>スマホは よこむきで あそぶよ</small></div>` : ''}</div>`;
+  const kind = playKind(p); const on = kind !== 'auto'; const len = Number(p.playLen) || 90; const tc = p.playTactic || 'balance';
+  return `<div class="playtog"><button class="chipb ${kind === 'play' ? 'on' : ''}" data-act="playmode" data-v="play">🎮 じぶんで うごかす</button><button class="chipb ${kind === 'watch' ? 'on' : ''}" data-act="playmode" data-v="watch">👀 3Dで かんせん</button><button class="chipb ${kind === 'auto' ? 'on' : ''}" data-act="playmode" data-v="auto">▶ オート(2D)</button>
+    ${on ? `<div class="playlen"><b>せんじゅつ</b>${Object.entries(TACT_JA).map(([k, v]) => `<button class="chipb ${tc === k ? 'on' : ''}" data-act="playtact" data-v="${k}">${v[0]}</button>`).join('')}<small>${TACT_JA[tc][1]}</small></div><div class="playlen">${Object.entries(PLAY_LEN).map(([k, v]) => `<button class="chipb ${len === Number(k) ? 'on' : ''}" data-act="playlen" data-v="${k}">${v}</button>`).join('')}<small>スマホは よこむきで あそぶよ</small></div>` : ''}</div>`;
 }
 let PG = null; // いま あそんでいる 3Dの しあい
 async function startPlayMatch(me, opp, cup) {
+  const kind0 = playKind(X.p());
   const p = X.p(); stopMatch(); if (PG) { PG.destroy(); PG = null; }
   X.toast('🎮 しあいを じゅんびしているよ…');
   SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false));
   const sfxMap = { kick: 'kick', pass: 'pass', tackle: 'tackle', whistle: 'whistle', goal: 'goal', save: 'save' };
   try {
     PG = await startPlay3D({
-      me, opp, halfSec: Number(p.playLen) || 90, calm: !!(X.cfg && X.cfg().calm),
+      me, opp, mode: kind0 === 'watch' ? 'watch' : 'play', tactic: p.playTactic || 'balance', halfSec: Number(p.playLen) || 90, calm: !!(X.cfg && X.cfg().calm),
       onSfx: (n) => { if (SFX && sfxMap[n]) SFX.play(sfxMap[n]); },
       onQuit: () => { PG = null; if (SFX) SFX.bgmStop(); X.setView('kid'); X.render(); },
       onEnd: (r) => { PG = null; if (SFX) SFX.bgmStop(); finishPlayMatch(me, opp, cup, r); },
@@ -309,7 +313,7 @@ function battleMenuHtml() {
   return `<section class="panel"><h2 class="sec">MATCH <small>たいせん</small></h2>
     <div class="power"><b>${k.name}の チーム パワー ${r.power}</b><span>${p.battles.w}勝 ${p.battles.d}分 ${p.battles.l}敗</span></div>
     ${playToggleHtml(p)}
-    <div class="muted">へんせいした チームで たいせん! ${playOn(p) ? '(🎮 じぶんで うごかして たたかうよ。つよい チームほど はやく うごけるよ)' : '(どちらが かつかは うんも あるよ)'}</div>
+    <div class="muted">へんせいした チームで たいせん! ${playKind(p) === 'play' ? '(🎮 じぶんで うごかして たたかうよ。つよい チームほど はやく うごけるよ)' : playKind(p) === 'watch' ? '(👀 3Dで みるだけ。とちゅうで 🎮 そうさに かえられるよ)' : '(どちらが かつかは うんも あるよ)'}</div>
     ${mates.length ? mates.map((mate) => `<button class="match-btn alt" data-act="fight" data-opp="mate:${mate.id}"><small>VS FAMILY</small><b>⚔️ ${esc(mate.name)}と たいせん</b><span>あいての パワー ${mate.power}</span></button>`).join('') : '<div class="muted">かぞくの チームは、かぞくが アプリを ひらくと あらわれるよ。</div>'}
     ${p.lastMatch ? `<div class="replay"><b>🎬 まえの しあい</b> <span>${esc(p.lastMatch.me.name)} ${p.lastMatch.score.a} - ${p.lastMatch.score.b} ${esc(p.lastMatch.opp.name)}</span>
       <div class="row"><button class="btn small gold" data-act="replaylast" data-mode="digest">✨ ダイジェスト(ゴールだけ)</button><button class="btn small gray" data-act="replaylast" data-mode="full">🎬 ぜんぶ みる</button></div></div>` : ''}
@@ -555,7 +559,8 @@ export function onAct(a, el) {
       return true;
     }
     case 'fight': return startFight(el.dataset.opp);
-    case 'playmode': p.playMode = el.dataset.v === '1'; X.save(); return true;
+    case 'playmode': p.playMode = ['play', 'watch', 'auto'].includes(el.dataset.v) ? el.dataset.v : 'play'; X.save(); return true;
+    case 'playtact': p.playTactic = ['attack', 'balance', 'counter'].includes(el.dataset.v) ? el.dataset.v : 'balance'; X.save(); return true;
     case 'playlen': p.playLen = Number(el.dataset.v) || 90; X.save(); return true;
     case 'cupfight': return startCup(el.dataset.cup);
     case 'battleskip': if (B) { clearTimeout(timer); if (M) M.skip(); else { B.i = B.evs.length; finishBattle(); } } return true;

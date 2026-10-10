@@ -591,3 +591,10 @@ body.big .nav button small{font-size:13px}
   .cpu-list,.pull-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .tabbar,nav.tabs{padding-bottom:2px}
 }
+
+/* 3D しあい: かんせんモード・ステータス・せんじゅつ */
+.p3d-modebtn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);right:calc(env(safe-area-inset-right,0px) + 56px);pointer-events:auto;background:rgba(6,10,22,.78);color:#fff;border:2px solid #27d8ff;font:inherit;font-size:12px;font-weight:800;height:36px;padding:0 10px;cursor:pointer}
+.p3d.watch .p3d-pad{display:none}.p3d.watch .p3d-ctl{display:none}
+.p3d-stats{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);left:calc(env(safe-area-inset-left,0px) + 8px);width:118px;background:rgba(6,10,22,.6);padding:4px 6px;color:#fff;font-size:10px;line-height:1.1}
+.p3d-stats:empty{display:none}.p3d-stats div{display:flex;align-items:center;gap:4px;margin:2px 0}.p3d-stats span{width:44px}.p3d-stats i{flex:1;height:6px;background:rgba(255,255,255,.18);display:block}.p3d-stats u{display:block;height:100%}.p3d-stats b{width:22px;text-align:right;font-size:10px}
+.p3d-tactics{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center}.p3d-tactics small{width:100%;color:#9ff3ff}.p3d-tactics .chipb{font-size:12px;padding:6px 10px}
