@@ -676,7 +676,30 @@ function medalShelf(k, p) {
   return `<section class="panel"><h2 class="sec">MEDALS <small>メダル ${n}/${BADGES.length}</small></h2>
     <div class="medals">${BADGES.filter(have).map((b) => `<div class="medal got" title="${b.desc}"><span>${b.icon}</span><small>${b.name}</small></div>`).join('') || '<div class="muted">まだ メダルは ないよ。がんばって ゲットしよう!</div>'}</div>
     <details><summary><b>🔒 まだの メダル(${BADGES.length - n})</b></summary>
-      <div class="mlist">${BADGES.filter((b) => !have(b)).map((b) => `<div class="mrow"><span>${b.icon}</span><div><b>${b.name}</b><small>${b.desc}</small></div></div>`).join('')}</div></details></section>`;
+      <div class="mlist">${BADGES.filter((b) => !have(b)).map((b) => { const c = medalChallenge(b, k, p); return `<div class="mrow"><span>${b.icon}</span><div><b>${b.name}</b><small>${b.desc}</small></div>${c ? `<button class="btn small gold mgo" data-act="medalgo" data-id="${b.id}">▶ ${c.label}</button>` : ''}</div>`; }).join('')}</div></details></section>`;
+}
+// まだの メダルに「チャレンジ」: たりない ないように すぐ とりくめる(れんしゅう・たいかい・ガチャ などへ)
+function medalChallenge(b, k, p) {
+  const id = b.id; let m;
+  const prac = (uid, label) => (byId[uid] ? { act: 'start', mode: 'practice', unit: uid, label } : null);
+  const today = { act: 'start', mode: 'daily', label: 'きょうの しあいへ' };
+  if ((m = id.match(/^kuku_d(\d)$/))) return prac(`g2_kuku_${m[1]}`, `${m[1]}の だんを れんしゅう`);
+  if (id === 'kuku_all') return prac('g2_kuku_all', '九九を れんしゅう'); if (id === 'kuku_inv') return prac('g2_kuku_inv', '□を さがせ');
+  if ((m = id.match(/^ok_(.+)$/)) || (m = id.match(/^n(?:50|200)_(.+)$/))) return prac(m[1], 'れんしゅうする');
+  if ((m = id.match(/^m(?:10|20)?_(.+)$/)) && SUBJECTS.includes(m[1])) { // ○○の プロ・たつじん・はかせ: まだ「できた」に なって いない たんげんを
+    const us = skillsUpTo(k.grade).filter((u) => u.subject === m[1] && status(p, u.id) !== 'ok' && !u.geo);
+    const u = us.sort((x, y) => ({ gap: 0, shaky: 1, sprout: 2, unknown: 3 }[status(p, x.id)] - { gap: 0, shaky: 1, sprout: 2, unknown: 3 }[status(p, y.id)]) || x.grade - y.grade)[0];
+    return u ? { act: 'start', mode: 'practice', unit: u.id, label: `${u.name}を れんしゅう` } : { act: 'start', mode: 'daily', label: `${m[1]}を がんばる` };
+  }
+  if (/^hyp\d+$/.test(id) || /^ov\d+$/.test(id)) return { act: 'start', mode: 'weak', label: 'じゃくてんに チャレンジ' };
+  if (/^time\d*$/.test(id)) return { act: 'start', mode: 'back', label: 'タイムマシンへ' };
+  if (/^cup_/.test(id) || /^titles\d+$/.test(id)) return { act: 'tab', tab: 'team', sub: 'cup', label: 'たいかいへ' };
+  if (/^win\d+$/.test(id) || /^pk\d+$/.test(id)) return { act: 'tab', tab: 'team', sub: 'battle', label: 'たいせんへ' };
+  if (/^dex\d+$/.test(id) || /^legend\d+$/.test(id)) return { act: 'tab', tab: 'gacha', label: 'ガチャへ' };
+  if (/^enh/.test(id)) return { act: 'tab', tab: 'team', sub: 'power', label: 'つよくなる へ' };
+  if (/^try\d+$/.test(id)) return { act: 'start', mode: 'endless', label: 'むげんチャレンジ' };
+  if (/^(goal|day|hat|perfect|rank|comeback)/.test(id)) return id === 'comeback' ? today : (/^goal/.test(id) ? { act: 'start', mode: 'endless', label: 'むげんチャレンジ' } : today);
+  return today;
 }
 
 // 「きょうの やること」リスト(みとおしが あると おちつく子の ため)
@@ -1335,6 +1358,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'home' || a === 'kid') { view = kidId ? 'kid' : 'setup'; tab = 'home'; toTop = true; if (a === 'home') syncNow(); }
   else if (a === 'papa') { if (!askPin()) return; view = 'papa'; toTop = true; }
   else if (a === 'start') { toTop = true; return startQuiz(el.dataset.mode, el.dataset.unit); }
+  else if (a === 'medalgo') { const b = BADGES.find((x) => x.id === el.dataset.id); const c = b && medalChallenge(b, kidOf(), S.kids[kidId]); if (!c) return; toTop = true; if (c.act === 'start') return startQuiz(c.mode, c.unit); tab = c.tab; view = 'kid'; if (c.sub) gameAct('sub', { dataset: { sub: c.sub } }); }
   else if (a === 'quit') {
     const endless = Q && Q.mode === 'endless';
     if (!confirm(endless ? 'ここで やめる?(ここまでの きろくは のこるよ。つぎは つづきから!)' : 'ここで ひとやすみ する?(ここまでの ポイントは とっておくよ)')) return;

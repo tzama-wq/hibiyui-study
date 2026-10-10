@@ -621,3 +621,7 @@ body.big .nav button small{font-size:13px}
 .p3d-menubox .btn{margin:0;padding:10px 8px;font-size:13px}
 .p3d-menubox .p3d-tactics,.p3d-menubox [data-m=quit]{grid-column:1/-1}
 @media (orientation:portrait){.p3d-menubox{grid-template-columns:1fr}}
+
+/* メダルの チャレンジボタン・けっかだけ みる */
+.mrow .mgo{margin-left:auto;white-space:nowrap;font-size:11px;padding:6px 8px;align-self:center}
+.cpurow{display:flex;gap:6px;align-items:stretch}.cpurow>.btn:first-child{flex:1;text-align:left}.cpurow .inst{white-space:nowrap}
