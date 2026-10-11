@@ -1,6 +1,6 @@
 {
- "date": "2026-10-11",
- "part": 1,
+ "date": "2026-10-12",
+ "part": 0,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -9,12 +9,40 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 9,
+   "rejected": {
+    "sentence-kanji-out-of-grade": 1
+   },
    "unverified": 0,
    "accepted": 8,
-   "rounds": 1,
-   "samples": [],
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "気",
+      "target": "元気",
+      "reading": "げんき",
+      "sentence": "きょうも 元気に あそびます。",
+      "explain": "「げんき」は「元気」と かきます。",
+      "wrong": [
+       {
+        "text": "元生",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "元木",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "元正",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   },
   "2": {
@@ -39,40 +67,12 @@
   },
   "4": {
    "asked": 8,
-   "returned": 9,
-   "rejected": {
-    "sentence-kanji-out-of-grade": 1
-   },
+   "returned": 8,
+   "rejected": {},
    "unverified": 0,
    "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "sentence-kanji-out-of-grade",
-     "item": {
-      "type": "yomi",
-      "kanji": "付",
-      "target": "片付く",
-      "reading": "かたづく",
-      "sentence": "つくえの上の本が片付く。",
-      "explain": "「かたづく」は、きちんと せいりされる ことだよ。",
-      "wrong": [
-       {
-        "text": "へんづく",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "かたつく",
-        "tag": "dakuten"
-       },
-       {
-        "text": "かたつくる",
-        "tag": "other"
-       }
-      ]
-     }
-    }
-   ],
+   "rounds": 1,
+   "samples": [],
    "missing": 0
   }
  }
