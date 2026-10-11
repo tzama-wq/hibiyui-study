@@ -1,6 +1,6 @@
 {
  "date": "2026-10-11",
- "part": 0,
+ "part": 1,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -29,6 +29,16 @@
   },
   "3": {
    "asked": 8,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
+  },
+  "4": {
+   "asked": 8,
    "returned": 9,
    "rejected": {
     "sentence-kanji-out-of-grade": 1
@@ -41,86 +51,23 @@
      "reason": "sentence-kanji-out-of-grade",
      "item": {
       "type": "yomi",
-      "kanji": "階",
-      "target": "階段",
-      "reading": "かいだん",
-      "sentence": "階段をいそいでのぼる。",
-      "explain": "「階段」は「かいだん」と読みます。",
+      "kanji": "付",
+      "target": "片付く",
+      "reading": "かたづく",
+      "sentence": "つくえの上の本が片付く。",
+      "explain": "「かたづく」は、きちんと せいりされる ことだよ。",
       "wrong": [
        {
-        "text": "かいたん",
-        "tag": "dakuten"
-       },
-       {
-        "text": "がいだん",
-        "tag": "dakuten"
-       },
-       {
-        "text": "きざはしだん",
+        "text": "へんづく",
         "tag": "onkun_mix"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 0
-  },
-  "4": {
-   "asked": 8,
-   "returned": 10,
-   "rejected": {
-    "wrong-shape": 2
-   },
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "静",
-      "target": "静か",
-      "reading": "しずか",
-      "sentence": "夜の公園は静かだ。",
-      "explain": "「静か」は「しずか」と読みます。",
-      "wrong": [
-       {
-        "text": "すずか",
-        "tag": "similar_sound"
        },
        {
-        "text": "しづか",
+        "text": "かたつく",
         "tag": "dakuten"
        },
        {
-        "text": "せいか",
-        "tag": "onkun_mix"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "kaki",
-      "kanji": "飯",
-      "target": "ご飯",
-      "reading": "ごはん",
-      "sentence": "温かいご飯を食べる。",
-      "explain": "「ごはん」は「ご飯」と書きます。",
-      "wrong": [
-       {
-        "text": "ご飲",
-        "tag": "similar_word"
-       },
-       {
-        "text": "ご板",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "ご坂",
-        "tag": "similar_kanji"
+        "text": "かたつくる",
+        "tag": "other"
        }
       ]
      }
