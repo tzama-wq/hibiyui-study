@@ -1,5 +1,5 @@
 {
- "date": "2026-10-12",
+ "date": "2026-10-13",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -11,33 +11,33 @@
    "asked": 8,
    "returned": 9,
    "rejected": {
-    "sentence-kanji-out-of-grade": 1
+    "wrong-shape": 1
    },
    "unverified": 0,
    "accepted": 8,
    "rounds": 2,
    "samples": [
     {
-     "reason": "sentence-kanji-out-of-grade",
+     "reason": "wrong-shape",
      "item": {
       "type": "kaki",
-      "kanji": "気",
-      "target": "元気",
-      "reading": "げんき",
-      "sentence": "きょうも 元気に あそびます。",
-      "explain": "「げんき」は「元気」と かきます。",
+      "kanji": "竹",
+      "target": "竹",
+      "reading": "たけ",
+      "sentence": "山で青い竹を見る。",
+      "explain": "「たけ」は「竹」と かきます。",
       "wrong": [
        {
-        "text": "元生",
+        "text": "木",
+        "tag": "similar_word"
+       },
+       {
+        "text": "本",
         "tag": "similar_kanji"
        },
        {
-        "text": "元木",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "元正",
-        "tag": "similar_kanji"
+        "text": "林",
+        "tag": "other"
        }
       ]
      }
@@ -57,12 +57,66 @@
   },
   "3": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 10,
+   "rejected": {
+    "target-not-once": 1,
+    "sentence-kanji-out-of-grade": 1
+   },
    "unverified": 0,
    "accepted": 8,
-   "rounds": 1,
-   "samples": [],
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "target-not-once",
+     "item": {
+      "type": "kaki",
+      "kanji": "取",
+      "target": "取る",
+      "reading": "とる",
+      "sentence": "ノートを手にとって見る。",
+      "explain": "「手にとる」は「取る」と書きます。",
+      "wrong": [
+       {
+        "text": "助る",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "受る",
+        "tag": "other"
+       },
+       {
+        "text": "拾る",
+        "tag": "other"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "号",
+      "target": "信号",
+      "reading": "しんごう",
+      "sentence": "信号をよく見てわたる。",
+      "explain": "「しんごう」は「信号」と書きます。",
+      "wrong": [
+       {
+        "text": "信合",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "信古",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "信向",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   },
   "4": {
