@@ -1,6 +1,6 @@
 {
- "date": "2026-10-13",
- "part": 0,
+ "date": "2026-10-15",
+ "part": 1,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -9,11 +9,11 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 8,
+   "returned": 9,
    "rejected": {},
-   "unverified": 0,
+   "unverified": 1,
    "accepted": 8,
-   "rounds": 1,
+   "rounds": 2,
    "samples": [],
    "missing": 0
   },
