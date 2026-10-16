@@ -1,6 +1,6 @@
 {
  "date": "2026-10-16",
- "part": 0,
+ "part": 1,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -19,44 +19,6 @@
   },
   "2": {
    "asked": 8,
-   "returned": 9,
-   "rejected": {
-    "sentence-kanji-out-of-grade": 1
-   },
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "sentence-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "地",
-      "target": "地面",
-      "reading": "じめん",
-      "sentence": "地面に大きな絵をかく。",
-      "explain": "つちの「地」とめんの「面」と書きます。",
-      "wrong": [
-       {
-        "text": "池面",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "字面",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "市面",
-        "tag": "other"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 0
-  },
-  "3": {
-   "asked": 8,
    "returned": 8,
    "rejected": {},
    "unverified": 0,
@@ -65,11 +27,12 @@
    "samples": [],
    "missing": 0
   },
-  "4": {
+  "3": {
    "asked": 8,
-   "returned": 9,
+   "returned": 11,
    "rejected": {
-    "wrong-shape": 1
+    "wrong-shape": 2,
+    "target-not-once": 1
    },
    "unverified": 0,
    "accepted": 8,
@@ -78,29 +41,89 @@
     {
      "reason": "wrong-shape",
      "item": {
-      "type": "kaki",
-      "kanji": "府",
-      "target": "京都府",
-      "reading": "きょうとふ",
-      "sentence": "京都府に行きました。",
-      "explain": "「きょうとふ」の「ふ」は府と書きます。",
+      "type": "yomi",
+      "kanji": "族",
+      "target": "家族",
+      "reading": "かぞく",
+      "sentence": "わたしの 家族は 四人です。",
+      "explain": "「族」は「ぞく」と よみます。",
       "wrong": [
        {
-        "text": "京都付",
+        "text": "かそう",
         "tag": "similar_sound"
        },
        {
-        "text": "京都庫",
-        "tag": "similar_kanji"
+        "text": "かぞっく",
+        "tag": "small_kana"
        },
        {
-        "text": "京都部",
-        "tag": "similar_word"
+        "text": "かそく",
+        "tag": "dakuten"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "昭",
+      "target": "昭和",
+      "reading": "しょうわ",
+      "sentence": "昭和の 時代に 生まれる。",
+      "explain": "「昭」は「しょう」と よみます。",
+      "wrong": [
+       {
+        "text": "しょわ",
+        "tag": "small_kana"
+       },
+       {
+        "text": "しょうは",
+        "tag": "dakuten"
+       },
+       {
+        "text": "そうわ",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "target-not-once",
+     "item": {
+      "type": "yomi",
+      "kanji": "暗",
+      "target": "暗い",
+      "reading": "くらい",
+      "sentence": "外が 暗くなって きた。",
+      "explain": "「暗」は「くら（い）」と よみます。",
+      "wrong": [
+       {
+        "text": "ぐらい",
+        "tag": "dakuten"
+       },
+       {
+        "text": "くらない",
+        "tag": "other"
+       },
+       {
+        "text": "あんい",
+        "tag": "onkun_mix"
        }
       ]
      }
     }
    ],
+   "missing": 0
+  },
+  "4": {
+   "asked": 8,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
    "missing": 0
   }
  }
