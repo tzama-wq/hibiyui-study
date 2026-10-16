@@ -1,6 +1,6 @@
 {
- "date": "2026-10-16",
- "part": 1,
+ "date": "2026-10-17",
+ "part": 0,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -9,29 +9,18 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 8,
+   "returned": 9,
    "rejected": {},
-   "unverified": 0,
+   "unverified": 1,
    "accepted": 8,
-   "rounds": 1,
+   "rounds": 2,
    "samples": [],
    "missing": 0
   },
   "2": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
-  },
-  "3": {
-   "asked": 8,
-   "returned": 11,
+   "returned": 9,
    "rejected": {
-    "wrong-shape": 2,
     "target-not-once": 1
    },
    "unverified": 0,
@@ -39,81 +28,41 @@
    "rounds": 2,
    "samples": [
     {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "族",
-      "target": "家族",
-      "reading": "かぞく",
-      "sentence": "わたしの 家族は 四人です。",
-      "explain": "「族」は「ぞく」と よみます。",
-      "wrong": [
-       {
-        "text": "かそう",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "かぞっく",
-        "tag": "small_kana"
-       },
-       {
-        "text": "かそく",
-        "tag": "dakuten"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "昭",
-      "target": "昭和",
-      "reading": "しょうわ",
-      "sentence": "昭和の 時代に 生まれる。",
-      "explain": "「昭」は「しょう」と よみます。",
-      "wrong": [
-       {
-        "text": "しょわ",
-        "tag": "small_kana"
-       },
-       {
-        "text": "しょうは",
-        "tag": "dakuten"
-       },
-       {
-        "text": "そうわ",
-        "tag": "similar_sound"
-       }
-      ]
-     }
-    },
-    {
      "reason": "target-not-once",
      "item": {
       "type": "yomi",
-      "kanji": "暗",
-      "target": "暗い",
-      "reading": "くらい",
-      "sentence": "外が 暗くなって きた。",
-      "explain": "「暗」は「くら（い）」と よみます。",
+      "kanji": "弓",
+      "target": "弓",
+      "reading": "ゆみ",
+      "sentence": "弓矢の弓をひく。",
+      "explain": "「弓」の くんよみは「ゆみ」です。",
       "wrong": [
        {
-        "text": "ぐらい",
-        "tag": "dakuten"
-       },
-       {
-        "text": "くらない",
-        "tag": "other"
-       },
-       {
-        "text": "あんい",
+        "text": "きゅう",
         "tag": "onkun_mix"
+       },
+       {
+        "text": "ゆめ",
+        "tag": "similar_word"
+       },
+       {
+        "text": "ゆみい",
+        "tag": "long_vowel"
        }
       ]
      }
     }
    ],
+   "missing": 0
+  },
+  "3": {
+   "asked": 8,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
    "missing": 0
   },
   "4": {
