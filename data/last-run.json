@@ -1,6 +1,6 @@
 {
- "date": "2026-10-17",
- "part": 1,
+ "date": "2026-10-18",
+ "part": 0,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -20,39 +20,11 @@
   "2": {
    "asked": 8,
    "returned": 9,
-   "rejected": {
-    "target-not-once": 1
-   },
-   "unverified": 0,
+   "rejected": {},
+   "unverified": 1,
    "accepted": 8,
    "rounds": 2,
-   "samples": [
-    {
-     "reason": "target-not-once",
-     "item": {
-      "type": "yomi",
-      "kanji": "強",
-      "target": "強い",
-      "reading": "つよい",
-      "sentence": "風が強くて雨がふった。",
-      "explain": "「強い」は「つよい」と読みます。",
-      "wrong": [
-       {
-        "text": "づよい",
-        "tag": "dakuten"
-       },
-       {
-        "text": "きょうい",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "つよいい",
-        "tag": "long_vowel"
-       }
-      ]
-     }
-    }
-   ],
+   "samples": [],
    "missing": 0
   },
   "3": {
