@@ -1,5 +1,5 @@
 {
- "date": "2026-10-19",
+ "date": "2026-10-20",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -9,26 +9,6 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
-  },
-  "2": {
-   "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
-  },
-  "3": {
-   "asked": 8,
    "returned": 9,
    "rejected": {},
    "unverified": 1,
@@ -37,15 +17,352 @@
    "samples": [],
    "missing": 0
   },
+  "2": {
+   "asked": 8,
+   "returned": 13,
+   "rejected": {
+    "sentence-kanji-out-of-grade": 1,
+    "wrong-shape": 4,
+    "target-kanji": 2,
+    "wrong-kanji-out-of-grade": 1
+   },
+   "unverified": 1,
+   "accepted": 4,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "用",
+      "target": "用事",
+      "reading": "ようじ",
+      "sentence": "きょうは 用事がある。",
+      "explain": "「用」は「よう」と読みます。",
+      "wrong": [
+       {
+        "text": "よじ",
+        "tag": "small_kana"
+       },
+       {
+        "text": "ようし",
+        "tag": "dakuten"
+       },
+       {
+        "text": "もちじ",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "画",
+      "target": "画用紙",
+      "reading": "がようし",
+      "sentence": "画用紙に えを かく。",
+      "explain": "「が」は「画」と書きます。",
+      "wrong": [
+       {
+        "text": "図用紙",
+        "tag": "similar_word"
+       },
+       {
+        "text": "田用紙",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "角用紙",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "直",
+      "target": "直す",
+      "reading": "なおす",
+      "sentence": "まちがえた 字を 直す。",
+      "explain": "「なおす」は「直す」と書きます。",
+      "wrong": [
+       {
+        "text": "正す",
+        "tag": "similar_word"
+       },
+       {
+        "text": "自す",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "首す",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "知",
+      "target": "知らせる",
+      "reading": "しらせる",
+      "sentence": "明日の よていを 知らせる。",
+      "explain": "「しらせる」は「知らせる」と書きます。",
+      "wrong": [
+       {
+        "text": "矢らせる",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "口らせる",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "話らせる",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 4
+  },
+  "3": {
+   "asked": 8,
+   "returned": 12,
+   "rejected": {
+    "wrong-kanji-out-of-grade": 4,
+    "sentence-kanji-out-of-grade": 2,
+    "target-not-once": 1,
+    "explain-kanji-out-of-grade": 1
+   },
+   "unverified": 0,
+   "accepted": 4,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "祭",
+      "target": "お祭り",
+      "reading": "おまつり",
+      "sentence": "なつのお祭りがたのしみだ。",
+      "explain": "「おまつり」の漢字は「祭」を使います。",
+      "wrong": [
+       {
+        "text": "お際り",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "お察り",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "お待り",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "秒",
+      "target": "何秒",
+      "reading": "なんびょう",
+      "sentence": "いまは何秒ですか。",
+      "explain": "「なんびょう」の「びょう」は「秒」を使います。",
+      "wrong": [
+       {
+        "text": "何妙",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "何沙",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "何少",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "童",
+      "target": "児童",
+      "reading": "じどう",
+      "sentence": "この本は児童のためだ。",
+      "explain": "児童の「童」は「どう」とよみます。",
+      "wrong": [
+       {
+        "text": "じとう",
+        "tag": "dakuten"
+       },
+       {
+        "text": "しどう",
+        "tag": "dakuten"
+       },
+       {
+        "text": "じどお",
+        "tag": "long_vowel"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "笛",
+      "target": "笛",
+      "reading": "ふえ",
+      "sentence": "音楽の時間に笛をふく。",
+      "explain": "「ふえ」の漢字は「笛」を使います。",
+      "wrong": [
+       {
+        "text": "宙",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "由",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "甲",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 4
+  },
   "4": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
+   "returned": 11,
+   "rejected": {
+    "wrong-kanji-out-of-grade": 2,
+    "sentence-kanji-out-of-grade": 1,
+    "wrong-dup": 1
+   },
+   "unverified": 1,
+   "accepted": 6,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "祝",
+      "target": "お祝い",
+      "reading": "おいわい",
+      "sentence": "みんなで友だちのお祝いをする。",
+      "explain": "「祝」は おいわい の ときに使う漢字だよ。",
+      "wrong": [
+       {
+        "text": "お呪い",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "お容い",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "お祝いい",
+        "tag": "other"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "種",
+      "target": "種目",
+      "reading": "しゅもく",
+      "sentence": "運動会の種目を決める。",
+      "explain": "しゅもく の しゅ は 「種」の字だよ。",
+      "wrong": [
+       {
+        "text": "秋目",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "和目",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "趣目",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "競",
+      "target": "競技",
+      "reading": "きょうぎ",
+      "sentence": "新しい競技に参加する。",
+      "explain": "きょうぎ の きょう は 「競」の字だね。",
+      "wrong": [
+       {
+        "text": "京技",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "強技",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "境技",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-dup",
+     "item": {
+      "type": "yomi",
+      "kanji": "競",
+      "target": "競争",
+      "reading": "きょうそう",
+      "sentence": "うんどう会で、足の早さを競争した。",
+      "explain": "「きょうそう」は、はしりなどではやさをあらおうことだよ。",
+      "wrong": [
+       {
+        "text": "けいそう",
+        "tag": "onkun_mix"
+       },
+       {
+        "text": "きょうそう",
+        "tag": "small_kana"
+       },
+       {
+        "text": "きようそう",
+        "tag": "small_kana"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 2
   }
  }
 }
