@@ -2,7 +2,7 @@ import * as sync from './sync.js';
 import { addPoints, addTickets, addShards, cupById, ensureCup, emptyStatMap, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
-import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, setSeen, KUKU_DAN } from './gen.js';
+import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeQuestionTier, isCalcUnit, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, registerKanjiDrill, setKanjiStats, kanjiProgress, setSeen, KUKU_DAN } from './gen.js';
 import { observe, nextProbes, noteProbe, specFor, activeList, counts, THRESH } from './hyp.js';
 
 // ---- 設定 -----------------------------------------------------------------
@@ -136,6 +136,20 @@ function buildInf(kid, n) {
     return { unit: e.unit, q: limitQ(q, kc.choices), retry: false, probe: false, inf: e.key };
   });
 }
+// ---- 漢字・算数の「にがては ほきょう・とくいは のばす」 ----------------------------------
+const kjMastered = (st) => !!st && st.ok >= 3 && (st.str || 0) >= 3 && st.ng / Math.max(1, st.ok + st.ng) < 0.25;
+const kjCount = (p) => Object.values(p.kj || {}).filter(kjMastered).length;
+function kjRecord(p, q, ok) { // 漢字ドリルの こたえを 1字ごとに きろく
+  const m = /^kj:(?:yk|yo|wk):(.)$/u.exec(String(q.id || '')); if (!m) return;
+  p.kj = p.kj || {}; const e = (p.kj[m[1]] = p.kj[m[1]] || { ok: 0, ng: 0, str: 0, last: '' });
+  if (ok) { e.ok++; e.str = (e.str || 0) + 1; } else { e.ng++; e.str = 0; }
+  e.last = todayStr();
+}
+const calcUnits = (k) => skillsUpTo(k.grade).filter(isCalcUnit);
+const mathWeakOf = (k, p) => calcUnits(k).filter((u) => ['gap', 'shaky'].includes(status(p, u.id)));
+const mathStrongOf = (k, p) => calcUnits(k).filter((u) => ['ok', 'sprout'].includes(status(p, u.id)) && u.grade >= Math.max(1, k.grade - 1));
+const tierFor = (p, u) => { if (!isCalcUnit(u)) return 'normal'; const st = status(p, u.id); return st === 'gap' ? 'easy' : st === 'ok' ? 'hard' : 'normal'; }; // にがては やさしい もんだいから・とくいは むずかしい もんだいも
+function pickWeightedBy(list, wf) { const w = list.map(wf); let r = Math.random() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0) return list[i]; } return list[list.length - 1]; }
 function buildSet(kid, mode, unitId) {
   if (mode === 'endless') return buildInf(kid, 10);
   const p = S.kids[kid.id];
@@ -159,6 +173,17 @@ function buildSet(kid, mode, unitId) {
     for (let t = 0; t < 40 && items.length < SET_SIZE && wu.length; t++) { const u = wu[Math.floor(Math.random() * wu.length)]; items.push({ unit: u }); }
     plan = items.length ? items.map((e) => (e.probe || e.rkey ? e : e.unit)) : [cur[0]];
     plan = plan.slice(0, SET_SIZE);
+  } else if (mode === 'kanji') { // 「かんじ トレーニング」: にがてな 漢字を おおく(1字ずつの よみ・かき + ぶんの なかの 漢字)
+    const drill = unitsOf(kid.grade).find((u) => u.kanjiDrill); const ctx = byId[`g${kid.grade}_kanji`];
+    plan = Array.from({ length: SET_SIZE }, (_, i) => (drill && (i % 3 !== 2 || !ctx) ? drill : ctx || drill || cur[0]));
+  } else if (mode === 'mathweak') { // 「さんすう ほきょう」: にがての たんげんを やさしい もんだいから
+    const mw = mathWeakOf(kid, p); const back = backCandidates(kid).filter(isCalcUnit);
+    const pool = mw.length ? mw : back.length ? back : [cur[0]];
+    plan = Array.from({ length: SET_SIZE }, () => { const u = pickWeightedBy(pool, (x) => ({ gap: 3, shaky: 1.6 }[status(p, x.id)] || 1)); return { unit: u, tier: status(p, u.id) === 'gap' ? 'easy' : 'normal' }; });
+  } else if (mode === 'stretch') { // 「さんすう のばす」: とくいな たんげんの むずかしい もんだい + つぎの がくねんの よしゅう
+    const st = mathStrongOf(kid, p); const next = unitsOf(kid.grade + 1).filter((u) => isCalcUnit(u) && u.pre.every((x) => !byId[x] || ['ok', 'sprout'].includes(status(p, x))));
+    const pool = st.length ? st : sk.filter(isCalcUnit).filter((u) => status(p, u.id) !== 'gap').slice(-4);
+    plan = Array.from({ length: SET_SIZE }, (_, i) => (next.length && i % 4 === 3 ? { unit: next[Math.floor(Math.random() * next.length)], tier: 'normal' } : { unit: pool[Math.floor(Math.random() * pool.length)] || cur[0], tier: 'hard' }));
   } else if (mode === 'back') {
     const c = backCandidates(kid);
     const pool = c.length ? c : sk.filter((u) => u.grade < kid.grade);
@@ -171,14 +196,19 @@ function buildSet(kid, mode, unitId) {
     const c = backCandidates(kid);
     const kos = unitsOf(kid.grade).filter((u) => u.subject === '国語'); // 国語は 漢字+ことばの たんげん。まいにち 2もん
     const pickKo = () => (kos.length ? kos[Math.floor(Math.random() * kos.length)] : null);
-    const ko = pickKo(); let ko2 = pickKo(); for (let i = 0; i < 6 && kos.length > 1 && ko2 === ko; i++) ko2 = pickKo();
+    // 漢字を つよく: 1もんめは 漢字トレーニング(1字ずつ)、2もんめは 漢字トレーニング・文の 漢字・ことばの どれか
+    const kdrill = kos.find((u) => u.kanjiDrill); const kctx = kos.find((u) => u.id === `g${kid.grade}_kanji`); const kother = kos.filter((u) => !u.kanjiDrill);
+    const ko = kdrill || pickKo(); let ko2 = (() => { const r = Math.random(); return r < 0.4 && kdrill ? kdrill : r < 0.75 && kctx ? kctx : (kother.length ? kother[Math.floor(Math.random() * kother.length)] : pickKo()); })();
     const month = new Date().getMonth() + 1;
     const know = unitsOf(kid.grade).filter((u) => ['理科', '社会', '生活', '英語', '道徳'].includes(u.subject) || (u.subject === '算数' && u.items)); // 算数の「ことがら」たんげんも まぜる
     const knowNow = know.filter((u) => u.months.includes(month));
     const kpool = knowNow.length ? knowNow : know;
     const kn = kpool.length ? kpool[Math.floor(Math.random() * kpool.length)] : null;
     // だいじな じゅんに ならべて、せっていの もんだい数ぶん つかう。「やることを みせる」せっていの ときは じゅんばんを かえない
-    plan = [cur[0], ko || cur[1 % cur.length], kn || cur[2 % cur.length], ko2 || cur[1 % cur.length], c.length ? c[0] : weakPick(p, review.length ? review : sk)].slice(0, SET_SIZE);
+    const mw = mathWeakOf(kid, p); const msr = mathStrongOf(kid, p);
+    const weakSlot = mw.length ? pickWeightedBy(mw, (x) => ({ gap: 3, shaky: 1.6 }[status(p, x.id)] || 1)) : (c.length ? c[0] : weakPick(p, review.length ? review : sk)); // さんすうの にがてを まいにち 1もん
+    const mathFirst = msr.length && Math.random() < 0.3 ? msr[Math.floor(Math.random() * msr.length)] : cur[0]; // ときどき とくいな たんげんを のばす
+    plan = [mathFirst, ko || cur[1 % cur.length], kn || cur[2 % cur.length], ko2 || cur[1 % cur.length], weakSlot].slice(0, SET_SIZE);
     if (!kc.preview) plan = shuffle(plan);
     // いま たしかめ中の かせつが あれば、1もん(大きいセットは 2もん)を「たしかめる 問題」に する
     const nProbe = Math.min(2, Math.max(1, Math.floor(SET_SIZE / 3)));
@@ -198,9 +228,10 @@ function buildSet(kid, mode, unitId) {
   }
   const seen = new Set();
   return plan.map((entry) => {
-    const unit = entry.probe ? entry.unit : entry;
+    const unit = entry.probe || entry.tier ? entry.unit : entry;
+    const tier = entry.tier || (mode === 'practice' || !entry.probe ? tierFor(p, unit) : 'normal');
     let q;
-    for (let t = 0; t < 8; t++) { q = entry.probe ? makeProbe(unit, entry.probe) : makeQuestion(unit); if (!seen.has(q.text)) break; }
+    for (let t = 0; t < 8; t++) { q = entry.probe ? makeProbe(unit, entry.probe) : makeQuestionTier(unit, tier); if (!seen.has(q.text)) break; }
     seen.add(q.text);
     q = limitQ(q, kc.choices, entry.probe && entry.probe.tag);
     const rev = entry.rkey ? { revenge: true, rkey: entry.rkey, hinted: assistOne(q) } : {};
@@ -389,6 +420,7 @@ const BADGES = [
   [[10, { PAS: 3 }], [30, { PAS: 5 }], [60, { PAS: 7 }], [100, { PAS: 9 }], [200, { PAS: 12 }]].forEach(([n, b]) => add(`dex${n}`, '📚', `ずかん ${n}にん`, (p) => owned(p).length >= n, b));
   [[1, { ALL: 3 }], [3, { ALL: 4 }], [10, { ALL: 6 }]].forEach(([n, b]) => add(`legend${n}`, '👑', `レジェンド ${n}にん ゲット`, (p) => owned(p).filter((id) => (PLAYER_BY_ID[id] || {}).rarity === 'legend').length >= n, b));
   [[5, { ALL: 3 }], [25, { ALL: 4 }], [100, { ALL: 6 }]].forEach(([n, b]) => add(`ov${n}`, '⭐', `リベンジ のりこえた ${n}こ`, (p) => (p.overcome || 0) >= n, b));
+  [[10, { PAS: 3 }], [30, { PAS: 5 }], [80, { PAS: 8 }]].forEach(([n, b]) => add(`kj${n}`, '✍️', `おぼえた 漢字 ${n}もじ`, (p) => kjCount(p) >= n, b));
   [[10, { ALL: 2 }], [50, { ALL: 3 }], [200, { ALL: 5 }]].forEach(([n, b]) => add(`try${n}`, '🌱', `ためして みた ${n}かい`, (p) => (p.tries || 0) >= n, b));
   [[5, { SPD: 3 }], [20, { SPD: 6 }], [50, { SPD: 9 }]].forEach(([n, b]) => add(`enh${n}`, '💪', `きょうか ${n}かい`, (p) => enhSum(p) >= n, b));
   add('enhmax', '🔥', 'きょうか MAX', (p) => Object.values(p.plv || {}).some((v) => v >= ENH_MAX), { ALL: 5 });
@@ -430,6 +462,7 @@ function medalDesc(b) {
   if ((m = id.match(/^dex(\d+)$/))) return `ずかんに ${m[1]}にん あつめる`;
   if ((m = id.match(/^legend(\d+)$/))) return `レジェンドを ${m[1]}にん ゲット`;
   if ((m = id.match(/^enh(\d+)$/))) return `ガチャ選手の きょうかを ぜんぶで ${m[1]}かい`;
+  if ((m = id.match(/^kj(\d+)$/))) return `漢字トレーニングで、3かい せいかい(れんぞく)した 漢字を ${m[1]}もじ`;
   if ((m = id.match(/^try(\d+)$/))) return `まちがえても ためして みる(ちょうせん)を ${m[1]}かい`;
   if ((m = id.match(/^ov(\d+)$/))) return `まちがえた もんだいを もういちど ちょうせんして、2かい できて「のりこえた」を ${m[1]}こ`;
   if (id === 'enhmax') return 'ガチャ選手を きょうか +20(MAX)に する';
@@ -698,6 +731,7 @@ function medalChallenge(b, k, p) {
   if (/^dex\d+$/.test(id) || /^legend\d+$/.test(id)) return { act: 'tab', tab: 'gacha', label: 'ガチャへ' };
   if (/^enh/.test(id)) return { act: 'tab', tab: 'team', sub: 'power', label: 'つよくなる へ' };
   if (/^try\d+$/.test(id)) return { act: 'start', mode: 'endless', label: 'むげんチャレンジ' };
+  if (/^kj\d+$/.test(id)) return { act: 'start', mode: 'kanji', label: '漢字トレーニング' };
   if (/^(goal|day|hat|perfect|rank|comeback)/.test(id)) return id === 'comeback' ? today : (/^goal/.test(id) ? { act: 'start', mode: 'endless', label: 'むげんチャレンジ' } : today);
   return today;
 }
@@ -739,6 +773,8 @@ function homeTab(k, p) {
     <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? T(cfg()).again : T(cfg()).start}</b>
       <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : `${cfg().setSize}もん ・ `}${cur.map((u) => u.name).join('、')}</span></button>
     ${weakChallengeBtn(k, p)}
+    ${kanjiCard(k, p)}
+    ${mathCard(k, p)}
     ${infChallengeBtn(k, p)}
     ${godCard(k, p)}
     ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}
@@ -752,6 +788,25 @@ function weakCount(k, p) {
   const act = activeList(p).filter((h) => byId[h.unit]).length;
   const wu = skillsUpTo(k.grade).filter((u) => ['gap', 'shaky'].includes(status(p, u.id))).length;
   return keys.size + act + wu;
+}
+function kanjiCard(k, p) {
+  const drill = unitsOf(k.grade).find((u) => u.kanjiDrill); if (!drill) return '';
+  setKanjiStats(p.kj || {}); const pr = kanjiProgress(k.grade); const st = p.kj || {};
+  const weak = Object.entries(st).filter(([, e]) => e.ng > 0 && !kjMastered(e)).sort((a, b) => b[1].ng / (b[1].ok + b[1].ng) - a[1].ng / (a[1].ok + a[1].ng) || b[1].ng - a[1].ng).slice(0, 8).map(([c]) => c);
+  return `<button class="skill-card kj" data-act="start" data-mode="kanji"><small>KANJI TRAINING</small><b>✍️ かんじ トレーニング</b>
+    <div class="sk-bar"><i style="width:${pr.total ? Math.round((pr.done / pr.total) * 100) : 0}%"></i></div>
+    <span>おぼえた ${pr.done} / ${pr.total}もじ${weak.length ? ` ・ にがて: <b class="kjw">${weak.map((c) => `<em>${c}</em>`).join('')}</b>` : ' ・ やるほど にがてを おおく だすよ'}</span></button>`;
+}
+function mathCard(k, p) {
+  const mw = mathWeakOf(k, p); const ms = mathStrongOf(k, p);
+  const nm = (u) => `${ICON[status(p, u.id)]} ${u.name}`;
+  const top = (arr, f) => arr.slice().sort(f).slice(0, 3);
+  const wl = top(mw, (a, b) => ({ gap: 0, shaky: 1 }[status(p, a.id)] - { gap: 0, shaky: 1 }[status(p, b.id)]) || a.grade - b.grade);
+  const sl = top(ms, (a, b) => b.grade - a.grade);
+  if (!wl.length && !sl.length) return '';
+  return `<div class="skill-card math"><small>MATH BOOST</small><b>🔢 さんすう ほきょう・のばす</b>
+    ${wl.length ? `<div class="sk-row weak"><span>にがて: ${wl.map((u) => `<i>${nm(u)}</i>`).join('')}</span><button class="btn small gold" data-act="start" data-mode="mathweak">ほきょう ▶</button></div>` : ''}
+    ${sl.length ? `<div class="sk-row strong"><span>とくい: ${sl.map((u) => `<i>${nm(u)}</i>`).join('')}</span><button class="btn small" data-act="start" data-mode="stretch">のばす ▶</button></div>` : ''}</div>`;
 }
 function infChallengeBtn(k, p) {
   const I = infOf(p); const left = infPool(k).length; const total = left + Object.keys(I.cleared).length;
@@ -1116,7 +1171,7 @@ const qplain = (t) => t.replace(/<svg[\s\S]*?<\/svg>/g, '');
 const lockMs = (q) => lockMsFor(qplain(q.text).length, cfg());
 function startQuiz(mode, unitId) {
   const k = kidOf();
-  setSeen(S.kids[k.id].seen || []);
+  setSeen(S.kids[k.id].seen || []); S.kids[k.id].kj = S.kids[k.id].kj || {}; setKanjiStats(S.kids[k.id].kj);
   const built = buildSet(k, mode, unitId);
   if (!built.length) { toast('ぜんぶ「できた」! すごい!'); return; }
   Q = { mode, items: built, i: 0, good: 0, xp: 0, combo: 0, hat: false, answered: null, retries: 0, lockUntil: 0, pts: {}, missTags: {}, startXp: S.kids[k.id].xp };
@@ -1206,7 +1261,7 @@ function answer(idx, unknown) {
     beep('try'); floaty('ためしたね!', lastTap.x, lastTap.y - 24);
     save(); render(); return;
   }
-  godHook(p, it, q, ok);
+  godHook(p, it, q, ok); kjRecord(p, q, ok);
   if (ok) {
     u.ok++; Q.good++; if (!second) Q.combo++;
     let xp = 10 * (Q.mode === 'bonus' ? 2 : 1);
@@ -1436,6 +1491,12 @@ gameInit({
 try {
   const r = await fetch('data/kokugo-pool.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
   if (r.ok) registerKokugo((await r.json()).items || []);
+} catch { /* オフラインなど */ }
+
+// 漢字トレーニング(1字ずつの よみ・かき)
+try {
+  const r = await fetch('data/kanji.json', { cache: 'no-cache', signal: AbortSignal.timeout(4000) });
+  if (r.ok) registerKanjiDrill(await r.json());
 } catch { /* オフラインなど */ }
 
 // 理科・社会・生活(人が確かめた事実リスト)

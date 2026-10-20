@@ -794,6 +794,102 @@ export function registerGeo(geo, flags) {
   makeGeoUnit('flag_world_e', 'せかいの こっき', '生活', 2, flagRows, flagVariants(true, false)); // ゆいとも ぜんぶの くに・ぜんぶの といかた(こっきは とくいなので しぼらない)
 }
 
+// ---- 漢字ドリル(1字ずつの よみ・かき。にがての 漢字を おおく だす) ----------------------------
+// データ: data/kanji.json({学年: [{k, on[], kun[]}]})。かたちの にた 漢字・おなじ 音の 漢字を まちがいの せんたくしに する。
+let kjStats = {};
+export const setKanjiStats = (o) => { kjStats = o && typeof o === 'object' ? o : {}; };
+const SIMILAR = ['田由申甲', '土士', '大犬太', '木本末未', '人入', '力刀', '千干', '白百自', '日目', '小少', '右石', '左右', '玉王', '校交', '作昨', '休体', '晴清静青', '読続', '方万', '午牛', '五王', '雨雪', '会合', '貝見', '天夫', '早草', '地池他', '汽気', '外各', '近折', '近週', '形開', '話語', '午年', '兄元', '正止', '森林', '道通', '何向', '船舟', '空工', '米来', '買売', '思田', '週周', '図回', '春秦', '切七', '紙低', '岩石', '番米', '少シ', '朝明', '電雲', '友反', '丸九', '夕多', '足走', '下不', '矢失', '台合', '羽習', '遠園', '科料', '区医', '住注', '球求', '投役', '協脳', '悲非', '化花', '係孫', '候侯', '倍部', '位立', '利和', '功巧', '共供', '末味', '追道', '観勧', '浅残', '漁魚', '側測', '課果', '陽場', '徒走', '敗貝', '録緑', '試式', '械機', '輪論', '清晴', '徳聴', '博専', '洋羊', '協協'];
+let KJ = null; // {k: {k, g, on, kun}} と 学年ごとの リスト
+const hira = (s) => s.replace(/[ァ-ン]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const kata = (s) => s.replace(/[ぁ-ん]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+function cleanKun(list) { // 'あ.う' → 'あう'、'-うえ' など ほかの かたちは すてる
+  const out = []; for (const r of list || []) { if (/^-|-$/.test(r)) continue; const w = r.replace('.', ''); if (/^[ぁ-ん]+$/.test(w) && !out.includes(w)) out.push(w); } return out;
+}
+function cleanOn(list) { const out = []; for (const r of list || []) { if (/^[ァ-ンー]+$/.test(r) && !out.includes(r)) out.push(r); } return out; }
+export function registerKanjiDrill(data) {
+  KJ = { by: {}, list: {} };
+  for (const [g, arr] of Object.entries(data || {})) {
+    const grade = Number(g); KJ.list[grade] = [];
+    for (const e of arr) {
+      const kun = cleanKun(e.kun); const on = cleanOn(e.on);
+      const allKun = new Set((e.kun || []).flatMap((r) => [r.replace('.', ''), r.split('.')[0]]));
+      const o = { k: e.k, g: grade, kun: kun.slice(0, 2), on: on.slice(0, 2), allKun, allOn: new Set(on) };
+      if (!o.kun.length && !o.on.length) continue;
+      KJ.by[e.k] = o; KJ.list[grade].push(o);
+    }
+  }
+  const simOf = (k) => SIMILAR.filter((gp) => gp.includes(k)).flatMap((gp) => [...gp].filter((c) => c !== k && KJ.by[c]));
+  for (const o of Object.values(KJ.by)) o.sim = [...new Set(simOf(o.k))];
+  for (const grade of [1, 2, 3, 4]) {
+    if (!KJ.list[grade] || KJ.list[grade].length < 20) continue;
+    const id = `g${grade}_kanjidrill`;
+    const unit = { id, name: '漢字トレーニング(よみ・かき)', subject: '国語', months: [], grade, pre: [], kanjiDrill: true, drill: true };
+    unit.gen = () => kanjiQuestion(grade);
+    unit.fromId = (qid) => kanjiFromId(qid);
+    if (byId[id]) { Object.assign(byId[id], unit); continue; }
+    (UNITS[grade] = UNITS[grade] || []).push(unit); byId[id] = unit;
+  }
+}
+const kjWeight = (o, grade) => {
+  const s = kjStats[o.k]; const gw = o.g === grade ? 1 : 0.55;
+  if (!s || !(s.ok + s.ng)) return 1.3 * gw; // まだ やって いない
+  const miss = s.ng / (s.ok + s.ng); const mastered = s.ok >= 3 && (s.str || 0) >= 3 && miss < 0.25;
+  return (mastered ? 0.2 : 0.5 + 4 * miss + ((s.str || 0) < 2 ? 0.8 : 0)) * (o.g === grade ? 1 : (miss > 0.3 ? 1 : 0.55));
+};
+function pickKanji(grade) {
+  const all = []; for (let g = 1; g <= grade; g++) all.push(...(KJ.list[g] || []));
+  const w = all.map((o) => kjWeight(o, grade)); let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < all.length; i++) { r -= w[i]; if (r <= 0) return all[i]; }
+  return all[all.length - 1];
+}
+const tagq = (label, tag) => ({ label, tag });
+let kjRecent = []; // さいきんの 漢字(つづけて おなじ 字を だしすぎない)
+function kanjiQuestion(grade, forcedKanji, forcedType) {
+  let o = forcedKanji ? KJ.by[forcedKanji] : pickKanji(grade);
+  if (!forcedKanji) { for (let i = 0; i < 8 && kjRecent.includes(o.k); i++) o = pickKanji(grade); kjRecent = [...kjRecent, o.k].slice(-3); }
+  const types = []; if (o.kun.length) { types.push('yk', 'yk', 'wk', 'wk'); } if (o.on.length) types.push('yo', o.kun.length ? 'yo' : 'yo');
+  const type = forcedType && types.includes(forcedType) ? forcedType : pick(types);
+  const pool = []; for (let g = 1; g <= Math.max(grade, o.g); g++) pool.push(...(KJ.list[g] || []));
+  const others = pool.filter((x) => x.k !== o.k);
+  const id = `kj:${type}:${o.k}`;
+  const mk = (correct, wrongs, text, why) => {
+    const seen = new Set([correct]); const w = [];
+    for (const x of wrongs) { if (x && !seen.has(x.label)) { seen.add(x.label); w.push(x); } if (w.length >= 3) break; }
+    for (let i = 0; w.length < 3 && i < 200; i++) { const x = pick(others); const alt = type === 'yo' ? pick(x.on.length ? x.on : [kata(x.kun[0] || 'ア')]) : type === 'yk' ? pick(x.kun.length ? x.kun : [hira(x.on[0] || 'あ')]) : x.k; if (!seen.has(alt) && !(type === 'yk' && o.allKun.has(alt)) && !(type === 'yo' && o.allOn.has(alt)) && !(type === 'wk' && (x.allKun.has(o.kun[0]) || x.allOn.has(o.on[0] || '#')))) { seen.add(alt); w.push(tagq(alt, type === 'wk' ? 'kaki_other' : 'yomi_other')); } }
+    return { text, why, choices: shuffle([{ label: correct, ok: true }, ...w.map((x) => ({ label: x.label, ok: false, tag: x.tag }))]), id };
+  };
+  if (type === 'yk') {
+    const c = pick(o.kun);
+    const wrongs = [];
+    if (o.on.length) wrongs.push(tagq(hira(pick(o.on)), 'yomi_onkun_mix')); // 音読みを くんよみと まちがえる
+    const near = others.filter((x) => x.kun.length && x.g === o.g).slice(0, 400); wrongs.push(tagq(pick(near.length ? near : others).kun[0] || 'あ', 'yomi_other'), tagq(pick(others.filter((x) => x.kun.length)).kun[0], 'yomi_other'));
+    return mk(c, wrongs.filter((x) => !o.allKun.has(x.label)), `<small>【 】の くんよみは?</small><br>【${o.k}】`, `「${o.k}」の くんよみは「${c}」だよ。`);
+  }
+  if (type === 'yo') {
+    const c = pick(o.on);
+    const wrongs = [];
+    if (o.kun.length) wrongs.push(tagq(kata(pick(o.kun)), 'yomi_onkun_mix')); // くんよみを おんよみと まちがえる
+    wrongs.push(tagq(pick(others.filter((x) => x.on.length)).on[0], 'yomi_other'), tagq(pick(others.filter((x) => x.on.length)).on[0], 'yomi_other'));
+    return mk(c, wrongs.filter((x) => !o.allOn.has(x.label)), `<small>【 】の おんよみは?(カタカナ)</small><br>【${o.k}】`, `「${o.k}」の おんよみは「${c}」だよ。`);
+  }
+  // かき: くんよみから 漢字を えらぶ
+  const rd = pick(o.kun);
+  const wrongs = [];
+  for (const k of o.sim.slice(0, 3)) wrongs.push(tagq(k, 'kaki_similar_kanji')); // かたちの にた 漢字
+  const snd = others.filter((x) => o.on.length && x.on.some((r) => o.on.includes(r))).slice(0, 6); // おなじ おんの 漢字
+  if (snd.length) wrongs.push(tagq(pick(snd).k, 'kaki_similar_sound'));
+  const okr = wrongs.filter((x) => { const y = KJ.by[x.label]; return y && !y.allKun.has(rd) && !y.allOn.has(rd); });
+  return mk(o.k, okr, `<small>【 】の 漢字は どれ?</small><br>【${rd}】`, `「${rd}」と よむ 漢字は「${o.k}」だよ。`);
+}
+function kanjiFromId(qid) { // 'kj:yk:山' → おなじ 漢字・おなじ しゅるいの もんだいを もういちど
+  const m = /^kj:(yk|yo|wk):(.)$/u.exec(String(qid)); if (!m || !KJ || !KJ.by[m[2]]) return null;
+  return kanjiQuestion(KJ.by[m[2]].g, m[2], m[1]);
+}
+export const kanjiProgress = (grade) => { // おぼえた 漢字の かず
+  if (!KJ) return { total: 0, done: 0 };
+  let total = 0; let done = 0; for (let g = 1; g <= grade; g++) for (const o of KJ.list[g] || []) { total++; const s = kjStats[o.k]; if (s && s.ok >= 3 && (s.str || 0) >= 3 && s.ng / (s.ok + s.ng) < 0.25) done++; }
+  return { total, done };
+};
 export function registerKokugo(items) {
   const byGrade = {};
   for (const it of items) (byGrade[it.grade] = byGrade[it.grade] || []).push(it);
@@ -823,11 +919,33 @@ export function currentUnits(grade, month, overrideId) {
 export function makeQuestion(unit) {
   return { ...unit.gen(), unit: unit.id };
 }
+// けいさんの もんだいの「むずかしさ」: 数字の おおきさ(けた)で はかる。にがては やさしい もの から、とくいは むずかしい ものを
+//   tier: 'easy' | 'normal' | 'hard'。ことがらの もんだい・国語・ちずなどは そのまま
+const numScore = (html) => {
+  const t = String(html).replace(/<[^>]*>/g, ' '); let sc = 0;
+  for (const m of t.matchAll(/\d+(?:\.\d+)?/g)) { const d = m[0].replace('.', '').length; sc += d * d * 0.5 + d + (m[0].includes('.') ? 1.5 : 0); }
+  return sc;
+};
+const tierRecent = new Map();
+export const isCalcUnit = (u) => !!u.gen && !u.items && !u.pool && !u.geo && !u.drill && u.subject === '算数';
+export function makeQuestionTier(unit, tier = 'normal') {
+  if (tier === 'normal' || !isCalcUnit(unit)) return makeQuestion(unit);
+  let best = null; let bs = tier === 'hard' ? -1 : 1e9;
+  const recent = tierRecent.get(unit.id) || [];
+  for (let i = 0; i < 9; i++) {
+    const q = { ...unit.gen(), unit: unit.id }; if (recent.includes(q.text) && i < 8) continue; // さっきと おなじ もんだいは さける
+    const sc = numScore(q.text) + Math.random() * 2.2;
+    if (!best || (tier === 'hard' ? sc > bs : sc < bs)) { best = q; bs = sc; }
+  }
+  recent.push(best.text); tierRecent.set(unit.id, recent.slice(-5));
+  return best;
+}
 
 // かせつを たしかめる 問題(つまずきの「かせつ」の しけん)
 //  tag    : その まちがえ方の 罠(ひっかけの 選択肢)を ふくむ 問題。計算は 数字を かえて、国語は 罠つきの 問題から。
 //  itemId : 知識(理科・社会・生活)は「おなじ 問題」を もういちど(あいだを あけて)。
 export function makeProbe(unit, { tag, itemId } = {}) {
+  if (itemId && unit.fromId) { const q = unit.fromId(itemId); if (q) return { ...q, unit: unit.id }; }
   if (itemId && unit.items) {
     const it = unit.items.find((x) => x.id === itemId);
     if (it) return { ...fromKnowledge(unit, it), unit: unit.id };
