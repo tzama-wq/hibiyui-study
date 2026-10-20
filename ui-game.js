@@ -125,10 +125,10 @@ function stageHtml() {
 }
 
 // ---- チーム(へんせい・ずかん・つよく・たいせん・きょうだい) -----------------------------------------
-const UI = { sub: 'form', slot: null, dexF: 'all', dexSel: null };
-const SUBS = [['form', '🧩', 'へんせい'], ['dex', '📚', 'ずかん'], ['diamond', '💎', 'ダイヤ'], ['power', '💪', 'つよく'], ['cup', '🏆', 'たいかい'], ['battle', '⚔️', 'フリー'], ['mates', '🤝', 'かぞく']];
+const UI = { sub: 'form', slot: null, dexF: 'all', dexSel: null, tro: 'cup' };
+const SUBS = [['form', '🧩', 'へんせい'], ['dex', '📚', 'ずかん'], ['diamond', '💎', 'ダイヤ'], ['power', '💪', 'つよく'], ['cup', '🏆', 'たいかい'], ['trophy', '🏛️', 'トロフィー'], ['battle', '⚔️', 'フリー'], ['mates', '🤝', 'かぞく']];
 export function teamTab() {
-  const body = { form: formHtml, dex: dexHtml, diamond: diamondHtml, power: powerHtml, cup: cupHtml, battle: battleMenuHtml, mates: () => X.matesHtml() + famTeamsHtml() }[UI.sub]();
+  const body = { form: formHtml, dex: dexHtml, diamond: diamondHtml, power: powerHtml, cup: cupHtml, trophy: trophyHtml, battle: battleMenuHtml, mates: () => X.matesHtml() + famTeamsHtml() }[UI.sub]();
   return `<div class="subnav">${SUBS.map(([s, i, l]) => `<button class="${UI.sub === s ? 'on' : ''}" data-act="sub" data-sub="${s}"><span>${i}</span>${l}</button>`).join('')}</div>${body}`;
 }
 
@@ -196,6 +196,38 @@ function diamondHtml() {
         ${line(r.trial.ok, `${r.trial.subjects.join('か')}の「たつじん」メダル`)}
         <button class="btn small ${r.can ? 'gold' : 'gray'}" data-act="dclaim" data-id="${d.id}" ${r.can ? '' : 'disabled'}>💎 ${r.copies ? `もういちど こうかん(${r.copies + 1}かいめ)` : 'ゲット!'}</button>`}</div></div></section>`;
   }).join('')}`;
+}
+// ---- トロフィーだな(たいかいの ゆうしょうを たなに かざる・メダル・ちずと はた) ----
+const CUP_TROPHY = { j: '🏆', asia: '🥇', kirin: '🍀', wc: '🌍', allstar: '🌟', isekai: '🐉', galaxy: '🌌', universe: '🚀' };
+function trophyHtml() {
+  const p = X.p(); const c = G.ensureCup(p); const tab = UI.tro || 'cup';
+  const tabs = [['cup', '🏆', 'トロフィー'], ['medal', '🏅', 'メダル'], ['geo', '🚩', 'ちず・はた']];
+  const nav = `<div class="tronav">${tabs.map(([t, i, l]) => `<button class="${tab === t ? 'on' : ''}" data-act="trotab" data-t="${t}"><span>${i}</span>${l}</button>`).join('')}</div>`;
+  if (tab === 'medal') {
+    const have = (X.BADGES || []).filter((b) => X.haveBadge(b));
+    return `${nav}<section class="panel trocase"><h2 class="sec">MEDALS <small>メダル ${have.length}/${(X.BADGES || []).length}</small></h2><div class="medals">${have.map((b) => `<div class="medal got" title="${esc(b.desc || '')}"><span>${b.icon}</span><small>${esc(b.name)}</small></div>`).join('') || '<div class="muted">まだ メダルは ないよ。れんしゅうして ゲットしよう!</div>'}</div></section>`;
+  }
+  if (tab === 'geo') {
+    const geo = (X.BADGES || []).filter((b) => /^(ok_|n50_|n200_)/.test(b.id) || /はかせ|マスター/.test(b.name) && /geo|flag|pref|world/.test(b.id));
+    const got = geo.filter((b) => X.haveBadge(b));
+    return `${nav}<section class="panel trocase"><h2 class="sec">MAP & FLAG <small>ちず・はた ${got.length}/${geo.length}</small></h2>
+      <div class="muted">とどうふけん・せかいの くに・こっきを おぼえると もらえるよ。</div>
+      <div class="medals">${geo.map((b) => { const h = X.haveBadge(b); return `<div class="medal ${h ? 'got' : 'no'}" title="${esc(b.desc || '')}"><span>${h ? b.icon : '❔'}</span><small>${esc(b.name)}</small></div>`; }).join('')}</div></section>`;
+  }
+  // トロフィー: たいかいごとの たな
+  const logged = {}; for (const e of c.log || []) (logged[e.id] = logged[e.id] || []).push(e);
+  const shelf = G.CUPS.map((cup) => {
+    const n = c.titles[cup.id] || 0; const icon = CUP_TROPHY[cup.id] || cup.icon;
+    const entries = (logged[cup.id] || []).slice(-8);
+    const missing = Math.max(0, n - (logged[cup.id] || []).length); // きろくが ない むかしの ゆうしょう
+    const items = [...Array.from({ length: Math.min(missing, 8 - entries.length) }, (_, i) => ({ n: i + 1, date: '' })), ...entries].slice(-8);
+    const trophies = items.length ? items.map((e) => `<div class="trophy"><div class="tr-ico">${icon}</div><small>${e.n}かいめ${e.date ? `<br>${esc(String(e.date).slice(5).replace('-', '/'))}` : ''}</small></div>`).join('') : `<div class="trophy lock"><div class="tr-ico">${icon}</div><small>まだ</small></div>`;
+    return `<div class="tshelf ${n ? 'got' : ''}"><div class="tname">${cup.icon} ${esc(cup.name)} ${n ? `<em>×${n}</em>` : ''}</div><div class="trow">${trophies}</div><div class="board"></div></div>`;
+  }).join('');
+  const total = Object.values(c.titles || {}).reduce((a, b) => a + b, 0);
+  const extra = [['pkWins', '🥅', 'PK戦の しょうり', p.pkWins || 0], ['w', '⚔️', 'たいせんの しょうり', (p.battles || {}).w || 0]];
+  return `${nav}<section class="panel trocase"><h2 class="sec">TROPHY ROOM <small>トロフィー ${total}こ</small></h2>${shelf}
+    <div class="tshelf got"><div class="tname">📋 きろく</div><div class="trow">${extra.map(([, i, l, v]) => `<div class="trophy"><div class="tr-ico small">${i}</div><small>${l}<br><b>${v}</b></small></div>`).join('')}</div><div class="board"></div></div></section>`;
 }
 function dexHtml() {
   const p = X.p();
@@ -277,7 +309,13 @@ function playToggleHtml(p) {
     ${on ? `<div class="playlen"><b>せんじゅつ</b>${Object.entries(TACT_JA).map(([k, v]) => `<button class="chipb ${tc === k ? 'on' : ''}" data-act="playtact" data-v="${k}">${v[0]}</button>`).join('')}<small>${TACT_JA[tc][1]}</small></div><div class="playlen">${Object.entries(PLAY_LEN).map(([k, v]) => `<button class="chipb ${len === Number(k) ? 'on' : ''}" data-act="playlen" data-v="${k}">${v}</button>`).join('')}<small>スマホは よこむきで あそぶよ</small></div>` : ''}</div>`;
 }
 let PG = null; // いま あそんでいる 3Dの しあい
+let STARTING = false; // ダブルタップで 2つ はじまらない ように
 async function startPlayMatch(me, opp, cup) {
+  if (STARTING) return false;
+  STARTING = true;
+  try { return await startPlayMatchInner(me, opp, cup); } finally { STARTING = false; }
+}
+async function startPlayMatchInner(me, opp, cup) {
   const kind0 = playKind(X.p());
   const p = X.p(); stopMatch(); if (PG) { PG.destroy(); PG = null; }
   X.toast('🎮 しあいを じゅんびしているよ…');
@@ -509,6 +547,7 @@ export function onAct(a, el) {
       return true;
     }
     case 'gachaclose': Gs.phase = 'idle'; return true;
+    case 'trotab': UI.tro = el.dataset.t; return true;
     case 'sub': UI.sub = el.dataset.sub; UI.slot = null; UI.dexSel = null; return true;
     case 'formation': {
       const f = el.dataset.f; if (f === p.formation) return true;

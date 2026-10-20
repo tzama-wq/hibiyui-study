@@ -73,7 +73,7 @@ for (const [pa, pb, seed] of [[60, 60, 11], [90, 60, 12], [60, 120, 13]]) {
   const sim = createPlay({ me: mk(80, '442', 5), opp: mk(60, '442', 6), halfSec: 60, rnd: rngSeed(8) });
   for (let i = 0; i < 100; i++) sim.step(1 / 30);
   const p = sim.ctrlP(); sim.ball.owner = p; p.x = 0; p.z = 0; p.dir = 0; sim.ball.x = 0.6;
-  sim.input.mx = 1; sim.input.mz = 0; sim.press('pass'); sim.step(1 / 30);
+  sim.input.mx = 1; sim.input.mz = 0; sim.press('pass'); sim.release('pass'); sim.step(1 / 30);
   assert.ok(!sim.ball.owner && sim.ball.vx > 5, 'パスが でた');
   // オフサイド: あいての うしろ(はんぶんより さき)に いる みかたへ パス
   const sim2 = createPlay({ me: mk(80, '442', 5), opp: mk(60, '442', 6), halfSec: 60, rnd: rngSeed(9) });
@@ -84,7 +84,7 @@ for (const [pa, pb, seed] of [[60, 60, 11], [90, 60, 12], [60, 120, 13]]) {
   sim2.players.b.find((x) => x.slot === 'GK').x = 50;
   for (const o of sim2.players.a) if (o !== q && o !== h) { o.x = -30; o.tx = -30; o.z = 25; o.tz = 25; }
   h.x = 33; h.z = 0; sim2.ball.owner = h; sim2.ball.x = 33.6; q.x = 44; q.z = 0; q.tx = 44; q.tz = 0; q.vx = 0;
-  sim2.input.mx = 1; sim2.press('pass'); // うけ手は FW
+  sim2.input.mx = 1; sim2.press('pass'); sim2.release('pass'); // うけ手は FW
   let called = false; for (let i = 0; i < 200 && !called; i++) { q.tx = 44; q.tz = 0; q.x = Math.min(q.x, 44.5); sim2.step(1 / 30); if (sim2.state.offsides.a > 0) called = true; }
   assert.ok(called || sim2.state.ph !== 'play', 'オフサイドの ほうへ パスすると ふえきが なる (または ほかの リスタート)');
 }
@@ -120,7 +120,7 @@ for (const [pa, pb, seed] of [[60, 60, 11], [90, 60, 12], [60, 120, 13]]) {
   { const sim = mkSim(7); const r = sim.players.a.filter((x) => x.slot === 'FW')[1];
     for (const o of sim.players.b) if (o.slot !== 'GK') { o.x = 20; o.tx = 20; } sim.players.b.find((x) => x.slot === 'GK').x = 50;
     sim._dead({ type: 'throw', side: 'a', x: 25, z: 34 }, 'スローイン'); for (let i = 0; i < 70 && sim.state.ph !== 'play'; i++) sim.step(1 / 30);
-    r.x = 40; r.z = 10; r.tx = 40; r.tz = 10; sim.state.ctrl = sim.state.restart.taker.idx; sim.input.mx = 0.5; sim.input.mz = -1; sim.press('pass'); sim.step(1 / 30);
+    r.x = 40; r.z = 10; r.tx = 40; r.tz = 10; sim.state.ctrl = sim.state.restart.taker.idx; sim.input.mx = 0.5; sim.input.mz = -1; sim.press('pass'); sim.release('pass'); sim.step(1 / 30);
     assert.equal(sim.ball.offside, null, 'スローインは オフサイドに ならない'); }
   // たいじょう: 2まいめの イエローで たいじょう(10にんに なる)
   { const sim2 = createPlay({ me: mk(80, '442', 5), opp: mk(60, '442', 6), halfSec: 60, rnd: () => 0.0 });
@@ -177,5 +177,23 @@ for (const [pa, pb, seed] of [[60, 60, 11], [90, 60, 12], [60, 120, 13]]) {
   for (const o of sim.players.b) { o.x = 40; o.z = 20; o.tx = 40; o.tz = 20; } for (const o of sim.players.a) if (o !== p) { o.x = -30; o.tx = -30; o.z = -20; o.tz = -20; }
   let got = false; for (let i = 0; i < 150 && !got; i++) { sim.step(1 / 30); for (const o of sim.players.b) { o.x = 40; o.z = 20; } if (sim.ball.owner === p) got = true; }
   assert.ok(got, 'スティックを はなしても じどうで ボールを ひろう');
+}
+
+// ---- パスの つよさ(ためる)・フリックパス ----
+{
+  const mkS = (seed) => { const sim = createPlay({ me: mk(80, '442', 5), opp: mk(60, '442', 6), halfSec: 60, rnd: rngSeed(seed) }); for (let i = 0; i < 100; i++) sim.step(1 / 30); return sim; };
+  const clear = (sim, keep) => { for (const o of [...sim.players.a, ...sim.players.b]) if (!keep.includes(o)) { o.x = o.side === 'a' ? -45 : 45; o.z = 30; o.tx = o.x; o.tz = o.z; o.vx = o.vz = 0; } };
+  // ふつうの パス: 20m さきの みかたに とどく
+  { const sim = mkS(51); const p = sim.players.a.find((x) => x.slot === 'MF'); const q = sim.players.a.filter((x) => x.slot === 'FW')[0]; clear(sim, [p, q]); p.x = 0; p.z = 0; p.dir = 0; q.x = 22; q.z = 0; q.tx = 22; q.tz = 0; sim.ball.owner = p; sim.ball.x = 0.6; sim.ball.z = 0; sim.state.ctrl = p.idx; sim.input.mx = 1; sim.input.mz = 0; sim.state.ph = 'play'; sim.state.restartFresh = false;
+    sim.press('pass'); sim.release('pass'); let got = false; for (let i = 0; i < 120 && !got; i++) { sim.step(1 / 30); q.tx = 22; q.tz = 0; if (sim.ball.owner === q) got = true; } assert.ok(got, '20m の パスが ちゃんと とどく'); }
+  // ためると つよい(はやい)
+  { const sp = (hold) => { const sim = mkS(52); const p = sim.players.a.find((x) => x.slot === 'MF'); const q = sim.players.a.filter((x) => x.slot === 'FW')[0]; clear(sim, [p, q]); p.x = 0; p.z = 0; p.dir = 0; q.x = 25; q.z = 0; sim.ball.owner = p; sim.ball.x = 0.6; sim.state.ctrl = p.idx; sim.input.mx = 1; sim.state.ph = 'play'; sim.state.restartFresh = false;
+      sim.press('pass'); for (let i = 0; i < hold; i++) sim.step(1 / 30); sim.release('pass'); sim.step(1 / 30); return Math.hypot(sim.ball.vx, sim.ball.vz); };
+    const weak = sp(0); const strong = sp(24); assert.ok(strong > weak * 1.15, `ためると はやい (${weak.toFixed(1)} < ${strong.toFixed(1)})`); }
+  // フリック: ほうこうと つよさで ころがる きょりが かわる(みかたが いない ばあい)
+  { const dist = (pw, ang) => { const sim = mkS(53); const p = sim.players.a.find((x) => x.slot === 'MF'); clear(sim, [p]); p.x = -10; p.z = 0; p.dir = 0; sim.ball.owner = p; sim.ball.x = -9.4; sim.ball.z = 0; sim.state.ctrl = p.idx; sim.state.ph = 'play'; sim.state.restartFresh = false;
+      sim.flickPass(Math.cos(ang), Math.sin(ang), pw); sim.step(1 / 30); let mx = 0; let mz = 0; for (let i = 0; i < 200 && !sim.ball.owner; i++) { sim.step(1 / 30); mx = Math.max(mx, sim.ball.x + 10); mz = Math.max(mz, sim.ball.z); } return [mx, mz]; };
+    const [dw] = dist(0.2, 0); const [ds] = dist(1, 0); assert.ok(ds > dw + 10, `つよい フリックは とおくへ (${dw.toFixed(1)} → ${ds.toFixed(1)})`);
+    const [, zdown] = dist(0.6, Math.PI / 2); assert.ok(zdown > 8, 'した むきの フリックで した(+z)へ ころがる'); }
 }
 console.log('OK: play');

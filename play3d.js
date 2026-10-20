@@ -65,15 +65,18 @@ function makePlayerModel(THREE, lk) {
 }
 
 // ---- メイン ----------------------------------------------------------------------
+let ACTIVE = null; // いま うごいている しあい(ひとつだけ。ダブルタップで ふたつ はじまって、みえない ほうの けっかが つかわれるのを ふせぐ)
 export async function startPlay3D(o) {
   const THREE = await loadThree();
+  if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
+  document.querySelectorAll('.p3d').forEach((e) => e.remove());
   let watch = o.mode === 'watch';
   const sim = createPlay({ me: o.me, opp: o.opp, halfSec: o.halfSec || 90, level: o.level || 1, tactic: o.tactic || 'balance', auto: watch, diff: o.diff || 'easy' });
   const S = sim.state;
   const root = document.createElement('div'); root.className = 'p3d';
   root.innerHTML = `<canvas class="p3d-cv"></canvas>
     <div class="p3d-hud"><div class="p3d-score"><span class="ta">${esc(o.me.name)}</span><b class="sa">0</b><i class="tm">0:00</i><b class="sb">0</b><span class="tb">${esc(o.opp.name)}</span></div>
-      <button class="p3d-modebtn" aria-label="かんせん/そうさ"></button><button class="p3d-pausebtn" aria-label="ポーズ">⏸</button><div class="p3d-stats"></div><div class="p3d-banner"></div><div class="p3d-msg"></div><div class="p3d-ctl"><b></b><i><u></u></i></div><div class="p3d-tag"></div></div>
+      <button class="p3d-modebtn" aria-label="かんせん/そうさ"></button><button class="p3d-pausebtn" aria-label="ポーズ">⏸</button><div class="p3d-stats"></div><div class="p3d-banner"></div><div class="p3d-msg"></div><div class="p3d-ctl"><b></b><i><u></u></i></div><div class="p3d-flick"></div><div class="p3d-tag"></div></div>
     <div class="p3d-pad"><div class="p3d-stick"><div class="p3d-knob"></div></div>
       <div class="p3d-btns"><button class="pb pb-d" data-b="sprint">ダッシュ</button><button class="pb pb-c" data-b="lob">ロング</button><button class="pb pb-a" data-b="pass">パス</button><button class="pb pb-b" data-b="shoot">シュート</button></div></div>
     <div class="p3d-intro"><div class="pi-vs"><div class="pi-team a"><small>HOME</small><b class="pi-na"></b><span class="pi-pa"></span><em class="pi-ka"></em></div><i>VS</i><div class="pi-team b"><small>AWAY</small><b class="pi-nb"></b><span class="pi-pb"></span><em class="pi-kb"></em></div></div><div class="pi-info"></div><div class="pi-count"></div><div class="pi-skip">タップで スキップ ▶</div></div>
@@ -133,13 +136,26 @@ export async function startPlay3D(o) {
   const endStick = (e) => { if (e.pointerId !== sid) return; sid = null; setStick(0, 0); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = ''; };
   pad.addEventListener('pointerup', endStick); pad.addEventListener('pointercancel', endStick);
   const hold = { sprint: 0 };
-  const bpress = (b) => { if (b === 'sprint') { sim.input.sprint = true; return; } if (b === 'pass') { const att = S.ph !== 'end' && sim.ball.owner && sim.ball.owner.side === 'a'; sim.press(att ? 'pass' : 'tackle'); return; } if (b === 'lob') { const att = sim.ball.owner && sim.ball.owner.side === 'a'; sim.press(att ? 'lob' : 'switch'); return; } if (b === 'shoot') sim.press('shoot'); };
-  const brel = (b) => { if (b === 'sprint') { sim.input.sprint = false; return; } if (b === 'shoot') sim.release('shoot'); };
+  const bpress = (b) => { if (b === 'sprint') { sim.input.sprint = true; return; } if (b === 'pass') { const att = S.ph !== 'end' && sim.ball.owner && sim.ball.owner.side === 'a'; passWasAtk = !!att; sim.press(att ? 'pass' : 'tackle'); return; } if (b === 'lob') { const att = sim.ball.owner && sim.ball.owner.side === 'a'; sim.press(att ? 'lob' : 'switch'); return; } if (b === 'shoot') sim.press('shoot'); };
+  const brel = (b) => { if (b === 'sprint') { sim.input.sprint = false; return; } if (b === 'shoot') sim.release('shoot'); if (b === 'pass' && passWasAtk) sim.release('pass'); };
+  let passWasAtk = false;
+  // パスボタン: おしている あいだ ためる(つよさ)・ボタンから フリックで ほうこうと つよさを きめる
+  const flickEl = root.querySelector('.p3d-flick'); let fl = null;
+  const passAtk = () => sim.ball.owner && sim.ball.owner.side === 'a' && sim.ball.owner === sim.ctrlP();
   root.querySelectorAll('.pb').forEach((btn) => {
     const b = btn.dataset.b;
-    btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch { /* ok */ } btn.classList.add('on'); bpress(b); e.preventDefault(); });
-    const up = (e) => { btn.classList.remove('on'); brel(b); e.preventDefault(); };
-    btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up);
+    btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch { /* ok */ } btn.classList.add('on'); if (b === 'pass') fl = { x: e.clientX, y: e.clientY, atk: passAtk(), moved: false }; bpress(b); e.preventDefault(); });
+    btn.addEventListener('pointermove', (e) => {
+      if (b !== 'pass' || !fl || !fl.atk) return; const dx = e.clientX - fl.x; const dy = e.clientY - fl.y; const m = Math.hypot(dx, dy);
+      if (m > 22) { fl.moved = true; const rect = root.getBoundingClientRect(); flickEl.style.display = 'block'; flickEl.style.left = `${fl.x - rect.left}px`; flickEl.style.top = `${fl.y - rect.top}px`; flickEl.style.width = `${Math.min(m, 150)}px`; flickEl.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`; }
+    });
+    const up = (e) => {
+      btn.classList.remove('on');
+      if (b === 'pass' && fl) { const dx = e.clientX - fl.x; const dy = e.clientY - fl.y; const m = Math.hypot(dx, dy); flickEl.style.display = 'none'; const f = fl; fl = null;
+        if (f.atk && m > 22) { sim.flickPass(dx / m, dy / m, clamp((m - 20) / 110, 0.05, 1)); e.preventDefault(); return; } }
+      brel(b); e.preventDefault();
+    };
+    btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', (e) => { flickEl.style.display = 'none'; fl = null; up(e); });
   });
   const keys = new Set();
   const kmap = { KeyJ: 'pass', KeyK: 'shoot', KeyL: 'lob', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'shoot' };
@@ -185,7 +201,8 @@ export async function startPlay3D(o) {
     hud.bA.textContent = att ? 'パス' : 'タックル'; hud.bB.textContent = att ? 'シュート' : 'スライド'; hud.bC.textContent = att ? 'ロング' : 'きりかえ';
     const cp = sim.ctrlP(); if (cp) { hud.tag.textContent = watch ? '' : cp.name; }
     if (cp && !watch) { const st = cp.stats; const bar = (n, v, c) => `<div><span>${n}</span><i><u style="width:${clamp(v / 140, 0.04, 1) * 100}%;background:${c}"></u></i><b>${Math.round(v)}</b></div>`; hud.stats.innerHTML = `${bar('スピード', st.SPD, '#27d8ff')}${bar('シュート', st.SHO, '#ff4d5e')}${bar('パス', st.PAS, '#ffd23f')}${bar('まもり', st.DEF, '#6fcf97')}${bar('スタミナ', st.STA * clamp(0.35 + cp.stamina * 0.65, 0.2, 1), '#a56de2')}`; } else hud.stats.innerHTML = '';
-    const ch = sim.charge; hud.ctl.classList.toggle('on', ch.on && ch.t > 0.05); hud.ctl.querySelector('u').style.width = `${clamp(ch.t / 0.9, 0, 1) * 100}%`;
+    const ch = sim.charge; const pc = sim.passCharge; const onS = ch.on && ch.t > 0.05; const onP = pc.on && pc.t > 0.08; hud.ctl.classList.toggle('on', onS || onP); hud.ctl.classList.toggle('pass', !onS && onP);
+    hud.ctl.querySelector('b').textContent = onS ? 'シュート' : onP ? 'パス' : ''; hud.ctl.querySelector('u').style.width = `${clamp((onS ? ch.t / 0.9 : pc.t / 0.8), 0, 1) * 100}%`;
   }
 
   // ---- かく ---------------------------------------------------------------------
@@ -265,7 +282,7 @@ export async function startPlay3D(o) {
     else { sim.setAuto(true); let n = 0; while (!S.done && n++ < 120000) sim.step(1 / 30); } // どうてんの ときは のこりを じどうで(のびたら ゴールデンゴール・PK戦)
     S.snd.length = 0; ended = true; finish();
   }
-  function finish() { const r = { score: { ...S.score }, events: S.events, winner: S.winner, shots: { ...S.shots }, fouls: { ...S.fouls }, offsides: { ...S.offsides }, poss: { ...S.poss }, cards: S.cards, extra: S.extra }; destroy(); if (o.onEnd) o.onEnd(r); }
+  function finish() { if (dead) return; const r = { score: { ...S.score }, events: S.events, winner: S.winner, shots: { ...S.shots }, fouls: { ...S.fouls }, offsides: { ...S.offsides }, poss: { ...S.poss }, cards: S.cards, extra: S.extra }; destroy(); if (o.onEnd) o.onEnd(r); }
   function destroy() {
     if (dead) return; dead = true; cancelAnimationFrame(raf);
     window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', resize); window.removeEventListener('orientationchange', resize);
@@ -275,5 +292,7 @@ export async function startPlay3D(o) {
   }
   syncMode(); syncSwap(); sim.setTactic(curTact);
   raf = requestAnimationFrame(frame);
-  return { destroy, sim, pause: () => setPause(true), root, renderer };
+  const api = { destroy: () => { if (ACTIVE === api) ACTIVE = null; destroy(); }, sim, pause: () => setPause(true), root, renderer };
+  ACTIVE = api;
+  return api;
 }

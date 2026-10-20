@@ -673,5 +673,6 @@ export function cupResult(p, id, round, won, forgive = false, today = '') {
   const shards = (firstWin ? 1 : 0) + (firstClear ? 10 : 0); if (shards) addShards(p, shards); // はじめての しょうり・ゆうしょうで ダイヤの かけら
   if (!last) { c.run = { id, round: round + 1 }; return { type: 'advance', round: round + 1, reward, capped, shards }; }
   c.run = null; if (!c.cleared.includes(id)) c.cleared.push(id); c.titles[id] = (c.titles[id] || 0) + 1;
+  c.log = Array.isArray(c.log) ? c.log : []; c.log.push({ id, n: c.titles[id], date: today || '' }); if (c.log.length > 300) c.log = c.log.slice(-300); // トロフィーだなの きろく
   return { type: 'cleared', reward, first: c.titles[id] === 1, capped, shards };
 }
