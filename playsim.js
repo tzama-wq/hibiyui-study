@@ -32,11 +32,18 @@ export const TACTICS = {
   counter: { line: -0.07, press: 1, width: 0.95, direct: 0.95, counter: true, name: 'カウンター' },
 };
 const STYLE_TACT = { att: 'attack', bal: 'balance', def: 'counter' };
-export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1, extraSec = 60, tactic = 'balance', auto: autoOpt = false }) {
+// むずかしさ: easy(かんたん・はじめは これ)/ normal / hard。てきの うごき・かんの よさと、じぶんの アシストの つよさが かわる
+export const DIFFS = {
+  easy: { ai: 0.8, spd: 1.05, myAcc: 0.75, opAcc: 1.3, aim: 0.5, gk: 0.1, tackle: 0.16, range: 0.8, pickup: 0.8, stam: 0.55, react: 1.3, press: 1.4 },
+  normal: { ai: 0.95, spd: 1.02, myAcc: 0.9, opAcc: 1.1, aim: 0.25, gk: 0.05, tackle: 0.12, range: 0.6, pickup: 0.65, stam: 0.8, react: 1.1, press: 1.8 },
+  hard: { ai: 1, spd: 1, myAcc: 1, opAcc: 1, aim: 0, gk: 0, tackle: 0.1, range: 0.5, pickup: 0.5, stam: 1, react: 1, press: 2 },
+};
+export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1, extraSec = 60, tactic = 'balance', auto: autoOpt = false, diff = 'easy' }) {
+  const DF = DIFFS[diff] || DIFFS.easy;
   let auto = !!autoOpt;
   const myPow = avg(me.team); const opPow = avg(opp.team);
   function avg(t) { return t.reduce((a, m) => a + (m.stats.SHO + m.stats.PAS + m.stats.SPD + m.stats.DEF + m.stats.STA) / 5, 0) / Math.max(1, t.length); }
-  const aiLevel = clamp((opPow / Math.max(30, myPow)) ** 0.5 * level, 0.7, 1.35); // てきの つよさ(じぶんより つよいほど おおきい)
+  const aiLevel = clamp((opPow / Math.max(30, myPow)) ** 0.5 * level * DF.ai, 0.5, 1.5); // てきの つよさ(じぶんより つよいほど おおきい)
 
   const teams = { a: me, b: opp };
   const tact = { a: TACTICS[tactic] || TACTICS.balance, b: TACTICS[STYLE_TACT[opp.style]] || TACTICS.balance };
@@ -47,7 +54,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
       const st = m.stats;
       players[s].push({ side: s, idx: i, slot: m.slot, name: m.name, face: m.face || '', m, stats: st,
         x: 0, z: 0, vx: 0, vz: 0, dir: s === 'a' ? 0 : Math.PI, stamina: 1, stun: 0, cd: 0, act: '', actT: 0,
-        spd: 6.1 * mul(st.SPD, 0.72, 1.42) * (s === 'b' ? lerp(0.94, 1.1, (aiLevel - 0.7) / 0.65) : 1), yc: 0, off: false,
+        spd: 6.1 * mul(st.SPD, 0.72, 1.42) * (s === 'b' ? lerp(0.82, 1.1, clamp((aiLevel - 0.5) / 0.9, 0, 1)) : DF.spd), yc: 0, off: false,
         sprint: false, run: 0, aiT: rnd() * 0.3, tx: 0, tz: 0, wantSprint: false });
     });
   }
@@ -182,10 +189,11 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     ball.target = q; return q;
   }
   function shootAt(p, aimZ, power) { // power 0..1
+    if (p.side === 'a' && !auto && DF.aim > 0 && p.slot !== 'GK') { const gk = gkOf('b'); const want = (gk.z >= 0 ? -1 : 1) * 2.7; aimZ = aimZ * (1 - DF.aim) + want * DF.aim; } // アシスト: キーパーと はんたいの すみに ねらいを よせる
     const sg = sgn(p.side); const gx = sg * HX;
     const press = players[other(p.side)].reduce((m, o2) => Math.min(m, len(o2.x - p.x, o2.z - p.z)), 99);
     const dgo = len(gx - p.x, p.z);
-    const err = (1 - clamp(p.stats.SHO / 150, 0, 0.9)) * (0.16 + power * 0.18) * (1 + clamp((28 - dgo) / 28, -0.4, 0) * -0.0 + clamp(dgo / 40, 0, 1) * 0.9) * (press < 2.6 ? 1.5 : 1);
+    const err = (1 - clamp(p.stats.SHO / 150, 0, 0.9)) * (0.16 + power * 0.18) * (1 + clamp((28 - dgo) / 28, -0.4, 0) * -0.0 + clamp(dgo / 40, 0, 1) * 0.9) * (press < 2.6 ? 1.5 : 1) * (p.side === 'a' ? DF.myAcc : DF.opAcc);
     const tz = clamp(aimZ, -GHW * 1.05, GHW * 1.05) + (rnd() - 0.5) * 2 * err * 12 * (p.stats.SHO > 120 ? 0.7 : 1);
     const a = Math.atan2(tz - p.z, gx - p.x);
     const sp = (16 + 15 * power) * mul(p.stats.SHO, 0.9, 1.25);
@@ -201,12 +209,12 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     snd('tackle');
     const dx = c.x - d.x; const dz = c.z - d.z; const dist = len(dx, dz);
     const human = !auto && d.side === 'a' && d.idx === S.ctrl; // にんげんの アシスト: すこし とおくても タックルできる
-    const range = (slide ? 2.4 : 1.55) + (human ? 0.5 : 0); if (dist > range) return false;
+    const range = (slide ? 2.4 : 1.55) + (human ? DF.range : 0); if (dist > range) return false;
     d.cd = slide ? 1.0 : 0.7; d.act = slide ? 'slide' : 'tackle'; d.actT = slide ? 0.55 : 0.3; d.dir = Math.atan2(dz, dx);
     if (slide) { d.vx = Math.cos(d.dir) * 9; d.vz = Math.sin(d.dir) * 9; }
     const behind = Math.cos(angDiff(Math.atan2(d.z - c.z, d.x - c.x), c.dir)) < -0.35; // ディフェンダーが うしろから
     const drib = mul((c.stats.SPD + c.stats.SHO) / 2, 0.8, 1.5); const df = mul(d.stats.DEF, 0.8, 1.5);
-    const pOk = clamp(0.42 + (df - drib) * 1.2 + (slide ? 0.1 : 0) - (c.sprint ? 0.06 : 0) + (human ? 0.1 : 0) + (d.side === 'b' ? (aiLevel - 1) * 0.35 : 0), 0.18, 0.88); // つよい てきほど タックルが うまい
+    const pOk = clamp(0.42 + (df - drib) * 1.2 + (slide ? 0.1 : 0) - (c.sprint ? 0.06 : 0) + (human ? DF.tackle : 0) + (d.side === 'b' ? (aiLevel - 1) * 0.35 : 0), 0.18, 0.88); // つよい てきほど タックルが うまい
     const roll = rnd();
     const foulP = behind ? (slide ? 0.4 : 0.22) : (slide ? 0.2 : 0.04);
     if (roll < pOk) { // せいこう
@@ -364,7 +372,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
       return;
     }
     if (S.ph !== 'play') { p.wantSprint = false; return; } // やすみの あいだは ならんだ ばしょで まつ(タックルも しない)
-    p.aiT -= dt; if (p.aiT > 0 && !p.forceThink) return; p.aiT = (0.14 + rnd() * 0.1) / (p.side === 'b' ? aiLevel : 1); p.forceThink = false;
+    p.aiT -= dt; if (p.aiT > 0 && !p.forceThink) return; p.aiT = (0.14 + rnd() * 0.1) * (p.side === 'b' ? DF.react : 1) / (p.side === 'b' ? aiLevel : 1); p.forceThink = false;
     const s = p.side; const sg = sgn(s); const own = ball.owner; const mine = own && own.side === s; const T = tact[s];
     p.wantSprint = false;
     if (p.slot === 'GK') return aiKeeper(p);
@@ -397,7 +405,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     const target = own || ball; const d = len(target.x - p.x, target.z - p.z);
     const rank = players[s].filter((q) => q.slot !== 'GK' && !q.off).sort((u, v) => len(u.x - target.x, u.z - target.z) - len(v.x - target.x, v.z - target.z)).findIndex((q) => q === p);
     const counterPress = S.clock - S.lostAt[s] < 4 ? 1 : 0; // ボールを うしなった ちょくごは ちかくの みんなで うばいかえす
-    const nChase = own ? Math.min(3, Math.round(T.press * (s === 'b' && aiLevel > 1.05 ? 1.15 : 1)) + (T.press >= 1.6 ? counterPress : 0)) : 1;
+    const nChase = own ? Math.max(1, Math.min(3, Math.round(T.press * (s === 'b' && aiLevel > 1.05 ? 1.15 : 1)) + (T.press >= 1.6 ? counterPress : 0), s === 'b' ? Math.round(DF.press + 1) : 3)) : 1;
     const chase = rank < nChase;
     if (chase && (own || len(ball.vx, ball.vz) < 14)) {
       const lead = own ? 0.25 : 0.45;
@@ -463,7 +471,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     if (p.act === 'lunge' && p.actT > 0) { wx = Math.cos(p.dir); wz = Math.sin(p.dir); sprint = true; }
     // スタミナ
     const sp = len(wx, wz) > 0.5;
-    if (sprint && sp && p.stamina > 0.05) p.stamina = Math.max(0, p.stamina - dt * 0.09 / mul(p.stats.STA, 0.7, 1.5)); else p.stamina = Math.min(1, p.stamina + dt * 0.06 * mul(p.stats.STA, 0.7, 1.4));
+    if (sprint && sp && p.stamina > 0.05) p.stamina = Math.max(0, p.stamina - dt * 0.09 * (p.side === 'a' && !auto ? DF.stam : 1) / mul(p.stats.STA, 0.7, 1.5)); else p.stamina = Math.min(1, p.stamina + dt * 0.06 * mul(p.stats.STA, 0.7, 1.4));
     p.sprint = sprint && sp && p.stamina > 0.05;
     let vmax = p.spd * (p.sprint ? 1.38 : 1) * (0.78 + 0.22 * Math.min(1, p.stamina * 2.2)) * (ball.owner === p ? 0.93 : 1);
     if (p.slot === 'GK') vmax *= p.wantSprint ? 1.25 : 0.85;
@@ -505,7 +513,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
       if (Math.abs(dxg) < 2.3 && Math.abs(dzg) < (gk.dive ? 3.1 : 2.2) && ball.y < 2.7) {
         ball.saveRolled = true;
         const near = Math.abs(dzg);
-        const pS = clamp(0.64 + (mul(gk.stats.DEF, 0.8, 1.45) - mul(ball.shotBy.stats.SHO, 0.8, 1.45)) * 1.1 - (ball.shotSpeed - 18) / 50 - near * 0.1 - (ball.pen ? 0.12 : 0), 0.12, 0.93);
+        const pS = clamp(0.64 + (mul(gk.stats.DEF, 0.8, 1.45) - mul(ball.shotBy.stats.SHO, 0.8, 1.45)) * 1.1 - (ball.shotSpeed - 18) / 50 - near * 0.1 - (ball.pen ? 0.12 : 0) - (ball.shotBy.side === 'a' ? DF.gk : 0), 0.12, 0.93);
         if (rnd() < pS) { // せーぶ
           if (sp < 15 && rnd() < 0.6) { ball.owner = gk; touch(gk); ball.vx = ball.vz = ball.vy = 0; S.shotSave = true; log(`${gk.name}が キャッチ!`); }
           else { touch(gk); ball.vx = -ball.vx * 0.3; ball.vz = (dzg >= 0 ? -1 : 1) * (3 + rnd() * 4) * -1; ball.vy = 2.5; log(`${gk.name}が セーブ!`); }
@@ -518,7 +526,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     let best = null; let bd = 1e9;
     for (const s of ['a', 'b']) for (const p of players[s]) {
       if (p.off || p.stun > 0 || p.cd > 0.3 && p === ball.lastP) continue;
-      const rr = p.slot === 'GK' ? 1.15 : 0.82 + (p.act === 'slide' ? 0.7 : 0) + (p === ball.target ? 0.8 : 0) + (!auto && p.side === 'a' && p.idx === S.ctrl ? 0.5 : 0); // にんげんの せんしゅは ひろいやすい
+      const rr = p.slot === 'GK' ? 1.15 : 0.82 + (p.act === 'slide' ? 0.7 : 0) + (p === ball.target ? 0.8 : 0) + (!auto && p.side === 'a' && p.idx === S.ctrl ? DF.pickup : 0); // にんげんの せんしゅは ひろいやすい
       const d = len(p.x - ball.x, p.z - ball.z); if (d > rr) continue;
       if (sp > 17 && p.slot !== 'GK' && p !== ball.target && rnd() > 0.35 * mul(p.stats.DEF, 0.8, 1.3)) continue; // はやすぎて トラップ しっぱい
       const sc = d - (p === ball.target ? 0.3 : 0) - (p.stats.SPD / 400);

@@ -273,6 +273,7 @@ const PLAY_LEN = { 60: 'みじかい(2ふん)', 90: 'ふつう(3ふん)', 150: '
 function playToggleHtml(p) {
   const kind = playKind(p); const on = kind !== 'auto'; const len = Number(p.playLen) || 90; const tc = p.playTactic || 'balance';
   return `<div class="playtog"><button class="chipb ${kind === 'play' ? 'on' : ''}" data-act="playmode" data-v="play">🎮 じぶんで うごかす</button><button class="chipb ${kind === 'watch' ? 'on' : ''}" data-act="playmode" data-v="watch">👀 3Dで かんせん</button><button class="chipb ${kind === 'auto' ? 'on' : ''}" data-act="playmode" data-v="auto">▶ オート(2D)</button>
+    ${kind === 'play' ? `<div class="playlen"><b>むずかしさ</b>${[['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']].map(([k2, v2]) => `<button class="chipb ${(p.playDiff || 'easy') === k2 ? 'on' : ''}" data-act="playdiff" data-v="${k2}">${v2}</button>`).join('')}<small>かんたん=てきが よわく、ボールを とりやすく、シュートが はいりやすい</small></div>` : ''}
     ${on ? `<div class="playlen"><b>せんじゅつ</b>${Object.entries(TACT_JA).map(([k, v]) => `<button class="chipb ${tc === k ? 'on' : ''}" data-act="playtact" data-v="${k}">${v[0]}</button>`).join('')}<small>${TACT_JA[tc][1]}</small></div><div class="playlen">${Object.entries(PLAY_LEN).map(([k, v]) => `<button class="chipb ${len === Number(k) ? 'on' : ''}" data-act="playlen" data-v="${k}">${v}</button>`).join('')}<small>スマホは よこむきで あそぶよ</small></div>` : ''}</div>`;
 }
 let PG = null; // いま あそんでいる 3Dの しあい
@@ -284,7 +285,7 @@ async function startPlayMatch(me, opp, cup) {
   const sfxMap = { kick: 'kick', pass: 'pass', tackle: 'tackle', whistle: 'whistle', goal: 'goal', save: 'save' };
   try {
     PG = await startPlay3D({
-      me, opp, mode: kind0 === 'watch' ? 'watch' : 'play', tactic: p.playTactic || 'balance', halfSec: Number(p.playLen) || 90, calm: !!(X.cfg && X.cfg().calm),
+      me, opp, mode: kind0 === 'watch' ? 'watch' : 'play', diff: p.playDiff || 'easy', tactic: p.playTactic || 'balance', halfSec: Number(p.playLen) || 90, calm: !!(X.cfg && X.cfg().calm),
       onSfx: (n) => { if (SFX && sfxMap[n]) SFX.play(sfxMap[n]); },
       onQuit: () => { PG = null; if (SFX) SFX.bgmStop(); X.setView('kid'); X.render(); },
       onEnd: (r) => { PG = null; if (SFX) SFX.bgmStop(); finishPlayMatch(me, opp, cup, r); },
@@ -560,6 +561,7 @@ export function onAct(a, el) {
     }
     case 'fight': return startFight(el.dataset.opp, el.dataset.instant === '1');
     case 'playmode': p.playMode = ['play', 'watch', 'auto'].includes(el.dataset.v) ? el.dataset.v : 'play'; X.save(); return true;
+    case 'playdiff': p.playDiff = ['easy', 'normal', 'hard'].includes(el.dataset.v) ? el.dataset.v : 'easy'; X.save(); return true;
     case 'playtact': p.playTactic = ['attack', 'balance', 'counter'].includes(el.dataset.v) ? el.dataset.v : 'balance'; X.save(); return true;
     case 'playlen': p.playLen = Number(el.dataset.v) || 90; X.save(); return true;
     case 'cupfight': return startCup(el.dataset.cup, el.dataset.instant === '1');

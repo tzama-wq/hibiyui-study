@@ -68,7 +68,7 @@ function makePlayerModel(THREE, lk) {
 export async function startPlay3D(o) {
   const THREE = await loadThree();
   let watch = o.mode === 'watch';
-  const sim = createPlay({ me: o.me, opp: o.opp, halfSec: o.halfSec || 90, level: o.level || 1, tactic: o.tactic || 'balance', auto: watch });
+  const sim = createPlay({ me: o.me, opp: o.opp, halfSec: o.halfSec || 90, level: o.level || 1, tactic: o.tactic || 'balance', auto: watch, diff: o.diff || 'easy' });
   const S = sim.state;
   const root = document.createElement('div'); root.className = 'p3d';
   root.innerHTML = `<canvas class="p3d-cv"></canvas>
