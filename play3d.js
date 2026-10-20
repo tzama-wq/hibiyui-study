@@ -78,7 +78,7 @@ export async function startPlay3D(o) {
       <div class="p3d-btns"><button class="pb pb-d" data-b="sprint">ダッシュ</button><button class="pb pb-c" data-b="lob">ロング</button><button class="pb pb-a" data-b="pass">パス</button><button class="pb pb-b" data-b="shoot">シュート</button></div></div>
     <div class="p3d-intro"><div class="pi-vs"><div class="pi-team a"><small>HOME</small><b class="pi-na"></b><span class="pi-pa"></span><em class="pi-ka"></em></div><i>VS</i><div class="pi-team b"><small>AWAY</small><b class="pi-nb"></b><span class="pi-pb"></span><em class="pi-kb"></em></div></div><div class="pi-info"></div><div class="pi-count"></div><div class="pi-skip">タップで スキップ ▶</div></div>
     <div class="p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
-    <div class="p3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn" data-m="skipintro" hidden>⏭ オープニングを とばす</button><button class="btn" data-m="skip">⏭ しあいを スキップ(のこりは じどうで)</button><button class="btn" data-m="mode"></button><button class="btn" data-m="swap"></button><div class="p3d-tactics"><small>せんじゅつ</small><button class="chipb" data-t="attack">アタック</button><button class="chipb" data-t="balance">バランス</button><button class="chipb" data-t="counter">カウンター</button></div><button class="btn gray" data-m="quit">しあいを やめる</button></div></div>`;
+    <div class="p3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn" data-m="skipintro" hidden>⏭ オープニングを とばす</button><button class="btn" data-m="skip">⏭ しあいを スキップ(いまの スコアで けっか。どうてんなら のこりを じどうで)</button><button class="btn" data-m="mode"></button><button class="btn" data-m="swap"></button><div class="p3d-tactics"><small>せんじゅつ</small><button class="chipb" data-t="attack">アタック</button><button class="chipb" data-t="balance">バランス</button><button class="chipb" data-t="counter">カウンター</button></div><button class="btn gray" data-m="quit">しあいを やめる</button></div></div>`;
   (o.root || document.body).appendChild(root);
   const prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; // うしろの がめんが うごかない ように
   const cv = root.querySelector('.p3d-cv');
@@ -114,8 +114,9 @@ export async function startPlay3D(o) {
   const ballM = new THREE.Mesh(new THREE.SphereGeometry(0.3 * SC * 0.8, 16, 12), new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#222222' })); scene.add(ballM);
   const bshadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 12), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.4, depthWrite: false })); bshadow.rotation.x = -Math.PI / 2; bshadow.position.y = 0.03; scene.add(bshadow);
   // じぶんの せんしゅの めじるし
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.9 * SC * 0.7, 1.2 * SC * 0.7, 28), new THREE.MeshBasicMaterial({ color: '#ffd23f', side: THREE.DoubleSide, transparent: true, opacity: 0.95, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; scene.add(ring);
-  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.8, 4), new THREE.MeshBasicMaterial({ color: '#ffd23f' })); arrow.rotation.x = Math.PI; scene.add(arrow);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.7, 2.45, 36), new THREE.MeshBasicMaterial({ color: '#ffd23f', side: THREE.DoubleSide, transparent: true, opacity: 0.95, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; scene.add(ring);
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.95, 1.9, 4), new THREE.MeshBasicMaterial({ color: '#ffd23f' })); arrow.rotation.x = Math.PI; scene.add(arrow);
+  const ring2 = new THREE.Mesh(new THREE.RingGeometry(2.6, 2.95, 36), new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide, transparent: true, opacity: 0.7, depthWrite: false })); ring2.rotation.x = -Math.PI / 2; ring2.position.y = 0.07; scene.add(ring2);
 
   // ---- そうさ(ジョイスティック・ボタン・キーボード) ---------------------------------
   const stick = root.querySelector('.p3d-stick'); const knob = root.querySelector('.p3d-knob'); let sid = null; let so = { x: 0, y: 0 }; const R = 56;
@@ -207,7 +208,7 @@ export async function startPlay3D(o) {
     const b = sim.ball; ballM.position.set(b.x, Math.max(0.3 * SC * 0.8, b.y * 1 + 0.3), b.z); ballM.rotation.z -= b.vx * dt * 1.2; ballM.rotation.x += b.vz * dt * 1.2;
     bshadow.position.set(b.x, 0.03, b.z); bshadow.scale.setScalar(clamp(1.1 - b.y * 0.08, 0.4, 1.2));
     const cp = sim.ctrlP(); const cm = models.a[cp.idx];
-    ring.visible = arrow.visible = !watch; ring.position.set(cp.x, 0.06, cp.z); ring.rotation.z = t * 2; arrow.position.set(cp.x, 4.4 + Math.sin(t * 5) * 0.25, cp.z); arrow.rotation.y = t * 3;
+    ring.visible = arrow.visible = ring2.visible = !watch; ring.position.set(cp.x, 0.06, cp.z); ring.rotation.z = t * 2; ring2.position.set(cp.x, 0.07, cp.z); ring2.scale.setScalar(1 + Math.sin(t * 5) * 0.08); arrow.position.set(cp.x, 6.0 + Math.sin(t * 5) * 0.4, cp.z); arrow.rotation.y = t * 3;
     void cm;
     // カード(イエロー/レッド)を あたまの うえに ひょうじ
     while (cardsShown < S.cards.length) { const c = S.cards[cardsShown++]; const pl = sim.players[c.side][c.idx]; if (pl) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.3), new THREE.MeshBasicMaterial({ color: c.color === 'red' ? '#e0302a' : '#ffd23f', side: THREE.DoubleSide })); m.position.set(pl.x, 5.0, pl.z); scene.add(m); cardMeshes.push({ m, t: 2.6 }); } }
@@ -259,7 +260,9 @@ export async function startPlay3D(o) {
   }
   iEl.addEventListener('pointerdown', (e) => { endIntro(); e.preventDefault(); });
   function skipMatch() { // しあいを スキップ: のこりを AI で いっきに すすめて けっかへ
-    setPause(false); intro = null; root.classList.remove('intro'); sim.setAuto(true); let n = 0; while (!S.done && n++ < 120000) sim.step(1 / 30);
+    setPause(false); intro = null; root.classList.remove('intro');
+    if (S.score.a !== S.score.b) sim.endNow(); // かって いる(まけて いる)ときは いまの スコアで けっかへ
+    else { sim.setAuto(true); let n = 0; while (!S.done && n++ < 120000) sim.step(1 / 30); } // どうてんの ときは のこりを じどうで(のびたら ゴールデンゴール・PK戦)
     S.snd.length = 0; ended = true; finish();
   }
   function finish() { const r = { score: { ...S.score }, events: S.events, winner: S.winner, shots: { ...S.shots }, fouls: { ...S.fouls }, offsides: { ...S.offsides }, poss: { ...S.poss }, cards: S.cards, extra: S.extra }; destroy(); if (o.onEnd) o.onEnd(r); }

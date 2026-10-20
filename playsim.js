@@ -619,6 +619,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
   S.ph = 'kickoff'; S.dead = 1.6;
   return {
     state: S, players, ball, input, homes, press, release, step, charge: shootCharge, teams, aiLevel, ctrlP, minuteNow, clockText, FIELD,
+    endNow() { if (!S.done) finish(null); }, // いまの スコアで しあいを おわらせる
     setAuto, setTactic(t) { if (TACTICS[t]) tact.a = TACTICS[t]; }, _foul: foul, _dead: deadBall, _out: outOfPlay, _tact: tact,
     skip() { /* しあいを すぐ おわらせる(テスト・とばす用) */ let n = 0; while (!S.done && n++ < 200000) step(1 / 30); },
   };
