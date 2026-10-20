@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import {
   PLAYERS, RARITIES, TICKETS, LEGEND_RATES, TICKET_ORDER, STATS, rates, rollRarity, pull, levelOf, rngSeed,
-  studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets,
+  studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets, pityLeft,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
   FORMATIONS, slotsOf, refitTeam, MAX_LEVEL, matchSummary, DIAMOND, diamondReq, claimDiamond, addShards, rarityRank, DIAMOND_CAP, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
@@ -427,4 +427,18 @@ console.log('OK: game');
   const r = pull(p, 'god', rnd); assert.equal(r.player.rarity, 'legend'); assert.equal(p.tickets.god, 1);
   assert.ok(Object.keys(studyReward({ good: 5, total: 5, mode: 'normal', perfect: true })).every((k) => k !== 'god'));
   console.log('OK: 神チケット');
+}
+
+// ---- てんじょう: 50かい め で そのチケットの さいこうレア(レジェンド) ----
+{
+  const mkp = () => ({ tickets: { ...emptyTickets(), bronze: 120, silver: 60, gold: 60, platinum: 60 }, owned: {}, pity: {} });
+  for (const tk of ['bronze', 'silver', 'gold', 'platinum']) {
+    const p = mkp(); for (let i = 0; i < 49; i++) { const r = pull(p, tk, () => 0.5); assert.notEqual(r.player.rarity, 'legend', `${tk} ${i + 1}かいめは ふつう`); assert.ok(!r.pity); }
+    assert.equal(pityLeft(p, tk), 1, 'あと1かい');
+    const r50 = pull(p, tk, () => 0.5); assert.equal(r50.player.rarity, 'legend', `${tk} 50かいめは レジェンド`); assert.ok(r50.pity); assert.equal(pityLeft(p, tk), 50, 'かぞえなおし');
+  }
+  const p = mkp(); for (let i = 0; i < 10; i++) pull(p, 'bronze', () => 0.5); assert.equal(pityLeft(p, 'bronze'), 40); assert.equal(pityLeft(p, 'silver'), 50, 'チケットごとに べつ');
+  pull(p, 'bronze', () => 0); assert.equal(pityLeft(p, 'bronze'), 50, 'じぜんに レジェンドが でても かぞえなおし');
+  const g = { tickets: { ...emptyTickets(), god: 3 }, owned: {} }; assert.equal(pull(g, 'god').player.rarity, 'legend'); assert.equal(pityLeft(g, 'god'), 0);
+  console.log('OK: てんじょう');
 }

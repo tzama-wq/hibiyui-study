@@ -267,13 +267,21 @@ export function rollPlayer(ticket, rnd = Math.random) {
   return pool[Math.floor(rnd() * pool.length)];
 }
 // 1回ひく: チケットを1まい つかって、選手を コレクションに くわえる
+// てんじょう: おなじ チケットで 50かい ひくと、そのチケットで いちばん たかい レア(レジェンド)が かならず でる。レジェンドが でると かぞえなおし
+export const PITY = 50;
+export const pityLeft = (p, ticket) => (ticket === 'god' ? 0 : PITY - ((p.pity || {})[ticket] || 0));
 export function pull(p, ticket, rnd = Math.random) {
   if (!(p.tickets && p.tickets[ticket] > 0)) return null;
   p.tickets[ticket]--;
-  const player = rollPlayer(ticket, rnd);
+  p.pity = p.pity && typeof p.pity === 'object' ? p.pity : {};
+  const n = (p.pity[ticket] || 0) + 1; const guaranteed = ticket !== 'god' && n >= PITY;
+  let player;
+  if (guaranteed) { const pool = PLAYERS.filter((x) => x.rarity === 'legend'); player = pool[Math.floor(rnd() * pool.length)]; }
+  else player = rollPlayer(ticket, rnd);
+  p.pity[ticket] = player.rarity === 'legend' ? 0 : n;
   const before = p.owned[player.id] || 0;
   p.owned[player.id] = before + 1;
-  return { player, isNew: before === 0, copies: before + 1 };
+  return { player, isNew: before === 0, copies: before + 1, pity: guaranteed };
 }
 // 同じ選手が ふえると レベルアップ(さいだい +5)。1レベルごとに 能力 +4%
 export const levelOf = (copies) => Math.max(0, Math.min(5, (copies || 1) - 1));

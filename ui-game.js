@@ -101,10 +101,11 @@ export function gachaTab() {
     ${(() => { const left = gachaLeft(p, X.cfg ? X.cfg() : DEFAULTS, X.today()); return left === Infinity ? '' : `<div class="muted">きょうの ガチャ: あと ${left}かい(チケットは のこしておけるよ)</div>`; })()}
     <div class="pull-list">${shown.map((t) => {
     const n = p.tickets[t];
-    return `<div class="pull-row tk-${t}"><div><b>${G.TICKETS[t].icon} ${G.TICKETS[t].name}</b><small>${G.RARITY_NAME[G.TICKETS[t].min]}いじょう かくてい</small></div>
+    return `<div class="pull-row tk-${t}"><div><b>${G.TICKETS[t].icon} ${G.TICKETS[t].name}</b><small>${G.RARITY_NAME[G.TICKETS[t].min]}いじょう かくてい${t === G.GOD ? '' : ` ・ 👑 てんじょう あと ${G.pityLeft(p, t)}かい`}</small></div>
         <button class="btn small" data-act="pull" data-t="${t}" data-n="1" ${n && lim > 0 ? '' : 'disabled'}>1かい</button>
         <button class="btn small gold" data-act="pull" data-t="${t}" data-n="${Math.min(10, n, lim)}" ${n >= 2 && lim >= 2 ? '' : 'disabled'}>まとめて ${Math.min(10, n, lim)}</button></div>`;
   }).join('')}</div>
+    <div class="muted">👑 てんじょう: おなじ チケットで 50かい ひくと、そのチケットで いちばん たかい レア(レジェンド)が かならず でるよ。レジェンドが でると かぞえなおし。</div>
     ${total ? '' : '<div class="muted">チケットが ないよ。れんしゅうで ゲットしよう!(6わり いじょう せいかいで もらえる)</div>'}
   </section>
   <section class="panel"><h2 class="sec">RATE <small>でやすさ</small></h2>
@@ -118,7 +119,7 @@ function stageHtml() {
   }
   const best = Gs.results.reduce((b, r) => (G.RARITIES.indexOf(r.player.rarity) > G.RARITIES.indexOf(b) ? r.player.rarity : b), 'common');
   const one = Gs.results.length === 1;
-  return `<div class="gacha-stage reveal r-${best}"><div class="gs-rar">${G.RARITY_NAME[best]}${one ? '' : ' が でたよ!'}</div>
+  return `<div class="gacha-stage reveal r-${best}"><div class="gs-rar">${Gs.results.some((r) => r.pity) ? '👑 てんじょう! ' : ''}${G.RARITY_NAME[best]}${one ? '' : ' が でたよ!'}</div>
     <div class="gs-cards ${one ? 'one' : ''}">${Gs.results.map((r, i) => `<div class="gs-card" style="animation-delay:${0.1 + i * 0.12}s">${cardHtml({ ...r.player, level: G.levelOf(r.copies) }, { stats: one })}${r.isNew ? '<em class="new">NEW!</em>' : `<em class="dup">レベル${G.levelOf(r.copies)}</em>`}</div>`).join('')}</div>
     ${one && Gs.results[0].player.type ? `<div class="gs-type">${esc(Gs.results[0].player.type)}</div>` : ''}
     <button class="btn gold" data-act="gachaclose">とじる</button></div>`;
