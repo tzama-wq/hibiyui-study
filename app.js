@@ -628,13 +628,15 @@ function claimGifts() {
   const p = S.kids[kidId]; p.gifts = p.gifts || [];
   for (const g of GIFTS) {
     const mine = g.to && g.to[kidId]; if (!mine || p.gifts.includes(g.id)) continue;
-    const { pts, cfgPreset, ...tk } = mine; // pts: のうりょく ポイント({SPD: 30})/ cfgPreset: やさしい せってい プリセット名 / それいがい: チケット
+    const { pts, cfgPreset, shards: giftShards, masterAll, ...tk } = mine; // pts: のうりょく ポイント({SPD: 30})/ cfgPreset: やさしい せってい プリセット名 / shards: ダイヤの かけら / masterAll: ぜんぶの たんげんを「できた」に する / それいがい: チケット
     if (cfgPreset && PRESETS[cfgPreset]) setCfg(S, kidId, PRESETS[cfgPreset].set); // いまの せっていに かさねる(ほかの せっていは のこす)
+    if (giftShards) addShards(p, giftShards);
+    if (masterAll) { const kk = kidOf(); p.okSeen = p.okSeen || {}; for (const u of skillsUpTo(kk.grade)) { p.units[u.id] = { ok: 6, ng: 0, h: [1, 1, 1, 1], d: [dstr(new Date(Date.now() - 864e5)), todayStr()] }; p.okSeen[u.id] = 1; } }
     addTickets(p, tk);
     p.pts = { ...emptyStatMap(), ...(p.pts || {}) }; for (const [st, n] of Object.entries(pts || {})) if (st in p.pts) p.pts[st] += n;
     p.gifts.push(g.id); save();
     const STN = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
-    const txt = [...(cfgPreset ? ['やさしい せっていを いれたよ'] : []), ...Object.entries(tk).map(([t, n]) => `${TK_NAME[t] || t}×${n}`), ...Object.entries(pts || {}).map(([st, n]) => `${STN[st] || st} +${n}pt`)].join(' ');
+    const txt = [...(cfgPreset ? ['やさしい せっていを いれたよ'] : []), ...(giftShards ? [`💠 ダイヤの かけら ×${giftShards}`] : []), ...(masterAll ? ['ぜんぶの たんげんが「できた」に なったよ'] : []), ...Object.entries(tk).map(([t, n]) => `${TK_NAME[t] || t}×${n}`), ...Object.entries(pts || {}).map(([st, n]) => `${STN[st] || st} +${n}pt`)].join(' ');
     setTimeout(() => { toast(`🎁 プレゼント! ${txt} ${g.msg || ''}`); confetti(innerWidth / 2, innerHeight * 0.3, 140, 1.6); beep('win'); vibrate([60, 40, 100]); }, 500);
   }
 }
