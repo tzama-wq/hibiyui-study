@@ -83,9 +83,9 @@ function slotCard(sk, sl, ch, chars) {
   let list = '';
   if (open) {
     const opts = chars.filter((x) => !usedElsewhere.has(x.id)).map((x) => ({ x, pt: partOf(sk.vehicle, sl.id, x) })).sort((a, b) => b.pt.power - a.pt.power).slice(0, 40);
-    list = `<div class="slot-list">${cur ? `<button class="btn small gray" data-act="skyput" data-slot="${sl.id}" data-id="">✖ はずす</button>` : ''}${opts.map(({ x, pt: q }) => `<button class="slot-opt r-${x.rarity} ${x.id === cur ? 'sel' : ''}" data-act="skyput" data-slot="${sl.id}" data-id="${x.id}"><span class="mc-face">${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.outerHTML='${esc(x.face)}'">` : esc(x.face)}</span><b>${esc(x.name)}</b><small>${RARITY_NAME[x.rarity] || ''}・${G.POS_NAME[x.pos] || x.pos}</small><em>${q.power}${q.fit ? ' ◎' : ''}</em></button>`).join('') || '<div class="muted">キャラが いないよ。ガチャで あつめよう!</div>'}</div>`;
+    list = `<div class="eq-list">${cur ? `<button class="btn small gray" data-act="skyput" data-slot="${sl.id}" data-id="">✖ はずす</button>` : ''}${opts.map(({ x, pt: q }) => `<button class="eq-opt r-${x.rarity} ${x.id === cur ? 'sel' : ''}" data-act="skyput" data-slot="${sl.id}" data-id="${x.id}"><span class="mc-face">${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.outerHTML='${esc(x.face)}'">` : esc(x.face)}</span><b>${esc(x.name)}</b><small>${RARITY_NAME[x.rarity] || ''}・${G.POS_NAME[x.pos] || x.pos}</small><em>${q.power}${q.fit ? ' ◎' : ''}</em></button>`).join('') || '<div class="muted">キャラが いないよ。ガチャで あつめよう!</div>'}</div>`;
   }
-  return `<div class="slot ${open ? 'open' : ''}"><button class="slot-head r-${c ? c.rarity : 'none'}" data-act="skyslot" data-slot="${sl.id}"><span class="sl-ico">${sl.icon}</span><div><b>${sl.name}</b><small>${sl.note}${sl.match.length ? ` ・ ◎=${sl.match.map((m) => G.POS_NAME[m] || m).join('/')}` : ''}</small></div>
+  return `<div class="eq-slot ${open ? 'open' : ''}"><button class="eq-head r-${c ? c.rarity : 'none'}" data-act="skyslot" data-slot="${sl.id}"><span class="sl-ico">${sl.icon}</span><div><b>${sl.name}</b><small>${sl.note}${sl.match.length ? ` ・ ◎=${sl.match.map((m) => G.POS_NAME[m] || m).join('/')}` : ''}</small></div>
     <div class="sl-cur">${c ? `<span class="mc-face">${c.img ? `<img src="${esc(c.img)}" alt="" onerror="this.outerHTML='${esc(c.face)}'">` : esc(c.face)}</span><b>${esc(c.name)}</b><em>${pt.power}${pt.fit ? ' ◎' : ''}</em>` : '<span class="muted">(からっぽ)</span>'}</div></button>${list}</div>`;
 }
 export function hangarHtml(k, p) {
@@ -95,7 +95,7 @@ export function hangarHtml(k, p) {
     <canvas class="sky-prev" width="640" height="320"></canvas>
     <div class="sky-me"><em>パワー ${V.rating}</em>${bars(V)}<div class="muted">いのち ${V.hpMax} ・ ミサイル ${V.missiles}はつ ・ ロック ${V.locks}</div></div>
     <div class="row"><button class="btn gold" data-act="skyauto">✨ おまかせ そうび</button><button class="btn gray" data-act="skyclearall">ぜんぶ はずす</button></div>
-    <div class="slots">${SLOTS[sk.vehicle].map((sl) => slotCard(sk, sl, null, chars)).join('')}</div>
+    <div class="eq-slots">${SLOTS[sk.vehicle].map((sl) => slotCard(sk, sl, null, chars)).join('')}</div>
     <div class="muted">おなじ キャラは 1つの ぶひんだけ。◎は ポジションが ぴったり(つよさ ×1.2)。レアどが たかいほど つよい ぶひんに なるよ。きょうか・きゅうしゅうも ぜんぶ きくよ!</div></section>`;
 }
 

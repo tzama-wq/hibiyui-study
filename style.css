@@ -703,11 +703,11 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .vtabs{display:flex;gap:6px;margin:8px 0}.vtabs button{flex:1;padding:8px 4px;background:#0c1a36;color:#fff;border:2px solid #24386a;font:inherit;font-weight:900;cursor:pointer}.vtabs button span{display:block;font-size:26px}.vtabs button.on{border-color:#ffd23f;background:#1a2f5c;box-shadow:0 0 0 2px rgba(255,210,63,.25)}.vnote{margin-bottom:6px}
 .sky-me{margin:8px 0;padding:10px;background:#0c1a36;border:2px solid #24386a}.sky-me em{font-style:normal;font-weight:900;color:#ffd23f;margin-left:6px}
 .sky-prev{width:100%;height:auto;aspect-ratio:2/1;background:linear-gradient(#7fb8f0,#1f6fa8);border:2px solid #24386a;display:block}
-.slots{margin:8px 0}.slot{margin:6px 0;background:#0c1a36;border:2px solid #24386a}.slot.open{border-color:#ffd23f}
-.slot-head{display:flex;gap:8px;align-items:center;width:100%;padding:8px;background:none;border:0;color:#fff;font:inherit;text-align:left;cursor:pointer}.slot-head small{display:block;font-size:10px;opacity:.75}.sl-ico{font-size:24px}.sl-cur{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px}.sl-cur em{font-style:normal;color:#ffd23f;font-weight:900}
-.slot-list{display:flex;flex-direction:column;gap:4px;padding:6px;max-height:280px;overflow:auto;border-top:1px solid #24386a}
-.slot-opt{display:flex;gap:8px;align-items:center;padding:6px;background:#142040;border:2px solid #24386a;color:#fff;font:inherit;text-align:left;cursor:pointer}.slot-opt.sel{border-color:#ffd23f}.slot-opt small{font-size:10px;opacity:.75}.slot-opt em{margin-left:auto;font-style:normal;font-weight:900;color:#ffd23f}
-.slot-opt.r-legend{border-color:#ff9f1c}.slot-opt.r-diamond{border-color:#9ff3ff}.slot-opt.r-super{border-color:#b57bff}.slot-opt.r-rare{border-color:#4aa3ff}
+.eq-slots{margin:8px 0}.eq-slot{margin:6px 0;background:#0c1a36;border:2px solid #24386a}.eq-slot.open{border-color:#ffd23f}
+.eq-head{display:flex;gap:8px;align-items:center;width:100%;padding:8px;background:none;border:0;color:#fff;font:inherit;text-align:left;cursor:pointer}.eq-head small{display:block;font-size:10px;opacity:.75}.sl-ico{font-size:24px}.sl-cur{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px}.sl-cur em{font-style:normal;color:#ffd23f;font-weight:900}
+.eq-list{display:flex;flex-direction:column;gap:4px;padding:6px;max-height:280px;overflow:auto;border-top:1px solid #24386a}
+.eq-opt{display:flex;gap:8px;align-items:center;padding:6px;background:#142040;border:2px solid #24386a;color:#fff;font:inherit;text-align:left;cursor:pointer}.eq-opt.sel{border-color:#ffd23f}.eq-opt small{font-size:10px;opacity:.75}.eq-opt em{margin-left:auto;font-style:normal;font-weight:900;color:#ffd23f}
+.eq-opt.r-legend{border-color:#ff9f1c}.eq-opt.r-diamond{border-color:#9ff3ff}.eq-opt.r-super{border-color:#b57bff}.eq-opt.r-rare{border-color:#4aa3ff}
 .mc-face{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;flex:none}.mc-face img{width:100%;height:100%;object-fit:cover}
 .ab-tg{right:196px;bottom:18px;background:#7a4ad8;width:64px;height:64px;font-size:10px}
 .a3d-marks .mk.tgt{border-color:#fff;box-shadow:0 0 0 2px #ff4d5e}
@@ -729,3 +729,10 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .a3d-brief small{color:#7fe7ff;letter-spacing:.2em}.a3d-brief h2{margin:4px 0 8px;font-size:22px}.a3d-brief p{margin:6px 0;font-size:13px;line-height:1.5}
 .ab-goal{margin:8px 0;padding:6px;background:rgba(255,210,63,.16);border-left:4px solid #ffd23f;font-weight:900}.ab-en{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:6px 0}.ab-en span{background:rgba(255,255,255,.1);padding:3px 8px;font-size:12px}
 .ab-tip{color:#bfe6ff}.ab-mix{color:#9fb7d6;font-size:12px}.a3d-brief .btn{display:block;width:100%;margin-top:10px}.ab-wait{margin-top:10px;color:#7fe7ff}.ab-vs{font-size:20px}
+/* かくのう庫の スロット: せまい がめんでも くずれない ように */
+.eq-head{flex-wrap:wrap;writing-mode:horizontal-tb}
+.eq-head>div:not(.sl-cur){flex:1 1 140px;min-width:0;word-break:keep-all;overflow-wrap:anywhere}
+.eq-head b{display:block;font-size:15px}.eq-head small{display:block;line-height:1.35}
+.sl-cur{flex:1 1 100%;margin-left:0;padding-top:4px;border-top:1px dashed #24386a;min-width:0}
+.sl-cur b{font-size:13px;display:inline;flex:1;min-width:0}
+.eq-opt{flex-wrap:wrap}.eq-opt b{flex:1 1 90px;min-width:0}
