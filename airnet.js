@@ -21,7 +21,7 @@ export function snapshot(sim) {
 
 // ---- ホスト ---------------------------------------------------------------------
 export function hostBind(sim, conn) {
-  let acc = 0; let alive = true;
+  let acc = 0; let alive = true; const sndBuf = [];
   conn.on((m) => {
     if (!alive || !m) return; const G = sim.players[1]; if (!G) return;
     if (m.t === 'in' && m.i) { const i = G.input; i.turn = +m.i[0] || 0; i.climb = +m.i[1] || 0; i.gun = !!m.i[2]; i.boost = !!m.i[3]; i.aimX = +m.i[4] || 0; i.aimY = +m.i[5] || 0; }
@@ -29,9 +29,10 @@ export function hostBind(sim, conn) {
   });
   conn.onClose(() => { alive = false; const G = sim.players[1]; if (G) { G.input.gun = false; G.input.boost = false; G.input.turn = 0; G.input.climb = 0; G.input.aimX = 0; G.input.aimY = 0; } });
   return {
-    tick(dt) { acc += dt; if (acc < 0.05) return; acc = 0; if (conn.isOpen()) { conn.fast(snapshot(sim)); sim.state.snd.length = 0; if (sim.state.done) conn.send(snapshot(sim)); } },
+    tick(dt) { acc += dt; if (acc < 0.05) return; acc = 0; if (conn.isOpen()) { const sn = snapshot(sim); sn.snd = sndBuf.splice(0, 20); conn.fast(sn); } },
     // おわったら さいごの スナップショットを かくじつに おくる
-    finish() { if (conn.isOpen()) conn.send(snapshot(sim)); },
+    finish() { if (conn.isOpen()) { const sn = snapshot(sim); sn.snd = []; conn.send(sn); } },
+    snd: sndBuf,
     gone: () => !alive || !conn.isOpen(),
   };
 }

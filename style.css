@@ -714,3 +714,11 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 
 .a3d-ret{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border:2px solid rgba(255,255,255,.85);border-radius:50%;pointer-events:none}.a3d-ret i{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;background:#ff4d5e;border-radius:50%}.a3d-ret.lock{border-color:#ff4d5e;box-shadow:0 0 8px #ff4d5e}
 .a3d.aiming .a3d-ret{border-color:#ffd23f}
+.a3d-pbar{display:flex;gap:6px;align-items:center;font-size:11px;margin-top:3px;background:rgba(6,16,34,.6);padding:2px 6px}.a3d-pbar i{width:90px;height:7px;background:rgba(255,255,255,.15);display:block}.a3d-pbar u{display:block;height:100%;background:#5dd6ff}.a3d-pbar.low u{background:#ff4d5e}.a3d-marks .mk.mate{border-color:#5dd6ff}
+
+.netm{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:12px}
+.netbox{background:#0c1a36;border:3px solid #27d8ff;color:#fff;padding:14px;max-width:420px;width:100%;max-height:92vh;overflow:auto;text-align:center}.netbox h3{margin:0 0 6px;color:#7fe7ff}
+.netbox .btn{display:block;width:100%;margin:8px 0}.netbox .btn.small{display:inline-block;width:auto;margin:4px}.qrbox{background:#fff;padding:4px;display:inline-block}.qrbox svg{display:block;max-width:100%;height:auto}
+.scanv{width:100%;max-height:260px;background:#000;margin:6px 0}.codein{width:100%;background:#fff;color:#000;font-size:11px}.netst{min-height:18px;margin:6px 0}
+.netpair{display:flex;justify-content:space-around;align-items:center;gap:6px;margin:8px 0;font-size:13px}.netmodes{display:flex;gap:6px}.netmodes .btn{margin:6px 0}.netms{display:flex;flex-wrap:wrap;justify-content:center;margin:6px 0}
+.netcard{margin:10px 0;padding:10px;background:#0c1a36;border:2px solid #7a4ad8}

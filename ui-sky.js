@@ -1,7 +1,8 @@
 // 「そらの まもり」(エースコンバット・アーマードコアふうの ゲームモード)の 画面: ミッション・かくのう庫(そうび)・しゅつげき・ごほうび。
 // しゅじんこう = じぶん(サッカーの つよさを ひきつぐ)。ガチャの キャラは「ぶひん」(きかんじゅう・ミサイル・つばさ…)として そうびする。
 import * as G from './game.js';
-import { VEHICLES, SLOTS, RARITY_NAME, RARITY_RANK, partOf, buildVehicle, autoLoadout, MISSIONS, missionById, missionMix } from './airsim.js';
+import { VEHICLES, SLOTS, RARITY_NAME, RARITY_RANK, partOf, buildVehicle, autoLoadout, MISSIONS, missionById, missionMix, PVP_MISSION } from './airsim.js';
+import { pairUI, modal, closeModal } from './ui-net.js';
 import { startAir3D, startPreview, stopPreview } from './air3d.js';
 import { createSfx } from './sfx.js';
 
@@ -66,6 +67,7 @@ export function skyHome(k, p) {
     <div class="sky-me"><b>${VEHICLES[sk.vehicle].icon} ${esc(k.name)}の ${VEHICLES[sk.vehicle].name}</b> <em>パワー ${V.rating}</em>${bars(V)}
       <div class="muted">そうび ${eq}/5 ${eq < 5 ? '… かくのう庫で ぶひんを つけると もっと つよく なるよ' : ''}</div>
       <button class="btn small gray" data-act="tab" data-tab="team">🛠 かくのう庫で そうびする</button></div>
+    <div class="netcard"><b>📡 ふたりで あそぶ</b><div class="muted">おなじ Wi-Fi の スマホ 2だいで、きょうりょく(いっしょに てきを たおす)か たいせん(のりもの どうしで たたかう)!</div><button class="btn gold" data-act="netsky">📡 つなぐ</button></div>
     <h3 class="sec">MISSION <small>ミッション</small></h3>
     <div class="muted">どの のりものでも クリアできるよ。ミッションごとに くう✈️・うみ🚢・りく🚜の てきが ちがうよ。あいしょうの いい のりものを さがそう!</div>
     ${MISSIONS.map((m, i) => { const ok = unlocked(i); const first = !(sk.firsts[`${m.id}:${sk.vehicle}`]);
@@ -98,10 +100,10 @@ export function hangarHtml(k, p) {
 }
 
 // ---- あそぶ ----------------------------------------------------------------------
-async function startMission(id) {
+async function startMission(id, net) {
   if (STARTING) return false; STARTING = true;
   try {
-    const k = X.kid(); const p = X.p(); const sk = ensureSky(p); const mis = missionById(id); if (!mis) return false;
+    const k = X.kid(); const p = X.p(); const sk = ensureSky(p); const mis = id === 'pvp' ? PVP_MISSION : missionById(id); if (!mis) return false;
     const vehicle = sk.vehicle; const { V, spec } = specOf(k, p, vehicle);
     X.toast('🛫 しゅつげき じゅんびちゅう…');
     SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false));
@@ -109,7 +111,7 @@ async function startMission(id) {
     if (AG) { AG.destroy(); AG = null; }
     stopPreview();
     try {
-      AG = await startAir3D({ vehicle: V, spec, mission: mis, gentle: !!(X.cfg && X.cfg().gentle), calm: !!(X.cfg && X.cfg().calm),
+      AG = await startAir3D({ vehicle: V, spec, mission: mis, net, gentle: !!(X.cfg && X.cfg().gentle), calm: !!(X.cfg && X.cfg().calm),
         onSfx: (n) => { if (SFX && map[n]) SFX.play(map[n]); },
         onQuit: () => { AG = null; X.render(); },
         onEnd: (r) => { AG = null; finishMission(mis, r, vehicle); } });
@@ -119,6 +121,10 @@ async function startMission(id) {
 }
 export function finishMission(mis, r, vehicle) {
   const p = X.p(); const sk = ensureSky(p); const t = X.today();
+  if (r.pvp || r.lostLink && !r.coop) {
+    if (r.pvp && !r.lostLink) { sk.pvp = sk.pvp || { w: 0, l: 0 }; if (r.win) sk.pvp.w++; else sk.pvp.l++; p.xp += r.win ? 15 : 8; }
+    sk.last = { win: !!r.win, stars: 0, name: 'たいせん', rewardText: r.lostLink ? 'つうしんが きれたよ' : `${sk.pvp.w}しょう ${sk.pvp.l}はい` }; X.save(); X.render(); return;
+  }
   let reward = {}; let text = '';
   if (r.win) {
     const fk = `${mis.id}:${vehicle}`; const firstVeh = !sk.firsts[fk]; const firstAny = !sk.cleared[mis.id];
@@ -145,6 +151,7 @@ export function onSkyAct(a, el) {
   switch (a) {
     case 'skyveh': { if (VEHICLES[el.dataset.v]) { sk.vehicle = el.dataset.v; delete sk.pick; X.save(); X.render(); } return true; }
     case 'skygo': startMission(el.dataset.m); return true;
+    case 'netsky': openSkyNet(); return true;
     case 'skyclear': { delete sk.last; X.save(); X.render(); return true; }
     case 'skyslot': { sk.pick = sk.pick === el.dataset.slot ? null : el.dataset.slot; X.render(); return true; }
     case 'skyput': {
@@ -158,3 +165,41 @@ export function onSkyAct(a, el) {
   }
 }
 void RARITY_RANK;
+
+// ---- ふたりで あそぶ(ローカル つうしん) ----------------------------------------------------
+function openSkyNet() {
+  const k = X.kid(); const p = X.p(); const sk = ensureSky(p); const mine = specOf(k, p, sk.vehicle);
+  const hello = { t: 'hello', name: k.name, vehicle: mine.V, spec: mine.spec };
+  pairUI({ title: '📡 ふたりで そらの まもり', onConn: (conn, role) => lobby(conn, role, hello), onCancel: () => {} });
+}
+function lobby(conn, role, hello) {
+  let partner = null; let replied = false; let started = false;
+  const sendHello = () => conn.send(hello);
+  const unlocked = (sk) => MISSIONS.filter((m, i) => i === 0 || sk.cleared[MISSIONS[i - 1].id]);
+  const show = () => {
+    const sk = ensureSky(X.p());
+    if (!partner) { modal('<h3>つながったよ!</h3><p class="muted">あいての じゅんびを まっているよ…</p><button class="btn gray" data-n="x">やめる</button>').querySelector('[data-n=x]').addEventListener('click', () => { conn.close(); closeModal(); }); return; }
+    const pv = partner.spec; const mv = hello.spec;
+    const head = `<h3>📡 つながった!</h3><div class="netpair"><div><b>${esc(hello.name)}</b><br>${mv.icon} ${esc(mv.vname)}<br><small>パワー ${hello.vehicle.rating}</small></div><div>⚔️🤝</div><div><b>${esc(partner.name)}</b><br>${pv.icon} ${esc(pv.vname)}<br><small>パワー ${partner.vehicle.rating}</small></div></div>`;
+    if (role === 'host') {
+      const box = modal(`${head}<p class="muted">あそびかたを えらんでね</p><div class="netmodes"><button class="btn gold" data-n="coop">🤝 きょうりょく</button><button class="btn" data-n="pvp">⚔️ たいせん</button></div>
+        <div class="netms" hidden>${unlocked(sk).map((m) => `<button class="btn small" data-n="go" data-m="${m.id}">${m.icon} ${esc(m.name)}</button>`).join('')}</div><button class="btn gray" data-n="x">やめる</button>`);
+      box.querySelector('[data-n=coop]').addEventListener('click', () => { box.querySelector('.netms').hidden = false; });
+      box.querySelector('[data-n=pvp]').addEventListener('click', () => go('pvp'));
+      box.querySelectorAll('[data-n=go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.m)));
+      box.querySelector('[data-n=x]').addEventListener('click', () => { conn.close(); closeModal(); });
+    } else {
+      const box = modal(`${head}<p class="muted">ホストが あそびかたを えらんでいるよ…</p><button class="btn gray" data-n="x">やめる</button>`);
+      box.querySelector('[data-n=x]').addEventListener('click', () => { conn.close(); closeModal(); });
+    }
+  };
+  const begin = (mid, r) => { if (started) return; started = true; closeModal(); startMission(mid, { role: r, conn, partner: { vehicle: partner.vehicle, spec: partner.spec, name: partner.name }, pvp: mid === 'pvp' }); };
+  const go = (mid) => { if (!partner || started) return; conn.send({ t: 'start', m: mid }); begin(mid, 'host'); };
+  conn.on((m) => {
+    if (!m) return;
+    if (m.t === 'hello') { partner = { name: String(m.name || 'ともだち').slice(0, 12), vehicle: m.vehicle, spec: m.spec }; if (!replied) { replied = true; sendHello(); } show(); }
+    else if (m.t === 'start' && role === 'guest' && partner) begin(m.m, 'guest');
+  });
+  conn.onClose(() => { if (!started) { closeModal(); X.toast('つうしんが きれたよ'); } });
+  show(); sendHello();
+}

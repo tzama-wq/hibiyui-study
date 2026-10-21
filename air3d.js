@@ -1,6 +1,7 @@
 // 「そらの まもり」の 3D がめん(three.js): ひこうき・ふね・せんしゃ。タッチ そうさ + HUD。ルールと うごきは airsim.js、みためは vehicle3d.js。
-//   const g = await startAir3D({ vehicle, spec, mission, gentle, onSfx, onEnd, onQuit });   vehicle=buildVehicle の けっか / spec=みための ぶひん じょうほう
+//   const g = await startAir3D({ vehicle, spec, mission, gentle, onSfx, onEnd, onQuit, net });   net = { role:'host'|'guest', conn, partner:{ vehicle, spec, name }, pvp } (ふたりで あそぶとき)   vehicle=buildVehicle の けっか / spec=みための ぶひん じょうほう
 import { createAir, BASE_Z, ISLAND, ENEMY } from './airsim.js';
+import { hostBind, createGuestSim } from './airnet.js';
 import { makeVehicleModel, makeEnemyModel } from './vehicle3d.js';
 
 let T = null;
@@ -15,12 +16,14 @@ export async function startAir3D(o) {
   if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
   document.querySelectorAll('.a3d').forEach((e) => e.remove());
   const V = o.vehicle; const kind = V.vehicle; const air = kind === 'plane';
-  const sim = createAir({ vehicle: V, mission: o.mission, gentle: !!o.gentle, difficulty: o.difficulty || 1 });
-  const S = sim.state;
+  const net = o.net || null; const pvp = !!(net && net.pvp); let hb = null; let sim;
+  if (net && net.role === 'guest') sim = createGuestSim({ conn: net.conn, mission: o.mission, vehicle: V, partnerVehicle: net.partner.vehicle, pvp, me: 1 });
+  else { sim = createAir({ vehicle: V, extra: net ? [net.partner.vehicle] : [], pvp, mission: o.mission, gentle: !!o.gentle, difficulty: o.difficulty || 1 }); if (net) hb = hostBind(sim, net.conn); }
+  const S = sim.state; const ally = net ? S.players.find((p) => p !== S.player) : null;
   const root = document.createElement('div'); root.className = `a3d k-${kind}`;
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
     <div class="a3d-hud">
-      <div class="a3d-top"><div class="a3d-name">${esc(o.spec.icon || '')} ${esc(V.name)} ・ ${esc(o.spec.vname || '')}</div><div class="a3d-obj"></div></div>
+      <div class="a3d-top"><div class="a3d-name">${esc(o.spec.icon || '')} ${esc(V.name)} ・ ${esc(o.spec.vname || '')}</div><div class="a3d-obj"></div>${net ? '<div class="a3d-pbar"><span></span><i><u></u></i></div>' : ''}</div>
       <div class="a3d-bars"><div class="ab hp"><span>きたい</span><i><u></u></i></div><div class="ab base"><span>きち</span><i><u></u></i></div><div class="ab boost"><span>ブースト</span><i><u></u></i></div><div class="ab ms"><span>ミサイル</span><b></b></div></div>
       <div class="a3d-marks"></div><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div>
       <div class="a3d-ret"><i></i></div><canvas class="a3d-radar" width="120" height="120"></canvas>
@@ -50,13 +53,14 @@ export async function startAir3D(o) {
   for (let i = 0; i < 30; i++) { const c = new THREE.Group(); const n = 3 + (i % 3); for (let j = 0; j < n; j++) { const s = new THREE.Mesh(new THREE.SphereGeometry(60 + (j * 17) % 50, 8, 6), cloudMat); s.position.set(j * 70, (j % 2) * 18, (j % 3) * 30); s.scale.y = 0.45; c.add(s); } c.position.set(Math.sin(i * 7.3) * 2600, 360 + (i * 53) % 520, BASE_Z + Math.cos(i * 4.1) * 2800); scene.add(c); }
   const isl = new THREE.MeshLambertMaterial({ color: '#4a7a42' }); for (let i = 0; i < 7; i++) { const m = new THREE.Mesh(new THREE.ConeGeometry(80 + (i * 37) % 120, 70 + (i * 29) % 80, 8), isl); m.position.set(Math.sin(i * 2.1) * 2400, 25, BASE_Z + 400 + Math.cos(i * 1.7) * 2200); scene.add(m); }
   // きち
-  const base = new THREE.Group(); { const pad = new THREE.Mesh(new THREE.CylinderGeometry(230, 250, 1.4, 24), new THREE.MeshLambertMaterial({ color: '#7b8aa0' })); pad.position.y = 0.8; base.add(pad);
-    for (let i = 0; i < 18; i++) { const h = 20 + (i * 13) % 50; const b = new THREE.Mesh(new THREE.BoxGeometry(18 + (i % 3) * 6, h, 18), new THREE.MeshLambertMaterial({ color: i % 4 ? '#e8eefc' : '#ffd23f' })); b.position.set(Math.cos(i * 1.7) * (120 + (i % 5) * 18), 1.5 + h / 2, Math.sin(i * 1.7) * (120 + (i % 5) * 18)); base.add(b); }
-    const flag = new THREE.Mesh(new THREE.BoxGeometry(2, 60, 2), new THREE.MeshLambertMaterial({ color: '#ffffff' })); flag.position.set(150, 31, 0); base.add(flag); const hi = new THREE.Mesh(new THREE.CircleGeometry(10, 16), new THREE.MeshBasicMaterial({ color: '#e0302a', side: THREE.DoubleSide })); hi.position.set(158, 56, 0); base.add(hi); }
+  const base = new THREE.Group(); { const pad = new THREE.Mesh(new THREE.CylinderGeometry(270, 290, 1.4, 28), new THREE.MeshLambertMaterial({ color: '#7b8aa0' })); pad.position.y = 0.8; base.add(pad);
+    for (let i = 0; i < 18; i++) { const h = 20 + (i * 13) % 50; const b = new THREE.Mesh(new THREE.BoxGeometry(18 + (i % 3) * 6, h, 18), new THREE.MeshLambertMaterial({ color: i % 4 ? '#e8eefc' : '#ffd23f' })); b.position.set(Math.cos(i * 1.7) * (205 + (i % 5) * 10), 1.5 + h / 2, Math.sin(i * 1.7) * (205 + (i % 5) * 10)); base.add(b); }
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(2, 60, 2), new THREE.MeshLambertMaterial({ color: '#ffffff' })); flag.position.set(190, 31, 0); base.add(flag); const hi = new THREE.Mesh(new THREE.CircleGeometry(10, 16), new THREE.MeshBasicMaterial({ color: '#e0302a', side: THREE.DoubleSide })); hi.position.set(198, 56, 0); base.add(hi); }
   base.position.set(0, 0, BASE_Z); scene.add(base);
   const dome = new THREE.Mesh(new THREE.SphereGeometry(230, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#7fe7ff', transparent: true, opacity: 0.1, depthWrite: false })); dome.position.set(0, 0, BASE_Z); scene.add(dome);
   // じぶんの きたい
   const me = makeVehicleModel(THREE, { vehicle: kind, color: o.spec.color, parts: o.spec.parts, missiles: V.missiles }); scene.add(me);
+  const allyM = ally ? makeVehicleModel(THREE, { vehicle: ally.kind, color: net.partner.spec.color, parts: net.partner.spec.parts, missiles: ally.V.missiles }) : null; if (allyM) scene.add(allyM);
   const shield = new THREE.Mesh(new THREE.SphereGeometry(air ? 14 : 24, 14, 10), new THREE.MeshBasicMaterial({ color: '#7fe7ff', transparent: true, opacity: 0.28, depthWrite: false })); shield.visible = false; scene.add(shield);
   const meshes = new Map();
   const pools = { bullet: [], missile: [], tracer: [], fx: [] };
@@ -94,7 +98,7 @@ export async function startAir3D(o) {
   try { if (document.documentElement.requestFullscreen && !document.fullscreenElement && /Mobi|Android/i.test(navigator.userAgent)) { document.documentElement.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {}); } } catch { /* ok */ }
 
   // ---- HUD ----
-  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), base: q('.ab.base u'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), obj: q('.a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), marks: q('.a3d-marks'), ret: q('.a3d-ret'), radar: q('.a3d-radar').getContext('2d') };
+  const q = (s) => root.querySelector(s); const hud = { pn: q('.a3d-pbar span'), pu: q('.a3d-pbar u'), hp: q('.ab.hp u'), base: q('.ab.base u'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), obj: q('.a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), marks: q('.a3d-marks'), ret: q('.a3d-ret'), radar: q('.a3d-radar').getContext('2d') };
   let lastBanner = ''; const v3 = new THREE.Vector3();
   const project = (x, y, z) => { v3.set(x, y, z).project(camera); return { x: (v3.x * 0.5 + 0.5) * root.clientWidth, y: (-v3.y * 0.5 + 0.5) * root.clientHeight, z: v3.z }; };
   function updateHud() {
@@ -103,7 +107,8 @@ export async function startAir3D(o) {
     hud.base.style.width = `${clamp(S.base.hp / S.base.hpMax, 0, 1) * 100}%`; hud.base.parentElement.classList.toggle('low', S.base.hp / S.base.hpMax < 0.3);
     hud.boost.style.width = `${clamp(P.boost / V.boostMax, 0, 1) * 100}%`; hud.ms.textContent = `🚀 ×${P.missiles}`;
     const left = S.enemies.length + o.mission.waves.slice(S.waveI).reduce((a, w) => a + w.n, 0);
-    hud.obj.textContent = o.mission.boss ? (S.boss && !S.boss.dead && S.enemies.includes(S.boss) ? `ボス HP ${Math.max(0, Math.round((S.boss.hp / S.boss.hpMax) * 100))}%` : 'ボスを たおせ!') : `てき のこり ${left}たい ・ げきつい ${S.kills}`;
+    if (pvp) hud.obj.textContent = ally ? `⚔️ ${esc(net.partner.name)}の HP ${Math.max(0, Math.round((ally.hp / ally.hpMax) * 100))}%` : ''; else hud.obj.textContent = o.mission.boss ? (S.boss && !S.boss.dead && S.enemies.includes(S.boss) ? `ボス HP ${Math.max(0, Math.round((S.boss.hp / S.boss.hpMax) * 100))}%` : 'ボスを たおせ!') : `てき のこり ${left}たい ・ げきつい ${S.kills}`;
+    if (ally && hud.pn) { hud.pn.textContent = `${pvp ? '⚔️' : '🤝'} ${net.partner.name}`; hud.pu.style.width = `${clamp(ally.hp / ally.hpMax, 0, 1) * 100}%`; hud.pu.parentElement.classList.toggle('low', ally.hp / ally.hpMax < 0.3); }
     const b = S.bannerT > 0 ? S.banner : ''; if (b !== lastBanner) { lastBanner = b; hud.banner.textContent = b; hud.banner.classList.toggle('on', !!b); }
     hud.msg.textContent = S.msgT > 0 ? S.msg : '';
     hud.warn.textContent = S.outWarn ? '⚠ えんしゅうから でちゃう! もどって!' : S.groundWarn ? '⚠ うみに ちかいよ!' : S.shoreWarn ? (kind === 'tank' ? '⚠ しまの はしだよ' : '⚠ しまに ちかいよ') : (P.hp / P.hpMax < 0.3 ? '⚠ きたいが あぶない!' : ''); S.groundWarn = 0; S.shoreWarn = 0;
@@ -112,15 +117,17 @@ export async function startAir3D(o) {
     let html = ''; const lc = new Map((S.lockCands || []).map((c) => [c.id, c]));
     for (const e of S.enemies) { const pj = project(e.x, e.y + 4, e.z); if (pj.z > 1 || pj.x < -30 || pj.x > root.clientWidth + 30 || pj.y < -30 || pj.y > root.clientHeight + 30) continue; const c = lc.get(e.id); const d = Math.round(Math.hypot(e.x - P.x, e.y - P.y, e.z - P.z)); const sz = clamp(900 / Math.max(120, d) * 16, 14, 46); const isT = S.target && S.target.id === e.id;
       html += `<div class="mk ${c ? (c.locked ? 'lock' : 'seek') : ''} ${isT ? 'tgt' : ''} ${e.type} dom-${e.dom}" style="left:${pj.x}px;top:${pj.y}px;width:${sz}px;height:${sz}px"><small>${ENEMY[e.type].icon}${d}m</small></div>`; }
+    if (ally && !ally.dead) { const pj = project(ally.x, ally.y + (ally.air ? 6 : 14), ally.z); if (pj.z < 1 && pj.x > -30 && pj.x < root.clientWidth + 30 && pj.y > -30 && pj.y < root.clientHeight + 30) { const d = Math.round(Math.hypot(ally.x - P.x, ally.y - P.y, ally.z - P.z)); const lk = pvp && (S.lockCands || []).find((c) => c.id === ally.i + 1000); const isT = pvp && S.target && S.target.id === ally.i + 1000; html += `<div class="mk ${pvp ? (lk ? (lk.locked ? 'lock' : 'seek') : '') : 'mate'} ${isT ? 'tgt' : ''}" style="left:${pj.x}px;top:${pj.y}px;width:30px;height:30px"><small>${pvp ? '🎯' : '🤝'}${esc(net.partner.name)} ${d}m</small></div>`; } }
     hud.marks.innerHTML = html;
     const g = hud.radar; g.clearRect(0, 0, 120, 120); g.fillStyle = 'rgba(8,24,44,.55)'; g.beginPath(); g.arc(60, 60, 58, 0, 6.283); g.fill(); g.strokeStyle = 'rgba(127,231,255,.5)'; g.beginPath(); g.arc(60, 60, 58, 0, 6.283); g.stroke(); g.beginPath(); g.arc(60, 60, 29, 0, 6.283); g.stroke();
     const rr = air ? 1800 : 1400; const toR = (x, z) => { const dx = x - P.x; const dz = z - P.z; const c = Math.cos(P.yaw); const s = Math.sin(P.yaw); return { x: 60 - ((dx * c - dz * s) / rr) * 58, y: 60 - ((dx * s + dz * c) / rr) * 58 }; };
     g.fillStyle = '#4aa3ff'; g.beginPath(); g.moveTo(60, 52); g.lineTo(55, 66); g.lineTo(65, 66); g.fill();
     const bp2 = toR(S.base.x, S.base.z); g.fillStyle = '#ffd23f'; g.fillRect(clamp(bp2.x, 4, 114) - 4, clamp(bp2.y, 4, 114) - 4, 8, 8);
+    if (ally && !ally.dead) { const r = toR(ally.x, ally.z); if (Math.hypot(r.x - 60, r.y - 60) <= 58) { g.fillStyle = pvp ? '#ff4d5e' : '#5dd6ff'; g.fillRect(r.x - 3, r.y - 3, 6, 6); } }
     for (const e of S.enemies) { const r = toR(e.x, e.z); if (Math.hypot(r.x - 60, r.y - 60) > 58) continue; g.fillStyle = e.type === 'boss' ? '#ff9f1c' : e.dom === 'air' ? '#ff4d5e' : e.dom === 'sea' ? '#b57bff' : '#ffb02e'; g.fillRect(r.x - 2, r.y - 2, e.type === 'boss' ? 7 : 4, e.type === 'boss' ? 7 : 4); }
   }
   // ---- かく ----
-  const cam = { x: 0, y: 0, z: 0 }; let tt = 0; let raf = 0; let last = 0; let acc = 0; let endT = 0; let ended = false;
+  const cam = { x: 0, y: 0, z: 0 }; let tt = 0; let raf = 0; let last = 0; let acc = 0; let endT = 0; let ended = false; let lostMsg = false;
   function syncScene(dt) {
     const P = S.player; const f = { x: Math.sin(P.yaw) * Math.cos(P.pitch), y: Math.sin(P.pitch), z: Math.cos(P.yaw) * Math.cos(P.pitch) };
     me.position.set(P.x, P.y, P.z); me.rotation.order = 'YXZ'; me.visible = !(S.done && !S.win);
@@ -129,6 +136,7 @@ export async function startAir3D(o) {
       me.rotation.set(0, P.yaw, P.roll * 0.5); me.position.y = kind === 'ship' ? Math.sin(tt * 1.6) * 0.5 : 0;
       const ty = P.turretYaw - P.yaw; if (me.userData.turrets) me.userData.turrets.forEach((t) => { t.rotation.y = ty; }); if (me.userData.turret) me.userData.turret.rotation.y = ty; if (me.userData.radar) me.userData.radar.rotation.y = tt * 3;
     }
+    if (allyM) { allyM.visible = !ally.dead; allyM.position.set(ally.x, ally.y, ally.z); allyM.rotation.order = 'YXZ'; if (ally.air) { allyM.rotation.set(-ally.pitch, ally.yaw, ally.roll + (ally.rollSpin ? ally.rollSpin * 6.283 : 0)); if (allyM.userData.flame) allyM.userData.flame.scale.set(1, 1, ally.boosting ? 2.4 : 1); } else { allyM.rotation.set(0, ally.yaw, 0); const ty = ally.turretYaw - ally.yaw; if (allyM.userData.turrets) allyM.userData.turrets.forEach((t) => { t.rotation.y = ty; }); if (allyM.userData.turret) allyM.userData.turret.rotation.y = ty; if (allyM.userData.radar) allyM.userData.radar.rotation.y = tt * 3; } }
     shield.visible = S.shield > 0; shield.position.set(P.x, P.y + (air ? 0 : 8), P.z);
     const alive = new Set();
     for (const e of S.enemies) { alive.add(e.id); let m = meshes.get(e.id); if (!m) { m = makeEnemyModel(THREE, e.type); scene.add(m); meshes.set(e.id, m); } m.position.set(e.x, e.dom === 'air' ? e.y : e.dom === 'sea' ? Math.sin(tt * 1.3 + e.id) * 0.5 : 0, e.z); m.rotation.order = 'YXZ'; if (e.type === 'drone') m.rotation.set(0, e.yaw + tt * 4, 0); else m.rotation.set(e.dom === 'air' ? -e.pitch : 0, e.yaw, 0); }
@@ -148,18 +156,19 @@ export async function startAir3D(o) {
   }
   function frame(ts) {
     if (dead) return; const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts; tt += dt;
-    if (!paused && !portrait) { acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); acc -= 1 / 60; } while (S.snd.length) { const nm = S.snd.shift(); if (o.onSfx) o.onSfx(nm); } if (S.done && !ended) { endT += dt; if (endT > 2.4) { ended = true; showEnd(); } } }
+    if ((!paused || net) && !portrait) { acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); if (hb) hb.tick(1 / 60); acc -= 1 / 60; } while (S.snd.length) { const nm = S.snd.shift(); if (hb) hb.snd.push(nm); if (o.onSfx) o.onSfx(nm); }
+      if (net && !S.done && !lostMsg && ((hb && hb.gone()) || (sim.remote && sim.lost()))) { lostMsg = true; S.done = true; S.win = false; S.stars = 0; S.lostLink = true; } if (S.done && !ended) { endT += dt; if (endT > 2.4) { ended = true; showEnd(); } } }
     syncScene(dt); updateHud(); renderer.render(scene, camera); raf = requestAnimationFrame(frame);
   }
   function showEnd() {
     const el = root.querySelector('.a3d-end'); el.hidden = false; const stars = S.stars || 0;
-    el.innerHTML = `<div class="ae-box ${S.win ? 'win' : 'lose'}"><b>${S.win ? '🎖 ミッション クリア!' : 'ミッション しっぱい…'}</b><div class="ae-stars">${S.win ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : ''}</div>
+    el.innerHTML = `<div class="ae-box ${S.win ? 'win' : 'lose'}"><b>${S.lostLink ? '📡 つうしんが きれたよ' : pvp ? (S.win ? '🏆 かち!' : 'まけ…') : S.win ? '🎖 ミッション クリア!' : 'ミッション しっぱい…'}</b><div class="ae-stars">${S.win && !pvp ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : ''}</div>
       <p>げきつい ${S.kills} ・ きちの のこり ${Math.round((S.base.hp / S.base.hpMax) * 100)}% ・ きたい ${Math.round((S.player.hp / S.player.hpMax) * 100)}%</p><button class="btn gold" data-e="done">けっかを みる</button></div>`;
     el.querySelector('[data-e=done]').addEventListener('click', () => finish());
   }
-  function finish() { if (dead) return; const r = { win: S.win, stars: S.stars || 0, kills: S.kills, basePct: S.base.hp / S.base.hpMax, hpPct: S.player.hp / S.player.hpMax, time: S.t, mission: o.mission.id, vehicle: kind }; destroy(); if (o.onEnd) o.onEnd(r); }
+  function finish() { if (dead) return; const r = { win: S.win, stars: S.stars || 0, kills: S.kills, basePct: S.base.hp / S.base.hpMax, hpPct: S.player.hp / S.player.hpMax, time: S.t, mission: o.mission.id, vehicle: kind, pvp, coop: !!net && !pvp, lostLink: !!S.lostLink }; destroy(); if (o.onEnd) o.onEnd(r); }
   function destroy() {
-    if (dead) return; dead = true; cancelAnimationFrame(raf); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', resize); window.removeEventListener('orientationchange', resize);
+    if (dead) return; dead = true; if (hb) hb.finish(); if (net && net.conn) { setTimeout(() => { try { net.conn.close(); } catch { /* ok */ } }, 400); } cancelAnimationFrame(raf); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', resize); window.removeEventListener('orientationchange', resize);
     try { renderer.dispose(); scene.traverse((ob) => { if (ob.geometry) ob.geometry.dispose(); if (ob.material) (Array.isArray(ob.material) ? ob.material : [ob.material]).forEach((m) => m.dispose()); }); } catch { /* ok */ }
     root.remove(); document.body.style.overflow = prevOverflow; try { if (document.fullscreenElement) document.exitFullscreen(); if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch { /* ok */ }
   }
