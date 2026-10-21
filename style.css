@@ -740,3 +740,5 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .eq-paint{margin:8px 0;padding:8px;background:#0c1a36;border:2px solid #24386a}.eq-pt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}.eq-pt b{flex:0 0 64px;font-size:13px}.eq-nm{flex:1;font-weight:900;color:#ffd23f;min-width:0;overflow-wrap:anywhere}
 .eq-pt .sw{width:30px;height:30px;border:2px solid rgba(255,255,255,.5);padding:0;cursor:pointer}.eq-pt .sw.on{border-color:#ffd23f;box-shadow:0 0 0 2px #ffd23f}.eq-pt .sw.reset{width:auto;padding:0 8px;font:inherit;font-size:11px;color:#fff;background:#2a3a5c}
 .eq-pt .btn.small{display:inline-block;width:auto;margin:0}
+
+.tb-name .rn{background:none;border:0;padding:0 0 0 4px;font-size:12px;opacity:.7;cursor:pointer;color:inherit}

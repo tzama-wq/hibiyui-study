@@ -12,6 +12,9 @@ const KIDS = [
   { id: 'yuito', name: 'ゆいと', grade: 2, color: '#d6341e', em: '⚽' },
   { id: 'papa', name: 'パパ', grade: 4, color: '#2a9d6f', em: '👨', adult: true }, // パパも 3にんめの 選手として さんか(小4の もんだい)
 ];
+// なまえ(ひとりずつ かえられる。きめた なまえは S.kids[id].nick に おぼえる)
+const DEF_NAME = Object.fromEntries(KIDS.map((k) => [k.id, k.name]));
+function applyNicks() { for (const k of KIDS) { const n = (S.kids[k.id] || {}).nick; k.name = n || DEF_NAME[k.id]; } }
 // ランク(25だん)。さいごまで いくには ながい たびに なる。むかしの きろく(xp)は そのまま ひきつぐ
 const RANKS = [
   [0, 'サッカーきょうしつ'], [100, 'ジュニアユース'], [250, 'ジュニアユースの エース'], [450, 'ユースの レギュラー'], [700, 'ユースの エース'],
@@ -37,6 +40,7 @@ try { S = JSON.parse(localStorage.getItem(KEY)) || init(); } catch { S = init();
 for (const k of KIDS) S.kids[k.id] = { ...newKid(), ...S.kids[k.id] };
 S.override = S.override || {};
 for (const k of KIDS) ensureGame(S.kids[k.id]);
+applyNicks();
 // このスマホの持ち主(ひびと/ゆいと)。リンクで指定された場合は、まだ決まっていなければ それに する
 if (!S.bound && sync.hashKid && KIDS.some((k) => k.id === sync.hashKid)) S.bound = sync.hashKid;
 if (S.bound && !KIDS.some((k) => k.id === S.bound)) S.bound = null;
@@ -642,6 +646,7 @@ function claimGifts() {
   }
 }
 function render() {
+  applyNicks();
   claimGifts();
   if (kidId && S.kids[kidId].shardGift > 0 && !S.kids[kidId].shardGiftShown) { // これまでの ぶんの かけらを おしらせ
     const pp = S.kids[kidId]; pp.shardGiftShown = 1; save();
@@ -678,7 +683,7 @@ function vLock() {
 function topBar(k, p) {
   const r = rankOf(p.xp);
   return `<header class="topbar"><div class="tb-ava-wrap">${ringSvg('tb-ring', r.pct / 100)}<div class="tb-ava">${avaHtml(k)}</div></div>
-    <div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
+    <div class="tb-name"><b>${k.name}</b><button class="rn" data-act="rename" data-id="${k.id}" aria-label="なまえを かえる">✏️</button><small>${r.name}</small></div>
     <div class="gmode"><button class="${(p.gmode || 'soccer') === 'soccer' ? 'on' : ''}" data-act="gmode" data-v="soccer">⚽ サッカー</button><button class="${p.gmode === 'sky' ? 'on' : ''}" data-act="gmode" data-v="sky">🛩️ 地球防衛隊</button></div>
     <div class="tb-chips"><span class="chip gold">⚽ <b data-count="${p.goals}" data-key="goals">${p.goals}</b></span><span class="chip">XP <b data-count="${p.xp}" data-key="xp">${p.xp}</b></span></div>
     <button class="gear" data-act="mute" aria-label="おと">${quiet() ? '🔇' : '🔊'}</button>
@@ -1141,7 +1146,7 @@ function vPapa() {
     <button class="btn small gold" data-act="forceupdate">🔄 さいしんに こうしん</button></div>`;
   const pinCard = `<div class="card"><h2>🔐 PIN</h2>
     <p class="muted">子どもの PINは、その子の がめんを ひらくときの かぎです(パパの PINで かんりします)。きめると アプリを ひらくたびに PINを きかれます。</p>
-    ${KIDS.map((k) => `<div class="row"><b>${k.name}</b> <span class="chip ${S.kidPins[k.id] ? 'gold' : ''}">${S.kidPins[k.id] ? '設定ずみ' : 'なし'}</span>
+    ${KIDS.map((k) => `<div class="row"><b>${k.name}</b> <button class="btn small gray" data-act="rename" data-id="${k.id}">✏️ なまえ</button> <span class="chip ${S.kidPins[k.id] ? 'gold' : ''}">${S.kidPins[k.id] ? '設定ずみ' : 'なし'}</span>
       <button class="btn small gray" data-act="setkidpin" data-id="${k.id}">${S.kidPins[k.id] ? 'かえる' : 'きめる'}</button>
       ${S.kidPins[k.id] ? `<button class="btn small gray" data-act="clearkidpin" data-id="${k.id}">けす</button>` : ''}</div>`).join('')}
     <div class="row" style="margin-top:8px"><button class="btn small gray" data-act="changepin">🔑 パパの PINを かえる</button>
@@ -1375,6 +1380,11 @@ document.addEventListener('click', (e) => {
   else if (a === 'bind') {
     if (!askPin()) return;
     S.bound = el.dataset.id; kidId = S.bound; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
+  }
+  else if (a === 'rename') {
+    const id = el.dataset.id; const kk = KIDS.find((x) => x.id === id); if (!kk) return;
+    const n = typeof prompt === 'function' ? prompt(`${DEF_NAME[id]}の なまえを いれてね(6もじまで。からっぽで もとに もどる)`, kk.name) : null;
+    if (n !== null) { const t = String(n).replace(/[<>&"'`]/g, '').trim().slice(0, 6); if (t && t !== DEF_NAME[id]) S.kids[id].nick = t; else delete S.kids[id].nick; applyNicks(); save(); toast(S.kids[id].nick ? `なまえを「${S.kids[id].nick}」に したよ!` : 'なまえを もとに もどしたよ'); }
   }
   else if (a === 'rebind') {
     if (!confirm(`この スマホを「${KIDS.find((x) => x.id === el.dataset.id).name}」の スマホに かえる?`)) return;
