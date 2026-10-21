@@ -34,6 +34,18 @@ export function createSfx(isQuiet = () => false) {
       tone(1046, 0.4, { at: 0.4, v: 0.05 }); noise(0.9, 0.09, { type: 'lowpass', freq: 1800 }); // かんせい
     },
     whistle: () => { tone(2750, 0.22, { v: 0.035 }); tone(2650, 0.28, { at: 0.2, v: 0.035 }); },
+    // そらの まもり
+    gun: () => { noise(0.05, 0.07, { freq: 1800 }); tone(220, 0.04, { to: 120, type: 'square', v: 0.025 }); },
+    missile: () => { noise(0.35, 0.1, { type: 'bandpass', freq: 1200 }); tone(300, 0.3, { to: 900, type: 'sawtooth', v: 0.04 }); },
+    boom: () => { noise(0.3, 0.14, { type: 'lowpass', freq: 700 }); tone(110, 0.25, { to: 40, type: 'sawtooth', v: 0.08 }); },
+    bigboom: () => { noise(0.9, 0.18, { type: 'lowpass', freq: 500 }); tone(90, 0.8, { to: 30, type: 'sawtooth', v: 0.1 }); },
+    hit: () => { tone(160, 0.12, { to: 70, type: 'square', v: 0.06 }); noise(0.1, 0.1, { freq: 600 }); },
+    basehit: () => { tone(120, 0.25, { to: 50, type: 'sawtooth', v: 0.07 }); },
+    warn: () => { tone(880, 0.12, { v: 0.04 }); tone(660, 0.12, { at: 0.14, v: 0.04 }); },
+    evade: () => tone(700, 0.12, { to: 1200, v: 0.03 }),
+    spark: () => tone(1500, 0.05, { v: 0.02 }),
+    win: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, { at: i * 0.12, v: 0.05 })); },
+    lose: () => { [392, 330, 262].forEach((f, i) => tone(f, 0.25, { at: i * 0.18, type: 'triangle', v: 0.05 })); },
   };
   const MEL = [523, 0, 659, 0, 784, 659, 523, 0, 587, 0, 698, 0, 880, 698, 587, 0]; // ゆるい ドット ふう メロディ
   const BASS = [131, 131, 165, 165, 196, 196, 165, 165];

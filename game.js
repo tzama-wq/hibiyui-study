@@ -431,6 +431,12 @@ export function enhance(p, id) {
 }
 const BENCH = { id: 'bench', name: 'ベンチの 子', face: '🪑', pos: 'ALL', rarity: 'common', stats: Object.fromEntries(STATS.map((s) => [s, 30])) };
 // team: 11この わく(選手ID / 'self' / null)。kid: { name, face, stats }
+// もっている 選手 1にんの「いまの のうりょく」(レベル・きょうか・きゅうしゅう・メダルの ばふ を ぜんぶ ふくむ)。そらの まもりの きたいも これを つかう
+export function playerEffective(p, id) {
+  const pl = PLAYER_BY_ID[id]; if (!pl) return null;
+  const level = Math.max(levelOf((p.owned || {})[id] || 0), ((p.lvmin || {})[id]) || 0);
+  return effectiveStats(pl.stats, { level, buff: teamBuff(p.equip || []), enh: (p.plv || {})[id] || 0, cap: pl.rarity === 'diamond' ? DIAMOND_CAP : STAT_CAP, capUp: capUpOf(pl, ((p.absorb || {})[id]) || 0) });
+}
 export function teamSnapshot({ kid, owned = {}, team = [], equip = [], formation = '442', plv = {}, absorb = {}, lvmin = {} }) {
   const buff = teamBuff(equip);
   return slotsOf(formation).map((slot, i) => {
