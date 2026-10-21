@@ -196,4 +196,23 @@ for (const [pa, pb, seed] of [[60, 60, 11], [90, 60, 12], [60, 120, 13]]) {
     const [dw] = dist(0.2, 0); const [ds] = dist(1, 0); assert.ok(ds > dw + 10, `つよい フリックは とおくへ (${dw.toFixed(1)} → ${ds.toFixed(1)})`);
     const [, zdown] = dist(0.6, Math.PI / 2); assert.ok(zdown > 8, 'した むきの フリックで した(+z)へ ころがる'); }
 }
+
+// ---- ふたりで あそぶ: たいせん(a と b を にんげんが)・きょうりょく(ふたりで a) ----
+{
+  const botDrive = (sim, c, rnd) => { const p = sim.ctrlOf(c); if (!p) return; const sg = c.side === 'a' ? 1 : -1; const b = sim.ball; const holds = b.owner === p;
+    const tx = holds ? sg * 52 : b.x; const tz = holds ? 0 : b.z; const dx = tx - p.x; const dz = tz - p.z; const m = Math.hypot(dx, dz) || 1; c.input.mx = dx / m; c.input.mz = dz / m; c.input.sprint = true;
+    if (holds && Math.abs(p.x - sg * 52) < 24 && rnd() < 0.1) { sim.press('shoot', sim.ctls.indexOf(c)); sim.release('shoot', sim.ctls.indexOf(c)); } else if (holds && rnd() < 0.03) { sim.press('pass', sim.ctls.indexOf(c)); sim.release('pass', sim.ctls.indexOf(c)); }
+    else if (!holds && b.owner && b.owner.side !== c.side && rnd() < 0.05) sim.press('tackle', sim.ctls.indexOf(c)); };
+  const sc = { versus: [0, 0], coop: [0, 0] };
+  for (const mode of ['versus', 'coop']) for (const seed of [1, 2, 3]) {
+    const rnd = rngSeed(900 + seed); const sim = createPlay({ me: mk(70, '442', 1), opp: mk(70, '442', 2), halfSec: 60, rnd, mode, diff: 'hard' }); let t = 0;
+    assert.equal(sim.ctls.length, 2); assert.equal(sim.ctls[1].side, mode === 'versus' ? 'b' : 'a');
+    while (!sim.state.done && t < 60 * 30) {
+      for (const c of sim.ctls) botDrive(sim, c, rnd); sim.step(1 / 30); t += 1 / 30;
+      const [c0, c1] = sim.ctls; const p0 = sim.ctrlOf(c0); const p1 = sim.ctrlOf(c1); assert.ok(p0 && p1 && p0 !== p1, 'ふたりの せんしゅは べつべつ'); assert.equal(p1.side, c1.side);
+    }
+    assert.ok(sim.state.done, `${mode}: しあいが おわる`); sc[mode][0] += sim.state.score.a; sc[mode][1] += sim.state.score.b;
+  }
+  assert.ok(sc.versus[0] + sc.versus[1] > 0, 'たいせんで ゴールが うまれる'); console.log('  ふたりプレイの スコア(a,b):', JSON.stringify(sc));
+}
 console.log('OK: play');

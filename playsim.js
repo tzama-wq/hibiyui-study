@@ -38,7 +38,8 @@ export const DIFFS = {
   normal: { ai: 0.95, spd: 1.02, myAcc: 0.9, opAcc: 1.1, aim: 0.25, gk: 0.05, tackle: 0.12, range: 0.6, pickup: 0.65, stam: 0.8, react: 1.1, press: 1.8 },
   hard: { ai: 1, spd: 1, myAcc: 1, opAcc: 1, aim: 0, gk: 0, tackle: 0.1, range: 0.5, pickup: 0.5, stam: 1, react: 1, press: 2 },
 };
-export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1, extraSec = 60, tactic = 'balance', auto: autoOpt = false, diff = 'easy' }) {
+export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1, extraSec = 60, tactic = 'balance', auto: autoOpt = false, diff = 'easy', mode = 'solo' }) {
+  // mode: solo=ひとり(a が にんげん)/ coop=ふたりで a を うごかす / versus=a と b を それぞれ にんげんが うごかす
   const DF = DIFFS[diff] || DIFFS.easy;
   let auto = !!autoOpt;
   const myPow = avg(me.team); const opPow = avg(opp.team);
@@ -54,7 +55,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
       const st = m.stats;
       players[s].push({ side: s, idx: i, slot: m.slot, name: m.name, face: m.face || '', m, stats: st,
         x: 0, z: 0, vx: 0, vz: 0, dir: s === 'a' ? 0 : Math.PI, stamina: 1, stun: 0, cd: 0, act: '', actT: 0,
-        spd: 6.1 * mul(st.SPD, 0.72, 1.42) * (s === 'b' ? lerp(0.82, 1.1, clamp((aiLevel - 0.5) / 0.9, 0, 1)) : DF.spd), yc: 0, off: false,
+        spd: 6.1 * mul(st.SPD, 0.72, 1.42) * (s === 'b' && mode !== 'versus' ? lerp(0.82, 1.1, clamp((aiLevel - 0.5) / 0.9, 0, 1)) : DF.spd), yc: 0, off: false,
         sprint: false, run: 0, aiT: rnd() * 0.3, tx: 0, tz: 0, wantSprint: false });
     });
   }
@@ -68,8 +69,12 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     celebrate: null, flash: 0, cards: [], snd: [], e1: halfSec, e2: halfSec * 2, base1: halfSec, add: { 1: 0, 2: 0 }, mark: { goals: 0, fouls: 0, cards: 0, pen: 0 }, restartCount: { penalty: 0 }, restartFresh: false, lostAt: { a: -99, b: -99 }, gainedAt: { a: -99, b: -99 }, auto: !!autoOpt,
   };
   const snd = (n) => { if (S.snd.length < 20) S.snd.push(n); };
-  const input = { mx: 0, mz: 0, sprint: false };
-  const pressed = { pass: false, shoot: false, lob: false, tackle: false, switch: false }; const shootCharge = { on: false, t: 0 }; const passCharge = { on: false, t: 0, release: false }; let flick = null;
+  // にんげんの コントローラ(ひとり: a / きょうりょく: a と a / たいせん: a と b)。key= S の なかの せんしゅばんごうの なまえ
+  const mkCtl = (side, key, lock) => ({ side, key, lock, input: { mx: 0, mz: 0, sprint: false }, pressed: { pass: false, shoot: false, lob: false, tackle: false, switch: false }, shootCharge: { on: false, t: 0 }, passCharge: { on: false, t: 0, release: false }, flick: null });
+  const C = [mkCtl('a', 'ctrl', 'ctrlLock')]; if (mode === 'coop') C.push(mkCtl('a', 'ctrl2', 'ctrlLock2')); if (mode === 'versus') C.push(mkCtl('b', 'ctrl2', 'ctrlLock2'));
+  S.ctrl2 = 0; S.ctrlLock2 = 0;
+  const humanSides = new Set(C.map((c) => c.side));
+  const input = C[0].input; const pressed = C[0].pressed; const shootCharge = C[0].shootCharge; const passCharge = C[0].passCharge;
   const log = (t) => { S.msg = t; };
   const banner = (t, d = 1.4) => { S.banner = t; S.bannerT = d; };
   // アディショナルタイム: ぜんはん・こうはんの おわりに「+なんぷん」。ゴール・ファウル・カードが おおい ほど ながい(1〜5ふん)
@@ -129,9 +134,19 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     players[side].forEach((p) => { if (p.idx === excl || p.off || (noGK && p.slot === 'GK')) return; const d = len(p.x - x, p.z - z); if (d < bd) { bd = d; best = p.idx; } });
     return best;
   }
-  let humanTeam = auto ? 'none' : 'a';
-  function setAuto(v) { auto = !!v; S.auto = auto; humanTeam = auto ? 'none' : 'a'; input.mx = input.mz = 0; input.sprint = false; shootCharge.on = false; }
-  const ctrlP = () => players.a[S.ctrl];
+  function setAuto(v) { auto = !!v; S.auto = auto; for (const c of C) { c.input.mx = c.input.mz = 0; c.input.sprint = false; c.shootCharge.on = false; } }
+  const ctrlOf = (c) => players[c.side][S[c.key]];
+  const ctrlP = () => ctrlOf(C[0]);
+  const isHumanSide = (sd) => !auto && humanSides.has(sd);
+  const ctlOf = (p) => (auto ? null : C.find((c) => c.side === p.side && S[c.key] === p.idx) || null);
+  const isCtl = (p) => !!ctlOf(p);
+  const mateOf = (c) => C.find((q) => q !== c && q.side === c.side);
+  function setCtl(c, idx) { const mate = mateOf(c); if (mate && S[mate.key] === idx) { const cur = S[c.key]; S[c.key] = cur; return; } S[c.key] = idx; } // なかまが うけとる パスなら そのまま(じぶんは とどまる)
+  function claimCtl(p) { // ボールを とった せんしゅを にんげんが うごかす(ロックちゅうは かえない)
+    const cs = C.filter((c) => c.side === p.side); if (!cs.length || cs.some((c) => S[c.key] === p.idx)) return;
+    const dl = (c) => { const q = ctrlOf(c); return q ? len(q.x - ball.x, q.z - ball.z) : 99; };
+    const c = cs.filter((q) => S[q.lock] <= 0).sort((u, v) => dl(v) - dl(u))[0]; if (c) S[c.key] = p.idx;
+  }
   const ownerSide = () => (ball.owner ? ball.owner.side : null);
   function lastDefX(defSide) { // まもりの いちばん うしろから 2ばんめ(オフサイドライン)の ざひょう(あいての ゴールに ちかい ほうが おおきい x for a)
     const sg = sgn(other(defSide)); // こうげき がわの むき
@@ -224,13 +239,13 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     if (S.restartFresh && S.restart && ball.owner === S.restart.taker && d !== S.restart.taker) return false; // けるまえは ボールを うばえない(フリーキック・ゴールキックなど)
     snd('tackle');
     const dx = c.x - d.x; const dz = c.z - d.z; const dist = len(dx, dz);
-    const human = !auto && d.side === 'a' && d.idx === S.ctrl; // にんげんの アシスト: すこし とおくても タックルできる
+    const human = isCtl(d); // にんげんの アシスト: すこし とおくても タックルできる
     const range = (slide ? 2.4 : 1.55) + (human ? DF.range : 0); if (dist > range) return false;
     d.cd = slide ? 1.0 : 0.7; d.act = slide ? 'slide' : 'tackle'; d.actT = slide ? 0.55 : 0.3; d.dir = Math.atan2(dz, dx);
     if (slide) { d.vx = Math.cos(d.dir) * 9; d.vz = Math.sin(d.dir) * 9; }
     const behind = Math.cos(angDiff(Math.atan2(d.z - c.z, d.x - c.x), c.dir)) < -0.35; // ディフェンダーが うしろから
     const drib = mul((c.stats.SPD + c.stats.SHO) / 2, 0.8, 1.5); const df = mul(d.stats.DEF, 0.8, 1.5);
-    const pOk = clamp(0.42 + (df - drib) * 1.2 + (slide ? 0.1 : 0) - (c.sprint ? 0.06 : 0) + (human ? DF.tackle : 0) + (d.side === 'b' ? (aiLevel - 1) * 0.35 : 0), 0.18, 0.88); // つよい てきほど タックルが うまい
+    const pOk = clamp(0.42 + (df - drib) * 1.2 + (slide ? 0.1 : 0) - (c.sprint ? 0.06 : 0) + (human ? DF.tackle : 0) + (d.side === 'b' && !humanSides.has('b') ? (aiLevel - 1) * 0.35 : 0), 0.18, 0.88); // つよい てきほど タックルが うまい
     const roll = rnd();
     const foulP = behind ? (slide ? 0.4 : 0.22) : (slide ? 0.2 : 0.04);
     if (roll < pOk) { // せいこう
@@ -261,7 +276,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     if (!d.off) d.stun = 1.0;
     c.stun = 0.4; return 'foul';
   }
-  function sendOff(d) { d.off = true; d.x = d.side === 'a' ? -HX - 6 : HX + 6; d.z = -HZ - 4; d.vx = d.vz = 0; if (ball.owner === d) ball.owner = null; S.reds = (S.reds || 0) + 1; if (S.ctrl === d.idx && d.side === 'a') S.ctrl = nearestIdx('a', ball.x, ball.z); }
+  function sendOff(d) { d.off = true; d.x = d.side === 'a' ? -HX - 6 : HX + 6; d.z = -HZ - 4; d.vx = d.vz = 0; if (ball.owner === d) ball.owner = null; S.reds = (S.reds || 0) + 1; for (const c of C) if (c.side === d.side && S[c.key] === d.idx) S[c.key] = nearestIdx(d.side, ball.x, ball.z, d.idx); }
 
   // ---- デッドボール(スローイン・ゴールキック・コーナー・フリーキック) ----------------------
   function deadBall(r, text) {
@@ -314,7 +329,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
       def.forEach((q, j) => { q.hx = sg * (HX - 5 - (j % 3) * 3); q.hz = -6.5 + (j % 6) * 2.6; q.tx = q.hx; q.tz = q.hz; });
     }
     r.indirect = !!r.offside; if (r.indirect) ball.indirectBy = taker;
-    if (r.side === humanTeam) S.ctrl = taker.idx; else if (humanTeam === 'a') S.ctrl = nearestIdx('a', r.x, r.z);
+    C.forEach((c) => { if (auto) return; const mate = mateOf(c); const first = C.find((q) => q.side === c.side) === c; if (r.side === c.side) S[c.key] = first ? taker.idx : nearestIdx(c.side, r.x, r.z, taker.idx); else S[c.key] = nearestIdx(c.side, r.x, r.z, mate ? S[mate.key] : -1); });
   }
   function outOfPlay() {
     const last = ball.lastSide; const x = ball.x; const z = ball.z;
@@ -339,30 +354,30 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
   }
 
   // ---- にんげんの そうさ ------------------------------------------------------------
-  function humanActions(dt) {
-    const p = ctrlP(); if (!p) return;
-    const has = ball.owner === p;
+  function humanActions(c, dt) {
+    const p = ctrlOf(c); if (!p) return; const { input, pressed, shootCharge, passCharge } = c; const me = c.side; const foe = other(me);
+    const lockK = c.lock; const has = ball.owner === p;
     // きりかえ
-    if (pressed.switch) { pressed.switch = false; if (ownerSide() !== 'a') { S.ctrl = nextBallSide(); S.ctrlLock = 1.2; } }
+    if (pressed.switch) { pressed.switch = false; if (ownerSide() !== me) { S[c.key] = nextBallSide(c); S[lockK] = 1.2; } }
     if (has && p.cd <= 0 && p.stun <= 0) {
       const dx = input.mx; const dz = input.mz;
-      if (flick) { const f = flick; flick = null; const q = passDir(p, f.dx, f.dz, f.pw); if (q) { S.ctrl = q.idx; S.ctrlLock = 0.8; } passCharge.t = 0; }
-      else if (passCharge.release) { passCharge.release = false; const t = passCharge.t; passCharge.t = 0; const pw = t < 0.15 ? 1.15 : clamp(1.15 + (t - 0.15) * 0.8, 1.15, 1.85); const q = pickTarget(p, dx, dz, false); if (q) { passTo(p, q, pw, false); S.ctrl = q.idx; S.ctrlLock = 0.8; } }
-      else if (pressed.lob) { pressed.lob = false; const q = pickTarget(p, dx, dz, true); if (q) { passTo(p, q, 1, true); S.ctrl = q.idx; S.ctrlLock = 0.8; } }
+      if (c.flick) { const f = c.flick; c.flick = null; const q = passDir(p, f.dx, f.dz, f.pw); if (q) { setCtl(c, q.idx); S[lockK] = 0.8; } passCharge.t = 0; }
+      else if (passCharge.release) { passCharge.release = false; const t = passCharge.t; passCharge.t = 0; const pw = t < 0.15 ? 1.15 : clamp(1.15 + (t - 0.15) * 0.8, 1.15, 1.85); const q = pickTarget(p, dx, dz, false); if (q) { passTo(p, q, pw, false); setCtl(c, q.idx); S[lockK] = 0.8; } }
+      else if (pressed.lob) { pressed.lob = false; const q = pickTarget(p, dx, dz, true); if (q) { passTo(p, q, 1, true); setCtl(c, q.idx); S[lockK] = 0.8; } }
       else if (shootCharge.on === false && pressed.shoot) { pressed.shoot = false; shootAt(p, p.z * 0.4 + (dz || 0) * 3.4, 0.55); }
       if (shootCharge.release) { shootCharge.release = false; const pw = clamp(shootCharge.t / 0.9, 0.2, 1); shootAt(p, p.z * 0.3 + (input.mz || 0) * 3.4, pw); shootCharge.t = 0; }
-    } else { pressed.pass = pressed.lob = false; flick = null; passCharge.release = false; if (shootCharge.release) { shootCharge.release = false; shootCharge.t = 0; } }
+    } else { pressed.pass = pressed.lob = false; c.flick = null; passCharge.release = false; if (shootCharge.release) { shootCharge.release = false; shootCharge.t = 0; } }
     if (shootCharge.on) shootCharge.t = Math.min(1.2, shootCharge.t + dt);
     if (passCharge.on) passCharge.t = Math.min(1.1, passCharge.t + dt);
     if (!has) {
-      if (pressed.tackle) { pressed.tackle = false; const c = ball.owner && ball.owner.side === 'b' ? ball.owner : null; if (c && p.cd <= 0 && p.stun <= 0) { if (len(c.x - p.x, c.z - p.z) <= 2.1) tackle(p, c, false); else { p.act = 'lunge'; p.actT = 0.35; p.cd = 0.5; } } }
-      if (pressed.shoot) { pressed.shoot = false; const c = ball.owner && ball.owner.side === 'b' ? ball.owner : null; if (c && p.cd <= 0 && p.stun <= 0) tackle(p, c, true); else if (p.cd <= 0 && p.stun <= 0) { p.act = 'slide'; p.actT = 0.5; p.cd = 0.9; p.vx = Math.cos(p.dir) * 9; p.vz = Math.sin(p.dir) * 9; } }
+      if (pressed.tackle) { pressed.tackle = false; const o = ball.owner && ball.owner.side === foe ? ball.owner : null; if (o && p.cd <= 0 && p.stun <= 0) { if (len(o.x - p.x, o.z - p.z) <= 2.1) tackle(p, o, false); else { p.act = 'lunge'; p.actT = 0.35; p.cd = 0.5; } } }
+      if (pressed.shoot) { pressed.shoot = false; const o = ball.owner && ball.owner.side === foe ? ball.owner : null; if (o && p.cd <= 0 && p.stun <= 0) tackle(p, o, true); else if (p.cd <= 0 && p.stun <= 0) { p.act = 'slide'; p.actT = 0.5; p.cd = 0.9; p.vx = Math.cos(p.dir) * 9; p.vz = Math.sin(p.dir) * 9; } }
     }
     pressed.tackle = false;
   }
-  function nextBallSide() { // ボールに ちかい じゅんに きりかえ
-    const arr = players.a.filter((p) => p.slot !== 'GK').sort((u, v) => len(u.x - ball.x, u.z - ball.z) - len(v.x - ball.x, v.z - ball.z));
-    const cur = arr.findIndex((p) => p.idx === S.ctrl); return arr[(cur + 1) % arr.length].idx;
+  function nextBallSide(c) { // ボールに ちかい じゅんに きりかえ(なかまの コントローラの せんしゅは とばす)
+    const mate = mateOf(c); const arr = players[c.side].filter((p) => p.slot !== 'GK' && !p.off && !(mate && S[mate.key] === p.idx)).sort((u, v) => len(u.x - ball.x, u.z - ball.z) - len(v.x - ball.x, v.z - ball.z));
+    const cur = arr.findIndex((p) => p.idx === S[c.key]); return arr[(cur + 1) % arr.length].idx;
   }
 
   // ---- AI ---------------------------------------------------------------------
@@ -469,9 +484,9 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     if (p.stun > 0) { p.stun -= dt; p.vx *= 0.9; p.vz *= 0.9; }
     else if (p.act === 'slide' && p.actT > 0) { /* すべり */ p.vx *= 0.96; p.vz *= 0.96; }
     else if (humanDrive) {
-      wx = input.mx; wz = input.mz; sprint = !!input.sprint; const m = len(wx, wz); if (m > 1) { wx /= m; wz /= m; }
+      wx = humanDrive.input.mx; wz = humanDrive.input.mz; sprint = !!humanDrive.input.sprint; const m = len(wx, wz); if (m > 1) { wx /= m; wz /= m; }
       // アシスト: ボールが ルーズ か あいてが もっている とき、じどうで ボールに ちかづく(スティックを はなすと ぜんぶ おまかせ。うごかすと その ほうこうが ゆうせん)
-      if (S.ph === 'play' && ball.owner !== p && !(ball.owner && ball.owner.side === 'a') && S.assist !== false) {
+      if (S.ph === 'play' && ball.owner !== p && !(ball.owner && ball.owner.side === humanDrive.side) && S.assist !== false) {
         const tgt = ball.owner ? { x: ball.owner.x + ball.owner.vx * 0.25, z: ball.owner.z + ball.owner.vz * 0.25 } : { x: ball.x + ball.vx * 0.35, z: ball.y > 2 ? ball.z : ball.z + ball.vz * 0.35 };
         const dx = tgt.x - p.x; const dz = tgt.z - p.z; const d = len(dx, dz);
         if (d < 34 && !(len(ball.vx, ball.vz) > 15 && !ball.owner && d > 10)) {
@@ -544,7 +559,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     let best = null; let bd = 1e9;
     for (const s of ['a', 'b']) for (const p of players[s]) {
       if (p.off || p.stun > 0 || p.cd > 0.3 && p === ball.lastP) continue;
-      const rr = p.slot === 'GK' ? 1.15 : 0.82 + (p.act === 'slide' ? 0.7 : 0) + (p === ball.target ? 0.8 : 0) + (!auto && p.side === 'a' && p.idx === S.ctrl ? DF.pickup : 0); // にんげんの せんしゅは ひろいやすい
+      const rr = p.slot === 'GK' ? 1.15 : 0.82 + (p.act === 'slide' ? 0.7 : 0) + (p === ball.target ? 0.8 : 0) + (isCtl(p) ? DF.pickup : 0); // にんげんの せんしゅは ひろいやすい
       const d = len(p.x - ball.x, p.z - ball.z); if (d > rr) continue;
       if (sp > 17 && p.slot !== 'GK' && p !== ball.target && rnd() > 0.35 * mul(p.stats.DEF, 0.8, 1.3)) continue; // はやすぎて トラップ しっぱい
       const sc = d - (p === ball.target ? 0.3 : 0) - (p.stats.SPD / 400);
@@ -557,7 +572,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
       deadBall({ type: 'free', side: other(o.side), x: clamp(best.x, -HX + 2, HX - 2), z: clamp(best.z, -HZ + 1.5, HZ - 1.5), offside: true }, 'オフサイド!'); return;
     }
     ball.owner = best; touch(best); ball.vx = ball.vz = 0; ball.vy = 0; ball.shotBy = null; ball.offside = null; ball.target = null; best.cd = Math.max(best.cd, 0.1);
-    if (best.side === 'a' && best.slot !== 'GK' && S.ctrlLock <= 0) S.ctrl = best.idx;
+    if (!auto && best.slot !== 'GK') claimCtl(best);
   }
   function checkBounds() {
     if (S.ph === 'goal' || S.ph === 'dead' || S.ph === 'kickoff') return;
@@ -572,7 +587,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
   function step(dtIn) {
     const dt = Math.min(dtIn, 1 / 20);
     if (S.done) return;
-    S.phT += dt; if (S.bannerT > 0) S.bannerT -= dt; if (S.flash > 0) S.flash -= dt; if (S.ctrlLock > 0) S.ctrlLock -= dt;
+    S.phT += dt; if (S.bannerT > 0) S.bannerT -= dt; if (S.flash > 0) S.flash -= dt; if (S.ctrlLock > 0) S.ctrlLock -= dt; if (S.ctrlLock2 > 0) S.ctrlLock2 -= dt;
     const live = S.ph === 'play';
     if (live) { S.clock += dt; if (ball.owner) S.poss[ball.owner.side] += dt; }
     // じかん
@@ -591,17 +606,19 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     if (S.ph === 'end') { return; }
     // ひとの そうさ
     if (S.ph === 'play' || S.ph === 'dead' || S.ph === 'kickoff') {
-      if (auto) { shootCharge.on = false; shootCharge.release = false; pressed.pass = pressed.lob = pressed.shoot = pressed.tackle = pressed.switch = false; }
-      else if (S.ph === 'play' || (ball.owner && ball.owner.side === 'a' && S.dead <= 0.0)) humanActions(dt); else if (S.ph !== 'play') { shootCharge.release = false; pressed.pass = pressed.lob = pressed.shoot = pressed.tackle = false; }
-      // ひとが うごかす せんしゅ(ボールを もって いない ときは じどうで ボールに ちかい 人に きりかえ)
-      if (ownerSide() !== 'a' && S.ctrlLock <= 0 && S.ph === 'play') { const n = nearestIdx('a', ball.x, ball.z); if (n >= 0 && n !== S.ctrl) { const cur = ctrlP(); if (!cur || len(cur.x - ball.x, cur.z - ball.z) > len(players.a[n].x - ball.x, players.a[n].z - ball.z) + 2.5) { S.ctrl = n; S.ctrlLock = 0.5; } } }
+      for (const c of C) {
+        if (auto) { c.shootCharge.on = false; c.shootCharge.release = false; const pr = c.pressed; pr.pass = pr.lob = pr.shoot = pr.tackle = pr.switch = false; }
+        else if (S.ph === 'play' || (ball.owner && ball.owner.side === c.side && S.dead <= 0.0)) humanActions(c, dt); else if (S.ph !== 'play') { c.shootCharge.release = false; const pr = c.pressed; pr.pass = pr.lob = pr.shoot = pr.tackle = false; }
+        // ひとが うごかす せんしゅ(ボールを もって いない ときは じどうで ボールに ちかい 人に きりかえ)
+        if (!auto && ownerSide() !== c.side && S[c.lock] <= 0 && S.ph === 'play') { const mate = mateOf(c); const n = nearestIdx(c.side, ball.x, ball.z, mate ? S[mate.key] : -1); if (n >= 0 && n !== S[c.key]) { const cur = ctrlOf(c); if (!cur || len(cur.x - ball.x, cur.z - ball.z) > len(players[c.side][n].x - ball.x, players[c.side][n].z - ball.z) + 2.5) { S[c.key] = n; S[c.lock] = 0.5; } } }
+      }
     }
     // ルール: スローイン・ゴールキックなどは じかんを かけすぎない(にんげんが まごまご したら じどうで けつ)
-    if (!auto && S.ph === 'play' && S.restartFresh && S.restart && S.restart.taker && S.restart.taker.side === 'a' && ball.owner === S.restart.taker && S.phT > 7 && S.restart.taker.cd <= 0) aiRestart(S.restart.taker);
+    if (!auto && S.ph === 'play' && S.restartFresh && S.restart && S.restart.taker && isHumanSide(S.restart.taker.side) && ball.owner === S.restart.taker && S.phT > 7 && S.restart.taker.cd <= 0) aiRestart(S.restart.taker);
     // AI
     for (const s of ['a', 'b']) for (const p of players[s]) {
       if (p.off) continue;
-      const hd = !auto && s === 'a' && p.idx === S.ctrl;
+      const hd = ctlOf(p);
       if (!hd) {
         if (S.ph === 'play' || S.ph === 'kickoff' || S.ph === 'dead') {
           if (S.restartFresh && S.restart && S.restart.taker === p && ball.owner === p) { // リスタートの キッカー
@@ -610,13 +627,13 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
           } else
           if ((S.ph === 'dead' || S.ph === 'kickoff') && ball.owner === p && S.restart && S.restart.taker === p) { // AIの リスタート
             p.tx = p.x; p.tz = p.z; p.wantSprint = false;
-            if (S.dead <= 0 && s !== 'a') { const q = S.restart.type === 'free' && Math.abs(p.x - goalOf(s).x) < 28 && rnd() < 0.45 ? null : pickTarget(p, sgn(s), 0, true) || players[s][nearestIdx(s, p.x, p.z, p.idx)]; if (q) passTo(p, q, 1, S.restart.type === 'goalkick' || S.restart.type === 'corner'); else shootAt(p, (rnd() - 0.5) * 5, 0.8); }
+            if (S.dead <= 0 && !isHumanSide(s)) { const q = S.restart.type === 'free' && Math.abs(p.x - goalOf(s).x) < 28 && rnd() < 0.45 ? null : pickTarget(p, sgn(s), 0, true) || players[s][nearestIdx(s, p.x, p.z, p.idx)]; if (q) passTo(p, q, 1, S.restart.type === 'goalkick' || S.restart.type === 'corner'); else shootAt(p, (rnd() - 0.5) * 5, 0.8); }
             else if (S.dead <= 0 && s === 'a' && S.restart.auto) { /* じどう */ }
           } else aiThink(p, dt);
         } else if (S.ph === 'goal' && S.celebrate && S.celebrate.side === s) { p.tx = S.celebrate.p ? S.celebrate.p.x : p.x; p.tz = S.celebrate.p ? S.celebrate.p.z : p.z; p.wantSprint = false; }
         else if (S.ph === 'half' || S.ph === 'end') { p.tx = p.x; p.tz = p.z; }
       }
-      movePlayer(p, dt, hd && (S.ph === 'play' || S.ph === 'dead' || S.ph === 'kickoff'));
+      movePlayer(p, dt, hd && (S.ph === 'play' || S.ph === 'dead' || S.ph === 'kickoff') ? hd : null);
     }
     separate();
     // きょうつうの ボール
@@ -636,18 +653,24 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     snd('whistle'); S.done = true; S.ph = 'end'; S.winner = winnerSide; banner('しゅうりょう!', 3);
   }
   // ---- がいぶからの そうさ -------------------------------------------------------------
-  function press(k) {
-    if (k === 'pass') { if (ownerSide() === 'a' && ball.owner === ctrlP()) { passCharge.on = true; passCharge.t = 0; passCharge.release = false; } return; }
-    if (k === 'shoot') { if (ownerSide() === 'a' && ball.owner === ctrlP()) { shootCharge.on = true; shootCharge.t = 0; } else pressed.shoot = true; return; }
-    pressed[k] = true;
+  function press(k, ci = 0) {
+    const c = C[ci]; if (!c) return; const holds = ownerSide() === c.side && ball.owner === ctrlOf(c);
+    if (k === 'pass') { if (holds) { c.passCharge.on = true; c.passCharge.t = 0; c.passCharge.release = false; } return; }
+    if (k === 'shoot') { if (holds) { c.shootCharge.on = true; c.shootCharge.t = 0; } else c.pressed.shoot = true; return; }
+    c.pressed[k] = true;
   }
-  function release(k) { if (k === 'pass') { if (passCharge.on) { passCharge.on = false; if (ownerSide() === 'a' && ball.owner === ctrlP()) passCharge.release = true; } return; } if (k === 'shoot') { if (shootCharge.on) { shootCharge.on = false; if (ownerSide() === 'a' && ball.owner === ctrlP()) shootCharge.release = true; shootCharge.t = shootCharge.t; } } }
+  function release(k, ci = 0) {
+    const c = C[ci]; if (!c) return; const holds = ownerSide() === c.side && ball.owner === ctrlOf(c);
+    if (k === 'pass') { if (c.passCharge.on) { c.passCharge.on = false; if (holds) c.passCharge.release = true; } return; }
+    if (k === 'shoot') { if (c.shootCharge.on) { c.shootCharge.on = false; if (holds) c.shootCharge.release = true; } }
+  }
   kickoff('a');
   S.ph = 'kickoff'; S.dead = 1.6;
+  if (mode === 'versus') S.ctrl2 = nearestIdx('b', 0, 0); else if (mode === 'coop') S.ctrl2 = nearestIdx('a', 0, 0, S.ctrl);
   return {
     state: S, players, ball, input, homes, press, release, step, charge: shootCharge, teams, aiLevel, ctrlP, minuteNow, clockText, FIELD,
     endNow() { if (!S.done) finish(null); },
-    flickPass(dx, dz, pw) { passCharge.on = false; passCharge.release = false; flick = { dx, dz, pw: clamp(pw, 0.05, 1) }; }, passCharge, // いまの スコアで しあいを おわらせる
+    flickPass(dx, dz, pw, ci = 0) { const c = C[ci]; if (!c) return; c.passCharge.on = false; c.passCharge.release = false; c.flick = { dx, dz, pw: clamp(pw, 0.05, 1) }; }, passCharge, ctls: C, ctrlOf, mode, // いまの スコアで しあいを おわらせる
     setAuto, setTactic(t) { if (TACTICS[t]) tact.a = TACTICS[t]; }, _foul: foul, _dead: deadBall, _out: outOfPlay, _tact: tact,
     skip() { /* しあいを すぐ おわらせる(テスト・とばす用) */ let n = 0; while (!S.done && n++ < 200000) step(1 / 30); },
   };
