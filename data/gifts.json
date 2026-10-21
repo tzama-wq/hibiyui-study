@@ -133,6 +133,30 @@
           "god": 3
         }
       }
+    },
+    {
+      "id": "2026-10-21-hosho-50",
+      "msg": "ほしょうだよ! ガチャチケット(ブロンズ・シルバー・ゴールド・プラチナ)を 50まいずつ プレゼント!",
+      "to": {
+        "hibito": {
+          "bronze": 50,
+          "silver": 50,
+          "gold": 50,
+          "platinum": 50
+        },
+        "yuito": {
+          "bronze": 50,
+          "silver": 50,
+          "gold": 50,
+          "platinum": 50
+        },
+        "papa": {
+          "bronze": 50,
+          "silver": 50,
+          "gold": 50,
+          "platinum": 50
+        }
+      }
     }
   ]
 }
