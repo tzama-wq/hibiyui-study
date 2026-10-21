@@ -655,3 +655,8 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .kjw em{font-style:normal;display:inline-block;background:rgba(255,255,255,.18);padding:0 5px;margin:0 2px;font-size:15px;font-weight:900}
 .sk-row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0;font-size:12px}.sk-row span{flex:1}.sk-row i{display:inline-block;font-style:normal;background:rgba(255,255,255,.14);padding:1px 6px;margin:2px 3px 2px 0}
 .sk-row.weak .btn,.sk-row.strong .btn{white-space:nowrap}
+
+/* きゅうしゅう */
+.enh.absorb{margin-top:8px;border-top:1px dashed rgba(255,255,255,.25);padding-top:8px}
+.abs-g{margin:6px 0;background:rgba(255,255,255,.05);padding:4px 8px}.abs-g summary{cursor:pointer;display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:12px}
+.abs-g summary .btn{margin-left:auto;white-space:nowrap}.abs-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;font-size:12px;border-top:1px solid rgba(255,255,255,.08)}

@@ -386,8 +386,25 @@ export const buffText = (id) => {
 
 // ---- チーム編成と つよさ ----------------------------------------------------------------
 const OUT_OF_POSITION = 0.85;
-export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty = 1, enh = 0, cap = STAT_CAP }) {
-  return Object.fromEntries(STATS.map((s) => [s, Math.min(cap, Math.round(base[s] * (1 + 0.04 * level) * (1 + ENH_STEP * enh) * (1 + buff[s] / 100) * penalty))]));
+// ---- きゅうしゅう: コモン〜レジェンドの ダブりを、ダイヤ・レジェンドに すわせて「じょうげんち」を あげる ----
+//  コモン 1 / レア 2 / スーパーレア 3 / レジェンド 5 ポイント(アンコモンは 1)。ポジションごとの のうりょくの じょうげんが のびる
+export const ABSORB_PTS = { common: 1, uncommon: 1, rare: 2, super: 3, legend: 5 };
+export const POS_CAP_STATS = { FW: ['SHO', 'SPD'], MF: ['PAS', 'STA'], DF: ['DEF', 'STA'], GK: ['DEF', 'SPD'] };
+export const canAbsorbInto = (pl) => !!pl && ['legend', 'diamond'].includes(pl.rarity) && !!POS_CAP_STATS[pl.pos];
+export const absorbPts = (p, id) => ((p.absorb || {})[id]) || 0;
+export const capUpOf = (pl, pts) => Object.fromEntries((POS_CAP_STATS[pl.pos] || []).map((s) => [s, pts || 0]));
+export const spareCopies = (p, id) => Math.max(0, ((p.owned || {})[id] || 0) - 1); // 1まいめは のこす(ずかん・へんせいを まもる)
+// fodderId の ダブり n まいを targetId に きゅうしゅう。うごいた ポイントを かえす(できなければ null)
+export function absorb(p, targetId, fodderId, n = 1) {
+  const t = PLAYER_BY_ID[targetId]; const f = PLAYER_BY_ID[fodderId];
+  if (!canAbsorbInto(t) || !(p.owned || {})[targetId] || !f || f.rarity === 'diamond' || targetId === fodderId) return null;
+  const k = Math.min(Math.max(1, n | 0), spareCopies(p, fodderId)); if (!k) return null;
+  const pts = (ABSORB_PTS[f.rarity] || 0) * k; if (!pts) return null;
+  p.owned[fodderId] -= k; p.absorb = p.absorb && typeof p.absorb === 'object' ? p.absorb : {}; p.absorb[targetId] = (p.absorb[targetId] || 0) + pts;
+  return { pts, n: k, total: p.absorb[targetId] };
+}
+export function effectiveStats(base, { level = 0, buff = emptyStatMap(), penalty = 1, enh = 0, cap = STAT_CAP, capUp = {} }) {
+  return Object.fromEntries(STATS.map((s) => [s, Math.min(cap + (capUp[s] || 0), Math.round(base[s] * (1 + 0.04 * level) * (1 + ENH_STEP * enh) * (1 + buff[s] / 100) * penalty))]));
 }
 // ---- ガチャ選手の きょうか(ポイントで)。じぶんより ポイントが たくさん いる ----------------------------------
 export const ENH_MAX = 20;        // 1人の 選手に かけられる きょうかの かず
@@ -412,18 +429,19 @@ export function enhance(p, id) {
 }
 const BENCH = { id: 'bench', name: 'ベンチの 子', face: '🪑', pos: 'ALL', rarity: 'common', stats: Object.fromEntries(STATS.map((s) => [s, 30])) };
 // team: 11この わく(選手ID / 'self' / null)。kid: { name, face, stats }
-export function teamSnapshot({ kid, owned = {}, team = [], equip = [], formation = '442', plv = {} }) {
+export function teamSnapshot({ kid, owned = {}, team = [], equip = [], formation = '442', plv = {}, absorb = {} }) {
   const buff = teamBuff(equip);
   return slotsOf(formation).map((slot, i) => {
     const id = team[i];
     let who; let level = 0; let penalty = 1; let enh = 0;
-    let cap = STAT_CAP;
+    let cap = STAT_CAP; let capUp = {};
     if (id === 'self') { cap = Infinity; who = { id: 'self', name: kid.name, face: kid.face, img: kid.img || '', pos: 'ALL', rarity: 'kid', stats: kid.stats }; }
     else if (id && owned[id] && PLAYER_BY_ID[id]) {
       who = PLAYER_BY_ID[id]; level = levelOf(owned[id]); enh = (plv || {})[id] || 0; if (who.rarity === 'diamond') cap = DIAMOND_CAP;
+      capUp = capUpOf(who, (absorb || {})[id]);
       if (who.pos !== slot) penalty = OUT_OF_POSITION;
     } else who = BENCH;
-    return { slot, id: who.id, name: who.name, face: who.face, img: who.img || '', pos: who.pos, rarity: who.rarity, level, enh, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty, enh, cap }) };
+    return { slot, id: who.id, name: who.name, face: who.face, img: who.img || '', pos: who.pos, rarity: who.rarity, level, enh, offPos: penalty < 1, stats: effectiveStats(who.stats, { level, buff, penalty, enh, cap, capUp }) };
   });
 }
 const attSkill = (s) => 0.5 * s.SHO + 0.2 * s.PAS + 0.3 * s.SPD;

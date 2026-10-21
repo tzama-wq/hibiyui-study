@@ -33,7 +33,7 @@ export function ensureGame(p) {
 
 export const kidImg = (k) => `images/players/self_${k.id}.webp`; // ダイヤモンドレアの じぶんカード
 export const kidCardOf = (k, p) => ({ name: k.name, face: k.em, img: kidImg(k), stats: G.kidStats(p) });
-export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip, formation: p.formation, plv: p.plv });
+export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip, formation: p.formation, plv: p.plv, absorb: p.absorb });
 export const summaryTeam = (k, p) => snapshotOf(k, p);
 
 // ---- 学習のあとの ごほうび(チケット・強化ポイント) -----------------------------------------
@@ -240,7 +240,7 @@ function dexHtml() {
   const sel = UI.dexSel && G.PLAYER_BY_ID[UI.dexSel];
   return `<section class="panel"><h2 class="sec">COLLECTION <small>ずかん ${n}/${G.PLAYERS.length}</small></h2>
     <div class="chips">${['all', ...G.RARITIES, 'diamond'].map((r) => `<button class="chipb ${f === r ? 'on' : ''} r-${r}" data-act="dexf" data-r="${r}">${r === 'all' ? 'ぜんぶ' : G.RARITY_NAME[r]}${r === 'all' ? '' : ` ${G.PLAYERS.filter((x) => x.rarity === r && p.owned[x.id]).length}/${G.PLAYERS.filter((x) => x.rarity === r).length}`}</button>`).join('')}</div>
-    ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>${enhHtml(sel, p)}` : ''}
+    ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>${enhHtml(sel, p)}${absorbHtml(sel, p)}` : ''}
     <div class="muted" style="margin-bottom:6px">※ 有名な 選手を ヒントに した オリジナルの キャラクターだよ(ほんにんとは かんけい ないよ)。</div>
     <div class="dex-grid">${list.map((pl) => p.owned[pl.id]
     ? `<button class="dx got r-${pl.rarity}" data-act="dexsel" data-id="${pl.id}"><span>${pl.img ? `<img class="dx-img" src="${esc(pl.img)}" alt="" loading="lazy" onerror="this.outerHTML='${pl.face}'">` : pl.face}</span><small>${esc(pl.name)}</small>${p.owned[pl.id] > 1 ? `<em>×${p.owned[pl.id]}</em>` : ''}</button>`
@@ -248,6 +248,22 @@ function dexHtml() {
 }
 
 // ガチャ選手の きょうか(ポイントで)
+// ---- きゅうしゅう(ダブりの コモン〜レジェンドを ダイヤ・レジェンドに すわせて じょうげんアップ) ----
+function absorbHtml(pl, p) {
+  if (!G.canAbsorbInto(pl)) return '';
+  const pts = G.absorbPts(p, pl.id); const stats = G.POS_CAP_STATS[pl.pos].map((s) => G.STAT_NAME[s]).join('・');
+  const cap = pl.rarity === 'diamond' ? G.DIAMOND_CAP : G.STAT_CAP;
+  const groups = ['common', 'uncommon', 'rare', 'super', 'legend'].map((r) => {
+    const list = G.PLAYERS.filter((x) => x.rarity === r && x.id !== pl.id && G.spareCopies(p, x.id) > 0).sort((a, b) => G.spareCopies(p, b.id) - G.spareCopies(p, a.id));
+    const spare = list.reduce((a, x) => a + G.spareCopies(p, x.id), 0); return { r, list, spare };
+  }).filter((g) => g.spare > 0);
+  const rows = groups.map((g) => `<details class="abs-g"><summary><b>${G.RARITY_NAME[g.r]}</b> ダブり ${g.spare}まい(1まいで +${G.ABSORB_PTS[g.r]})
+      <button class="btn small gold" data-act="absorbrar" data-id="${pl.id}" data-r="${g.r}">ぜんぶ +${g.spare * G.ABSORB_PTS[g.r]}</button></summary>
+      ${g.list.slice(0, 40).map((x) => `<div class="abs-row"><span>${x.face || ''} ${esc(x.name)} <small>×${p.owned[x.id]}(ダブり ${G.spareCopies(p, x.id)})</small></span><button class="btn small" data-act="absorb" data-id="${pl.id}" data-f="${x.id}">+${G.ABSORB_PTS[g.r]}</button></div>`).join('')}</details>`).join('');
+  return `<div class="enh absorb"><b>🌀 きゅうしゅう: ${stats}の じょうげん +${pts}</b>
+    <small>ダブりの 選手を すわせると ${G.POS_NAME[pl.pos]}の ${stats}の さいだいち(いま ${cap}${pts ? `+${pts}` : ''})が あがるよ。コモン +1 ・ レア +2 ・ スーパーレア +3 ・ レジェンド +5(アンコモン +1)。1まいめは のこるよ。</small>
+    ${rows || '<small class="muted">すわせられる ダブりが まだ ないよ(ガチャで ダブりを あつめよう)</small>'}</div>`;
+}
 function enhHtml(pl, p) {
   const e = (p.plv || {})[pl.id] || 0; const cost = G.enhCost(e, pl.rarity); const have = G.totalPoints(p);
   const can = e < G.ENH_MAX && have >= cost;
@@ -589,6 +605,17 @@ export function onAct(a, el) {
     case 'dexsel': UI.dexSel = UI.dexSel === el.dataset.id ? null : el.dataset.id; return true;
     case 'dclaim': {
       if (G.claimDiamond(p, el.dataset.id, haveMedalOf)) { X.save(); X.fx.beep('win'); X.fx.vibrate([60, 40, 100]); X.fx.confetti(vw() / 2, vh() * 0.35, 160, 1.7); X.toast('💎 ダイヤモンドを ゲット! すごい!'); }
+      return true;
+    }
+    case 'absorb': {
+      const r = G.absorb(p, el.dataset.id, el.dataset.f, 1);
+      if (r) { X.save(); X.fx.beep('ok'); X.fx.vibrate(20); X.fx.floaty(`+${r.pts}`, vw() / 2, vh() * 0.4); } else X.toast('きゅうしゅう できなかったよ');
+      return true;
+    }
+    case 'absorbrar': {
+      const t = G.PLAYER_BY_ID[el.dataset.id]; let gain = 0; let n = 0;
+      if (t) for (const x of G.PLAYERS) { if (x.rarity !== el.dataset.r || x.id === t.id) continue; const sp = G.spareCopies(p, x.id); if (sp > 0) { const r = G.absorb(p, t.id, x.id, sp); if (r) { gain += r.pts; n += r.n; } } }
+      if (gain) { X.save(); X.fx.beep('win'); X.fx.vibrate([30, 30, 60]); X.fx.confetti(vw() / 2, vh() * 0.4, 60, 1.2); X.toast(`🌀 ${n}まい きゅうしゅう! じょうげん +${gain}`); } else X.toast('きゅうしゅう できる ダブりが ないよ');
       return true;
     }
     case 'penh': {

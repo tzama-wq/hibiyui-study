@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import {
   PLAYERS, RARITIES, TICKETS, LEGEND_RATES, TICKET_ORDER, STATS, rates, rollRarity, pull, levelOf, rngSeed,
-  studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets, pityLeft,
+  studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets, pityLeft, ABSORB_PTS, absorb, absorbPts, spareCopies, canAbsorbInto, capUpOf, effectiveStats, POS_CAP_STATS,
   upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
   FORMATIONS, slotsOf, refitTeam, MAX_LEVEL, matchSummary, DIAMOND, diamondReq, claimDiamond, addShards, rarityRank, DIAMOND_CAP, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
@@ -441,4 +441,26 @@ console.log('OK: game');
   pull(p, 'bronze', () => 0); assert.equal(pityLeft(p, 'bronze'), 50, 'じぜんに レジェンドが でても かぞえなおし');
   const g = { tickets: { ...emptyTickets(), god: 3 }, owned: {} }; assert.equal(pull(g, 'god').player.rarity, 'legend'); assert.equal(pityLeft(g, 'god'), 0);
   console.log('OK: てんじょう');
+}
+
+// ---- きゅうしゅう(ダブりを ダイヤ・レジェンドに すわせて じょうげんアップ) ----
+{
+  const lg = PLAYERS.find((x) => x.rarity === 'legend' && x.pos === 'FW'); const lg2 = PLAYERS.find((x) => x.rarity === 'legend' && x.id !== lg.id);
+  const cm = PLAYERS.find((x) => x.rarity === 'common'); const rr = PLAYERS.find((x) => x.rarity === 'rare'); const sr = PLAYERS.find((x) => x.rarity === 'super'); const dm = PLAYERS.find((x) => x.rarity === 'diamond' && x.pos === 'MF');
+  const p = { owned: { [lg.id]: 1, [lg2.id]: 3, [cm.id]: 4, [rr.id]: 3, [sr.id]: 2, [dm.id]: 1 }, plv: {} };
+  assert.deepEqual([ABSORB_PTS.common, ABSORB_PTS.rare, ABSORB_PTS.super, ABSORB_PTS.legend], [1, 2, 3, 5]);
+  assert.equal(spareCopies(p, cm.id), 3, '1まいめは のこす');
+  let r = absorb(p, lg.id, cm.id, 3); assert.equal(r.pts, 3); assert.equal(p.owned[cm.id], 1, 'ダブりだけ へる'); assert.equal(absorb(p, lg.id, cm.id, 1), null, 'ダブりが ないと だめ');
+  r = absorb(p, lg.id, rr.id, 2); assert.equal(r.pts, 4); r = absorb(p, lg.id, sr.id, 1); assert.equal(r.pts, 3); r = absorb(p, lg.id, lg2.id, 2); assert.equal(r.pts, 10);
+  assert.equal(absorbPts(p, lg.id), 3 + 4 + 3 + 10, 'ポイントが たまる');
+  assert.equal(absorb(p, cm.id, rr.id), null, 'コモンには すわせられない'); assert.equal(absorb(p, lg.id, lg.id), null, 'じぶんには すわせない'); assert.equal(absorb(p, lg.id, dm.id), null, 'ダイヤは すわれる がわだけ');
+  assert.ok(canAbsorbInto(dm) && canAbsorbInto(lg) && !canAbsorbInto(cm));
+  // じょうげんの ばあい: きょうか MAX で じょうげんに とどく 選手は、きゅうしゅうの ぶん つよくなる(ポジションに あう のうりょくだけ)
+  const big = { SHO: 120, PAS: 120, SPD: 120, DEF: 120, STA: 120 };
+  const a0 = effectiveStats(big, { level: 5, enh: 20 }); const a1 = effectiveStats(big, { level: 5, enh: 20, capUp: capUpOf(lg, 20) });
+  assert.equal(a0.SHO, 140); assert.equal(a1.SHO, 160); assert.equal(a1.SPD, 160); assert.equal(a1.PAS, 140, 'FWは SHO・SPD だけ'); assert.equal(a1.DEF, 140);
+  const snap = (abs) => teamSnapshot({ kid: { name: 'k', face: '', stats: big }, owned: { [lg.id]: 6 }, team: [lg.id, 'self'], equip: [], formation: '442', plv: { [lg.id]: 20 }, absorb: abs });
+  const s0 = snap({}).find((x) => x.id === lg.id); const s1 = snap({ [lg.id]: 15 }).find((x) => x.id === lg.id);
+  assert.ok(s1.stats[POS_CAP_STATS[lg.pos][0]] >= s0.stats[POS_CAP_STATS[lg.pos][0]], 'じょうげんが あがる');
+  console.log('OK: きゅうしゅう');
 }
