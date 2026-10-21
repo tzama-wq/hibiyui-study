@@ -71,7 +71,7 @@ export function skyHome(k, p) {
     ${MISSIONS.map((m, i) => { const ok = unlocked(i); const first = !(sk.firsts[`${m.id}:${sk.vehicle}`]);
       return `<div class="smission ${ok ? '' : 'lock'}"><div class="sm-ico">${ok ? m.icon : '🔒'}</div><div class="sm-body"><b>${i + 1}. ${esc(m.name)} <em>${stars(m.id)}</em></b><small>${esc(m.brief)}</small><span class="sm-hint">てき: ${mixIcons(m)}・ごほうび ${rewardText(m.reward)}${first ? ` + はじめて ${VEHICLES[sk.vehicle].icon} ${rewardText(m.first || {})}` : ''}</span></div>
         <button class="btn gold" data-act="skygo" data-m="${m.id}" ${ok ? '' : 'disabled'}>🛫 しゅつげき</button></div>`; }).join('')}
-    <div class="muted">そうさ: ひだりの スティック(ひこうき=むき・のぼる/くだる、ふね・せんしゃ=すすむ・まがる)。ほうげき・ミサイル(ロックして うつ)・ブースト・かいひ。ふね・せんしゃは ねらいを じどうで えらぶよ(「ねらい かえる」で きりかえ)。</div></section>`;
+    <div class="muted">そうさ: ひだりの スティック(みぎに たおせば みぎへ、うえに たおせば うえ・まえへ。ひこうき=むき・のぼる/くだる、ふね・せんしゃ=すすむ・まがる)。ほうげき・ミサイル(ロックして うつ)・ブースト・かいひ。ふね・せんしゃは ねらいを じどうで えらぶよ(「ねらい かえる」で きりかえ)。</div></section>`;
 }
 
 function slotCard(sk, sl, ch, chars) {

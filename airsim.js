@@ -74,6 +74,7 @@ export function buildVehicle({ vehicle = 'plane', name = '', face = '', img = ''
     speed: Math.round(base.spd * 10) / 10, turn: base.turn, hpMax: Math.round(base.hp),
     gunDps: Math.round((24 + ks.SHO * 0.18 + gun * 0.5) * mult),
     missileDmg: Math.round(62 + ks.SHO * 0.3 + misPow * 0.55),
+    misRange: Math.round(MIS_RANGE[vehicle] * clamp(0.8 + misPow / 220, 0.8, 1.5)), gunRangeMul: Math.round(clamp(0.85 + (gun + ks.SHO * 0.5) / 300, 0.85, 1.35) * 100) / 100,
     missiles: 3 + Math.floor(misPow / 30) + (vehicle === 'plane' ? 0 : 2), locks: clamp(1 + Math.floor(misPow / 50), 1, 6),
     lockTime: clamp(1.2 - ks.PAS * 0.002 - mis * 0.004, 0.3, 1.2),
     boostMax: Math.round(50 + ks.STA * 0.5 + sup * 0.7), evadeCd: clamp(4.6 - sup * 0.016, 1.8, 4.6),
@@ -151,7 +152,7 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
   }
 
   // ---- ねらい・ロック ----------------------------------------------------------------
-  const inRangeGun = (P, e) => { const d = Math.hypot(e.x - P.x, e.y - P.y, e.z - P.z); return d <= GUN_RANGE[kind][e.dom] && GUN_VS[kind][e.dom] > 0.2; };
+  const inRangeGun = (P, e) => { const d = Math.hypot(e.x - P.x, e.y - P.y, e.z - P.z); return d <= GUN_RANGE[kind][e.dom] * (V.gunRangeMul || 1) && GUN_VS[kind][e.dom] > 0.2; };
   function chooseTarget() { // ふねと せんしゃ: じどうで ねらう(ちかい じゅん)。ボタンで つぎの てきへ
     if (air) { S.target = null; return; }
     const P = S.player; const c = S.enemies.filter((e) => inRangeGun(P, e)).sort((a, b) => dist(a, P) - dist(b, P));
@@ -160,7 +161,7 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
   }
   function nextTarget() { if (air) return; const P = S.player; const c = S.enemies.filter((e) => inRangeGun(P, e)).sort((a, b) => dist(a, P) - dist(b, P)); if (!c.length) return; const i = c.findIndex((e) => S.target && e.id === S.target.id); S.target = c[(i + 1) % c.length]; }
   function updateLock(dt) {
-    const P = S.player; const fwd = dirOf(P.yaw, P.pitch); const R = MIS_RANGE[kind];
+    const P = S.player; const fwd = dirOf(P.yaw, P.pitch); const R = V.misRange || MIS_RANGE[kind];
     let cands;
     if (air) cands = S.enemies.map((e) => { const v = { x: e.x - P.x, y: e.y - P.y, z: e.z - P.z }; const d = Math.hypot(v.x, v.y, v.z); const c = (v.x * fwd.x + v.y * fwd.y + v.z * fwd.z) / (d || 1); return { e, d, ang: Math.acos(clamp(c, -1, 1)) }; }).filter((c) => c.d < R && c.ang < 0.5).sort((a, b) => a.ang - b.ang || a.d - b.d);
     else cands = S.enemies.map((e) => ({ e, d: dist(e, P), ang: 0 })).filter((c) => c.d < R).sort((a, b) => ((S.target && b.e.id === S.target.id) - (S.target && a.e.id === S.target.id)) || a.d - b.d);
@@ -175,7 +176,7 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
     for (const e of targets) { if (P.missiles <= 0) break; P.missiles--; n++;
       const aim = e ? norm({ x: e.x - P.x, y: e.y - P.y - (air ? 0 : 10), z: e.z - P.z }) : dirOf(P.yaw, air ? P.pitch : 0.4);
       const d = air ? aim : norm({ x: aim.x, y: Math.max(aim.y, 0.45), z: aim.z });
-      S.missiles.push({ x: P.x + d.x * 12, y: P.y + (air ? d.y * 12 - 2 : 12), z: P.z + d.z * 12, vx: d.x * 240, vy: d.y * 240, vz: d.z * 240, target: e ? e.id : null, t: 0, life: 6, dmg: V.missileDmg }); }
+      S.missiles.push({ x: P.x + d.x * 12, y: P.y + (air ? d.y * 12 - 2 : 12), z: P.z + d.z * 12, vx: d.x * 240, vy: d.y * 240, vz: d.z * 240, target: e ? e.id : null, t: 0, life: 8, dmg: V.missileDmg }); }
     if (n) snd('missile'); return n > 0;
   }
   function evade() { const P = S.player; if (P.evadeCd > 0 || S.done) return false; P.invuln = air ? 0.9 : 1.3; P.evadeCd = V.evadeCd; P.rollSpin = air ? 1 : 0; S.shield = P.invuln; snd('evade'); return true; }

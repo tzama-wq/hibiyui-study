@@ -23,14 +23,14 @@ export async function startAir3D(o) {
       <div class="a3d-top"><div class="a3d-name">${esc(o.spec.icon || '')} ${esc(V.name)} ・ ${esc(o.spec.vname || '')}</div><div class="a3d-obj"></div></div>
       <div class="a3d-bars"><div class="ab hp"><span>きたい</span><i><u></u></i></div><div class="ab base"><span>きち</span><i><u></u></i></div><div class="ab boost"><span>ブースト</span><i><u></u></i></div><div class="ab ms"><span>ミサイル</span><b></b></div></div>
       <div class="a3d-marks"></div><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div>
-      <canvas class="a3d-radar" width="120" height="120"></canvas>
+      <div class="a3d-ret"><i></i></div><canvas class="a3d-radar" width="120" height="120"></canvas>
       <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button>
     </div>
     <div class="a3d-pad"><div class="a3d-stick"><div class="a3d-knob"></div></div>
       <div class="a3d-btns"><button class="ab-b ab-gun" data-b="gun">${air ? 'きかんほう' : 'ほうげき'}</button><button class="ab-b ab-ms" data-b="missile">ミサイル</button><button class="ab-b ab-boost" data-b="boost">ブースト</button><button class="ab-b ab-ev" data-b="evade">${air ? 'かいひ' : 'バリア'}</button>${air ? '' : '<button class="ab-b ab-tg" data-b="target">ねらい<br>かえる</button>'}</div></div>
     <div class="a3d-rot p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
     <div class="a3d-end" hidden></div>
-    <div class="p3d-menu a3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn" data-m="invert"></button><button class="btn gray" data-m="quit">ミッションを やめる</button></div></div>`;
+    <div class="p3d-menu a3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn gray" data-m="quit">ミッションを やめる</button></div></div>`;
   document.body.appendChild(root);
   const prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
   const cv = root.querySelector('.a3d-cv');
@@ -66,8 +66,8 @@ export async function startAir3D(o) {
   const fromPool = (pool, geo, mat, i) => { while (pool.length <= i) { const m = new THREE.Mesh(geo, mat); m.visible = false; scene.add(m); pool.push(m); } return pool[i]; };
 
   // ---- そうさ ----
-  const stick = root.querySelector('.a3d-stick'); const knob = root.querySelector('.a3d-knob'); const pad = root.querySelector('.a3d-pad'); let sid = null; let so = { x: 0, y: 0 }; const R = 56; let invert = false; try { invert = localStorage.getItem('hibiyui.a3d.invert') === '1'; } catch { /* ok */ }
-  const setStick = (dx, dy) => { const m = Math.hypot(dx, dy); const k = m > R ? R / m : 1; const x = dx * k; const y = dy * k; knob.style.transform = `translate(${x}px,${y}px)`; const vx = x / R; const vy = y / R; if (Math.hypot(vx, vy) < 0.1) { sim.input.turn = 0; sim.input.climb = 0; } else { sim.input.turn = vx; sim.input.climb = (air && invert ? 1 : -1) * vy; } };
+  const stick = root.querySelector('.a3d-stick'); const knob = root.querySelector('.a3d-knob'); const pad = root.querySelector('.a3d-pad'); let sid = null; let so = { x: 0, y: 0 }; const R = 56; 
+  const setStick = (dx, dy) => { const m = Math.hypot(dx, dy); const k = m > R ? R / m : 1; const x = dx * k; const y = dy * k; knob.style.transform = `translate(${x}px,${y}px)`; const vx = x / R; const vy = y / R; if (Math.hypot(vx, vy) < 0.1) { sim.input.turn = 0; sim.input.climb = 0; } else { sim.input.turn = -vx; sim.input.climb = -vy; } };
   pad.addEventListener('pointerdown', (e) => { if (e.target.closest('.ab-b') || sid !== null) return; sid = e.pointerId; try { pad.setPointerCapture(e.pointerId); } catch { /* ok */ } const r = stick.getBoundingClientRect(); so = { x: e.clientX, y: e.clientY }; stick.style.left = `${e.clientX - r.width / 2}px`; stick.style.bottom = 'auto'; stick.style.top = `${e.clientY - r.height / 2}px`; setStick(0, 0); e.preventDefault(); });
   pad.addEventListener('pointermove', (e) => { if (e.pointerId !== sid) return; setStick(e.clientX - so.x, e.clientY - so.y); e.preventDefault(); });
   const endStick = (e) => { if (e.pointerId !== sid) return; sid = null; setStick(0, 0); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = ''; };
@@ -75,22 +75,22 @@ export async function startAir3D(o) {
   const bp = (b) => { if (b === 'gun') sim.input.gun = true; else if (b === 'boost') sim.input.boost = true; else if (b === 'missile') sim.fireMissile(); else if (b === 'evade') sim.evade(); else if (b === 'target') sim.nextTarget(); };
   const br = (b) => { if (b === 'gun') sim.input.gun = false; else if (b === 'boost') sim.input.boost = false; };
   root.querySelectorAll('.ab-b').forEach((btn) => { const b = btn.dataset.b; btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch { /* ok */ } btn.classList.add('on'); bp(b); e.preventDefault(); }); const up = (e) => { btn.classList.remove('on'); br(b); e.preventDefault(); }; btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); });
-  const keys = new Set(); const recompute = () => { const x = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0); const y = (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0) - (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0); sim.input.turn = x; sim.input.climb = (air && invert ? -1 : 1) * y; };
+  const keys = new Set(); const recompute = () => { const x = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0); const y = (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0) - (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0); sim.input.turn = -x; sim.input.climb = y; };
   const kmap = { KeyJ: 'gun', Space: 'gun', KeyK: 'missile', ShiftLeft: 'boost', KeyL: 'evade', KeyT: 'target' };
   const kd = (e) => { if (e.repeat) return; if (e.code === 'Escape' || e.code === 'KeyP') { setPause(!paused); return; } if (kmap[e.code]) { bp(kmap[e.code]); e.preventDefault(); return; } keys.add(e.code); recompute(); if (e.code.startsWith('Arrow')) e.preventDefault(); };
   const ku = (e) => { if (kmap[e.code]) { br(kmap[e.code]); return; } keys.delete(e.code); recompute(); };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu');
   const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const syncInv = () => { const b = menu.querySelector('[data-m=invert]'); b.hidden = !air; b.textContent = `🎮 うえした: ${invert ? 'スティックを したに たおすと のぼる' : 'スティックを うえに たおすと のぼる'}(おして かえる)`; };
-  menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'invert') { invert = !invert; try { localStorage.setItem('hibiyui.a3d.invert', invert ? '1' : '0'); } catch { /* ok */ } syncInv(); } else if (m.dataset.m === 'quit') { destroy(); if (o.onQuit) o.onQuit(); } });
-  root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused)); syncInv();
+  
+  menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { destroy(); if (o.onQuit) o.onQuit(); } });
+  root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   const resize = () => { const w = root.clientWidth || innerWidth; const h = root.clientHeight || innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 1.5 ? 70 : 62; camera.updateProjectionMatrix(); portrait = h > w * 1.05; root.classList.toggle('portrait', portrait); };
   window.addEventListener('resize', resize); window.addEventListener('orientationchange', resize); resize();
   try { if (document.documentElement.requestFullscreen && !document.fullscreenElement && /Mobi|Android/i.test(navigator.userAgent)) { document.documentElement.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {}); } } catch { /* ok */ }
 
   // ---- HUD ----
-  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), base: q('.ab.base u'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), obj: q('.a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), marks: q('.a3d-marks'), radar: q('.a3d-radar').getContext('2d') };
+  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), base: q('.ab.base u'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), obj: q('.a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), marks: q('.a3d-marks'), ret: q('.a3d-ret'), radar: q('.a3d-radar').getContext('2d') };
   let lastBanner = ''; const v3 = new THREE.Vector3();
   const project = (x, y, z) => { v3.set(x, y, z).project(camera); return { x: (v3.x * 0.5 + 0.5) * root.clientWidth, y: (-v3.y * 0.5 + 0.5) * root.clientHeight, z: v3.z }; };
   function updateHud() {
@@ -104,12 +104,13 @@ export async function startAir3D(o) {
     hud.msg.textContent = S.msgT > 0 ? S.msg : '';
     hud.warn.textContent = S.outWarn ? '⚠ えんしゅうから でちゃう! もどって!' : S.groundWarn ? '⚠ うみに ちかいよ!' : S.shoreWarn ? (kind === 'tank' ? '⚠ しまの はしだよ' : '⚠ しまに ちかいよ') : (P.hp / P.hpMax < 0.3 ? '⚠ きたいが あぶない!' : ''); S.groundWarn = 0; S.shoreWarn = 0;
     root.classList.toggle('hurt', S.hurt > 0);
+    { const ay = air ? P.yaw : P.turretYaw; const ap = air ? P.pitch : 0.02; const rp = project(P.x + Math.sin(ay) * Math.cos(ap) * 500, (air ? P.y : 8) + Math.sin(ap) * 500, P.z + Math.cos(ay) * Math.cos(ap) * 500); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 ? '' : 'none'; hud.ret.classList.toggle('lock', P.lockTarget.length > 0); }
     let html = ''; const lc = new Map((S.lockCands || []).map((c) => [c.id, c]));
     for (const e of S.enemies) { const pj = project(e.x, e.y + 4, e.z); if (pj.z > 1 || pj.x < -30 || pj.x > root.clientWidth + 30 || pj.y < -30 || pj.y > root.clientHeight + 30) continue; const c = lc.get(e.id); const d = Math.round(Math.hypot(e.x - P.x, e.y - P.y, e.z - P.z)); const sz = clamp(900 / Math.max(120, d) * 16, 14, 46); const isT = S.target && S.target.id === e.id;
       html += `<div class="mk ${c ? (c.locked ? 'lock' : 'seek') : ''} ${isT ? 'tgt' : ''} ${e.type} dom-${e.dom}" style="left:${pj.x}px;top:${pj.y}px;width:${sz}px;height:${sz}px"><small>${ENEMY[e.type].icon}${d}m</small></div>`; }
     hud.marks.innerHTML = html;
     const g = hud.radar; g.clearRect(0, 0, 120, 120); g.fillStyle = 'rgba(8,24,44,.55)'; g.beginPath(); g.arc(60, 60, 58, 0, 6.283); g.fill(); g.strokeStyle = 'rgba(127,231,255,.5)'; g.beginPath(); g.arc(60, 60, 58, 0, 6.283); g.stroke(); g.beginPath(); g.arc(60, 60, 29, 0, 6.283); g.stroke();
-    const rr = air ? 1800 : 1400; const toR = (x, z) => { const dx = x - P.x; const dz = z - P.z; const c = Math.cos(P.yaw); const s = Math.sin(P.yaw); return { x: 60 + ((dx * c - dz * s) / rr) * 58, y: 60 - ((dx * s + dz * c) / rr) * 58 }; };
+    const rr = air ? 1800 : 1400; const toR = (x, z) => { const dx = x - P.x; const dz = z - P.z; const c = Math.cos(P.yaw); const s = Math.sin(P.yaw); return { x: 60 - ((dx * c - dz * s) / rr) * 58, y: 60 - ((dx * s + dz * c) / rr) * 58 }; };
     g.fillStyle = '#4aa3ff'; g.beginPath(); g.moveTo(60, 52); g.lineTo(55, 66); g.lineTo(65, 66); g.fill();
     const bp2 = toR(S.base.x, S.base.z); g.fillStyle = '#ffd23f'; g.fillRect(clamp(bp2.x, 4, 114) - 4, clamp(bp2.y, 4, 114) - 4, 8, 8);
     for (const e of S.enemies) { const r = toR(e.x, e.z); if (Math.hypot(r.x - 60, r.y - 60) > 58) continue; g.fillStyle = e.type === 'boss' ? '#ff9f1c' : e.dom === 'air' ? '#ff4d5e' : e.dom === 'sea' ? '#b57bff' : '#ffb02e'; g.fillRect(r.x - 2, r.y - 2, e.type === 'boss' ? 7 : 4, e.type === 'boss' ? 7 : 4); }
@@ -135,10 +136,10 @@ export async function startAir3D(o) {
     dome.material.opacity = 0.1 + (S.baseHurt > 0 ? 0.25 : 0);
     // カメラ
     let bx; let by; let bz; let lx; let ly; let lz; const k = 1 - Math.exp(-7 * dt);
-    if (air) { bx = P.x - f.x * 34; by = P.y - f.y * 34 + 9; bz = P.z - f.z * 34; lx = P.x + f.x * 90; ly = P.y + f.y * 90; lz = P.z + f.z * 90; }
+    if (air) { bx = P.x - f.x * 26; by = P.y - f.y * 26 + 7; bz = P.z - f.z * 26; lx = P.x + f.x * 90; ly = P.y + f.y * 90; lz = P.z + f.z * 90; }
     else { const d = kind === 'ship' ? 120 : 72; const h = kind === 'ship' ? 58 : 38; bx = P.x - Math.sin(P.yaw) * d; by = h; bz = P.z - Math.cos(P.yaw) * d; lx = P.x + Math.sin(P.yaw) * 80; ly = 10; lz = P.z + Math.cos(P.yaw) * 80; }
     if (!cam.init) { cam.x = bx; cam.y = by; cam.z = bz; cam.init = true; } cam.x += (bx - cam.x) * k; cam.y += (by - cam.y) * k; cam.z += (bz - cam.z) * k;
-    camera.position.set(cam.x, Math.max(6, cam.y), cam.z); camera.up.set(air ? Math.sin(-P.roll * 0.35) : 0, air ? Math.cos(P.roll * 0.35) : 1, 0); camera.lookAt(lx, ly, lz);
+    camera.position.set(cam.x, Math.max(6, cam.y), cam.z); camera.up.set(0, 1, 0); camera.lookAt(lx, ly, lz);
     sea.position.x = P.x; sea.position.z = P.z; seaLines.position.x = Math.round(P.x / 200) * 200; seaLines.position.z = Math.round(P.z / 200) * 200;
   }
   function frame(ts) {
