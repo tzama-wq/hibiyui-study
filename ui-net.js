@@ -1,4 +1,4 @@
-// ローカル つうしんの つなぎがめん(ホスト/ゲスト・QR・コード)。サッカーと そらの まもり きょうつう。
+// ローカル つうしんの つなぎがめん(ホスト/ゲスト・QR・コード)。サッカーと 地球防衛隊 きょうつう。
 import { hostOffer, guestJoin, qrSvg, scanQr } from './net.js';
 
 const esc = (s) => String(s).replace(/[<>&"]/g, '');

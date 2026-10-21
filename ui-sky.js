@@ -1,4 +1,4 @@
-// 「そらの まもり」(エースコンバット・アーマードコアふうの ゲームモード)の 画面: ミッション・かくのう庫(そうび)・しゅつげき・ごほうび。
+// 「地球防衛隊」(エースコンバット・アーマードコアふうの ゲームモード)の 画面: ミッション・かくのう庫(そうび)・しゅつげき・ごほうび。
 // しゅじんこう = じぶん(サッカーの つよさを ひきつぐ)。ガチャの キャラは「ぶひん」(きかんじゅう・ミサイル・つばさ…)として そうびする。
 import * as G from './game.js';
 import { VEHICLES, SLOTS, RARITY_NAME, RARITY_RANK, partOf, buildVehicle, autoLoadout, MISSIONS, missionById, missionMix, PVP_MISSION } from './airsim.js';
@@ -61,7 +61,7 @@ export function skyHome(k, p) {
   const stars = (id) => { const s = sk.cleared[id] || 0; return s ? '★'.repeat(s) + '☆'.repeat(3 - s) : ''; };
   const unlocked = (i) => i === 0 || sk.cleared[MISSIONS[i - 1].id];
   const res = sk.last ? `<div class="skyres ${sk.last.win ? 'win' : 'lose'}"><b>${sk.last.win ? '🎖 クリア!' : 'ざんねん…'} ${esc(sk.last.name)}</b>${sk.last.win ? ` ${'★'.repeat(sk.last.stars)}` : ''}<div>${sk.last.rewardText ? `ごほうび: ${sk.last.rewardText}` : ''}</div><button class="btn small gray" data-act="skyclear">とじる</button></div>` : '';
-  return `<section class="panel sky-home"><h2 class="sec">SKY GUARD <small>そらの まもり</small></h2>
+  return `<section class="panel sky-home"><h2 class="sec">EARTH DEFENSE <small>地球防衛隊</small></h2>
     <div class="muted">ふめいの てきから にっぽんを まもる ゲーム。しゅじんこうは ${esc(k.name)}! サッカーの つよさを ひきつぐよ。ガチャの キャラは「そうび(ぶひん)」に なるよ。</div>${res}
     <h3 class="sec">MACHINE <small>のりものを えらぶ</small></h3>${vehicleTabs(sk)}
     <div class="sky-me"><b>${VEHICLES[sk.vehicle].icon} ${esc(k.name)}の ${VEHICLES[sk.vehicle].name}</b> <em>パワー ${V.rating}</em>${bars(V)}
@@ -170,7 +170,7 @@ void RARITY_RANK;
 function openSkyNet() {
   const k = X.kid(); const p = X.p(); const sk = ensureSky(p); const mine = specOf(k, p, sk.vehicle);
   const hello = { t: 'hello', name: k.name, vehicle: mine.V, spec: mine.spec };
-  pairUI({ title: '📡 ふたりで そらの まもり', onConn: (conn, role) => lobby(conn, role, hello), onCancel: () => {} });
+  pairUI({ title: '📡 ふたりで 地球防衛隊', onConn: (conn, role) => lobby(conn, role, hello), onCancel: () => {} });
 }
 function lobby(conn, role, hello) {
   let partner = null; let replied = false; let started = false;

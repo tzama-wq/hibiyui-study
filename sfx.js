@@ -34,7 +34,7 @@ export function createSfx(isQuiet = () => false) {
       tone(1046, 0.4, { at: 0.4, v: 0.05 }); noise(0.9, 0.09, { type: 'lowpass', freq: 1800 }); // かんせい
     },
     whistle: () => { tone(2750, 0.22, { v: 0.035 }); tone(2650, 0.28, { at: 0.2, v: 0.035 }); },
-    // そらの まもり
+    // 地球防衛隊
     gun: () => { noise(0.05, 0.07, { freq: 1800 }); tone(220, 0.04, { to: 120, type: 'square', v: 0.025 }); },
     missile: () => { noise(0.35, 0.1, { type: 'bandpass', freq: 1200 }); tone(300, 0.3, { to: 900, type: 'sawtooth', v: 0.04 }); },
     boom: () => { noise(0.3, 0.14, { type: 'lowpass', freq: 700 }); tone(110, 0.25, { to: 40, type: 'sawtooth', v: 0.08 }); },

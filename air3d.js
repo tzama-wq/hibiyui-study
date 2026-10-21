@@ -1,4 +1,4 @@
-// 「そらの まもり」の 3D がめん(three.js): ひこうき・ふね・せんしゃ。タッチ そうさ + HUD。ルールと うごきは airsim.js、みためは vehicle3d.js。
+// 「地球防衛隊」の 3D がめん(three.js): ひこうき・ふね・せんしゃ。タッチ そうさ + HUD。ルールと うごきは airsim.js、みためは vehicle3d.js。
 //   const g = await startAir3D({ vehicle, spec, mission, gentle, onSfx, onEnd, onQuit, net });   net = { role:'host'|'guest', conn, partner:{ vehicle, spec, name }, pvp } (ふたりで あそぶとき)   vehicle=buildVehicle の けっか / spec=みための ぶひん じょうほう
 import { createAir, BASE_Z, ISLAND, ENEMY } from './airsim.js';
 import { hostBind, createGuestSim } from './airnet.js';
@@ -173,7 +173,7 @@ export async function startAir3D(o) {
     root.remove(); document.body.style.overflow = prevOverflow; try { if (document.fullscreenElement) document.exitFullscreen(); if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch { /* ok */ }
   }
   raf = requestAnimationFrame(frame);
-  const api = { destroy: () => { if (ACTIVE === api) ACTIVE = null; destroy(); }, sim, root, renderer };
+  const api = { destroy: () => { if (ACTIVE === api) ACTIVE = null; destroy(); }, sim, root, renderer, scene, camera };
   ACTIVE = api; return api;
 }
 

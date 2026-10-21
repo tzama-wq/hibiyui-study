@@ -1,4 +1,4 @@
-// 「そらの まもり」の きたいの 3Dモデル(しゅじんこうの いろ + ぶひん(ガチャの キャラ)の レアど・いろで みためが かわる)
+// 「地球防衛隊」の きたいの 3Dモデル(しゅじんこうの いろ + ぶひん(ガチャの キャラ)の レアど・いろで みためが かわる)
 //   makeVehicleModel(THREE, spec)  spec = { vehicle, color, parts: { gun, missile, mobility, support, armor }, missiles }
 //   parts[slot] = { rarity, charId, fit, power }。ぶひんが なければ ふつうの 「きほんの ぶひん」
 const RANK = { common: 0, uncommon: 1, rare: 2, super: 3, legend: 4, diamond: 5 };

@@ -1,4 +1,4 @@
-// 「そらの まもり」の ローカル つうしん(きょうりょく / たいせん)。ホストが ほんもの の シミュレーションを うごかし、ゲストは そうさを おくって けしきを うけとる。
+// 「地球防衛隊」の ローカル つうしん(きょうりょく / たいせん)。ホストが ほんもの の シミュレーションを うごかし、ゲストは そうさを おくって けしきを うけとる。
 //   ホスト: const hb = hostBind(sim, conn);  まいフレーム hb.tick(dt)   (ゲストの そうさを players[1] に はんえい、20かい/びょうで スナップショットを おくる)
 //   ゲスト: const gs = createGuestSim({ conn, mission, vehicle, pvp });  gs は createAir と おなじ つかいかた(state / input / step / fireMissile / evade / nextTarget)
 import { ENEMY } from './airsim.js';

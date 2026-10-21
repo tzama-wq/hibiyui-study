@@ -3,6 +3,7 @@
 import { createPlay, FIELD } from './playsim.js';
 import { hostBindPlay, createGuestPlay } from './playnet.js';
 import { look } from './match.js';
+import { buildStadium, makePlayerModel, makeBall } from './stadium3d.js';
 
 let T = null;
 async function loadThree() { if (!T) T = await import('./vendor/three.module.min.js'); return T; }
@@ -10,60 +11,6 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const SC = 1.55; // えを みやすくする ために せんしゅ・ボールを すこし おおきく する(あそびやすさ ゆうせん)
 
 const esc = (s) => String(s).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
-
-// ---- テクスチャ ------------------------------------------------------------------
-function grassTexture(THREE) {
-  const W = 2048; const H = Math.round(W * (FIELD.W + 10) / (FIELD.L + 14));
-  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  const sx = W / (FIELD.L + 14); const sz = H / (FIELD.W + 10); const ox = W / 2; const oz = H / 2;
-  const X = (x) => ox + x * sx; const Z = (z) => oz + z * sz;
-  g.fillStyle = '#2a8a3f'; g.fillRect(0, 0, W, H);
-  const stripes = 14;
-  for (let i = 0; i < stripes; i++) { g.fillStyle = i % 2 ? '#2f9645' : '#278238'; g.fillRect(X(-FIELD.L / 2 - 7 + (i * (FIELD.L + 14)) / stripes), 0, ((FIELD.L + 14) / stripes) * sx + 1, H); }
-  g.strokeStyle = 'rgba(255,255,255,.92)'; g.lineWidth = Math.max(3, sx * 0.34); g.lineJoin = 'round';
-  const L = FIELD.L / 2; const Wd = FIELD.W / 2;
-  g.strokeRect(X(-L), Z(-Wd), FIELD.L * sx, FIELD.W * sz);
-  g.beginPath(); g.moveTo(X(0), Z(-Wd)); g.lineTo(X(0), Z(Wd)); g.stroke();
-  g.beginPath(); g.ellipse(X(0), Z(0), 9.15 * sx, 9.15 * sz, 0, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = '#fff'; g.beginPath(); g.ellipse(X(0), Z(0), 0.35 * sx, 0.35 * sz, 0, 0, Math.PI * 2); g.fill();
-  for (const s of [-1, 1]) {
-    g.strokeRect(s > 0 ? X(L - 16.5) : X(-L), Z(-20.16), 16.5 * sx, 40.32 * sz);
-    g.strokeRect(s > 0 ? X(L - 5.5) : X(-L), Z(-9.16), 5.5 * sx, 18.32 * sz);
-    g.beginPath(); g.ellipse(X(s * (L - 11)), Z(0), 0.3 * sx, 0.3 * sz, 0, 0, Math.PI * 2); g.fill();
-    g.beginPath(); g.ellipse(X(s * (L - 11)), Z(0), 9.15 * sx, 9.15 * sz, 0, s > 0 ? Math.PI * 0.69 : -Math.PI * 0.31, s > 0 ? Math.PI * 1.31 : Math.PI * 0.31); g.stroke();
-  }
-  const tex = new THREE.CanvasTexture(c); tex.anisotropy = 8; tex.colorSpace = THREE.SRGBColorSpace; return tex;
-}
-function crowdTexture(THREE) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
-  g.fillStyle = '#10182e'; g.fillRect(0, 0, 512, 128);
-  const cols = ['#e8564a', '#f4c542', '#4aa3e8', '#e8e8e8', '#6fcf97', '#a56de2', '#ff9f43'];
-  for (let y = 4; y < 128; y += 6) for (let x = 0; x < 512; x += 5) { g.fillStyle = cols[Math.floor(Math.random() * cols.length)]; g.fillRect(x + (y % 12 ? 2 : 0), y, 3, 3); g.fillStyle = '#e0b894'; g.fillRect(x + (y % 12 ? 2 : 0), y - 2, 3, 2); }
-  const tex = new THREE.CanvasTexture(c); tex.wrapS = THREE.RepeatWrapping; tex.repeat.set(6, 1); tex.colorSpace = THREE.SRGBColorSpace; return tex;
-}
-
-// ---- せんしゅの モデル -------------------------------------------------------------
-function makePlayerModel(THREE, lk) {
-  const root = new THREE.Group(); const inner = new THREE.Group(); root.add(inner);
-  const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
-  const box = (w, h, d, c) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c));
-  // あし(ひざを つけねで ふれる ように、さきを したに ずらす)
-  const mkLeg = (z) => { const gr = new THREE.Group(); gr.position.set(0, 0.86, z); const up = box(0.2, 0.42, 0.2, lk.skin); up.position.y = -0.21; const lo = box(0.21, 0.44, 0.21, lk.sock); lo.position.y = -0.64; const shoe = box(0.34, 0.1, 0.22, '#15151c'); shoe.position.set(0.06, -0.86, 0); gr.add(up, lo, shoe); inner.add(gr); return gr; };
-  const legL = mkLeg(-0.14); const legR = mkLeg(0.14);
-  const shorts = box(0.38, 0.3, 0.5, lk.shorts); shorts.position.y = 0.95; inner.add(shorts);
-  const torso = box(0.36, 0.55, 0.56, lk.shirt); torso.position.y = 1.35; inner.add(torso);
-  const trim = box(0.37, 0.06, 0.57, lk.trim); trim.position.y = 1.12; inner.add(trim);
-  const mkArm = (z) => { const gr = new THREE.Group(); gr.position.set(0, 1.55, z); const a = box(0.16, 0.5, 0.16, lk.shirt); a.position.y = -0.24; const h = box(0.14, 0.14, 0.14, lk.glove ? '#ffd23f' : lk.skin); h.position.y = -0.55; gr.add(a, h); inner.add(gr); return gr; };
-  const armL = mkArm(-0.36); const armR = mkArm(0.36);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), mat(lk.skin)); head.position.y = 1.86; inner.add(head);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.255, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), mat(lk.hair)); hair.position.y = 1.88; hair.rotation.z = 0.15; inner.add(hair);
-  const nose = box(0.06, 0.06, 0.06, lk.skin); nose.position.set(0.24, 1.84, 0); inner.add(nose);
-  if (lk.star) { const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.16), new THREE.MeshBasicMaterial({ color: lk.star === 'kid' ? '#ffd23f' : lk.star === 'legend' ? '#ff9f1c' : lk.star === 'diamond' ? '#9ff3ff' : '#9be7ff' })); star.position.y = 2.35; inner.add(star); root.userData.star = star; }
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 14), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.02; root.add(shadow);
-  root.scale.setScalar(SC);
-  root.userData = { ...root.userData, inner, legL, legR, armL, armR, head, shadow };
-  return root;
-}
 
 // ---- メイン ----------------------------------------------------------------------
 let ACTIVE = null; // いま うごいている しあい(ひとつだけ。ダブルタップで ふたつ はじまって、みえない ほうの けっかが つかわれるのを ふせぐ)
@@ -94,33 +41,16 @@ export async function startPlay3D(o) {
   const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, o.calm ? 1.25 : 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  const scene = new THREE.Scene(); scene.background = new THREE.Color('#0a1426'); scene.fog = new THREE.Fog('#0a1426', 90, 190);
-  const camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.5, 400);
-  scene.add(new THREE.HemisphereLight(0xdfeaff, 0x2a5a30, 1.0)); const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(-30, 60, 25); scene.add(sun);
-  // ピッチ
-  const tex = grassTexture(THREE);
-  const pitch = new THREE.Mesh(new THREE.PlaneGeometry(FIELD.L + 14, FIELD.W + 10), new THREE.MeshLambertMaterial({ map: tex })); pitch.rotation.x = -Math.PI / 2; scene.add(pitch);
-  const out = new THREE.Mesh(new THREE.PlaneGeometry(400, 300), new THREE.MeshLambertMaterial({ color: '#16331f' })); out.rotation.x = -Math.PI / 2; out.position.y = -0.05; scene.add(out);
-  // ゴール
-  const post = new THREE.MeshLambertMaterial({ color: '#ffffff' });
-  for (const s of [-1, 1]) {
-    const gx = s * FIELD.L / 2; const hw = FIELD.GW / 2;
-    for (const z of [-hw, hw]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, FIELD.GH, 8), post); m.position.set(gx, FIELD.GH / 2, z); scene.add(m); }
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, FIELD.GW, 8), post); bar.rotation.x = Math.PI / 2; bar.position.set(gx, FIELD.GH, 0); scene.add(bar);
-    const net = new THREE.Mesh(new THREE.BoxGeometry(2.4, FIELD.GH, FIELD.GW, 6, 4, 10), new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.35 })); net.position.set(gx + s * 1.2, FIELD.GH / 2, 0); scene.add(net);
-  }
-  // かんきゃくせき・ボード
-  const crowd = new THREE.MeshBasicMaterial({ map: crowdTexture(THREE) });
-  const stand = (w, d, x, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 16), crowd); m.position.set(x, 9, z); m.rotation.set(-0.5, ry, 0, 'YXZ'); scene.add(m); };
-  stand(FIELD.L + 40, 0, 0, -FIELD.W / 2 - 14, 0); stand(FIELD.L + 40, 0, 0, FIELD.W / 2 + 22, Math.PI);
-  stand(FIELD.W + 30, 0, -FIELD.L / 2 - 22, 0, Math.PI / 2); stand(FIELD.W + 30, 0, FIELD.L / 2 + 22, 0, -Math.PI / 2);
-  const BOARD = ['#e63946', '#2a9d8f', '#f4a261', '#4361ee', '#9b5de5', '#ffbe0b'];
-  for (let i = 0; i < 14; i++) { const w = (FIELD.L + 10) / 14; const m = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, 1.1, 0.3), new THREE.MeshLambertMaterial({ color: BOARD[i % BOARD.length] })); m.position.set(-FIELD.L / 2 - 5 + (i + 0.5) * w, 0.55, -FIELD.W / 2 - 3.4); scene.add(m); const m2 = m.clone(); m2.position.z = FIELD.W / 2 + 3.4; scene.add(m2); }
+  const mobile = /Mobi|Android/i.test(navigator.userAgent); const shadowsOn = !o.calm;
+  if (shadowsOn) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.5, 500);
+  const stadium = buildStadium(THREE, scene, { shadows: shadowsOn, mobile });
   // せんしゅ
   const models = { a: [], b: [] };
-  for (const s of ['a', 'b']) sim.players[s].forEach((p) => { const lk = look(p.m, s, s === 'a' ? o.me.name : o.opp.name); const m = makePlayerModel(THREE, lk); scene.add(m); models[s].push(m); });
+  for (const s of ['a', 'b']) sim.players[s].forEach((p) => { const lk = look(p.m, s, s === 'a' ? o.me.name : o.opp.name); const m = makePlayerModel(THREE, lk, p.idx + 1, SC); scene.add(m); models[s].push(m); });
   // ボール
-  const ballM = new THREE.Mesh(new THREE.SphereGeometry(0.3 * SC * 0.8, 16, 12), new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#222222' })); scene.add(ballM);
+  const ballM = makeBall(THREE, 0.3 * SC * 0.8); scene.add(ballM);
   const bshadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 12), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.4, depthWrite: false })); bshadow.rotation.x = -Math.PI / 2; bshadow.position.y = 0.03; scene.add(bshadow);
   // じぶんの せんしゅの めじるし
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.7, 2.45, 36), new THREE.MeshBasicMaterial({ color: '#ffd23f', side: THREE.DoubleSide, transparent: true, opacity: 0.95, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; scene.add(ring);
@@ -240,8 +170,9 @@ export async function startPlay3D(o) {
     const lead = (sim.ball.owner ? (sim.ball.owner.side === 'a' ? 1 : -1) : Math.sign(sim.ball.vx) || 0) * 6;
     const tx = clamp(b.x * 0.96 + lead, -FIELD.L / 2 + 14, FIELD.L / 2 - 14); const tz = clamp(b.z * 0.5, -14, 14);
     const k = 1 - Math.pow(0.0008, dt); cam.x += (tx - cam.x) * k; cam.z += (tz - cam.z) * k;
+    stadium.follow(cam.x, cam.z);
     const sh = !o.calm && S.flash > 0 ? (Math.random() - 0.5) * 0.9 * S.flash : 0;
-    if (flip) { camera.position.set(-cam.x + sh, 29, -cam.z - 38); camera.lookAt(-cam.x, 0, -cam.z + 2); } else { camera.position.set(cam.x + sh, 29, cam.z + 38); camera.lookAt(cam.x, 0, cam.z - 2); }
+    if (flip) { camera.position.set(-cam.x + sh, 22, -cam.z - 29); camera.lookAt(-cam.x, 0, -cam.z + 2); } else { camera.position.set(cam.x + sh, 22, cam.z + 29); camera.lookAt(cam.x, 0, cam.z - 2); }
   }
   let raf = 0; let last = 0; let acc = 0; let tt = 0; let endT = 0; let ended = false; let lostMsg = false;
   function frame(ts) {
@@ -300,7 +231,7 @@ export async function startPlay3D(o) {
   if (net) { root.classList.add('net'); } // ポーズでも ゲームは とまらない・スキップ/かんせんは なし
   syncMode(); syncSwap(); sim.setTactic(curTact);
   raf = requestAnimationFrame(frame);
-  const api = { destroy: () => { if (ACTIVE === api) ACTIVE = null; destroy(); }, sim, pause: () => setPause(true), root, renderer };
+  const api = { destroy: () => { if (ACTIVE === api) ACTIVE = null; destroy(); }, sim, pause: () => setPause(true), root, renderer, scene, camera };
   ACTIVE = api;
   return api;
 }

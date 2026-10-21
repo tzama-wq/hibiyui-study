@@ -679,7 +679,7 @@ function topBar(k, p) {
   const r = rankOf(p.xp);
   return `<header class="topbar"><div class="tb-ava-wrap">${ringSvg('tb-ring', r.pct / 100)}<div class="tb-ava">${avaHtml(k)}</div></div>
     <div class="tb-name"><b>${k.name}</b><small>${r.name}</small></div>
-    <div class="gmode"><button class="${(p.gmode || 'soccer') === 'soccer' ? 'on' : ''}" data-act="gmode" data-v="soccer">⚽ サッカー</button><button class="${p.gmode === 'sky' ? 'on' : ''}" data-act="gmode" data-v="sky">🛩️ そらの まもり</button></div>
+    <div class="gmode"><button class="${(p.gmode || 'soccer') === 'soccer' ? 'on' : ''}" data-act="gmode" data-v="soccer">⚽ サッカー</button><button class="${p.gmode === 'sky' ? 'on' : ''}" data-act="gmode" data-v="sky">🛩️ 地球防衛隊</button></div>
     <div class="tb-chips"><span class="chip gold">⚽ <b data-count="${p.goals}" data-key="goals">${p.goals}</b></span><span class="chip">XP <b data-count="${p.xp}" data-key="xp">${p.xp}</b></span></div>
     <button class="gear" data-act="mute" aria-label="おと">${quiet() ? '🔇' : '🔊'}</button>
     ${S.kidPins[k.id] || S.shared ? '<button class="gear" data-act="lock" aria-label="ロック">🔒</button>' : ''}<button class="gear" data-act="papa" aria-label="パパの へや">⚙${pendingAsks() > 0 && k.adult ? `<b class="gdot">${pendingAsks()}</b>` : ''}</button></header>`;
@@ -1461,7 +1461,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'godseen') { S.ack = [...(S.ack || []), el.dataset.gid].slice(-120); save(); syncNow(); }
   else if (a === 'askdone') { const aid = el.dataset.aid; const pp = S.kids[el.dataset.id]; pp.ask = (pp.ask || []).filter((x) => x.id !== aid); S.ack = [...(S.ack || []), aid].slice(-120); save(); syncNow(); }
   else if (a === 'gmode') { const pp = S.kids[kidId]; pp.gmode = el.dataset.v === 'sky' ? 'sky' : 'soccer'; ensureSky(pp); if (tab === 'team' || tab === 'home') toTop = true; save(); }
-  else if (onSkyAct(a, el)) { /* そらの まもり */ }
+  else if (onSkyAct(a, el)) { /* 地球防衛隊 */ }
   else if (gameAct(a, el)) { /* ガチャ・へんせい・たいせん など */ }
   render();
 });
