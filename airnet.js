@@ -47,14 +47,15 @@ export function createGuestSim({ conn, mission, vehicle, pvp = false, me = 1, pa
   const input = { turn: 0, climb: 0, gun: false, boost: false, aimX: 0, aimY: 0 }; players[me].input = input;
   const foeOf = (id) => (id >= 1000 ? players[id - 1000].foe : S.enemies.find((e) => e.id === id) || null);
   players.forEach((p) => { p.foe = { id: 1000 + p.i, type: 'pl', dom: p.kind === 'plane' ? 'air' : p.kind === 'ship' ? 'sea' : 'ground', x: 0, y: 0, z: 0, pl: p }; });
-  let last = null; let seen = 0;
+  let last = null; let seen = 0; const emap = new Map();
   const apply = (m) => {
     last = m; seen++;
     S.t = m.tm; S.ph = m.ph; S.done = !!m.dn; S.win = pvp ? m.wr === me : !!m.wn; S.winner = m.wr; S.stars = m.st; S.kills = m.k; S.banner = m.bn; S.bannerT = m.bt; S.msg = m.ms; S.msgT = m.mt; S.baseHurt = m.bh;
     S.base.hp = m.base[0]; S.base.hpMax = m.base[1]; S.waveI = m.wv;
     { const q = m.pl[me]; if (q && q.hp < players[me].hp) S.hurt = 0.35; }
-    m.pl.forEach((q, i) => { const P = players[i]; if (!P) return; P.x = q.x; P.y = q.y; P.z = q.z; P.yaw = q.yw; P.pitch = q.pt; P.roll = q.rl; P.rollSpin = q.rs; P.turretYaw = q.ty; P.aimPitch = q.ap; P.hp = q.hp; P.hpMax = q.hm; P.boost = q.b; P.boosting = !!q.bo; P.missiles = q.mi; P.dead = !!q.d; P.invuln = q.iv; P.shield = q.sh; P.foe.x = q.x; P.foe.y = q.y + (P.air ? 0 : 4); P.foe.z = q.z; });
-    S.enemies = m.en.map((e) => ({ id: e[0], type: e[1], dom: ENEMY[e[1]].dom, x: e[2], y: e[3], z: e[4], yaw: e[5], pitch: e[6], hp: e[7], hpMax: e[8] }));
+    m.pl.forEach((q, i) => { const P = players[i]; if (!P) return; P.tx = q.x; P.ty = q.y; P.tz = q.z; if (!P._seen) { P.x = q.x; P.y = q.y; P.z = q.z; P._seen = 1; } P.yaw = q.yw; P.pitch = q.pt; P.roll = q.rl; P.rollSpin = q.rs; P.turretYaw = q.ty; P.aimPitch = q.ap; P.hp = q.hp; P.hpMax = q.hm; P.boost = q.b; P.boosting = !!q.bo; P.missiles = q.mi; P.dead = !!q.d; P.invuln = q.iv; P.shield = q.sh; P.foe.x = q.x; P.foe.y = q.y + (P.air ? 0 : 4); P.foe.z = q.z; });
+    S.enemies = m.en.map((e) => { let o = emap.get(e[0]); if (!o) { o = { id: e[0], type: e[1], dom: ENEMY[e[1]].dom, x: e[2], y: e[3], z: e[4] }; emap.set(e[0], o); } o.tx = e[2]; o.ty = e[3]; o.tz = e[4]; o.yaw = e[5]; o.pitch = e[6]; o.hp = e[7]; o.hpMax = e[8]; o.seen = seen; return o; });
+    for (const [id, o] of emap) if (o.seen !== seen) emap.delete(id);
     S.boss = m.boss ? S.enemies.find((e) => e.id === m.boss) || null : null;
     players.forEach((P, i) => { const q = m.pl[i]; if (!q) return; P.lockTarget = q.lt.map(foeOf).filter(Boolean); P.lockCands = q.lc.map((c) => ({ id: c[0], locked: !!c[1], p: c[2] })); P.target = q.tg ? foeOf(q.tg) : null; });
     S.target = players[me].target; S.lockCands = players[me].lockCands; S.shield = players[me].shield;
@@ -68,7 +69,11 @@ export function createGuestSim({ conn, mission, vehicle, pvp = false, me = 1, pa
   const ev = (e) => { conn.send({ t: 'ev', e }); return true; };
   return {
     state: S, input, inputs: [], players, vehicle, mission, remote: true,
-    step(dt) { if (S.hurt > 0) S.hurt -= dt; sendT += dt; this._acc = (this._acc || 0) + dt; if (this._acc >= 0.033) { this._acc = 0; sendInput(false); } },
+    step(dt) {
+      const k = 1 - Math.exp(-22 * dt); // 20かい/びょうの ざひょうを なめらかに
+      for (const P of players) { if (P.tx == null) continue; if (Math.hypot(P.tx - P.x, P.tz - P.z) > 150) { P.x = P.tx; P.y = P.ty; P.z = P.tz; } else { P.x += (P.tx - P.x) * k; P.y += (P.ty - P.y) * k; P.z += (P.tz - P.z) * k; } P.foe.x = P.x; P.foe.y = P.y + (P.air ? 0 : 4); P.foe.z = P.z; }
+      for (const e of S.enemies) { if (Math.hypot(e.tx - e.x, e.tz - e.z) > 150) { e.x = e.tx; e.y = e.ty; e.z = e.tz; } else { e.x += (e.tx - e.x) * k; e.y += (e.ty - e.y) * k; e.z += (e.tz - e.z) * k; } }
+      if (S.hurt > 0) S.hurt -= dt; sendT += dt; this._acc = (this._acc || 0) + dt; if (this._acc >= 0.033) { this._acc = 0; sendInput(false); } },
     fireMissile: () => ev('missile'), evade: () => ev('evade'), nextTarget: () => { ev('target'); }, aimAt() {},
     seen: () => seen, lost: () => !conn.isOpen(),
   };

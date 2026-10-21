@@ -722,3 +722,4 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .scanv{width:100%;max-height:260px;background:#000;margin:6px 0}.codein{width:100%;background:#fff;color:#000;font-size:11px}.netst{min-height:18px;margin:6px 0}
 .netpair{display:flex;justify-content:space-around;align-items:center;gap:6px;margin:8px 0;font-size:13px}.netmodes{display:flex;gap:6px}.netmodes .btn{margin:6px 0}.netms{display:flex;flex-wrap:wrap;justify-content:center;margin:6px 0}
 .netcard{margin:10px 0;padding:10px;background:#0c1a36;border:2px solid #7a4ad8}
+.p3d.net .p3d-modebtn,.p3d.net [data-m=skip],.p3d.net [data-m=mode],.p3d.net .p3d-tactics{display:none}

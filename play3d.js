@@ -1,6 +1,7 @@
 // じぶんで うごかす しあい(3D)。three.js で かく + タッチ そうさ(よこむき) + HUD。ルールは playsim.js。
 //   const g = await startPlay3D({ me, opp, halfSec, level, calm, onSfx, onEnd, onQuit });  g.destroy()
 import { createPlay, FIELD } from './playsim.js';
+import { hostBindPlay, createGuestPlay } from './playnet.js';
 import { look } from './match.js';
 
 let T = null;
@@ -71,7 +72,12 @@ export async function startPlay3D(o) {
   if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
   document.querySelectorAll('.p3d').forEach((e) => e.remove());
   let watch = o.mode === 'watch';
-  const sim = createPlay({ me: o.me, opp: o.opp, halfSec: o.halfSec || 90, level: o.level || 1, tactic: o.tactic || 'balance', auto: watch, diff: o.diff || 'easy' });
+  // ふたりで あそぶ(ローカル つうしん): net = { role: 'host'|'guest', conn, mode: 'versus'|'coop' }
+  const net = o.net || null; const netMode = net ? net.mode : 'solo'; let hb = null; let sim;
+  const mySide = net && net.role === 'guest' && netMode === 'versus' ? 'b' : 'a'; const flip = mySide === 'b'; // あいてがわの ひとは カメラを はんたいから
+  if (net && net.role === 'guest') sim = createGuestPlay({ conn: net.conn, me: o.me, opp: o.opp, mode: netMode, halfSec: o.halfSec || 90, mySide, ci: 1 });
+  else { sim = createPlay({ me: o.me, opp: o.opp, halfSec: o.halfSec || 90, level: o.level || 1, tactic: o.tactic || 'balance', auto: watch, diff: net && netMode === 'versus' ? 'hard' : (o.diff || 'easy'), mode: netMode }); if (net) hb = hostBindPlay(sim, net.conn); }
+  if (net) watch = false;
   const S = sim.state;
   const root = document.createElement('div'); root.className = 'p3d';
   root.innerHTML = `<canvas class="p3d-cv"></canvas>
@@ -123,7 +129,7 @@ export async function startPlay3D(o) {
 
   // ---- そうさ(ジョイスティック・ボタン・キーボード) ---------------------------------
   const stick = root.querySelector('.p3d-stick'); const knob = root.querySelector('.p3d-knob'); let sid = null; let so = { x: 0, y: 0 }; const R = 56;
-  const setStick = (dx, dy) => { const m = Math.hypot(dx, dy); const k = m > R ? R / m : 1; const x = dx * k; const y = dy * k; knob.style.transform = `translate(${x}px,${y}px)`; const vx = x / R; const vy = y / R; const mm = Math.hypot(vx, vy); if (mm < 0.14) { sim.input.mx = 0; sim.input.mz = 0; } else { sim.input.mx = vx; sim.input.mz = vy; } };
+  const setStick = (dx, dy) => { const m = Math.hypot(dx, dy); const k = m > R ? R / m : 1; const x = dx * k; const y = dy * k; knob.style.transform = `translate(${x}px,${y}px)`; const vx = x / R; const vy = y / R; const mm = Math.hypot(vx, vy); if (mm < 0.14) { sim.input.mx = 0; sim.input.mz = 0; } else { sim.input.mx = flip ? -vx : vx; sim.input.mz = flip ? -vy : vy; } };
   const pad = root.querySelector('.p3d-pad');
   pad.addEventListener('pointerdown', (e) => {
     if (e.target.closest('.pb')) return;
@@ -136,12 +142,12 @@ export async function startPlay3D(o) {
   const endStick = (e) => { if (e.pointerId !== sid) return; sid = null; setStick(0, 0); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = ''; };
   pad.addEventListener('pointerup', endStick); pad.addEventListener('pointercancel', endStick);
   const hold = { sprint: 0 };
-  const bpress = (b) => { if (b === 'sprint') { sim.input.sprint = true; return; } if (b === 'pass') { const att = S.ph !== 'end' && sim.ball.owner && sim.ball.owner.side === 'a'; passWasAtk = !!att; sim.press(att ? 'pass' : 'tackle'); return; } if (b === 'lob') { const att = sim.ball.owner && sim.ball.owner.side === 'a'; sim.press(att ? 'lob' : 'switch'); return; } if (b === 'shoot') sim.press('shoot'); };
+  const bpress = (b) => { if (b === 'sprint') { sim.input.sprint = true; return; } if (b === 'pass') { const att = S.ph !== 'end' && sim.ball.owner && sim.ball.owner.side === mySide; passWasAtk = !!att; sim.press(att ? 'pass' : 'tackle'); return; } if (b === 'lob') { const att = sim.ball.owner && sim.ball.owner.side === mySide; sim.press(att ? 'lob' : 'switch'); return; } if (b === 'shoot') sim.press('shoot'); };
   const brel = (b) => { if (b === 'sprint') { sim.input.sprint = false; return; } if (b === 'shoot') sim.release('shoot'); if (b === 'pass' && passWasAtk) sim.release('pass'); };
   let passWasAtk = false;
   // パスボタン: おしている あいだ ためる(つよさ)・ボタンから フリックで ほうこうと つよさを きめる
   const flickEl = root.querySelector('.p3d-flick'); let fl = null;
-  const passAtk = () => sim.ball.owner && sim.ball.owner.side === 'a' && sim.ball.owner === sim.ctrlP();
+  const passAtk = () => sim.ball.owner && sim.ball.owner.side === mySide && sim.ball.owner === sim.ctrlP();
   root.querySelectorAll('.pb').forEach((btn) => {
     const b = btn.dataset.b;
     btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch { /* ok */ } btn.classList.add('on'); if (b === 'pass') fl = { x: e.clientX, y: e.clientY, atk: passAtk(), moved: false }; bpress(b); e.preventDefault(); });
@@ -152,14 +158,14 @@ export async function startPlay3D(o) {
     const up = (e) => {
       btn.classList.remove('on');
       if (b === 'pass' && fl) { const dx = e.clientX - fl.x; const dy = e.clientY - fl.y; const m = Math.hypot(dx, dy); flickEl.style.display = 'none'; const f = fl; fl = null;
-        if (f.atk && m > 22) { sim.flickPass(dx / m, dy / m, clamp((m - 20) / 110, 0.05, 1)); e.preventDefault(); return; } }
+        if (f.atk && m > 22) { sim.flickPass(flip ? -dx / m : dx / m, flip ? -dy / m : dy / m, clamp((m - 20) / 110, 0.05, 1)); e.preventDefault(); return; } }
       brel(b); e.preventDefault();
     };
     btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', (e) => { flickEl.style.display = 'none'; fl = null; up(e); });
   });
   const keys = new Set();
   const kmap = { KeyJ: 'pass', KeyK: 'shoot', KeyL: 'lob', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'shoot' };
-  const recompute = () => { const x = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0); const z = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0); const m = Math.hypot(x, z) || 1; sim.input.mx = x / m; sim.input.mz = z / m; };
+  const recompute = () => { const x = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0); const z = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0); const m = Math.hypot(x, z) || 1; sim.input.mx = (flip ? -x : x) / m; sim.input.mz = (flip ? -z : z) / m; };
   const kd = (e) => { if (e.repeat) return; if (e.code === 'Escape' || e.code === 'KeyP') { togglePause(); return; } if (kmap[e.code]) { bpress(kmap[e.code]); e.preventDefault(); return; } keys.add(e.code); recompute(); if (e.code.startsWith('Arrow')) e.preventDefault(); };
   const ku = (e) => { if (kmap[e.code]) { brel(kmap[e.code]); return; } keys.delete(e.code); recompute(); };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
@@ -197,7 +203,7 @@ export async function startPlay3D(o) {
     hud.tm.textContent = S.extra ? `延長 ${Math.max(0, Math.ceil(60 - (S.clock - S.e2)))}` : sim.clockText();
     const b = S.bannerT > 0 ? S.banner : ''; if (b !== lastBanner) { lastBanner = b; hud.banner.textContent = b; hud.banner.classList.toggle('on', !!b); }
     hud.msg.textContent = S.msg || '';
-    const att = sim.ball.owner && sim.ball.owner.side === 'a';
+    const att = sim.ball.owner && sim.ball.owner.side === mySide;
     hud.bA.textContent = att ? 'パス' : 'タックル'; hud.bB.textContent = att ? 'シュート' : 'スライド'; hud.bC.textContent = att ? 'ロング' : 'きりかえ';
     const cp = sim.ctrlP(); if (cp) { hud.tag.textContent = watch ? '' : cp.name; }
     if (cp && !watch) { const st = cp.stats; const bar = (n, v, c) => `<div><span>${n}</span><i><u style="width:${clamp(v / 140, 0.04, 1) * 100}%;background:${c}"></u></i><b>${Math.round(v)}</b></div>`; hud.stats.innerHTML = `${bar('スピード', st.SPD, '#27d8ff')}${bar('シュート', st.SHO, '#ff4d5e')}${bar('パス', st.PAS, '#ffd23f')}${bar('まもり', st.DEF, '#6fcf97')}${bar('スタミナ', st.STA * clamp(0.35 + cp.stamina * 0.65, 0.2, 1), '#a56de2')}`; } else hud.stats.innerHTML = '';
@@ -224,7 +230,7 @@ export async function startPlay3D(o) {
     });
     const b = sim.ball; ballM.position.set(b.x, Math.max(0.3 * SC * 0.8, b.y * 1 + 0.3), b.z); ballM.rotation.z -= b.vx * dt * 1.2; ballM.rotation.x += b.vz * dt * 1.2;
     bshadow.position.set(b.x, 0.03, b.z); bshadow.scale.setScalar(clamp(1.1 - b.y * 0.08, 0.4, 1.2));
-    const cp = sim.ctrlP(); const cm = models.a[cp.idx];
+    const cp = sim.ctrlP(); const cm = models[mySide][cp.idx];
     ring.visible = arrow.visible = ring2.visible = !watch; ring.position.set(cp.x, 0.06, cp.z); ring.rotation.z = t * 2; ring2.position.set(cp.x, 0.07, cp.z); ring2.scale.setScalar(1 + Math.sin(t * 5) * 0.08); arrow.position.set(cp.x, 6.0 + Math.sin(t * 5) * 0.4, cp.z); arrow.rotation.y = t * 3;
     void cm;
     // カード(イエロー/レッド)を あたまの うえに ひょうじ
@@ -235,16 +241,17 @@ export async function startPlay3D(o) {
     const tx = clamp(b.x * 0.96 + lead, -FIELD.L / 2 + 14, FIELD.L / 2 - 14); const tz = clamp(b.z * 0.5, -14, 14);
     const k = 1 - Math.pow(0.0008, dt); cam.x += (tx - cam.x) * k; cam.z += (tz - cam.z) * k;
     const sh = !o.calm && S.flash > 0 ? (Math.random() - 0.5) * 0.9 * S.flash : 0;
-    camera.position.set(cam.x + sh, 29, cam.z + 38); camera.lookAt(cam.x, 0, cam.z - 2);
+    if (flip) { camera.position.set(-cam.x + sh, 29, -cam.z - 38); camera.lookAt(-cam.x, 0, -cam.z + 2); } else { camera.position.set(cam.x + sh, 29, cam.z + 38); camera.lookAt(cam.x, 0, cam.z - 2); }
   }
-  let raf = 0; let last = 0; let acc = 0; let tt = 0; let endT = 0; let ended = false;
+  let raf = 0; let last = 0; let acc = 0; let tt = 0; let endT = 0; let ended = false; let lostMsg = false;
   function frame(ts) {
     if (dead) return;
     const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts; tt += dt;
     if (intro) { if (!paused && !portrait) { intro.t += dt; introStep(); } }
-    else if (!paused && !portrait) {
-      acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); acc -= 1 / 60; }
-      while (S.snd.length) { const nm = S.snd.shift(); if (o.onSfx) o.onSfx(nm); }
+    else if ((!paused || net) && !portrait) {
+      acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); if (hb) hb.tick(1 / 60); acc -= 1 / 60; }
+      while (S.snd.length) { const nm = S.snd.shift(); if (hb) hb.snd.push(nm); if (o.onSfx) o.onSfx(nm); }
+      if (net && !S.done && !lostMsg && ((hb && hb.gone()) || (sim.remote && sim.lost()))) { lostMsg = true; S.done = true; S.lostLink = true; hud.msg.textContent = '📡 つうしんが きれたよ'; }
       if (S.done && !ended) { endT += dt; if (endT > 2.6) { ended = true; finish(); } }
     }
     syncScene(dt, tt); if (intro) introCamera(); updateHud(dt); renderer.render(scene, camera);
@@ -254,13 +261,13 @@ export async function startPlay3D(o) {
   const keyman = (t) => t.team.slice().sort((u, v) => (v.stats.SHO + v.stats.PAS + v.stats.SPD + v.stats.DEF) - (u.stats.SHO + u.stats.PAS + u.stats.SPD + u.stats.DEF))[0];
   const powerOf = (t) => Math.round(t.team.reduce((a, m) => a + (m.stats.SHO + m.stats.PAS + m.stats.SPD + m.stats.DEF + m.stats.STA) / 5, 0) / Math.max(1, t.team.length));
   const TACT_NAME = { attack: 'アタック', balance: 'バランス', counter: 'カウンター' };
-  let intro = { t: 0, dur: 6.2, whistle: false };
+  let intro = net ? null : { t: 0, dur: 6.2, whistle: false };
   const iEl = root.querySelector('.p3d-intro');
   root.querySelector('.pi-na').textContent = o.me.name; root.querySelector('.pi-nb').textContent = o.opp.name;
   root.querySelector('.pi-pa').textContent = `パワー ${powerOf(o.me)}`; root.querySelector('.pi-pb').textContent = `パワー ${powerOf(o.opp)}`;
   { const ka = keyman(o.me); const kb = keyman(o.opp); root.querySelector('.pi-ka').textContent = `エース: ${ka.name}`; root.querySelector('.pi-kb').textContent = `エース: ${kb.name}`; }
   root.querySelector('.pi-info').innerHTML = watch ? '👀 かんせんモード ・ とちゅうで 🎮 そうさに かえられるよ' : '🎮 ひだり: うごく ・ みぎ: パス/シュート(おして ためる)/ロング/ダッシュ ・ せんじゅつ: ' + (TACT_NAME[o.tactic || 'balance']);
-  root.classList.add('intro');
+  if (intro) root.classList.add('intro');
   const introCount = root.querySelector('.pi-count');
   function introStep() {
     const t = intro.t;
@@ -282,14 +289,15 @@ export async function startPlay3D(o) {
     else { sim.setAuto(true); let n = 0; while (!S.done && n++ < 120000) sim.step(1 / 30); } // どうてんの ときは のこりを じどうで(のびたら ゴールデンゴール・PK戦)
     S.snd.length = 0; ended = true; finish();
   }
-  function finish() { if (dead) return; const r = { score: { ...S.score }, events: S.events, winner: S.winner, shots: { ...S.shots }, fouls: { ...S.fouls }, offsides: { ...S.offsides }, poss: { ...S.poss }, cards: S.cards, extra: S.extra }; destroy(); if (o.onEnd) o.onEnd(r); }
+  function finish() { if (dead) return; const r = { score: { ...S.score }, events: S.events, winner: S.winner, shots: { ...S.shots }, fouls: { ...S.fouls }, offsides: { ...S.offsides }, poss: { ...S.poss }, cards: S.cards, extra: S.extra, net: net ? { mode: netMode, mySide, lostLink: !!S.lostLink } : null }; destroy(); if (o.onEnd) o.onEnd(r); }
   function destroy() {
-    if (dead) return; dead = true; cancelAnimationFrame(raf);
+    if (dead) return; dead = true; if (hb) hb.finish(); if (net && net.conn) setTimeout(() => { try { net.conn.close(); } catch { /* ok */ } }, 400); cancelAnimationFrame(raf);
     window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', resize); window.removeEventListener('orientationchange', resize);
     try { renderer.dispose(); scene.traverse((ob) => { if (ob.geometry) ob.geometry.dispose(); if (ob.material) { (Array.isArray(ob.material) ? ob.material : [ob.material]).forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); }); } }); } catch { /* ok */ }
     root.remove(); document.body.style.overflow = prevOverflow;
     try { if (document.fullscreenElement) document.exitFullscreen(); if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch { /* ok */ }
   }
+  if (net) { root.classList.add('net'); } // ポーズでも ゲームは とまらない・スキップ/かんせんは なし
   syncMode(); syncSwap(); sim.setTactic(curTact);
   raf = requestAnimationFrame(frame);
   const api = { destroy: () => { if (ACTIVE === api) ACTIVE = null; destroy(); }, sim, pause: () => setPause(true), root, renderer };

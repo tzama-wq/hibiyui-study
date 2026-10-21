@@ -5,6 +5,7 @@ import { DEFAULTS, gachaLeft, addGachaPulls } from './cfg.js';
 import { createMatch } from './match.js';
 import { createSfx } from './sfx.js';
 import { startPlay3D } from './play3d.js';
+import { pairUI, modal, closeModal } from './ui-net.js';
 
 let X; // ctx
 export function gameInit(ctx) { X = ctx; }
@@ -369,6 +370,7 @@ function battleMenuHtml() {
   return `<section class="panel"><h2 class="sec">MATCH <small>たいせん</small></h2>
     <div class="power"><b>${k.name}の チーム パワー ${r.power}</b><span>${p.battles.w}勝 ${p.battles.d}分 ${p.battles.l}敗</span></div>
     ${playToggleHtml(p)}
+    <div class="netcard"><b>📡 ふたりで あそぶ</b><div class="muted">おなじ Wi-Fi の スマホ 2だいで、きょうりょく(ふたりで 1チーム)か たいせん(1たい1)!</div><button class="btn gold" data-act="netsoccer">📡 つなぐ</button></div>
     <div class="muted">へんせいした チームで たいせん! ${playKind(p) === 'play' ? '(🎮 じぶんで うごかして たたかうよ。つよい チームほど はやく うごけるよ)' : playKind(p) === 'watch' ? '(👀 3Dで みるだけ。とちゅうで 🎮 そうさに かえられるよ)' : '(どちらが かつかは うんも あるよ)'}</div>
     ${mates.length ? mates.map((mate) => `<button class="match-btn alt" data-act="fight" data-opp="mate:${mate.id}"><small>VS FAMILY</small><b>⚔️ ${esc(mate.name)}と たいせん</b><span>あいての パワー ${mate.power}</span></button><button class="btn small gray inst" data-act="fight" data-opp="mate:${mate.id}" data-instant="1">📋 けっかだけ みる</button>`).join('') : '<div class="muted">かぞくの チームは、かぞくが アプリを ひらくと あらわれるよ。</div>'}
     ${p.lastMatch ? `<div class="replay"><b>🎬 まえの しあい</b> <span>${esc(p.lastMatch.me.name)} ${p.lastMatch.score.a} - ${p.lastMatch.score.b} ${esc(p.lastMatch.opp.name)}</span>
@@ -626,6 +628,7 @@ export function onAct(a, el) {
       if (G.upgrade(p, el.dataset.s)) { X.save(); X.fx.beep('ok'); X.fx.vibrate(20); X.fx.floaty('UP!', vw() / 2, vh() * 0.4); }
       return true;
     }
+    case 'netsoccer': openSoccerNet(); return true;
     case 'fight': return startFight(el.dataset.opp, el.dataset.instant === '1');
     case 'playmode': p.playMode = ['play', 'watch', 'auto'].includes(el.dataset.v) ? el.dataset.v : 'play'; X.save(); return true;
     case 'playdiff': p.playDiff = ['easy', 'normal', 'hard'].includes(el.dataset.v) ? el.dataset.v : 'easy'; X.save(); return true;
@@ -640,3 +643,66 @@ export function onAct(a, el) {
   }
 }
 export function resetBattle() { clearTimeout(timer); stopMatch(); B = null; }
+
+// ---- ふたりで あそぶ(ローカル つうしん) -------------------------------------------------------
+function openSoccerNet() {
+  const k = X.kid(); const p = X.p();
+  const hello = { t: 'hello', name: k.name, team: snapshotOf(k, p), power: G.ratings(snapshotOf(k, p)).power };
+  pairUI({ title: '📡 ふたりで サッカー', onConn: (conn, role) => soccerLobby(conn, role, hello), onCancel: () => {} });
+}
+function soccerLobby(conn, role, hello) {
+  let partner = null; let replied = false; let started = false; const p = X.p(); const len = Number(p.playLen) || 90;
+  const show = () => {
+    if (!partner) { modal('<h3>つながったよ!</h3><p class="muted">あいての じゅんびを まっているよ…</p><button class="btn gray" data-n="x">やめる</button>').querySelector('[data-n=x]').addEventListener('click', () => { conn.close(); closeModal(); }); return; }
+    const head = `<h3>📡 つながった!</h3><div class="netpair"><div><b>${esc(hello.name)}</b><br><small>パワー ${hello.power}</small></div><div>⚽</div><div><b>${esc(partner.name)}</b><br><small>パワー ${partner.power}</small></div></div>`;
+    if (role === 'host') {
+      const box = modal(`${head}<p class="muted">あそびかたを えらんでね(じかん: ${PLAY_LEN[len] || ''})</p><div class="netmodes"><button class="btn gold" data-n="coop">🤝 きょうりょく<br><small>ふたりで ${esc(hello.name)}の チーム</small></button><button class="btn" data-n="pvp">⚔️ たいせん<br><small>おたがいの チーム</small></button></div>
+        <div class="netms" hidden><div class="muted" style="width:100%">あいての CPUチーム</div>${G.CPU_LEVELS.map((l) => `<button class="btn small" data-n="cpu" data-id="${l.id}">${esc(l.club)}</button>`).join('')}</div><button class="btn gray" data-n="x">やめる</button>`);
+      box.querySelector('[data-n=coop]').addEventListener('click', () => { box.querySelector('.netms').hidden = false; });
+      box.querySelector('[data-n=pvp]').addEventListener('click', () => go('versus'));
+      box.querySelectorAll('[data-n=cpu]').forEach((b) => b.addEventListener('click', () => go('coop', b.dataset.id)));
+      box.querySelector('[data-n=x]').addEventListener('click', () => { conn.close(); closeModal(); });
+    } else {
+      const box = modal(`${head}<p class="muted">ホストが あそびかたを えらんでいるよ…</p><button class="btn gray" data-n="x">やめる</button>`);
+      box.querySelector('[data-n=x]').addEventListener('click', () => { conn.close(); closeModal(); });
+    }
+  };
+  const begin = (r, mode, me, opp, halfSec) => { if (started) return; started = true; closeModal(); startNetMatch(r, mode, me, opp, halfSec, conn); };
+  const go = (mode, cpuId) => {
+    if (!partner || started) return;
+    const me = { name: `${hello.name}の チーム`, team: hello.team };
+    const opp = mode === 'versus' ? { name: `${partner.name}の チーム`, team: partner.team } : G.cpuTeam(cpuId, Math.random, G.FORMATIONS[Math.floor(Math.random() * G.FORMATIONS.length)].id);
+    conn.send({ t: 'start', mode, me, opp, halfSec: len }); begin('host', mode, me, opp, len);
+  };
+  conn.on((m) => {
+    if (!m) return;
+    if (m.t === 'hello') { partner = { name: String(m.name || 'ともだち').slice(0, 12), team: m.team, power: m.power }; if (!replied) { replied = true; conn.send(hello); } show(); }
+    else if (m.t === 'start' && role === 'guest') begin('guest', m.mode, m.me, m.opp, m.halfSec);
+  });
+  conn.onClose(() => { if (!started) { closeModal(); X.toast('つうしんが きれたよ'); } });
+  show(); conn.send(hello);
+}
+async function startNetMatch(role, mode, me, opp, halfSec, conn) {
+  if (STARTING) return false; STARTING = true;
+  try {
+    stopMatch(); if (PG) { PG.destroy(); PG = null; }
+    SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false));
+    const sfxMap = { kick: 'kick', pass: 'pass', tackle: 'tackle', whistle: 'whistle', goal: 'goal', save: 'save' };
+    try {
+      PG = await startPlay3D({ me, opp, halfSec, calm: !!(X.cfg && X.cfg().calm), net: { role, conn, mode },
+        onSfx: (n) => { if (SFX && sfxMap[n]) SFX.play(sfxMap[n]); },
+        onQuit: () => { PG = null; if (SFX) SFX.bgmStop(); X.setView('kid'); X.render(); },
+        onEnd: (r) => { PG = null; if (SFX) SFX.bgmStop(); finishNetMatch(me, opp, r); } });
+      if (SFX && !(X.quiet && X.quiet())) SFX.bgmStart();
+    } catch (e) { PG = null; X.toast('3Dを ひらけなかったよ'); try { conn.close(); } catch { /* ok */ } return false; }
+    return true;
+  } finally { STARTING = false; }
+}
+function finishNetMatch(me, opp, r) {
+  const goals = r.events.filter((e) => e.type === 'goal'); let a = 0; let b = 0;
+  const events = goals.map((g) => { if (g.side === 'a') a++; else b++; return { side: g.side, type: 'goal', kind: '', how: 'shot', card: '', start: 'open', defender: null, passer: g.assist || g.scorer, shooter: g.scorer, keeper: '', score: { a, b }, text: `${g.mt || g.minute}ぷん ${g.scorer}の ゴール!!${g.assist ? ` (アシスト ${g.assist})` : ''}` }; });
+  const score = { a: r.score.a, b: r.score.b };
+  const p = X.p(); const mine = r.net && r.net.mySide === 'b' ? score.b : score.a; const theirs = r.net && r.net.mySide === 'b' ? score.a : score.b; p.xp += mine > theirs ? 15 : 8; X.save();
+  openBattle({ me: slim(me), opp: slim(opp), res: { events, score }, pk: null, counted: false, mode: 'full', noAnim: true, playStats: { shots: r.shots, fouls: r.fouls, offsides: r.offsides, poss: r.poss, extra: r.extra } });
+  X.render();
+}
