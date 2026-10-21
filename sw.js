@@ -1,4 +1,4 @@
-const CACHE = 'hibiyui-v8';
+const CACHE = 'hibiyui-v9';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'gen.js', 'sync.js', 'game.js', 'ui-game.js', 'manifest.webmanifest', 'icon.svg', 'match.js', 'playsim.js', 'play3d.js', 'airsim.js', 'air3d.js', 'ui-sky.js', 'vendor/three.module.min.js'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
