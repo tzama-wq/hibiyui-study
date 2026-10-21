@@ -33,7 +33,7 @@ export function ensureGame(p) {
 
 export const kidImg = (k) => `images/players/self_${k.id}.webp`; // ダイヤモンドレアの じぶんカード
 export const kidCardOf = (k, p) => ({ name: k.name, face: k.em, img: kidImg(k), stats: G.kidStats(p) });
-export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip, formation: p.formation, plv: p.plv, absorb: p.absorb });
+export const snapshotOf = (k, p) => G.teamSnapshot({ kid: kidCardOf(k, p), owned: p.owned, team: p.team, equip: p.equip, formation: p.formation, plv: p.plv, absorb: p.absorb, lvmin: p.lvmin });
 export const summaryTeam = (k, p) => snapshotOf(k, p);
 
 // ---- 学習のあとの ごほうび(チケット・強化ポイント) -----------------------------------------
@@ -160,7 +160,7 @@ function pickerHtml(k, p) {
     <span class="opt-info"><b>${esc(pl.name)}</b><small>${pl.pos === 'ALL' ? 'どこでも OK' : pl.pos === pos ? '◎ ぴったり' : '⚠ ポジションが ちがう'}${placed.has(id) && p.team[i] !== id ? ' ・ ほかの わくに いるよ(いれかえ)' : ''}</small></span></button>`;
   const selfSnap = { name: k.name, face: k.em, img: kidImg(k), pos: 'ALL', rarity: 'kid', stats: G.kidStats(p) };
   return `<div class="picker"><h3>${i + 1}ばんめの わくに だれを いれる?(${pos})</h3>
-    ${opt('self', selfSnap, 0)}${owned.map((pl) => opt(pl.id, pl, G.levelOf(p.owned[pl.id]))).join('')}
+    ${opt('self', selfSnap, 0)}${owned.map((pl) => opt(pl.id, pl, G.levelOfOwned(p, pl.id))).join('')}
     ${owned.length ? '' : '<div class="muted">ガチャで 選手を あつめよう!</div>'}
     <button class="btn small gray" data-act="place" data-i="${i}" data-id="">この わくを からにする</button>
     <button class="btn small gray" data-act="slot" data-i="${i}">とじる</button></div>`;
@@ -240,7 +240,7 @@ function dexHtml() {
   const sel = UI.dexSel && G.PLAYER_BY_ID[UI.dexSel];
   return `<section class="panel"><h2 class="sec">COLLECTION <small>ずかん ${n}/${G.PLAYERS.length}</small></h2>
     <div class="chips">${['all', ...G.RARITIES, 'diamond'].map((r) => `<button class="chipb ${f === r ? 'on' : ''} r-${r}" data-act="dexf" data-r="${r}">${r === 'all' ? 'ぜんぶ' : G.RARITY_NAME[r]}${r === 'all' ? '' : ` ${G.PLAYERS.filter((x) => x.rarity === r && p.owned[x.id]).length}/${G.PLAYERS.filter((x) => x.rarity === r).length}`}</button>`).join('')}</div>
-    ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOf(p.owned[sel.id]) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>${enhHtml(sel, p)}${absorbHtml(sel, p)}` : ''}
+    ${sel && p.owned[sel.id] ? `<div class="dex-detail">${cardHtml({ ...sel, level: G.levelOfOwned(p, sel.id) }, { copies: p.owned[sel.id] })}<div class="muted">${esc(sel.name)} ・ ${G.POS_NAME[sel.pos]}${sel.nation ? ` ${sel.nation}` : ''}<br>${sel.type ? `<b>${esc(sel.type)}</b><br>` : ''}おなじ 選手が ダブると レベルアップ(さいだい Lv5 ・ 1レベルで のうりょく +4%)</div></div>${enhHtml(sel, p)}${absorbHtml(sel, p)}` : ''}
     <div class="muted" style="margin-bottom:6px">※ 有名な 選手を ヒントに した オリジナルの キャラクターだよ(ほんにんとは かんけい ないよ)。</div>
     <div class="dex-grid">${list.map((pl) => p.owned[pl.id]
     ? `<button class="dx got r-${pl.rarity}" data-act="dexsel" data-id="${pl.id}"><span>${pl.img ? `<img class="dx-img" src="${esc(pl.img)}" alt="" loading="lazy" onerror="this.outerHTML='${pl.face}'">` : pl.face}</span><small>${esc(pl.name)}</small>${p.owned[pl.id] > 1 ? `<em>×${p.owned[pl.id]}</em>` : ''}</button>`
@@ -261,7 +261,7 @@ function absorbHtml(pl, p) {
       <button class="btn small gold" data-act="absorbrar" data-id="${pl.id}" data-r="${g.r}">ぜんぶ +${g.spare * G.ABSORB_PTS[g.r]}</button></summary>
       ${g.list.slice(0, 40).map((x) => `<div class="abs-row"><span>${x.face || ''} ${esc(x.name)} <small>×${p.owned[x.id]}(ダブり ${G.spareCopies(p, x.id)})</small></span><button class="btn small" data-act="absorb" data-id="${pl.id}" data-f="${x.id}">+${G.ABSORB_PTS[g.r]}</button></div>`).join('')}</details>`).join('');
   return `<div class="enh absorb"><b>🌀 きゅうしゅう: ${stats}の じょうげん +${pts}</b>
-    <small>ダブりの 選手を すわせると ${G.POS_NAME[pl.pos]}の ${stats}の さいだいち(いま ${cap}${pts ? `+${pts}` : ''})が あがるよ。コモン +1 ・ レア +2 ・ スーパーレア +3 ・ レジェンド +5(アンコモン +1)。1まいめは のこるよ。</small>
+    <small>ダブりの 選手を すわせると、${G.POS_NAME[pl.pos]}の ${stats}が そのまま アップ(さいだいち ${cap}${pts ? `+${pts}` : ''})。コモン +1 ・ アンコモン +2 ・ レア +3 ・ スーパーレア +4 ・ レジェンド +5。1まいめは のこって、すわせた 選手の レベルは さがらないよ。</small>
     ${rows || '<small class="muted">すわせられる ダブりが まだ ないよ(ガチャで ダブりを あつめよう)</small>'}</div>`;
 }
 function enhHtml(pl, p) {
