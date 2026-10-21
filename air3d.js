@@ -1,6 +1,6 @@
 // 「地球防衛隊」の 3D がめん(three.js): ひこうき・ふね・せんしゃ。タッチ そうさ + HUD。ルールと うごきは airsim.js、みためは vehicle3d.js。
 //   const g = await startAir3D({ vehicle, spec, mission, gentle, onSfx, onEnd, onQuit, net });   net = { role:'host'|'guest', conn, partner:{ vehicle, spec, name }, pvp } (ふたりで あそぶとき)   vehicle=buildVehicle の けっか / spec=みための ぶひん じょうほう
-import { createAir, BASE_Z, ISLAND, ENEMY } from './airsim.js';
+import { createAir, BASE_Z, ISLAND, ENEMY, missionMix, VEHICLES } from './airsim.js';
 import { hostBind, createGuestSim } from './airnet.js';
 import { makeVehicleModel, makeEnemyModel } from './vehicle3d.js';
 import { buildWorld, envTexture } from './world3d.js';
@@ -21,6 +21,13 @@ export async function startAir3D(o) {
   const net = o.net || null; const pvp = !!(net && net.pvp); let hb = null; let sim;
   if (net && net.role === 'guest') sim = createGuestSim({ conn: net.conn, mission: o.mission, vehicle: V, partnerVehicle: net.partner.vehicle, pvp, me: 1 });
   else { sim = createAir({ vehicle: V, extra: net ? [net.partner.vehicle] : [], pvp, mission: o.mission, gentle: !!o.gentle, difficulty: o.difficulty || 1 }); if (net) hb = hostBind(sim, net.conn); }
+  function briefHtml() {
+    const M = o.mission; const mix = missionMix(M); const wants = pvp ? 'あいての きたいを たおせ!' : M.boss ? 'ボスを たおして ちきゅうを まもれ!' : 'てきを ぜんぶ たおして きちを まもれ!';
+    const es = Object.entries(M.waves.reduce((a, w) => { a[w.type] = (a[w.type] || 0) + w.n; return a; }, {})).filter(([, n]) => n > 0).map(([t, n]) => `<span>${ENEMY[t].icon} ${{ drone: 'ドローン', fighter: 'せんとうき', bomber: 'ばくげきき', boat: 'ボート', destroyer: 'くちくかん', etank: 'せんしゃ', boss: 'ボス' }[t]} ×${n}</span>`).join('');
+    const vi = VEHICLES[kind];
+    return pvp ? `<small>⚔️ VERSUS</small><h2>たいせん</h2><p>おたがいの きたいで しょうぶ! ミサイルは ロックして、ほうげきは ねらって あてよう。HPが 0に なったら まけ。</p><p class="ab-vs">${vi.icon} ${esc(V.name)}</p>`
+      : `<small>MISSION</small><h2>${esc(M.icon)} ${esc(M.name)}</h2><p>${esc(M.brief)}</p><div class="ab-goal">🎯 ${wants}</div>${es ? `<div class="ab-en">${es}</div>` : ''}<p class="ab-tip">${vi.icon} ${esc(vi.name)}: ${esc(vi.note)}</p>${mix.air + mix.sea + mix.ground ? `<p class="ab-mix">くう✈️ ${mix.air} ・ うみ🚢 ${mix.sea} ・ りく🚜 ${mix.ground}</p>` : ''}`;
+  }
   const S = sim.state; const ally = net ? S.players.find((p) => p !== S.player) : null;
   const root = document.createElement('div'); root.className = `a3d k-${kind}`;
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
@@ -35,6 +42,7 @@ export async function startAir3D(o) {
       <div class="a3d-btns"><button class="ab-b ab-gun" data-b="gun">${air ? 'きかんほう' : 'ほうげき'}</button><button class="ab-b ab-ms" data-b="missile">ミサイル</button><button class="ab-b ab-boost" data-b="boost">ブースト</button><button class="ab-b ab-ev" data-b="evade">${air ? 'かいひ' : 'バリア'}</button>${air ? '' : '<button class="ab-b ab-tg" data-b="target">てきに<br>むける</button>'}</div></div>
     <div class="a3d-rot p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
     <div class="a3d-end" hidden></div>
+    <div class="a3d-brief"><div class="ab-box">${briefHtml()}</div></div>
     <div class="p3d-menu a3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn gray" data-m="quit">ミッションを やめる</button></div></div>`;
   document.body.appendChild(root);
   const prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
@@ -150,13 +158,16 @@ export async function startAir3D(o) {
     // カメラ
     let bx; let by; let bz; let lx; let ly; let lz; const k = 1 - Math.exp(-7 * dt);
     if (air) { bx = P.x - f.x * 26; by = P.y - f.y * 26 + 7; bz = P.z - f.z * 26; lx = P.x + f.x * 90; ly = P.y + f.y * 90; lz = P.z + f.z * 90; }
-    else { const d = kind === 'ship' ? 120 : 72; const h = kind === 'ship' ? 58 : 38; const cy = P.turretYaw; bx = P.x - Math.sin(cy) * d; by = h; bz = P.z - Math.cos(cy) * d; lx = P.x + Math.sin(cy) * 300; ly = 8 + Math.tan(P.aimPitch) * 300; lz = P.z + Math.cos(cy) * 300; }
+    else { const d = kind === 'ship' ? 68 : 30; const h = kind === 'ship' ? 30 : 15; const cy = P.turretYaw; bx = P.x - Math.sin(cy) * d; by = h; bz = P.z - Math.cos(cy) * d; lx = P.x + Math.sin(cy) * 300; ly = 8 + Math.tan(P.aimPitch) * 300; lz = P.z + Math.cos(cy) * 300; }
     if (!cam.init) { cam.x = bx; cam.y = by; cam.z = bz; cam.init = true; } cam.x += (bx - cam.x) * k; cam.y += (by - cam.y) * k; cam.z += (bz - cam.z) * k;
     camera.position.set(cam.x, Math.max(6, cam.y), cam.z); camera.up.set(0, 1, 0); camera.lookAt(lx, ly, lz);
   }
+  const briefEl = root.querySelector('.a3d-brief'); let briefing = true; const guestWait = !!(sim.remote);
+  { const box = briefEl.querySelector('.ab-box'); box.insertAdjacentHTML('beforeend', guestWait ? '<div class="ab-wait">ホストが はじめるのを まっているよ…</div>' : '<button class="btn gold" data-b2="go">🛫 ミッション かいし!</button>'); const btn = box.querySelector('[data-b2=go]'); if (btn) btn.addEventListener('click', () => { briefing = false; briefEl.remove(); }); }
   function frame(ts) {
     if (dead) return; const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts; tt += dt;
-    if ((!paused || net) && !portrait) { acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); if (hb) hb.tick(1 / 60); acc -= 1 / 60; } while (S.snd.length) { const nm = S.snd.shift(); if (hb) hb.snd.push(nm); if (o.onSfx) o.onSfx(nm); }
+    if (briefing && guestWait && S.ph !== 'brief') { briefing = false; briefEl.remove(); }
+    if ((!paused || net) && !portrait && !briefing) { acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); if (hb) hb.tick(1 / 60); acc -= 1 / 60; } while (S.snd.length) { const nm = S.snd.shift(); if (hb) hb.snd.push(nm); if (o.onSfx) o.onSfx(nm); }
       if (net && !S.done && !lostMsg && ((hb && hb.gone()) || (sim.remote && sim.lost()))) { lostMsg = true; S.done = true; S.win = false; S.stars = 0; S.lostLink = true; } if (S.done && !ended) { endT += dt; if (endT > 2.4) { ended = true; showEnd(); } } }
     syncScene(dt); updateHud(); renderer.render(scene, camera); raf = requestAnimationFrame(frame);
   }
