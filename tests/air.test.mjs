@@ -98,4 +98,41 @@ function fly(V, mission, { seed = 1, gentle = false, seconds = 420 } = {}) {
     sim.input.aimX = 1; const r0 = P.aimRel; sim.step(1 / 30); assert.ok(P.aimRel > r0, 'ドラッグで ねらいが うごく');
   }
 }
+// ---- ふたりで あそぶ: きょうりょく(おなじ てきと たたかう)・たいせん(おたがいの きたいを ねらう) ----
+function drive(sim, P, foes, enemyOf = null) {
+  const near = foes.slice().sort((a, b) => Math.hypot(a.x - P.x, a.y - P.y, a.z - P.z) - Math.hypot(b.x - P.x, b.y - P.y, b.z - P.z))[0]; const inp = P.input; if (P.dead) return;
+  if (P.kind === 'plane') {
+    if (near) { let dy = Math.atan2(near.x - P.x, near.z - P.z) - P.yaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI; inp.turn = Math.max(-1, Math.min(1, dy * 2.2)); const hd = Math.hypot(near.x - P.x, near.z - P.z); const ty = near.dom === 'air' ? near.y : Math.max(near.y, P.y - 0.25 * hd, 90); inp.climb = Math.max(-1, Math.min(1, (Math.atan2(ty - P.y, hd) - P.pitch) * 3)); inp.gun = true; }
+    else { inp.turn = Math.max(-1, Math.min(1, Math.atan2(-P.x, BASE_Z - P.z + 600) - P.yaw)); inp.climb = (260 - P.y) * 0.01; inp.gun = false; }
+  } else {
+    if (near) { let dy = Math.atan2(near.x - P.x, near.z - P.z) - P.yaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI; inp.turn = Math.max(-1, Math.min(1, dy * 2)); inp.climb = P.target ? 0.15 : Math.abs(dy) < 1.2 ? 1 : 0.2; } else { inp.turn = 0; inp.climb = 0; }
+    if (P.target) sim.aimAt(P.target, P.i); inp.gun = !!P.target;
+  }
+  if (P.lockTarget.length) sim.fireMissile(P.i);
+}
+{
+  const V1 = vehicleWith('plane', strongChars, stats(70)); const V2 = vehicleWith('tank', strongChars.slice().reverse(), stats(60));
+  for (const mis of [missionById('m1'), missionById('m4'), missionById('m6')]) {
+    let wins = 0;
+    for (const seed of [1, 2, 3]) {
+      const sim = createAir({ vehicle: V1, extra: [V2], mission: mis, rnd: rngSeed(seed) }); const S = sim.state; assert.equal(S.players.length, 2);
+      let t = 0; while (!S.done && t < 420) { for (const P of S.players) drive(sim, P, S.enemies); sim.step(1 / 30); t += 1 / 30; } if (S.win) wins++;
+    }
+    assert.ok(wins >= 2, `ふたりで ${mis.id} を クリアできる (${wins}/3)`);
+  }
+  // ひとりが やられても もうひとりが のこって いれば つづく / ふたりとも やられたら しっぱい
+  const sim = createAir({ vehicle: V1, extra: [V2], mission: missionById('m1'), rnd: rngSeed(8) }); const S = sim.state; sim.step(1 / 30); S.players[1].hp = 1; S.players[1].invuln = 0;
+  S.bullets.push({ x: S.players[1].x, y: S.players[1].y + 4, z: S.players[1].z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 50, own: 'e' }); sim.step(1 / 30);
+  assert.ok(S.players[1].dead && !S.done, 'ひとり やられても ミッションは つづく');
+  S.players[0].hp = 1; S.players[0].invuln = 0; S.bullets.push({ x: S.players[0].x, y: S.players[0].y, z: S.players[0].z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99, own: 'e' }); sim.step(1 / 30);
+  assert.ok(S.done && !S.win, 'ふたりとも やられたら しっぱい');
+  // たいせん: どの くみあわせでも しょうぶが つく
+  const pairs = [['plane', 'plane'], ['plane', 'tank'], ['ship', 'tank'], ['ship', 'plane'], ['tank', 'tank'], ['ship', 'ship']]; const rep = {};
+  for (const [a, b] of pairs) {
+    const sim2 = createAir({ vehicle: vehicleWith(a, strongChars, stats(70)), extra: [vehicleWith(b, strongChars, stats(70))], pvp: true, rnd: rngSeed(4) }); const S2 = sim2.state; let tt = 0;
+    while (!S2.done && tt < 400) { const [p0, p1] = S2.players; drive(sim2, p0, [p1.foe]); drive(sim2, p1, [p0.foe]); sim2.step(1 / 30); tt += 1 / 30; }
+    rep[`${a}-${b}`] = S2.done ? `${S2.winner}@${Math.round(tt)}s` : 'draw'; assert.ok(S2.done && (S2.winner === 0 || S2.winner === 1), `たいせん ${a} vs ${b} で しょうぶが つく`);
+  }
+  console.log('  たいせん(かち:0/1 @じかん):', JSON.stringify(rep));
+}
 console.log('OK: air');

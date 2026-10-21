@@ -123,27 +123,46 @@ export const missionById = (id) => MISSIONS.find((m) => m.id === id);
 export const missionMix = (m) => { const c = { air: 0, sea: 0, ground: 0 }; for (const w of m.waves) c[ENEMY[w.type].dom] += w.n; return c; };
 
 // ---- しあいの ほんたい ---------------------------------------------------------------------
-export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = false, difficulty = 1 }) {
-  const M = mission; const kind = V.vehicle; const hpScale = gentle ? 1.45 : 1; const enemyDmg = (gentle ? 0.6 : 1) * difficulty;
-  const air = kind === 'plane';
-  const start = kind === 'plane' ? { x: 0, y: 260, z: 120 } : kind === 'tank' ? { x: 0, y: 0, z: BASE_Z + 60 } : { x: 0, y: 0, z: BASE_Z + ISLAND + 240 };
-  const S = {
-    ph: 'brief', t: 0, kills: 0, score: 0, done: false, win: false, banner: '', bannerT: 0, msg: '', msgT: 0, vehicle: kind,
-    player: { ...start, yaw: 0, pitch: 0, roll: 0, speed: 0, hp: V.hpMax * hpScale, hpMax: V.hpMax * hpScale, boost: V.boostMax, boosting: false, invuln: 0, evadeCd: 0, missiles: V.missiles, mRegen: 0, lockTarget: [], lockT: new Map(), firing: false, turretYaw: 0, aimRel: 0, aimPitch: 0.05, radius: air ? 9 : kind === 'ship' ? 24 : 12, cy: air ? 0 : 4 },
-    base: { x: 0, y: 0, z: BASE_Z, hp: M.baseHp, hpMax: M.baseHp },
-    enemies: [], bullets: [], missiles: [], effects: [], tracers: [], snd: [], waveI: 0, boss: null, target: null, targetIdx: 0,
+// ひとりでも ふたりでも(きょうりょく / たいせん)。players[0] が じぶん。ふたりめいこうは extra=[V2] で わたす。
+export const PVP_MISSION = { id: 'pvp', name: 'たいせん', icon: '⚔️', brief: '', baseHp: 1, waves: [{ t: 99999, type: 'drone', n: 0 }], reward: {}, pvp: true };
+const domOfKind = (k) => (k === 'plane' ? 'air' : k === 'ship' ? 'sea' : 'ground');
+export function createAir({ vehicle: V0, mission, rnd = Math.random, gentle = false, difficulty = 1, extra = [], pvp = false }) {
+  const M = pvp ? PVP_MISSION : mission; const hpScale = gentle ? 1.45 : 1; const enemyDmg = (gentle ? 0.6 : 1) * difficulty;
+  const NP = 1 + extra.length; const eHp = NP > 1 && !pvp ? 1.55 : 1; // ふたりなら てきの HPが おおい
+  const startOf = (kind, i) => { const ox = i === 0 ? 0 : i % 2 ? 90 : -90; return kind === 'plane' ? { x: ox, y: 260, z: 120 } : kind === 'tank' ? { x: ox * 1.4, y: 0, z: BASE_Z + 60 } : { x: ox * 2, y: 0, z: BASE_Z + ISLAND + 240 }; };
+  const mkPlayer = (V, i) => {
+    const kind = V.vehicle; const air = kind === 'plane'; const hp = V.hpMax * (pvp ? 4.5 : hpScale);
+    const P = { i, V, kind, air, input: { turn: 0, climb: 0, gun: false, boost: false, aimX: 0, aimY: 0 }, ...startOf(kind, i), yaw: pvp && i ? Math.PI : 0, pitch: 0, roll: 0, speed: air ? V.speed : 0, hp, hpMax: hp, boost: V.boostMax, boosting: false, invuln: 0, evadeCd: 0, missiles: V.missiles, mRegen: 0, lockTarget: [], lockT: new Map(), lockCands: [], firing: false, turretYaw: 0, aimRel: 0, aimPitch: 0.05, radius: air ? 9 : kind === 'ship' ? 24 : 12, cy: air ? 0 : 4, dead: false, target: null, targetIdx: 0, rollSpin: 0 };
+    if (pvp && i) { // たいせん: ふたりめは はんたいがわ
+      if (kind === 'plane') { P.z = BASE_Z + 1100; P.x = -80; } else if (kind === 'tank') { P.x = 0; P.z = BASE_Z - 250; } else { P.z = BASE_Z - ISLAND - 240; }
+      P.yaw = Math.PI;
+    } else if (pvp) { if (kind === 'plane') { P.z = BASE_Z - 700; } P.yaw = 0; }
+    P.turretYaw = P.yaw;
+    // あいてから みた「まと」(たいせんで ミサイル・ほうげきの ターゲットに なる)
+    P.foe = { id: 1000 + i, type: 'pl', dom: domOfKind(kind), x: P.x, y: P.y, z: P.z, hp: hp, hpMax: hp, pl: P, speed: 0 };
+    return P;
   };
-  if (air) S.player.speed = V.speed;
-  const input = { turn: 0, climb: 0, gun: false, boost: false, aimX: 0, aimY: 0 };
+  const players = [mkPlayer(V0, 0), ...extra.map((v, i) => mkPlayer(v, i + 1))];
+  const S = {
+    ph: 'brief', t: 0, kills: 0, score: 0, done: false, win: false, banner: '', bannerT: 0, msg: '', msgT: 0, vehicle: V0.vehicle, pvp, np: NP, winner: -1,
+    player: players[0], players, base: { x: 0, y: 0, z: BASE_Z, hp: M.baseHp, hpMax: M.baseHp },
+    enemies: [], bullets: [], missiles: [], effects: [], tracers: [], snd: [], waveI: 0, boss: null, target: null, targetIdx: 0, lockCands: [],
+  };
+  const input = players[0].input;
   const snd = (n) => { if (S.snd.length < 30) S.snd.push(n); };
   const fx = (kindFx, pos, r = 10) => { if (S.effects.length < 80) S.effects.push({ kind: kindFx, x: pos.x, y: pos.y, z: pos.z, r, t: 0, life: kindFx === 'big' ? 1.4 : 0.7 }); };
   const msg = (t, d = 2.5) => { S.msg = t; S.msgT = d; };
   const banner = (t, d = 2.2) => { S.banner = t; S.bannerT = d; };
   let spawnId = 0;
+  const sizeOf = (e) => (e.type === 'pl' ? e.pl.radius : ENEMY[e.type].size);
+  const alive = () => players.filter((p) => !p.dead);
+  const nearestAlive = (pos) => { let b = null; let bd = 1e12; for (const p of players) { if (p.dead) continue; const d = Math.hypot(p.x - pos.x, p.z - pos.z); if (d < bd) { bd = d; b = p; } } return b || players[0]; };
+  // P から ねらえる あいて(てき + たいせんなら あいての きたい)
+  const foesOf = (P) => (pvp ? players.filter((p) => p !== P && !p.dead).map((p) => p.foe) : S.enemies);
 
   function spawn(type, i, n) {
     const E = ENEMY[type]; const ang = (i / Math.max(1, n) - 0.5) * 1.6 + (rnd() - 0.5) * 0.4;
-    const e = { id: ++spawnId, type, dom: E.dom, x: Math.sin(ang) * (500 + rnd() * 500), y: 0, z: BASE_Z + 1250 + rnd() * 450, yaw: Math.PI, pitch: 0, hp: E.hp * (difficulty > 1 ? 1.2 : 1), hpMax: E.hp, speed: E.speed * (0.9 + rnd() * 0.25), cd: 1 + rnd() * 1.5, target: rnd() < 0.55 ? 'base' : 'player', t: 0, ph: rnd() * 6.28, spawnCd: 6, orbit: rnd() < 0.5 ? 1 : -1, stop: false };
+    const e = { id: ++spawnId, type, dom: E.dom, x: Math.sin(ang) * (500 + rnd() * 500), y: 0, z: BASE_Z + 1250 + rnd() * 450, yaw: Math.PI, pitch: 0, hp: E.hp * (difficulty > 1 ? 1.2 : 1) * eHp, hpMax: E.hp * eHp, speed: E.speed * (0.9 + rnd() * 0.25), cd: 1 + rnd() * 1.5, target: rnd() < 0.55 ? 'base' : 'player', t: 0, ph: rnd() * 6.28, spawnCd: 6, orbit: rnd() < 0.5 ? 1 : -1, stop: false };
     if (E.dom === 'air') e.y = 140 + rnd() * 320;
     if (type === 'boat' || type === 'destroyer') { e.x = Math.sin(ang) * (700 + rnd() * 500); e.z = BASE_Z + ISLAND + 700 + rnd() * 500; e.target = 'base'; e.stopR = (type === 'destroyer' ? 1180 : 980) + rnd() * 60; }
     if (type === 'etank') { e.x = Math.sin(ang) * (250 + rnd() * 120); e.z = BASE_Z + ISLAND - 20 - rnd() * 40; e.target = 'base'; e.yaw = Math.PI; e.y = 0; }
@@ -152,58 +171,68 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
   }
 
   // ---- ねらい・ロック ----------------------------------------------------------------
-  const inRangeGun = (P, e) => { const d = Math.hypot(e.x - P.x, e.y - P.y, e.z - P.z); return d <= GUN_RANGE[kind][e.dom] * (V.gunRangeMul || 1) && GUN_VS[kind][e.dom] > 0.2; };
-  function chooseTarget() { // ふねと せんしゃ: じどうで ねらう(ちかい じゅん)。ボタンで つぎの てきへ
-    if (air) { S.target = null; return; }
-    const P = S.player; const c = S.enemies.filter((e) => inRangeGun(P, e)).sort((a, b) => dist(a, P) - dist(b, P));
-    if (!c.length) { S.target = null; return; }
-    const keep = S.target && c.find((e) => e.id === S.target.id); S.target = keep || c[Math.min(S.targetIdx, c.length - 1)]; if (!keep) S.targetIdx = 0;
+  const inRangeGun = (P, e) => { const d = Math.hypot(e.x - P.x, e.y - P.y, e.z - P.z); return d <= GUN_RANGE[P.kind][e.dom] * (P.V.gunRangeMul || 1) && GUN_VS[P.kind][e.dom] > 0.2; };
+  function chooseTarget(P) { // ふね・せんしゃ: ターゲット(ボタンで つぎへ)
+    if (P.air) { P.target = null; return; }
+    const c = foesOf(P).filter((e) => inRangeGun(P, e)).sort((a, b) => dist(a, P) - dist(b, P));
+    if (!c.length) { P.target = null; return; }
+    const keep = P.target && c.find((e) => e.id === P.target.id); P.target = keep || c[Math.min(P.targetIdx, c.length - 1)]; if (!keep) P.targetIdx = 0;
   }
-  function aimAt(e) { if (air || !e) return; const P = S.player; const hd = Math.hypot(e.x - P.x, e.z - P.z) || 1; P.aimRel = clamp(angDiff(Math.atan2(e.x - P.x, e.z - P.z), P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2((e.dom === 'air' ? e.y : e.y + 3) - 8, hd), -0.15, 1.3); }
-  function nextTarget() { if (air) return; const P = S.player; const c = S.enemies.filter((e) => inRangeGun(P, e)).sort((a, b) => dist(a, P) - dist(b, P)); if (!c.length) return; const i = c.findIndex((e) => S.target && e.id === S.target.id); S.target = c[(i + 1) % c.length]; aimAt(S.target); }
-  function updateLock(dt) {
-    const P = S.player; const fwd = dirOf(P.yaw, P.pitch); const R = V.misRange || MIS_RANGE[kind];
+  function aimAt(e, i = 0) { const P = players[i]; if (P.air || !e) return; const hd = Math.hypot(e.x - P.x, e.z - P.z) || 1; P.aimRel = clamp(angDiff(Math.atan2(e.x - P.x, e.z - P.z), P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2((e.dom === 'air' ? e.y : e.y + 3) - 8, hd), -0.15, 1.3); }
+  function nextTarget(i = 0) { const P = players[i]; if (P.air) return; const c = foesOf(P).filter((e) => inRangeGun(P, e)).sort((a, b) => dist(a, P) - dist(b, P)); if (!c.length) return; const k = c.findIndex((e) => P.target && e.id === P.target.id); P.target = c[(k + 1) % c.length]; aimAt(P.target, i); }
+  function updateLock(P, dt) {
+    const V = P.V; const fwd = dirOf(P.yaw, P.pitch); const R = V.misRange || MIS_RANGE[P.kind]; const foes = foesOf(P);
     let cands;
-    if (air) cands = S.enemies.map((e) => { const v = { x: e.x - P.x, y: e.y - P.y, z: e.z - P.z }; const d = Math.hypot(v.x, v.y, v.z); const c = (v.x * fwd.x + v.y * fwd.y + v.z * fwd.z) / (d || 1); return { e, d, ang: Math.acos(clamp(c, -1, 1)) }; }).filter((c) => c.d < R && c.ang < 0.5).sort((a, b) => a.ang - b.ang || a.d - b.d);
-    else cands = S.enemies.map((e) => ({ e, d: dist(e, P), ang: 0 })).filter((c) => c.d < R).sort((a, b) => ((S.target && b.e.id === S.target.id) - (S.target && a.e.id === S.target.id)) || a.d - b.d);
+    if (P.air) cands = foes.map((e) => { const v = { x: e.x - P.x, y: e.y - P.y, z: e.z - P.z }; const d = Math.hypot(v.x, v.y, v.z); const c = (v.x * fwd.x + v.y * fwd.y + v.z * fwd.z) / (d || 1); return { e, d, ang: Math.acos(clamp(c, -1, 1)) }; }).filter((c) => c.d < R && c.ang < 0.5).sort((a, b) => a.ang - b.ang || a.d - b.d);
+    else cands = foes.map((e) => ({ e, d: dist(e, P), ang: 0 })).filter((c) => c.d < R).sort((a, b) => ((P.target && b.e.id === P.target.id) - (P.target && a.e.id === P.target.id)) || a.d - b.d);
     cands = cands.slice(0, V.locks); const keep = new Map();
     for (const c of cands) keep.set(c.e.id, Math.min((P.lockT.get(c.e.id) || 0) + dt, V.lockTime + 0.05));
     P.lockT = keep; P.lockTarget = cands.filter((c) => keep.get(c.e.id) >= V.lockTime).map((c) => c.e);
-    S.lockCands = cands.map((c) => ({ id: c.e.id, locked: keep.get(c.e.id) >= V.lockTime, p: Math.min(1, keep.get(c.e.id) / V.lockTime) }));
+    P.lockCands = cands.map((c) => ({ id: c.e.id, locked: keep.get(c.e.id) >= V.lockTime, p: Math.min(1, keep.get(c.e.id) / V.lockTime) }));
   }
-  function fireMissile() {
-    const P = S.player; if (S.done || S.ph !== 'play' || P.missiles <= 0) return false;
-    const targets = P.lockTarget.length ? P.lockTarget.slice() : [null]; let n = 0;
+  function fireMissile(i = 0) {
+    const P = players[i]; if (S.done || S.ph !== 'play' || P.dead || P.missiles <= 0) return false;
+    const targets = P.lockTarget.length ? P.lockTarget.slice() : [null]; let n = 0; const air = P.air;
     for (const e of targets) { if (P.missiles <= 0) break; P.missiles--; n++;
       const aim = e ? norm({ x: e.x - P.x, y: e.y - P.y - (air ? 0 : 10), z: e.z - P.z }) : dirOf(P.yaw, air ? P.pitch : 0.4);
       const d = air ? aim : norm({ x: aim.x, y: Math.max(aim.y, 0.45), z: aim.z });
-      S.missiles.push({ x: P.x + d.x * 12, y: P.y + (air ? d.y * 12 - 2 : 12), z: P.z + d.z * 12, vx: d.x * 240, vy: d.y * 240, vz: d.z * 240, target: e ? e.id : null, t: 0, life: 8, dmg: V.missileDmg }); }
+      S.missiles.push({ x: P.x + d.x * 12, y: P.y + (air ? d.y * 12 - 2 : 12), z: P.z + d.z * 12, vx: d.x * 240, vy: d.y * 240, vz: d.z * 240, target: e ? e.id : null, t: 0, life: 8, dmg: P.V.missileDmg, own: i, kind: P.kind }); }
     if (n) snd('missile'); return n > 0;
   }
-  function evade() { const P = S.player; if (P.evadeCd > 0 || S.done) return false; P.invuln = air ? 0.9 : 1.3; P.evadeCd = V.evadeCd; P.rollSpin = air ? 1 : 0; S.shield = P.invuln; snd('evade'); return true; }
+  function evade(i = 0) { const P = players[i]; if (P.evadeCd > 0 || S.done || P.dead) return false; P.invuln = P.air ? 0.9 : 1.3; P.evadeCd = P.V.evadeCd; P.rollSpin = P.air ? 1 : 0; P.shield = P.invuln; if (i === 0) S.shield = P.invuln; snd('evade'); return true; }
 
   // ---- ダメージ ---------------------------------------------------------------------
-  const damageEnemy = (e, d) => { if (e.hp <= 0) return; e.hp -= d; if (e.hp <= 0) killEnemy(e); };
+  function foeById(id) { return id >= 1000 ? (players[id - 1000] || {}).foe : S.enemies.find((e) => e.id === id); }
+  function damageEnemy(e, d) { if (e.type === 'pl') { hurtPlayer(e.pl, d, true); return; } if (e.hp <= 0) return; e.hp -= d; if (e.hp <= 0) killEnemy(e); }
   function killEnemy(e) { e.hp = 0; e.dead = true; S.kills++; S.score += ENEMY[e.type].score; fx(e.type === 'boss' ? 'big' : 'boom', e, ENEMY[e.type].size * 1.6); snd(e.type === 'boss' ? 'bigboom' : 'boom'); if (e.type === 'boss') endMission(true); }
-  function hurtPlayer(d) { const P = S.player; if (P.invuln > 0 || S.done) return; P.hp -= d * enemyDmg; snd('hit'); S.hurt = 0.35; if (P.hp <= 0) { P.hp = 0; fx('big', P, 20); endMission(false, 'きたいが こわれた…'); } }
-  function hurtBase(d) { const B = S.base; if (S.done) return; B.hp -= d; S.baseHurt = 0.5; snd('basehit'); if (B.hp <= 0) { B.hp = 0; endMission(false, 'きちが やられた…'); } }
+  function hurtPlayer(P, d, raw) {
+    if (P.invuln > 0 || S.done || P.dead) return; P.hp -= d * (raw ? 1 : enemyDmg); snd('hit'); if (P.i === 0) S.hurt = 0.35; P.hurt = 0.35;
+    if (P.hp <= 0) {
+      P.hp = 0; P.dead = true; fx('big', P, 20);
+      if (pvp) { S.winner = 1 - P.i; endMission(S.winner === 0, P.i === 0 ? 'きたいが こわれた…' : ''); }
+      else if (!alive().length) endMission(false, 'きたいが こわれた…');
+      else msg('なかまが やられた! たすけに いこう', 3);
+    }
+  }
+  function hurtBase(d) { const B = S.base; if (S.done || pvp) return; B.hp -= d; S.baseHurt = 0.5; snd('basehit'); if (B.hp <= 0) { B.hp = 0; endMission(false, 'きちが やられた…'); } }
   function endMission(win, why = '') {
-    if (S.done) return; S.done = true; S.win = win; S.ph = win ? 'win' : 'lose'; S.endT = 0; banner(win ? 'ミッション クリア!' : 'ミッション しっぱい', 3); if (!win) msg(why, 3);
-    const hpPct = S.player.hp / S.player.hpMax; const bPct = S.base.hp / S.base.hpMax; S.stars = !win ? 0 : bPct >= 0.7 && hpPct >= 0.5 ? 3 : bPct >= 0.4 ? 2 : 1; snd(win ? 'win' : 'lose');
+    if (S.done) return; S.done = true; S.win = win; S.ph = win ? 'win' : 'lose'; S.endT = 0; banner(pvp ? (win ? 'かち!' : 'まけ…') : win ? 'ミッション クリア!' : 'ミッション しっぱい', 3); if (!win && why) msg(why, 3);
+    if (pvp) { S.stars = 0; snd(win ? 'win' : 'lose'); return; }
+    const sum = (f) => players.reduce((a, p) => a + f(p), 0); const hpPct = sum((p) => p.hp) / sum((p) => p.hpMax); const bPct = S.base.hp / S.base.hpMax; S.stars = !win ? 0 : bPct >= 0.7 && hpPct >= 0.5 ? 3 : bPct >= 0.4 ? 2 : 1; snd(win ? 'win' : 'lose');
   }
 
   // ---- 1フレーム ----------------------------------------------------------------------
-  function movePlayer(dt) {
-    const P = S.player;
+  function movePlayer(P, dt) {
+    const V = P.V; const kind = P.kind; const air = P.air; const input = P.input;
     const boosting = input.boost && P.boost > 1; P.boosting = boosting; P.boost = clamp(P.boost + (boosting ? -26 : 10) * dt, 0, V.boostMax);
     if (air) {
       const sp = V.speed * (boosting ? 1.65 : 1) * (input.climb < -0.4 ? 1.12 : input.climb > 0.4 ? 0.92 : 1); P.speed = lerp(P.speed, sp, 1 - Math.exp(-2.4 * dt));
       P.yaw += input.turn * V.turn * dt; P.pitch = clamp(P.pitch + input.climb * 0.95 * dt, -0.95, 0.95); if (Math.abs(input.climb) < 0.12) P.pitch *= Math.exp(-0.9 * dt);
       P.roll = lerp(P.roll, -input.turn * 0.95, 1 - Math.exp(-5 * dt)); if (P.rollSpin) P.rollSpin = Math.max(0, P.rollSpin - dt / 0.75);
       const f = dirOf(P.yaw, P.pitch); P.x += f.x * P.speed * dt; P.y += f.y * P.speed * dt; P.z += f.z * P.speed * dt;
-      if (P.y < 55) { P.pitch = lerp(P.pitch, 0.35, 1 - Math.exp(-3 * dt)); if (P.y < 14) { P.y = 14; S.groundWarn = 1; hurtPlayer(6 * dt * 12); } }
+      if (P.y < 55) { P.pitch = lerp(P.pitch, 0.35, 1 - Math.exp(-3 * dt)); if (P.y < 14) { P.y = 14; if (P.i === 0) S.groundWarn = 1; hurtPlayer(P, 6 * dt * 12); } }
       P.y = Math.min(P.y, 1500);
-      const r = Math.hypot(P.x, P.z - BASE_Z); if (r > 3200) { const want = Math.atan2(-P.x, BASE_Z - P.z); P.yaw += clamp(angDiff(want, P.yaw), -1.6 * dt, 1.6 * dt) * 3; S.outWarn = 1; } else S.outWarn = 0;
+      const r = Math.hypot(P.x, P.z - BASE_Z); if (r > 3200) { const want = Math.atan2(-P.x, BASE_Z - P.z); P.yaw += clamp(angDiff(want, P.yaw), -1.6 * dt, 1.6 * dt) * 3; if (P.i === 0) S.outWarn = 1; } else if (P.i === 0) S.outWarn = 0;
       return;
     }
     // ふね・せんしゃ: スティック うえ=すすむ/した=さがる、よこ=まわる
@@ -211,50 +240,54 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
     P.speed = lerp(P.speed, want, 1 - Math.exp(-(kind === 'tank' ? 3.2 : 1.4) * dt));
     P.yaw += input.turn * V.turn * dt * (0.45 + Math.min(1, Math.abs(P.speed) / (V.speed * 0.5)) * 0.55) * (P.speed < -0.5 ? -1 : 1);
     P.x += Math.sin(P.yaw) * P.speed * dt; P.z += Math.cos(P.yaw) * P.speed * dt; P.roll = lerp(P.roll, -input.turn * 0.12, 1 - Math.exp(-4 * dt));
-    const dx = P.x; const dz = P.z - BASE_Z; const r = Math.hypot(dx, dz) || 1;
-    if (kind === 'tank' && r > ISLAND - 20) { P.x = (dx / r) * (ISLAND - 20); P.z = BASE_Z + (dz / r) * (ISLAND - 20); S.outWarn = 0; S.shoreWarn = 1; }
-    if (kind === 'ship') { if (r < ISLAND + 70) { P.x = (dx / r) * (ISLAND + 70); P.z = BASE_Z + (dz / r) * (ISLAND + 70); S.shoreWarn = 1; } if (r > 3000) { P.x = (dx / r) * 3000; P.z = BASE_Z + (dz / r) * 3000; S.outWarn = 1; } else S.outWarn = 0; }
+    const dx = P.x; const dz = P.z - BASE_Z; const r = Math.hypot(dx, dz) || 1; const me = P.i === 0;
+    if (kind === 'tank' && r > ISLAND - 20) { P.x = (dx / r) * (ISLAND - 20); P.z = BASE_Z + (dz / r) * (ISLAND - 20); if (me) { S.outWarn = 0; S.shoreWarn = 1; } }
+    if (kind === 'ship') { if (r < ISLAND + 70) { P.x = (dx / r) * (ISLAND + 70); P.z = BASE_Z + (dz / r) * (ISLAND + 70); if (me) S.shoreWarn = 1; } if (r > 3000) { P.x = (dx / r) * 3000; P.z = BASE_Z + (dz / r) * 3000; if (me) S.outWarn = 1; } else if (me) S.outWarn = 0; }
+  }
+  function playerGun(P, dt) {
+    const input = P.input; const V = P.V; const kind = P.kind; P.firing = !!input.gun && !P.dead; if (!P.firing) return;
+    const foes = foesOf(P);
+    if (P.air) {
+      const fwd = dirOf(P.yaw, P.pitch); let best = null; let ba = 0.13;
+      for (const e of foes) { const hd = Math.hypot(e.x - P.x, e.z - P.z); const ty = e.dom === 'air' ? e.y : Math.max(e.y, P.y - 0.25 * hd); /* うみ・りくの てきは あさい かくどで ねらえる */ const v = { x: e.x - P.x, y: ty - P.y, z: e.z - P.z }; const d = Math.hypot(v.x, v.y, v.z); if (d > 650 * (V.gunRangeMul || 1)) continue; const c = (v.x * fwd.x + v.y * fwd.y + v.z * fwd.z) / (d || 1); const a = Math.acos(clamp(c, -1, 1)) - sizeOf(e) / d; if (a < ba) { ba = a; best = e; } }
+      if (best) damageEnemy(best, V.gunDps * GUN_VS.plane[best.dom] * dt * (pvp ? 0.8 : 1));
+      if (S.t % 0.07 < dt) S.tracers.push({ from: { x: P.x + fwd.x * 8, y: P.y + fwd.y * 8 - 1.5, z: P.z + fwd.z * 8 }, to: best ? { x: best.x, y: best.dom === 'air' ? best.y : Math.max(best.y, P.y - 0.25 * Math.hypot(best.x - P.x, best.z - P.z)), z: best.z } : { x: P.x + fwd.x * 520, y: P.y + fwd.y * 520, z: P.z + fwd.z * 520 }, t: 0 });
+      if (P.i === 0 && S.t % 0.18 < dt) snd('gun');
+      return;
+    }
+    // ふね・せんしゃ: ほうげきは じぶんで ねらう。ねらいの さきに てきが いると あたる
+    const ad = dirOf(P.turretYaw, P.aimPitch); const my = 8; let best = null; let ba = 9; const rm = V.gunRangeMul || 1;
+    for (const e of foes) { if (GUN_VS[kind][e.dom] <= 0.2) continue; const ty = e.dom === 'air' ? e.y : e.y + 3; const v = { x: e.x - P.x, y: ty - my, z: e.z - P.z }; const d = Math.hypot(v.x, v.y, v.z); if (d > GUN_RANGE[kind][e.dom] * rm) continue; const a = Math.acos(clamp((v.x * ad.x + v.y * ad.y + v.z * ad.z) / (d || 1), -1, 1)); const tol = (sizeOf(e) / d + 0.05) * (gentle && !pvp ? 1.8 : 1); if (a < tol && a < ba) { ba = a; best = e; } }
+    if (best) damageEnemy(best, V.gunDps * GUN_VS[kind][best.dom] * dt * (pvp ? 0.8 : 1));
+    if (S.t % 0.12 < dt) S.tracers.push({ from: { x: P.x, y: P.y + my, z: P.z }, to: best ? { x: best.x, y: best.dom === 'air' ? best.y : best.y + 3, z: best.z } : { x: P.x + ad.x * 600, y: my + ad.y * 600, z: P.z + ad.z * 600 }, t: 0 });
+    if (P.i === 0 && S.t % 0.22 < dt) snd(kind === 'tank' ? 'boom' : 'gun');
   }
 
   function step(dtIn) {
-    const dt = Math.min(dtIn, 1 / 20); if (S.ph === 'brief') { S.ph = 'play'; banner(`${M.icon} ${M.name}`, 2.4); }
+    const dt = Math.min(dtIn, 1 / 20); if (S.ph === 'brief') { S.ph = 'play'; banner(pvp ? '⚔️ たいせん スタート!' : `${M.icon} ${M.name}`, 2.4); }
     if (S.bannerT > 0) S.bannerT -= dt; if (S.msgT > 0) S.msgT -= dt; if (S.hurt > 0) S.hurt -= dt; if (S.baseHurt > 0) S.baseHurt -= dt; if (S.shield > 0) S.shield -= dt;
     for (let i = S.effects.length - 1; i >= 0; i--) { S.effects[i].t += dt; if (S.effects[i].t > S.effects[i].life) S.effects.splice(i, 1); }
     S.tracers = S.tracers.filter((tr) => { tr.t += dt; return tr.t < 0.12; });
     if (S.done) { S.endT += dt; return; }
-    S.t += dt; const P = S.player;
-    movePlayer(dt);
-    if (P.invuln > 0) P.invuln -= dt; if (P.evadeCd > 0) P.evadeCd -= dt;
-    P.mRegen += dt; if (P.mRegen > (air ? 6 : 5) && P.missiles < V.missiles) { P.missiles++; P.mRegen = 0; }
-    chooseTarget(); updateLock(dt);
-    // ---- きかんほう ----
-    P.firing = !!input.gun;
-    if (air) {
-      const fwd = dirOf(P.yaw, P.pitch);
-      if (input.gun) {
-        let best = null; let ba = 0.13;
-        for (const e of S.enemies) { const hd = Math.hypot(e.x - P.x, e.z - P.z); const ty = e.dom === 'air' ? e.y : Math.max(e.y, P.y - 0.25 * hd); /* うみ・りくの てきは あさい かくどで ねらえる */ const v = { x: e.x - P.x, y: ty - P.y, z: e.z - P.z }; const d = Math.hypot(v.x, v.y, v.z); if (d > 650) continue; const c = (v.x * fwd.x + v.y * fwd.y + v.z * fwd.z) / (d || 1); const a = Math.acos(clamp(c, -1, 1)) - ENEMY[e.type].size / d; if (a < ba) { ba = a; best = e; } }
-        if (best) damageEnemy(best, V.gunDps * GUN_VS.plane[best.dom] * dt);
-        if (S.t % 0.07 < dt) S.tracers.push({ from: { x: P.x + fwd.x * 8, y: P.y + fwd.y * 8 - 1.5, z: P.z + fwd.z * 8 }, to: best ? { x: best.x, y: best.dom === 'air' ? best.y : Math.max(best.y, P.y - 0.25 * Math.hypot(best.x - P.x, best.z - P.z)) , z: best.z } : { x: P.x + fwd.x * 520, y: P.y + fwd.y * 520, z: P.z + fwd.z * 520 }, t: 0 });
-        if (S.t % 0.18 < dt) snd('gun');
-      }
-    } else {
-      // ふね・せんしゃ: ほうげきは じぶんで ねらう(みぎがわを ドラッグ/IJKL)。ねらいの さきに てきが いると あたる
-      P.aimRel = clamp(P.aimRel + input.aimX * 1.7 * dt, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.15, 1.3); P.turretYaw = P.yaw + P.aimRel;
-      if (input.gun) {
-        const ad = dirOf(P.turretYaw, P.aimPitch); const my = 8; let best = null; let ba = 9; const rm = V.gunRangeMul || 1;
-        for (const e of S.enemies) { if (GUN_VS[kind][e.dom] <= 0.2) continue; const ty = e.dom === 'air' ? e.y : e.y + 3; const v = { x: e.x - P.x, y: ty - my, z: e.z - P.z }; const d = Math.hypot(v.x, v.y, v.z); if (d > GUN_RANGE[kind][e.dom] * rm) continue; const a = Math.acos(clamp((v.x * ad.x + v.y * ad.y + v.z * ad.z) / (d || 1), -1, 1)); const tol = (ENEMY[e.type].size / d + 0.05) * (gentle ? 1.8 : 1); if (a < tol && a < ba) { ba = a; best = e; } }
-        if (best) damageEnemy(best, V.gunDps * GUN_VS[kind][best.dom] * dt);
-        if (S.t % 0.12 < dt) S.tracers.push({ from: { x: P.x, y: P.y + my, z: P.z }, to: best ? { x: best.x, y: best.dom === 'air' ? best.y : best.y + 3, z: best.z } : { x: P.x + ad.x * 600, y: my + ad.y * 600, z: P.z + ad.z * 600 }, t: 0 });
-        if (S.t % 0.22 < dt) snd(kind === 'tank' ? 'boom' : 'gun');
-      }
+    S.t += dt;
+    for (const P of players) {
+      if (P.dead) { P.firing = false; continue; }
+      movePlayer(P, dt);
+      if (P.invuln > 0) P.invuln -= dt; if (P.evadeCd > 0) P.evadeCd -= dt; if (P.hurt > 0) P.hurt -= dt;
+      P.mRegen += dt; if (P.mRegen > (P.air ? 6 : 5) && P.missiles < P.V.missiles) { P.missiles++; P.mRegen = 0; }
+      P.foe.x = P.x; P.foe.y = P.y + (P.air ? 0 : 4); P.foe.z = P.z; P.foe.hp = P.hp;
     }
+    if (S.done) return;
+    for (const P of players) { if (P.dead) continue; if (!P.air) P.turretYaw = P.yaw + P.aimRel; }
+    for (const P of players) { if (P.dead) continue; chooseTarget(P); updateLock(P, dt); if (!P.air) { P.aimRel = clamp(P.aimRel + P.input.aimX * 1.7 * dt, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch + P.input.aimY * 0.9 * dt, -0.15, 1.3); P.turretYaw = P.yaw + P.aimRel; } playerGun(P, dt); }
+    S.target = players[0].target; S.lockCands = players[0].lockCands;
+    if (pvp) { missilesStep(dt); return; }
     // ---- ウェーブ ----
     while (S.waveI < M.waves.length && S.t >= M.waves[S.waveI].t) { const w = M.waves[S.waveI++]; for (let i = 0; i < w.n; i++) spawn(w.type, i, w.n); if (w.type !== 'boss') msg(`${ENEMY[w.type].icon} てきが ${w.n}たい ちかづいて いる!`); snd('warn'); }
     // ---- てき ----
     const B = S.base; const lastT = M.waves[M.waves.length - 1].t; const late = S.t > lastT + 55; // さいごの ウェーブから 55びょう すぎたら のこりの てきは つっこんで くる
     for (const e of S.enemies) {
-      e.t += dt; const E = ENEMY[e.type]; if (late && E.dom === 'air' && e.type !== 'boss' && e.type !== 'drone') e.target = 'player'; if (e.type === 'drone' && e.target === 'player') { e.chase = (e.chase || 0) + dt; if (e.chase > 9) e.target = 'base'; } // ドローンは 9びょう おいかけて あたらなかったら きちへ if (late && E.dom === 'sea') e.stopR = Math.max(700, e.stopR - 80 * dt);
+      const P = nearestAlive(e); const kind = P.kind; e.t += dt; const E = ENEMY[e.type]; if (late && E.dom === 'air' && e.type !== 'boss' && e.type !== 'drone') e.target = 'player'; if (e.type === 'drone' && e.target === 'player') { e.chase = (e.chase || 0) + dt; if (e.chase > 9) e.target = 'base'; } // ドローンは 9びょう おいかけて あたらなかったら きちへ
       let tgt = e.target === 'player' ? P : B; if (e.type === 'bomber' || e.type === 'boss' || E.dom !== 'air') tgt = B;
       if (e.type === 'boss') { // ボス: きちの ほうへ ゆっくり すすみ、ずっと たまを うつ。ときどき ドローンを だす
         e.x = Math.sin(e.t * 0.12) * 300; e.z = Math.max(BASE_Z + 430, e.z - E.speed * dt); e.y = 230 + Math.sin(e.t * 0.3) * 30; e.yaw = Math.PI;
@@ -288,31 +321,34 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
       }
       if (e.type === 'fighter') { e.cd -= dt; const toP = norm({ x: P.x - e.x, y: P.y + P.cy - e.y, z: P.z - e.z }); const dp = dist(e, P); const aim = toP.x * f.x + toP.y * f.y + toP.z * f.z;
         if (e.cd <= 0 && dp < 520 && aim > 0.93) { e.cd = E.fire + rnd() * 0.5; S.bullets.push({ x: e.x, y: e.y, z: e.z, vx: toP.x * 250 + f.x * 20, vy: toP.y * 250, vz: toP.z * 250 + f.z * 20, t: 0, dmg: E.dmg, own: 'e' }); } }
-      if (e.type === 'drone' && e.target === 'player' && dist(e, { x: P.x, y: P.y + P.cy, z: P.z }) < P.radius + 6) { hurtPlayer(14); e.hp = 0; e.dead = true; fx('boom', e, 12); S.kills++; snd('boom'); }
-      else if (e.type !== 'drone' && dist(e, { x: P.x, y: P.y + P.cy, z: P.z }) < ENEMY[e.type].size + P.radius && !e.dead) { hurtPlayer(e.type === 'bomber' ? 28 : 18); e.hp = 0; e.dead = true; fx('boom', e, 14); S.kills++; snd('boom'); }
+      if (e.type === 'drone' && e.target === 'player' && dist(e, { x: P.x, y: P.y + P.cy, z: P.z }) < P.radius + 6) { hurtPlayer(P, 14); e.hp = 0; e.dead = true; fx('boom', e, 12); S.kills++; snd('boom'); }
+      else if (e.type !== 'drone' && dist(e, { x: P.x, y: P.y + P.cy, z: P.z }) < ENEMY[e.type].size + P.radius && !e.dead) { hurtPlayer(P, e.type === 'bomber' ? 28 : 18); e.hp = 0; e.dead = true; fx('boom', e, 14); S.kills++; snd('boom'); }
     }
     S.enemies = S.enemies.filter((e) => !e.dead);
     // ---- てきの たま ----
     for (const b of S.bullets) {
       b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
-      if (V.parts && V.parts.armor && false) { /* (ぶひん そうこうは HPに はんえい ずみ) */ }
-      if (dist(b, { x: P.x, y: P.y + P.cy, z: P.z }) < P.radius) { hurtPlayer(b.dmg); b.t = 99; fx('spark', b, 5); }
+      for (const P of players) if (!P.dead && dist(b, { x: P.x, y: P.y + P.cy, z: P.z }) < P.radius) { hurtPlayer(P, b.dmg); b.t = 99; fx('spark', b, 5); break; }
       if (b.y < -2) b.t = 99;
     }
     S.bullets = S.bullets.filter((b) => b.t < 5);
-    // ---- じぶんの ミサイル ----
-    for (const m of S.missiles) {
-      m.t += dt; const tg = m.target != null ? S.enemies.find((e) => e.id === m.target) : null;
-      if (tg) { const v = norm({ x: tg.x - m.x, y: tg.y - m.y, z: tg.z - m.z }); const cur = norm({ x: m.vx, y: m.vy, z: m.vz }); const k = clamp(4.2 * dt, 0, 1); const nv = norm({ x: cur.x + (v.x - cur.x) * k, y: cur.y + (v.y - cur.y) * k, z: cur.z + (v.z - cur.z) * k }); m.vx = nv.x * 260; m.vy = nv.y * 260; m.vz = nv.z * 260; }
-      m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
-      const hit = S.enemies.find((e) => !e.dead && dist(e, m) < ENEMY[e.type].size + 12);
-      if (hit) { m.t = 99; fx('boom', m, 18); snd('boom'); for (const e of S.enemies) if (e !== hit && !e.dead && dist(e, m) < 40) damageEnemy(e, m.dmg * 0.35 * MIS_VS[kind][e.dom]); damageEnemy(hit, m.dmg * MIS_VS[kind][hit.dom]); }
-      if (m.y < 1 && !hit) m.t = 99;
-    }
-    S.missiles = S.missiles.filter((m) => m.t < m.life);
+    missilesStep(dt);
     // ---- しょうり ----
     const allSpawned = S.waveI >= M.waves.length;
     if (!S.done && allSpawned && !M.boss && S.enemies.length === 0) endMission(true);
   }
-  return { state: S, input, step, fireMissile, evade, nextTarget, aimAt, vehicle: V, mission: M, skip() { let n = 0; while (!S.done && n++ < 100000) step(1 / 30); } };
+  // ---- ミサイル(てきにも あいてにも) ----
+  function missilesStep(dt) {
+    for (const m of S.missiles) {
+      m.t += dt; const tg = m.target != null ? foeById(m.target) : null; const k = m.kind; const owner = players[m.own];
+      if (tg) { const v = norm({ x: tg.x - m.x, y: tg.y - m.y, z: tg.z - m.z }); const cur = norm({ x: m.vx, y: m.vy, z: m.vz }); const kk = clamp(4.2 * dt, 0, 1); const nv = norm({ x: cur.x + (v.x - cur.x) * kk, y: cur.y + (v.y - cur.y) * kk, z: cur.z + (v.z - cur.z) * kk }); m.vx = nv.x * 260; m.vy = nv.y * 260; m.vz = nv.z * 260; }
+      m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+      const pool = pvp ? players.filter((p) => p !== owner && !p.dead).map((p) => p.foe) : S.enemies;
+      const hit = pool.find((e) => !e.dead && dist(e, m) < sizeOf(e) + 12);
+      if (hit) { m.t = 99; fx('boom', m, 18); snd('boom'); if (!pvp) for (const e of S.enemies) if (e !== hit && !e.dead && dist(e, m) < 40) damageEnemy(e, m.dmg * 0.35 * MIS_VS[k][e.dom]); damageEnemy(hit, m.dmg * MIS_VS[k][hit.dom] * (pvp ? 0.7 : 1)); }
+      if (m.y < 1 && !hit) m.t = 99;
+    }
+    S.missiles = S.missiles.filter((m) => m.t < m.life);
+  }
+  return { state: S, input, inputs: players.map((p) => p.input), players, step, fireMissile, evade, nextTarget, aimAt, vehicle: V0, mission: M, skip() { let n = 0; while (!S.done && n++ < 100000) step(1 / 30); } };
 }
