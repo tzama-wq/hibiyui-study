@@ -70,7 +70,7 @@ const WING = [
   [[0, 5.4], [4.6, 1.2], [10.4, -3.6], [10.4, -4.8], [0, -4.6]],
 ];
 function planeModel(THREE, spec, enemy = false) {
-  const m = mats(THREE); const g = new THREE.Group(); const P = spec.parts || {}; const body = spec.color || '#4aa3ff'; const pal = palette(THREE, body, enemy); const gray = new THREE.Color('#7e8a99').lerp(new THREE.Color(body), 0.22); const gh = `#${gray.getHexString()}`;
+  const m = mats(THREE); const g = new THREE.Group(); const P = spec.parts || {}; const body = spec.color || '#4aa3ff'; const pal = palette(THREE, body, enemy); const gray = new THREE.Color('#7e8a99').lerp(new THREE.Color(body), 0.55); const gh = `#${gray.getHexString()}`;
   const skin = new THREE.MeshStandardMaterial({ map: camoTex(THREE, enemy ? '#7a3340' : gh, { seed: enemy ? 5 : 3, panel: true, blobs: 38, tone: 0.07 }), metalness: 0.35, roughness: 0.5 });
   const skin2 = new THREE.MeshStandardMaterial({ map: camoTex(THREE, enemy ? '#5a2430' : shade(THREE, gh, 0, 0, -0.1), { seed: enemy ? 6 : 4, panel: true, blobs: 30, tone: 0.06 }), metalness: 0.35, roughness: 0.5 });
   const dark = m('#1c2028', 0, { metalness: 0.6, roughness: 0.4 });
@@ -126,7 +126,7 @@ function planeModel(THREE, spec, enemy = false) {
 function shipModel(THREE, spec, enemy = false) {
   const m = mats(THREE); const g = new THREE.Group(); const P = spec.parts || {}; const body = spec.color || '#4aa3ff';
   const mv = rk(P.mobility); const len = enemy ? 34 : 38 * (1 + mv * 0.06); const ar = rk(P.armor); const armC = pc(THREE, P.armor, '#7b8aa0'); const hl = len / 2;
-  const hullBase = enemy ? '#6a3540' : '#8794a6'; const decoBase = enemy ? '#7a4452' : shade(THREE, body, 0, -0.05, 0.05);
+  const hullBase = enemy ? '#6a3540' : `#${new THREE.Color('#8794a6').lerp(new THREE.Color(body), 0.4).getHexString()}`; const decoBase = enemy ? '#7a4452' : shade(THREE, body, 0, -0.05, 0.05);
   const hullM = new THREE.MeshStandardMaterial({ map: hullTex(THREE, hullBase, enemy ? 'X-' + (len | 0) : '17'), metalness: 0.3, roughness: 0.55 });
   const deckM = new THREE.MeshStandardMaterial({ color: enemy ? '#4a2a32' : '#59616f', metalness: 0.25, roughness: 0.7 });
   const supM = new THREE.MeshStandardMaterial({ map: camoTex(THREE, decoBase, { seed: 21, panel: true, blobs: 14, tone: 0.05 }), metalness: 0.35, roughness: 0.5 });

@@ -12,6 +12,8 @@ const vw = () => (typeof innerWidth === 'number' ? innerWidth : 360);
 const vh = () => (typeof innerHeight === 'number' ? innerHeight : 640);
 const VKEYS = Object.keys(VEHICLES);
 const COLORS = { plane: '#e9eef7', ship: '#8fa3b8', tank: '#6f8a4a' };
+const PALETTE = [['#c9453d', 'あか'], ['#e0892f', 'オレンジ'], ['#d9c23a', 'きいろ'], ['#5f9a4a', 'みどり'], ['#2fa8a0', 'ターコイズ'], ['#3f78d0', 'あお'], ['#2d4a8a', 'こん'], ['#8a56c4', 'むらさき'], ['#d96aa8', 'ピンク'], ['#e9eef7', 'しろ'], ['#3a3f48', 'くろ'], ['#b79a6a', 'さばく']];
+export const vehicleName = (k, sk, v) => (sk.names && sk.names[v]) || k.name;
 
 export function skyInit(ctx) {
   X = ctx;
@@ -27,7 +29,7 @@ export const ensureSky = (p) => {
   const s = p.sky; s.cleared = s.cleared && !Array.isArray(s.cleared) ? s.cleared : {}; s.daily = s.daily || { date: '', n: 0 };
   if (!VEHICLES[s.vehicle]) s.vehicle = 'plane';
   s.loadout = s.loadout || {}; for (const v of VKEYS) s.loadout[v] = s.loadout[v] || {};
-  s.firsts = s.firsts || {};
+  s.firsts = s.firsts || {}; s.colors = s.colors || {}; s.names = s.names || {};
   delete s.pilot; return s;
 };
 
@@ -41,8 +43,8 @@ export function specOf(k, p, vehicle, loadoutOverride) {
   const sk = ensureSky(p); const chars = ownedChars(p); const byId = Object.fromEntries(chars.map((c) => [c.id, c]));
   const lo = loadoutOverride || sk.loadout[vehicle] || {}; const parts = {}; const used = new Set();
   for (const sl of SLOTS[vehicle]) { const id = lo[sl.id]; if (id && byId[id] && !used.has(id)) { parts[sl.id] = partOf(vehicle, sl.id, byId[id]); used.add(id); } }
-  const V = buildVehicle({ vehicle, name: k.name, face: k.em || '', kidStats: G.kidStats(p), parts });
-  return { V, chars, spec: { vehicle, color: COLORS[vehicle], parts, missiles: V.missiles, icon: VEHICLES[vehicle].icon, vname: VEHICLES[vehicle].name } };
+  const V = buildVehicle({ vehicle, name: vehicleName(k, sk, vehicle), face: k.em || '', kidStats: G.kidStats(p), parts });
+  return { V, chars, spec: { vehicle, color: sk.colors[vehicle] || COLORS[vehicle], parts, missiles: V.missiles, icon: VEHICLES[vehicle].icon, vname: VEHICLES[vehicle].name } };
 }
 
 // ---- がめん ----------------------------------------------------------------------
@@ -64,7 +66,7 @@ export function skyHome(k, p) {
   return `<section class="panel sky-home"><h2 class="sec">EARTH DEFENSE <small>地球防衛隊</small></h2>
     <div class="muted">ふめいの てきから にっぽんを まもる ゲーム。しゅじんこうは ${esc(k.name)}! サッカーの つよさを ひきつぐよ。ガチャの キャラは「そうび(ぶひん)」に なるよ。</div>${res}
     <h3 class="sec">MACHINE <small>のりものを えらぶ</small></h3>${vehicleTabs(sk)}
-    <div class="sky-me"><b>${VEHICLES[sk.vehicle].icon} ${esc(k.name)}の ${VEHICLES[sk.vehicle].name}</b> <em>パワー ${V.rating}</em>${bars(V)}
+    <div class="sky-me"><b>${VEHICLES[sk.vehicle].icon} ${sk.names[sk.vehicle] ? esc(sk.names[sk.vehicle]) : `${esc(k.name)}の ${VEHICLES[sk.vehicle].name}`}</b> <em>パワー ${V.rating}</em>${bars(V)}
       <div class="muted">そうび ${eq}/5 ${eq < 5 ? '… かくのう庫で ぶひんを つけると もっと つよく なるよ' : ''}</div>
       <button class="btn small gray" data-act="tab" data-tab="team">🛠 かくのう庫で そうびする</button></div>
     <div class="netcard"><b>📡 ふたりで あそぶ</b><div class="muted">おなじ Wi-Fi の スマホ 2だいで、きょうりょく(いっしょに てきを たおす)か たいせん(のりもの どうしで たたかう)!</div><button class="btn gold" data-act="netsky">📡 つなぐ</button></div>
@@ -93,6 +95,8 @@ export function hangarHtml(k, p) {
   return `<section class="panel"><h2 class="sec">HANGAR <small>かくのう庫</small></h2>
     <div class="muted">しゅじんこうの のりものに、ガチャの キャラを ぶひんとして つけよう。ぶひんを かえると みためも かわるよ!</div>${vehicleTabs(sk)}
     <canvas class="sky-prev" width="640" height="320"></canvas>
+    <div class="eq-paint"><div class="eq-pt"><b>🎨 いろ</b><button class="sw reset ${sk.colors[sk.vehicle] ? '' : 'on'}" data-act="skycolor" data-c="" title="もとの いろ">もとの いろ</button>${PALETTE.map(([c, n]) => `<button class="sw ${sk.colors[sk.vehicle] === c ? 'on' : ''}" style="background:${c}" data-act="skycolor" data-c="${c}" title="${n}" aria-label="${n}"></button>`).join('')}</div>
+      <div class="eq-pt"><b>✏️ なまえ</b><span class="eq-nm">${esc(vehicleName(k, sk, sk.vehicle))}</span><button class="btn small gray" data-act="skyname">なまえを かえる</button></div></div>
     <div class="sky-me"><em>パワー ${V.rating}</em>${bars(V)}<div class="muted">いのち ${V.hpMax} ・ ミサイル ${V.missiles}はつ ・ ロック ${V.locks}</div></div>
     <div class="row"><button class="btn gold" data-act="skyauto">✨ おまかせ そうび</button><button class="btn gray" data-act="skyclearall">ぜんぶ はずす</button></div>
     <div class="eq-slots">${SLOTS[sk.vehicle].map((sl) => slotCard(sk, sl, null, chars)).join('')}</div>
@@ -159,6 +163,8 @@ export function onSkyAct(a, el) {
       if (!id) delete lo[slot]; else { for (const s of Object.keys(lo)) if (lo[s] === id) delete lo[s]; lo[slot] = id; }
       sk.pick = null; X.save(); X.render(); return true;
     }
+    case 'skycolor': { const c = el.dataset.c; if (c) sk.colors[sk.vehicle] = c; else delete sk.colors[sk.vehicle]; X.save(); X.render(); return true; }
+    case 'skyname': { const k = X.kid(); const cur = vehicleName(k, sk, sk.vehicle); const n = typeof prompt === 'function' ? prompt('きたいの なまえを いれてね(8もじまで)', cur) : null; if (n === null) return true; const t = String(n).replace(/[<>&"]/g, '').trim().slice(0, 8); if (t && t !== k.name) sk.names[sk.vehicle] = t; else delete sk.names[sk.vehicle]; X.save(); X.toast(t ? `なまえを「${t}」に したよ!` : 'なまえを もとに もどしたよ'); X.render(); return true; }
     case 'skyauto': { sk.loadout[sk.vehicle] = autoLoadout(sk.vehicle, ownedChars(p)); sk.pick = null; X.save(); X.toast('おまかせで そうびしたよ!'); X.render(); return true; }
     case 'skyclearall': { sk.loadout[sk.vehicle] = {}; sk.pick = null; X.save(); X.render(); return true; }
     default: return false;
