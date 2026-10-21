@@ -27,7 +27,7 @@ export async function startAir3D(o) {
       <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button>
     </div>
     <div class="a3d-pad"><div class="a3d-stick"><div class="a3d-knob"></div></div>
-      <div class="a3d-btns"><button class="ab-b ab-gun" data-b="gun">${air ? 'きかんほう' : 'ほうげき'}</button><button class="ab-b ab-ms" data-b="missile">ミサイル</button><button class="ab-b ab-boost" data-b="boost">ブースト</button><button class="ab-b ab-ev" data-b="evade">${air ? 'かいひ' : 'バリア'}</button>${air ? '' : '<button class="ab-b ab-tg" data-b="target">ねらい<br>かえる</button>'}</div></div>
+      <div class="a3d-btns"><button class="ab-b ab-gun" data-b="gun">${air ? 'きかんほう' : 'ほうげき'}</button><button class="ab-b ab-ms" data-b="missile">ミサイル</button><button class="ab-b ab-boost" data-b="boost">ブースト</button><button class="ab-b ab-ev" data-b="evade">${air ? 'かいひ' : 'バリア'}</button>${air ? '' : '<button class="ab-b ab-tg" data-b="target">てきに<br>むける</button>'}</div></div>
     <div class="a3d-rot p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
     <div class="a3d-end" hidden></div>
     <div class="p3d-menu a3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn gray" data-m="quit">ミッションを やめる</button></div></div>`;
@@ -68,17 +68,21 @@ export async function startAir3D(o) {
   // ---- そうさ ----
   const stick = root.querySelector('.a3d-stick'); const knob = root.querySelector('.a3d-knob'); const pad = root.querySelector('.a3d-pad'); let sid = null; let so = { x: 0, y: 0 }; const R = 56; 
   const setStick = (dx, dy) => { const m = Math.hypot(dx, dy); const k = m > R ? R / m : 1; const x = dx * k; const y = dy * k; knob.style.transform = `translate(${x}px,${y}px)`; const vx = x / R; const vy = y / R; if (Math.hypot(vx, vy) < 0.1) { sim.input.turn = 0; sim.input.climb = 0; } else { sim.input.turn = -vx; sim.input.climb = -vy; } };
-  pad.addEventListener('pointerdown', (e) => { if (e.target.closest('.ab-b') || sid !== null) return; sid = e.pointerId; try { pad.setPointerCapture(e.pointerId); } catch { /* ok */ } const r = stick.getBoundingClientRect(); so = { x: e.clientX, y: e.clientY }; stick.style.left = `${e.clientX - r.width / 2}px`; stick.style.bottom = 'auto'; stick.style.top = `${e.clientY - r.height / 2}px`; setStick(0, 0); e.preventDefault(); });
-  pad.addEventListener('pointermove', (e) => { if (e.pointerId !== sid) return; setStick(e.clientX - so.x, e.clientY - so.y); e.preventDefault(); });
-  const endStick = (e) => { if (e.pointerId !== sid) return; sid = null; setStick(0, 0); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = ''; };
+  let aid = null; let ao = { x: 0, y: 0 };
+  const setAim = (dx, dy) => { const m = Math.hypot(dx, dy); const k = m > R ? R / m : 1; const vx = (dx * k) / R; const vy = (dy * k) / R; sim.input.aimX = Math.abs(vx) < 0.08 ? 0 : -vx; sim.input.aimY = Math.abs(vy) < 0.08 ? 0 : -vy; };
+  pad.addEventListener('pointerdown', (e) => { if (e.target.closest('.ab-b')) return; if (!air && e.clientX > root.clientWidth * 0.5) { if (aid !== null) return; aid = e.pointerId; ao = { x: e.clientX, y: e.clientY }; try { pad.setPointerCapture(e.pointerId); } catch { /* ok */ } root.classList.add('aiming'); e.preventDefault(); return; } if (sid !== null) return; sid = e.pointerId; try { pad.setPointerCapture(e.pointerId); } catch { /* ok */ } const r = stick.getBoundingClientRect(); so = { x: e.clientX, y: e.clientY }; stick.style.left = `${e.clientX - r.width / 2}px`; stick.style.bottom = 'auto'; stick.style.top = `${e.clientY - r.height / 2}px`; setStick(0, 0); e.preventDefault(); });
+  pad.addEventListener('pointermove', (e) => { if (e.pointerId === aid) { setAim(e.clientX - ao.x, e.clientY - ao.y); e.preventDefault(); return; } if (e.pointerId !== sid) return; setStick(e.clientX - so.x, e.clientY - so.y); e.preventDefault(); });
+  const endStick = (e) => { if (e.pointerId === aid) { aid = null; setAim(0, 0); root.classList.remove('aiming'); return; } if (e.pointerId !== sid) return; sid = null; setStick(0, 0); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = ''; };
   pad.addEventListener('pointerup', endStick); pad.addEventListener('pointercancel', endStick);
   const bp = (b) => { if (b === 'gun') sim.input.gun = true; else if (b === 'boost') sim.input.boost = true; else if (b === 'missile') sim.fireMissile(); else if (b === 'evade') sim.evade(); else if (b === 'target') sim.nextTarget(); };
   const br = (b) => { if (b === 'gun') sim.input.gun = false; else if (b === 'boost') sim.input.boost = false; };
   root.querySelectorAll('.ab-b').forEach((btn) => { const b = btn.dataset.b; btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch { /* ok */ } btn.classList.add('on'); bp(b); e.preventDefault(); }); const up = (e) => { btn.classList.remove('on'); br(b); e.preventDefault(); }; btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); });
   const keys = new Set(); const recompute = () => { const x = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0); const y = (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0) - (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0); sim.input.turn = -x; sim.input.climb = y; };
-  const kmap = { KeyJ: 'gun', Space: 'gun', KeyK: 'missile', ShiftLeft: 'boost', KeyL: 'evade', KeyT: 'target' };
-  const kd = (e) => { if (e.repeat) return; if (e.code === 'Escape' || e.code === 'KeyP') { setPause(!paused); return; } if (kmap[e.code]) { bp(kmap[e.code]); e.preventDefault(); return; } keys.add(e.code); recompute(); if (e.code.startsWith('Arrow')) e.preventDefault(); };
-  const ku = (e) => { if (kmap[e.code]) { br(kmap[e.code]); return; } keys.delete(e.code); recompute(); };
+  const akeys = { KeyI: [0, 1], KeyK: [0, -1], KeyJ: [-1, 0], KeyL: [1, 0] }; const aimKeys = new Set();
+  const kmap = { Space: 'gun', KeyF: 'missile', ShiftLeft: 'boost', KeyE: 'evade', KeyT: 'target' };
+  const recAim = () => { let x = 0; let y = 0; for (const c of aimKeys) { x += akeys[c][0]; y += akeys[c][1]; } sim.input.aimX = -x; sim.input.aimY = y; };
+  const kd = (e) => { if (e.repeat) return; if (!air && akeys[e.code]) { aimKeys.add(e.code); recAim(); return; } if (e.code === 'Escape' || e.code === 'KeyP') { setPause(!paused); return; } if (kmap[e.code]) { bp(kmap[e.code]); e.preventDefault(); return; } keys.add(e.code); recompute(); if (e.code.startsWith('Arrow')) e.preventDefault(); };
+  const ku = (e) => { if (akeys[e.code]) { aimKeys.delete(e.code); recAim(); } if (kmap[e.code]) { br(kmap[e.code]); return; } keys.delete(e.code); recompute(); };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu');
   const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
@@ -104,7 +108,7 @@ export async function startAir3D(o) {
     hud.msg.textContent = S.msgT > 0 ? S.msg : '';
     hud.warn.textContent = S.outWarn ? '⚠ えんしゅうから でちゃう! もどって!' : S.groundWarn ? '⚠ うみに ちかいよ!' : S.shoreWarn ? (kind === 'tank' ? '⚠ しまの はしだよ' : '⚠ しまに ちかいよ') : (P.hp / P.hpMax < 0.3 ? '⚠ きたいが あぶない!' : ''); S.groundWarn = 0; S.shoreWarn = 0;
     root.classList.toggle('hurt', S.hurt > 0);
-    { const ay = air ? P.yaw : P.turretYaw; const ap = air ? P.pitch : 0.02; const rp = project(P.x + Math.sin(ay) * Math.cos(ap) * 500, (air ? P.y : 8) + Math.sin(ap) * 500, P.z + Math.cos(ay) * Math.cos(ap) * 500); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 ? '' : 'none'; hud.ret.classList.toggle('lock', P.lockTarget.length > 0); }
+    { const ay = air ? P.yaw : P.turretYaw; const ap = air ? P.pitch : P.aimPitch; const rp = project(P.x + Math.sin(ay) * Math.cos(ap) * 500, (air ? P.y : 8) + Math.sin(ap) * 500, P.z + Math.cos(ay) * Math.cos(ap) * 500); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 ? '' : 'none'; hud.ret.classList.toggle('lock', P.lockTarget.length > 0); }
     let html = ''; const lc = new Map((S.lockCands || []).map((c) => [c.id, c]));
     for (const e of S.enemies) { const pj = project(e.x, e.y + 4, e.z); if (pj.z > 1 || pj.x < -30 || pj.x > root.clientWidth + 30 || pj.y < -30 || pj.y > root.clientHeight + 30) continue; const c = lc.get(e.id); const d = Math.round(Math.hypot(e.x - P.x, e.y - P.y, e.z - P.z)); const sz = clamp(900 / Math.max(120, d) * 16, 14, 46); const isT = S.target && S.target.id === e.id;
       html += `<div class="mk ${c ? (c.locked ? 'lock' : 'seek') : ''} ${isT ? 'tgt' : ''} ${e.type} dom-${e.dom}" style="left:${pj.x}px;top:${pj.y}px;width:${sz}px;height:${sz}px"><small>${ENEMY[e.type].icon}${d}m</small></div>`; }
@@ -137,7 +141,7 @@ export async function startAir3D(o) {
     // カメラ
     let bx; let by; let bz; let lx; let ly; let lz; const k = 1 - Math.exp(-7 * dt);
     if (air) { bx = P.x - f.x * 26; by = P.y - f.y * 26 + 7; bz = P.z - f.z * 26; lx = P.x + f.x * 90; ly = P.y + f.y * 90; lz = P.z + f.z * 90; }
-    else { const d = kind === 'ship' ? 120 : 72; const h = kind === 'ship' ? 58 : 38; bx = P.x - Math.sin(P.yaw) * d; by = h; bz = P.z - Math.cos(P.yaw) * d; lx = P.x + Math.sin(P.yaw) * 80; ly = 10; lz = P.z + Math.cos(P.yaw) * 80; }
+    else { const d = kind === 'ship' ? 120 : 72; const h = kind === 'ship' ? 58 : 38; const cy = P.turretYaw; bx = P.x - Math.sin(cy) * d; by = h; bz = P.z - Math.cos(cy) * d; lx = P.x + Math.sin(cy) * 300; ly = 8 + Math.tan(P.aimPitch) * 300; lz = P.z + Math.cos(cy) * 300; }
     if (!cam.init) { cam.x = bx; cam.y = by; cam.z = bz; cam.init = true; } cam.x += (bx - cam.x) * k; cam.y += (by - cam.y) * k; cam.z += (bz - cam.z) * k;
     camera.position.set(cam.x, Math.max(6, cam.y), cam.z); camera.up.set(0, 1, 0); camera.lookAt(lx, ly, lz);
     sea.position.x = P.x; sea.position.z = P.z; seaLines.position.x = Math.round(P.x / 200) * 200; seaLines.position.z = Math.round(P.z / 200) * 200;

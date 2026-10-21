@@ -129,12 +129,12 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
   const start = kind === 'plane' ? { x: 0, y: 260, z: 120 } : kind === 'tank' ? { x: 0, y: 0, z: BASE_Z + 60 } : { x: 0, y: 0, z: BASE_Z + ISLAND + 240 };
   const S = {
     ph: 'brief', t: 0, kills: 0, score: 0, done: false, win: false, banner: '', bannerT: 0, msg: '', msgT: 0, vehicle: kind,
-    player: { ...start, yaw: 0, pitch: 0, roll: 0, speed: 0, hp: V.hpMax * hpScale, hpMax: V.hpMax * hpScale, boost: V.boostMax, boosting: false, invuln: 0, evadeCd: 0, missiles: V.missiles, mRegen: 0, lockTarget: [], lockT: new Map(), firing: false, turretYaw: 0, radius: air ? 9 : kind === 'ship' ? 24 : 12, cy: air ? 0 : 4 },
+    player: { ...start, yaw: 0, pitch: 0, roll: 0, speed: 0, hp: V.hpMax * hpScale, hpMax: V.hpMax * hpScale, boost: V.boostMax, boosting: false, invuln: 0, evadeCd: 0, missiles: V.missiles, mRegen: 0, lockTarget: [], lockT: new Map(), firing: false, turretYaw: 0, aimRel: 0, aimPitch: 0.05, radius: air ? 9 : kind === 'ship' ? 24 : 12, cy: air ? 0 : 4 },
     base: { x: 0, y: 0, z: BASE_Z, hp: M.baseHp, hpMax: M.baseHp },
     enemies: [], bullets: [], missiles: [], effects: [], tracers: [], snd: [], waveI: 0, boss: null, target: null, targetIdx: 0,
   };
   if (air) S.player.speed = V.speed;
-  const input = { turn: 0, climb: 0, gun: false, boost: false };
+  const input = { turn: 0, climb: 0, gun: false, boost: false, aimX: 0, aimY: 0 };
   const snd = (n) => { if (S.snd.length < 30) S.snd.push(n); };
   const fx = (kindFx, pos, r = 10) => { if (S.effects.length < 80) S.effects.push({ kind: kindFx, x: pos.x, y: pos.y, z: pos.z, r, t: 0, life: kindFx === 'big' ? 1.4 : 0.7 }); };
   const msg = (t, d = 2.5) => { S.msg = t; S.msgT = d; };
@@ -159,7 +159,8 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
     if (!c.length) { S.target = null; return; }
     const keep = S.target && c.find((e) => e.id === S.target.id); S.target = keep || c[Math.min(S.targetIdx, c.length - 1)]; if (!keep) S.targetIdx = 0;
   }
-  function nextTarget() { if (air) return; const P = S.player; const c = S.enemies.filter((e) => inRangeGun(P, e)).sort((a, b) => dist(a, P) - dist(b, P)); if (!c.length) return; const i = c.findIndex((e) => S.target && e.id === S.target.id); S.target = c[(i + 1) % c.length]; }
+  function aimAt(e) { if (air || !e) return; const P = S.player; const hd = Math.hypot(e.x - P.x, e.z - P.z) || 1; P.aimRel = clamp(angDiff(Math.atan2(e.x - P.x, e.z - P.z), P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2((e.dom === 'air' ? e.y : e.y + 3) - 8, hd), -0.15, 1.3); }
+  function nextTarget() { if (air) return; const P = S.player; const c = S.enemies.filter((e) => inRangeGun(P, e)).sort((a, b) => dist(a, P) - dist(b, P)); if (!c.length) return; const i = c.findIndex((e) => S.target && e.id === S.target.id); S.target = c[(i + 1) % c.length]; aimAt(S.target); }
   function updateLock(dt) {
     const P = S.player; const fwd = dirOf(P.yaw, P.pitch); const R = V.misRange || MIS_RANGE[kind];
     let cands;
@@ -238,10 +239,13 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
         if (S.t % 0.18 < dt) snd('gun');
       }
     } else {
-      const tg = S.target; if (tg) P.turretYaw = Math.atan2(tg.x - P.x, tg.z - P.z); else P.turretYaw = lerp(P.turretYaw, P.yaw, 0.1);
-      if (input.gun && tg) {
-        damageEnemy(tg, V.gunDps * GUN_VS[kind][tg.dom] * dt);
-        if (S.t % 0.12 < dt) S.tracers.push({ from: { x: P.x, y: P.y + 8, z: P.z }, to: { x: tg.x, y: tg.y + 3, z: tg.z }, t: 0 });
+      // ふね・せんしゃ: ほうげきは じぶんで ねらう(みぎがわを ドラッグ/IJKL)。ねらいの さきに てきが いると あたる
+      P.aimRel = clamp(P.aimRel + input.aimX * 1.7 * dt, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.15, 1.3); P.turretYaw = P.yaw + P.aimRel;
+      if (input.gun) {
+        const ad = dirOf(P.turretYaw, P.aimPitch); const my = 8; let best = null; let ba = 9; const rm = V.gunRangeMul || 1;
+        for (const e of S.enemies) { if (GUN_VS[kind][e.dom] <= 0.2) continue; const ty = e.dom === 'air' ? e.y : e.y + 3; const v = { x: e.x - P.x, y: ty - my, z: e.z - P.z }; const d = Math.hypot(v.x, v.y, v.z); if (d > GUN_RANGE[kind][e.dom] * rm) continue; const a = Math.acos(clamp((v.x * ad.x + v.y * ad.y + v.z * ad.z) / (d || 1), -1, 1)); const tol = (ENEMY[e.type].size / d + 0.05) * (gentle ? 1.8 : 1); if (a < tol && a < ba) { ba = a; best = e; } }
+        if (best) damageEnemy(best, V.gunDps * GUN_VS[kind][best.dom] * dt);
+        if (S.t % 0.12 < dt) S.tracers.push({ from: { x: P.x, y: P.y + my, z: P.z }, to: best ? { x: best.x, y: best.dom === 'air' ? best.y : best.y + 3, z: best.z } : { x: P.x + ad.x * 600, y: my + ad.y * 600, z: P.z + ad.z * 600 }, t: 0 });
         if (S.t % 0.22 < dt) snd(kind === 'tank' ? 'boom' : 'gun');
       }
     }
@@ -310,5 +314,5 @@ export function createAir({ vehicle: V, mission, rnd = Math.random, gentle = fal
     const allSpawned = S.waveI >= M.waves.length;
     if (!S.done && allSpawned && !M.boss && S.enemies.length === 0) endMission(true);
   }
-  return { state: S, input, step, fireMissile, evade, nextTarget, vehicle: V, mission: M, skip() { let n = 0; while (!S.done && n++ < 100000) step(1 / 30); } };
+  return { state: S, input, step, fireMissile, evade, nextTarget, aimAt, vehicle: V, mission: M, skip() { let n = 0; while (!S.done && n++ < 100000) step(1 / 30); } };
 }

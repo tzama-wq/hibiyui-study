@@ -42,7 +42,7 @@ function fly(V, mission, { seed = 1, gentle = false, seconds = 420 } = {}) {
       // ふね・せんしゃ: いちばん ちかい てきの ほうへ むかう(うちおとせる きょりに はいったら とまる)
       if (near) { let dy = Math.atan2(near.x - P.x, near.z - P.z) - P.yaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI; sim.input.turn = Math.max(-1, Math.min(1, dy * 2)); sim.input.climb = S.target ? 0.15 : Math.abs(dy) < 1.2 ? 1 : 0.2; }
       else { sim.input.turn = 0; sim.input.climb = 0; }
-      sim.input.gun = !!S.target;
+      if (S.target) sim.aimAt(S.target); sim.input.gun = !!S.target;
     }
     if (P.lockTarget.length) sim.fireMissile();
     if (Math.floor(t * 4) % 36 === 0) sim.evade();
@@ -72,7 +72,7 @@ function fly(V, mission, { seed = 1, gentle = false, seconds = 420 } = {}) {
 {
   const dmg = (kind, dom) => { const V = vehicleWith(kind, strongChars, stats(70)); const sim = createAir({ vehicle: V, mission: missionById('m1'), rnd: rngSeed(9) }); const S = sim.state; const P = S.player; sim.step(1 / 30);
     const type = dom === 'air' ? 'drone' : dom === 'sea' ? 'boat' : 'etank'; const e = { id: 777, type, dom, x: P.x + 20, y: dom === 'air' ? P.y : 0, z: P.z + 120, yaw: 0, pitch: 0, hp: 100000, hpMax: 100000, speed: 0, cd: 99, target: 'base', t: 0, ph: 0, orbit: 1, stop: true, stopR: 0 };
-    S.enemies = [e]; S.waveI = 99; sim.input.gun = true; if (kind === 'plane') { P.yaw = Math.atan2(e.x - P.x, e.z - P.z); } for (let i = 0; i < 30; i++) { e.speed = 0; sim.step(1 / 30); } return 100000 - e.hp; };
+    S.enemies = [e]; S.waveI = 99; sim.input.gun = true; if (kind === 'plane') { P.yaw = Math.atan2(e.x - P.x, e.z - P.z); } for (let i = 0; i < 30; i++) { e.speed = 0; if (kind !== 'plane') sim.aimAt(e); sim.step(1 / 30); } return 100000 - e.hp; };
   assert.ok(dmg('tank', 'ground') > dmg('tank', 'air') * 2.5, 'せんしゃは りくに つよく くうに よわい'); assert.ok(dmg('ship', 'sea') > dmg('ship', 'air') * 2.5, 'ふねは うみに つよく くうに よわい');
   assert.ok(dmg('plane', 'air') > dmg('tank', 'air') * 1.5, 'ひこうきは くうに つよい');
 }
@@ -86,6 +86,16 @@ function fly(V, mission, { seed = 1, gentle = false, seconds = 420 } = {}) {
   for (const kind of ['ship', 'tank']) {
     const T = createAir({ vehicle: vehicleWith(kind, strongChars), mission: missionById('m1'), rnd: rngSeed(6) }); const TS = T.state; T.input.climb = 1; T.input.turn = 0.3;
     for (let i = 0; i < 1500; i++) { T.step(1 / 30); const r = Math.hypot(TS.player.x, TS.player.z - BASE_Z); if (kind === 'tank') assert.ok(r <= 660, 'せんしゃは しまの なか'); else assert.ok(r >= 700, 'ふねは うみの うえ'); if (TS.done) break; }
+  }
+}
+// ---- ふね・せんしゃは じぶんで ねらう: ねらいが ずれていると あたらない ----
+{
+  for (const kind of ['ship', 'tank']) {
+    const V = vehicleWith(kind, strongChars, stats(70)); const sim = createAir({ vehicle: V, mission: missionById('m1'), rnd: rngSeed(3) }); const S = sim.state; const P = S.player; sim.step(1 / 30);
+    const e = { id: 555, type: 'boat', dom: 'sea', x: P.x + 10, y: 0, z: P.z + 200, yaw: 0, pitch: 0, hp: 100000, hpMax: 100000, speed: 0, cd: 99, target: 'base', t: 0, ph: 0, orbit: 1, stop: true, stopR: 0 };
+    S.enemies = [e]; S.waveI = 99; sim.input.gun = true; P.yaw = 0; P.aimRel = 1.2; for (let i = 0; i < 30; i++) { e.speed = 0; sim.step(1 / 30); } assert.equal(e.hp, 100000, `${kind}: ねらいが ずれていると あたらない`);
+    sim.aimAt(e); for (let i = 0; i < 30; i++) { e.speed = 0; sim.step(1 / 30); } assert.ok(e.hp < 100000, `${kind}: ねらうと あたる`);
+    sim.input.aimX = 1; const r0 = P.aimRel; sim.step(1 / 30); assert.ok(P.aimRel > r0, 'ドラッグで ねらいが うごく');
   }
 }
 console.log('OK: air');
