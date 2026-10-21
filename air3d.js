@@ -3,6 +3,8 @@
 import { createAir, BASE_Z, ISLAND, ENEMY } from './airsim.js';
 import { hostBind, createGuestSim } from './airnet.js';
 import { makeVehicleModel, makeEnemyModel } from './vehicle3d.js';
+import { buildWorld, envTexture } from './world3d.js';
+import { makeFx } from './fx3d.js';
 
 let T = null;
 async function loadThree() { if (!T) T = await import('./vendor/three.module.min.js'); return T; }
@@ -39,34 +41,23 @@ export async function startAir3D(o) {
   const cv = root.querySelector('.a3d-cv');
   const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, o.calm ? 1.25 : 1.75)); renderer.outputColorSpace = THREE.SRGBColorSpace;
-  const scene = new THREE.Scene(); scene.background = new THREE.Color('#7fb8f0'); scene.fog = new THREE.Fog('#b7d8f5', 700, 4800);
+  const mobile = /Mobi|Android/i.test(navigator.userAgent); const shadowsOn = !o.calm;
+  if (shadowsOn) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+  const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(62, 16 / 9, 1, 9000);
-  scene.add(new THREE.HemisphereLight(0xdfeeff, 0x2a5d8a, 1.05)); const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(-400, 900, -300); scene.add(sun);
-  // うみ・しま
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000), new THREE.MeshLambertMaterial({ color: '#1f6fa8' })); sea.rotation.x = -Math.PI / 2; sea.position.set(0, -1.5, BASE_Z); scene.add(sea);
-  const seaLines = new THREE.GridHelper(14000, 70, 0x8fd0ff, 0x4a9ad0); seaLines.position.set(0, 0.5, BASE_Z); seaLines.material.transparent = true; seaLines.material.opacity = 0.25; scene.add(seaLines);
-  const beach = new THREE.Mesh(new THREE.CylinderGeometry(ISLAND + 40, ISLAND + 70, 1, 40), new THREE.MeshLambertMaterial({ color: '#e8d9a0' })); beach.position.set(0, -0.2, BASE_Z); scene.add(beach);
-  const land = new THREE.Mesh(new THREE.CylinderGeometry(ISLAND, ISLAND + 20, 1, 40), new THREE.MeshLambertMaterial({ color: '#5a9a4c' })); land.position.set(0, 0.2, BASE_Z); scene.add(land);
-  const treeMat = new THREE.MeshLambertMaterial({ color: '#2f6f3a' });
-  for (let i = 0; i < 70; i++) { const a = i * 2.399; const r = 160 + ((i * 53) % 440); const t = new THREE.Mesh(new THREE.ConeGeometry(9 + (i % 4) * 2, 26 + (i % 5) * 4, 6), treeMat); t.position.set(Math.cos(a) * r, 14, BASE_Z + Math.sin(a) * r); scene.add(t); }
-  const cloudMat = new THREE.MeshLambertMaterial({ color: '#ffffff', transparent: true, opacity: 0.85 });
-  for (let i = 0; i < 30; i++) { const c = new THREE.Group(); const n = 3 + (i % 3); for (let j = 0; j < n; j++) { const s = new THREE.Mesh(new THREE.SphereGeometry(60 + (j * 17) % 50, 8, 6), cloudMat); s.position.set(j * 70, (j % 2) * 18, (j % 3) * 30); s.scale.y = 0.45; c.add(s); } c.position.set(Math.sin(i * 7.3) * 2600, 360 + (i * 53) % 520, BASE_Z + Math.cos(i * 4.1) * 2800); scene.add(c); }
-  const isl = new THREE.MeshLambertMaterial({ color: '#4a7a42' }); for (let i = 0; i < 7; i++) { const m = new THREE.Mesh(new THREE.ConeGeometry(80 + (i * 37) % 120, 70 + (i * 29) % 80, 8), isl); m.position.set(Math.sin(i * 2.1) * 2400, 25, BASE_Z + 400 + Math.cos(i * 1.7) * 2200); scene.add(m); }
-  // きち
-  const base = new THREE.Group(); { const pad = new THREE.Mesh(new THREE.CylinderGeometry(270, 290, 1.4, 28), new THREE.MeshLambertMaterial({ color: '#7b8aa0' })); pad.position.y = 0.8; base.add(pad);
-    for (let i = 0; i < 18; i++) { const h = 20 + (i * 13) % 50; const b = new THREE.Mesh(new THREE.BoxGeometry(18 + (i % 3) * 6, h, 18), new THREE.MeshLambertMaterial({ color: i % 4 ? '#e8eefc' : '#ffd23f' })); b.position.set(Math.cos(i * 1.7) * (205 + (i % 5) * 10), 1.5 + h / 2, Math.sin(i * 1.7) * (205 + (i % 5) * 10)); base.add(b); }
-    const flag = new THREE.Mesh(new THREE.BoxGeometry(2, 60, 2), new THREE.MeshLambertMaterial({ color: '#ffffff' })); flag.position.set(190, 31, 0); base.add(flag); const hi = new THREE.Mesh(new THREE.CircleGeometry(10, 16), new THREE.MeshBasicMaterial({ color: '#e0302a', side: THREE.DoubleSide })); hi.position.set(198, 56, 0); base.add(hi); }
-  base.position.set(0, 0, BASE_Z); scene.add(base);
+  const world = buildWorld(THREE, scene, renderer, { shadows: shadowsOn, mobile, calm: !!o.calm }); const fx = makeFx(THREE, scene);
+  const castAll = (obj) => { obj.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); return obj; };
   const dome = new THREE.Mesh(new THREE.SphereGeometry(230, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#7fe7ff', transparent: true, opacity: 0.1, depthWrite: false })); dome.position.set(0, 0, BASE_Z); scene.add(dome);
   // じぶんの きたい
-  const me = makeVehicleModel(THREE, { vehicle: kind, color: o.spec.color, parts: o.spec.parts, missiles: V.missiles }); scene.add(me);
-  const allyM = ally ? makeVehicleModel(THREE, { vehicle: ally.kind, color: net.partner.spec.color, parts: net.partner.spec.parts, missiles: ally.V.missiles }) : null; if (allyM) scene.add(allyM);
+  const me = makeVehicleModel(THREE, { vehicle: kind, color: o.spec.color, parts: o.spec.parts, missiles: V.missiles }); castAll(me); scene.add(me);
+  const allyM = ally ? makeVehicleModel(THREE, { vehicle: ally.kind, color: net.partner.spec.color, parts: net.partner.spec.parts, missiles: ally.V.missiles }) : null; if (allyM) { castAll(allyM); scene.add(allyM); }
   const shield = new THREE.Mesh(new THREE.SphereGeometry(air ? 14 : 24, 14, 10), new THREE.MeshBasicMaterial({ color: '#7fe7ff', transparent: true, opacity: 0.28, depthWrite: false })); shield.visible = false; scene.add(shield);
   const meshes = new Map();
-  const pools = { bullet: [], missile: [], tracer: [], fx: [] };
-  const bulletGeo = new THREE.SphereGeometry(1.4, 6, 4); const bulletMat = new THREE.MeshBasicMaterial({ color: '#ffd23f' });
+  const pools = { bullet: [], missile: [], tracer: [] }; const seenFx = new Map(); let trailT = 0;
+  const bulletGeo = new THREE.SphereGeometry(1.4, 6, 4); const bulletMat = new THREE.MeshBasicMaterial({ color: '#ff7a5a', blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
   const misGeo = new THREE.CylinderGeometry(0.5, 0.5, 7, 6); const misMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-  const trGeo = new THREE.CylinderGeometry(0.25, 0.25, 1, 4); const trMat = new THREE.MeshBasicMaterial({ color: '#fff7a0' });
+  const trGeo = new THREE.CylinderGeometry(0.25, 0.25, 1, 4); const trMat = new THREE.MeshBasicMaterial({ color: '#ffe48a', blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
   const fromPool = (pool, geo, mat, i) => { while (pool.length <= i) { const m = new THREE.Mesh(geo, mat); m.visible = false; scene.add(m); pool.push(m); } return pool[i]; };
 
   // ---- そうさ ----
@@ -133,18 +124,28 @@ export async function startAir3D(o) {
     me.position.set(P.x, P.y, P.z); me.rotation.order = 'YXZ'; me.visible = !(S.done && !S.win);
     if (air) { me.rotation.set(-P.pitch, P.yaw, P.roll + (P.rollSpin ? P.rollSpin * 6.283 : 0)); if (me.userData.flame) me.userData.flame.scale.set(1, 1, P.boosting ? 2.4 : 1); }
     else {
-      me.rotation.set(0, P.yaw, P.roll * 0.5); me.position.y = kind === 'ship' ? Math.sin(tt * 1.6) * 0.5 : 0;
+      me.rotation.set(0, P.yaw, P.roll * 0.5); me.position.y = kind === 'ship' ? Math.sin(tt * 1.6) * 0.5 : world.heightAt(P.x, P.z) - 0.2;
       const ty = P.turretYaw - P.yaw; if (me.userData.turrets) me.userData.turrets.forEach((t) => { t.rotation.y = ty; }); if (me.userData.turret) me.userData.turret.rotation.y = ty; if (me.userData.radar) me.userData.radar.rotation.y = tt * 3;
     }
-    if (allyM) { allyM.visible = !ally.dead; allyM.position.set(ally.x, ally.y, ally.z); allyM.rotation.order = 'YXZ'; if (ally.air) { allyM.rotation.set(-ally.pitch, ally.yaw, ally.roll + (ally.rollSpin ? ally.rollSpin * 6.283 : 0)); if (allyM.userData.flame) allyM.userData.flame.scale.set(1, 1, ally.boosting ? 2.4 : 1); } else { allyM.rotation.set(0, ally.yaw, 0); const ty = ally.turretYaw - ally.yaw; if (allyM.userData.turrets) allyM.userData.turrets.forEach((t) => { t.rotation.y = ty; }); if (allyM.userData.turret) allyM.userData.turret.rotation.y = ty; if (allyM.userData.radar) allyM.userData.radar.rotation.y = tt * 3; } }
+    if (allyM) { allyM.visible = !ally.dead; allyM.position.set(ally.x, ally.y, ally.z); allyM.rotation.order = 'YXZ'; if (ally.air) { allyM.rotation.set(-ally.pitch, ally.yaw, ally.roll + (ally.rollSpin ? ally.rollSpin * 6.283 : 0)); if (allyM.userData.flame) allyM.userData.flame.scale.set(1, 1, ally.boosting ? 2.4 : 1); } else { allyM.position.y = ally.kind === 'tank' ? world.heightAt(ally.x, ally.z) - 0.2 : 0; allyM.rotation.set(0, ally.yaw, 0); const ty = ally.turretYaw - ally.yaw; if (allyM.userData.turrets) allyM.userData.turrets.forEach((t) => { t.rotation.y = ty; }); if (allyM.userData.turret) allyM.userData.turret.rotation.y = ty; if (allyM.userData.radar) allyM.userData.radar.rotation.y = tt * 3; } }
     shield.visible = S.shield > 0; shield.position.set(P.x, P.y + (air ? 0 : 8), P.z);
     const alive = new Set();
-    for (const e of S.enemies) { alive.add(e.id); let m = meshes.get(e.id); if (!m) { m = makeEnemyModel(THREE, e.type); scene.add(m); meshes.set(e.id, m); } m.position.set(e.x, e.dom === 'air' ? e.y : e.dom === 'sea' ? Math.sin(tt * 1.3 + e.id) * 0.5 : 0, e.z); m.rotation.order = 'YXZ'; if (e.type === 'drone') m.rotation.set(0, e.yaw + tt * 4, 0); else m.rotation.set(e.dom === 'air' ? -e.pitch : 0, e.yaw, 0); }
+    for (const e of S.enemies) { alive.add(e.id); let m = meshes.get(e.id); if (!m) { m = castAll(makeEnemyModel(THREE, e.type)); scene.add(m); meshes.set(e.id, m); } m.position.set(e.x, e.dom === 'air' ? e.y : e.dom === 'sea' ? Math.sin(tt * 1.3 + e.id) * 0.5 : world.heightAt(e.x, e.z) - 0.2, e.z); m.rotation.order = 'YXZ'; if (e.type === 'drone') m.rotation.set(0, e.yaw + tt * 4, 0); else m.rotation.set(e.dom === 'air' ? -e.pitch : 0, e.yaw, 0); }
     for (const [id, m] of meshes) if (!alive.has(id)) { scene.remove(m); meshes.delete(id); }
     S.bullets.forEach((b, i) => { const m = fromPool(pools.bullet, bulletGeo, bulletMat, i); m.visible = true; m.position.set(b.x, b.y, b.z); }); for (let i = S.bullets.length; i < pools.bullet.length; i++) pools.bullet[i].visible = false;
     S.missiles.forEach((b, i) => { const m = fromPool(pools.missile, misGeo, misMat, i); m.visible = true; m.position.set(b.x, b.y, b.z); m.lookAt(b.x + b.vx, b.y + b.vy, b.z + b.vz); m.rotateX(Math.PI / 2); }); for (let i = S.missiles.length; i < pools.missile.length; i++) pools.missile[i].visible = false;
     S.tracers.forEach((t, i) => { const m = fromPool(pools.tracer, trGeo, trMat, i); m.visible = true; const a = t.from; const b = t.to; const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); const fr = clamp(t.t / 0.12, 0, 1); m.position.set(lerp(a.x, b.x, 0.5 + fr * 0.2), lerp(a.y, b.y, 0.5 + fr * 0.2), lerp(a.z, b.z, 0.5 + fr * 0.2)); m.scale.set(1, Math.min(len, 60), 1); m.lookAt(b.x, b.y, b.z); m.rotateX(Math.PI / 2); }); for (let i = S.tracers.length; i < pools.tracer.length; i++) pools.tracer[i].visible = false;
-    S.effects.forEach((e, i) => { let m = pools.fx[i]; if (!m) { m = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.9, depthWrite: false })); scene.add(m); pools.fx[i] = m; } const k = e.t / e.life; m.visible = true; m.position.set(e.x, e.y, e.z); m.scale.setScalar(e.r * (0.35 + k * 1.3)); m.material.opacity = 0.9 * (1 - k); m.material.color.set(e.kind === 'spark' ? '#fff7a0' : k < 0.4 ? '#fff0a0' : '#ff7a2a'); }); for (let i = S.effects.length; i < pools.fx.length; i++) pools.fx[i].visible = false;
+    // ばくはつ(あたらしい エフェクトを 1かいだけ たねに する)
+    for (const e of S.effects) { const key = `${e.kind}:${Math.round(e.x / 4)}:${Math.round(e.y / 4)}:${Math.round(e.z / 4)}`; if (e.t < 0.2 && !seenFx.has(key)) { seenFx.set(key, tt); if (e.kind === 'spark') fx.spark(e.x, e.y, e.z, e.r); else fx.explode(e.x, e.y, e.z, Math.max(3, e.r * 0.55), e.kind === 'big'); if (e.y < 3 && e.kind !== 'spark') fx.splash(e.x, e.z, e.r * 0.4); } }
+    for (const [k, t0] of seenFx) if (tt - t0 > 2.5) seenFx.delete(k);
+    // ミサイルの ほのお・けむり
+    trailT += dt; if (trailT > 0.03) { trailT = 0; for (const mi of S.missiles) { fx.puff(mi.x - mi.vx * 0.02, mi.y - mi.vy * 0.02, mi.z - mi.vz * 0.02, 2.2, 0.9); fx.flame(mi.x - mi.vx * 0.012, mi.y - mi.vy * 0.012, mi.z - mi.vz * 0.012, 3.2); } }
+    // ブーストの ほのお・ダメージの けむり
+    if (air && P.boosting && !S.done) { const bx0 = P.x - f.x * 8; fx.flame(bx0, P.y - f.y * 8, P.z - f.z * 8, 3.4); }
+    const hpr = P.hp / P.hpMax; if (hpr < 0.45 && !S.done && (tt * 14) % 1 < dt * 14) fx.puff(P.x, P.y + (air ? 0 : 6), P.z, air ? 3 : 4, 1.1, true); if (hpr < 0.22 && (tt * 9) % 1 < dt * 9) fx.flame(P.x, P.y + (air ? 0.5 : 5), P.z, air ? 3 : 4);
+    for (const e of S.enemies) { if (e.hp < e.hpMax * 0.4 && e.hpMax > 0 && ((tt * 8 + e.id) % 1) < dt * 8) fx.puff(e.x, e.y + 2, e.z, ENEMY[e.type].size * 0.4, 1, true); }
+    fx.update(dt, renderer.domElement.height / (2 * Math.tan((camera.fov * Math.PI) / 360)));
+    world.update(tt); world.follow(P.x, P.y, P.z);
     dome.material.opacity = 0.1 + (S.baseHurt > 0 ? 0.25 : 0);
     // カメラ
     let bx; let by; let bz; let lx; let ly; let lz; const k = 1 - Math.exp(-7 * dt);
@@ -152,7 +153,6 @@ export async function startAir3D(o) {
     else { const d = kind === 'ship' ? 120 : 72; const h = kind === 'ship' ? 58 : 38; const cy = P.turretYaw; bx = P.x - Math.sin(cy) * d; by = h; bz = P.z - Math.cos(cy) * d; lx = P.x + Math.sin(cy) * 300; ly = 8 + Math.tan(P.aimPitch) * 300; lz = P.z + Math.cos(cy) * 300; }
     if (!cam.init) { cam.x = bx; cam.y = by; cam.z = bz; cam.init = true; } cam.x += (bx - cam.x) * k; cam.y += (by - cam.y) * k; cam.z += (bz - cam.z) * k;
     camera.position.set(cam.x, Math.max(6, cam.y), cam.z); camera.up.set(0, 1, 0); camera.lookAt(lx, ly, lz);
-    sea.position.x = P.x; sea.position.z = P.z; seaLines.position.x = Math.round(P.x / 200) * 200; seaLines.position.z = Math.round(P.z / 200) * 200;
   }
   function frame(ts) {
     if (dead) return; const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts; tt += dt;
@@ -169,7 +169,7 @@ export async function startAir3D(o) {
   function finish() { if (dead) return; const r = { win: S.win, stars: S.stars || 0, kills: S.kills, basePct: S.base.hp / S.base.hpMax, hpPct: S.player.hp / S.player.hpMax, time: S.t, mission: o.mission.id, vehicle: kind, pvp, coop: !!net && !pvp, lostLink: !!S.lostLink }; destroy(); if (o.onEnd) o.onEnd(r); }
   function destroy() {
     if (dead) return; dead = true; if (hb) hb.finish(); if (net && net.conn) { setTimeout(() => { try { net.conn.close(); } catch { /* ok */ } }, 400); } cancelAnimationFrame(raf); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', resize); window.removeEventListener('orientationchange', resize);
-    try { renderer.dispose(); scene.traverse((ob) => { if (ob.geometry) ob.geometry.dispose(); if (ob.material) (Array.isArray(ob.material) ? ob.material : [ob.material]).forEach((m) => m.dispose()); }); } catch { /* ok */ }
+    try { fx.dispose(); renderer.dispose(); scene.traverse((ob) => { if (ob.geometry) ob.geometry.dispose(); if (ob.material) (Array.isArray(ob.material) ? ob.material : [ob.material]).forEach((m) => m.dispose()); }); } catch { /* ok */ }
     root.remove(); document.body.style.overflow = prevOverflow; try { if (document.fullscreenElement) document.exitFullscreen(); if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch { /* ok */ }
   }
   raf = requestAnimationFrame(frame);
@@ -184,7 +184,7 @@ export async function startPreview(canvas, spec) {
   const THREE = await loadThree(); if (!canvas.isConnected) return;
   const w = canvas.clientWidth || 300; const h = canvas.clientHeight || 180;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(w, h, false); renderer.outputColorSpace = THREE.SRGBColorSpace;
-  const scene = new THREE.Scene(); const cam = new THREE.PerspectiveCamera(40, w / h, 1, 600); scene.add(new THREE.HemisphereLight(0xffffff, 0x334466, 1.3)); const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(30, 60, 40); scene.add(sun);
+  const scene = new THREE.Scene(); try { scene.environment = envTexture(THREE, renderer); } catch { /* ok */ } const cam = new THREE.PerspectiveCamera(40, w / h, 1, 600); scene.add(new THREE.HemisphereLight(0xffffff, 0x334466, 0.8)); const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(30, 60, 40); scene.add(sun);
   const model = makeVehicleModel(THREE, spec); const kind = spec.vehicle; scene.add(model);
   const R = kind === 'ship' ? 70 : kind === 'tank' ? 36 : 26; const H = kind === 'ship' ? 26 : kind === 'tank' ? 18 : 12;
   let raf = 0; let dead = false; const t0 = performance.now();

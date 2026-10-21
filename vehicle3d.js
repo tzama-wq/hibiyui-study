@@ -14,11 +14,11 @@ const glowOf = (part) => (part && rk(part) >= 4 ? RARITY_COLOR[rk(part)] : null)
 
 function mats(THREE) {
   const cache = new Map();
-  const m = (color, emissive = 0x000000, extra = {}) => { const k = `${color}|${emissive}|${JSON.stringify(extra)}`; if (!cache.has(k)) cache.set(k, new THREE.MeshLambertMaterial({ color, emissive, ...extra })); return cache.get(k); };
+  const m = (color, emissive = 0x000000, extra = {}) => { const k = `${color}|${emissive}|${JSON.stringify(extra)}`; if (!cache.has(k)) cache.set(k, new THREE.MeshStandardMaterial({ color, emissive, metalness: 0.45, roughness: 0.38, ...extra })); return cache.get(k); };
   return m;
 }
 const add = (THREE, g, geo, mat, x = 0, y = 0, z = 0, rot) => { const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x, y, z); if (rot) mesh.rotation.set(rot[0] || 0, rot[1] || 0, rot[2] || 0); g.add(mesh); return mesh; };
-const flatShape = (THREE, pts, depth, mat) => { const sh = new THREE.Shape(); pts.forEach(([x, z], i) => (i ? sh.lineTo(x, z) : sh.moveTo(x, z))); const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false }); geo.rotateX(Math.PI / 2); geo.translate(0, depth / 2, 0); return new THREE.Mesh(geo, mat); };
+const flatShape = (THREE, pts, depth, mat) => { const sh = new THREE.Shape(); pts.forEach(([x, z], i) => (i ? sh.lineTo(x, z) : sh.moveTo(x, z))); const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.14, bevelSegments: 2 }); geo.rotateX(Math.PI / 2); geo.translate(0, depth / 2, 0); return new THREE.Mesh(geo, mat); };
 
 // ---- ひこうき(+z が まえ) --------------------------------------------------------
 const WING = [
@@ -31,11 +31,16 @@ const WING = [
 ];
 function planeModel(THREE, spec) {
   const m = mats(THREE); const g = new THREE.Group(); const P = spec.parts || {}; const body = spec.color || '#4aa3ff';
-  const ar = rk(P.armor); const fus = add(THREE, g, new THREE.ConeGeometry(1.5 + ar * 0.1, 14, 10), m(body), 0, 0, 0, [Math.PI / 2, 0, 0]);
+  const ar = rk(P.armor); const fk = 1 + ar * 0.07; const prof = [[0, 7.6], [0.4, 6.9], [0.95, 5.4], [1.4, 3.2], [1.62, 0.2], [1.55, -2.8], [1.25, -5.4], [0.85, -7]].map(([r, y]) => new THREE.Vector2(r * fk, y));
+  const fus = add(THREE, g, new THREE.LatheGeometry(prof, 18), m(body), 0, 0, 0, [Math.PI / 2, 0, 0]);
+  add(THREE, g, new THREE.SphereGeometry(0.5, 10, 8), m('#2a2e38'), 0, 0, 7.0).scale.set(1, 1, 1.5);
+  for (const s of [-1, 1]) add(THREE, g, new THREE.BoxGeometry(0.7, 0.8, 2.6), m('#1b1f27'), s * 1.45, -0.2, 2.2);
+  add(THREE, g, new THREE.TorusGeometry(0.9, 0.18, 8, 14), m('#2a2e38'), 0, 0, -7.1);
   for (let i = 0; i < ar; i++) add(THREE, g, new THREE.BoxGeometry(0.5, 0.5, 3), m(partColor(P.armor), glowOf(P.armor) ? 0x222222 : 0), (i % 2 ? 1 : -1) * 1.05, 0.2, -1 + Math.floor(i / 2) * 2.4);
-  add(THREE, g, new THREE.SphereGeometry(0.95, 10, 8), m('#2a4a7a', 0x112244), 0, 0.9, 1.2).scale.set(1, 0.7, 2);
+  add(THREE, g, new THREE.SphereGeometry(0.95, 14, 10), new THREE.MeshStandardMaterial({ color: '#1d3b66', metalness: 0.9, roughness: 0.06, emissive: '#06162c' }), 0, 0.95, 1.2).scale.set(1, 0.7, 2);
   // つばさ(mobility)
   const wc = partColor(P.mobility, '#e8eefc'); const wv = Math.min(5, rk(P.mobility)); const pts = WING[wv];
+  for (const s of [-1, 1]) { const tipX = Math.max(...pts.map((p) => p[0])) + 0.9; add(THREE, g, new THREE.SphereGeometry(0.25, 6, 5), new THREE.MeshBasicMaterial({ color: s > 0 ? '#3aff6a' : '#ff3a4a' }), s * tipX, 0.2, -2); }
   const wR = flatShape(THREE, pts, 0.35, m(wc, glowOf(P.mobility) ? 0x1a1a1a : 0)); wR.position.set(0.9, 0, -0.5); g.add(wR);
   const wL = flatShape(THREE, pts.map(([x, z]) => [-x, z]), 0.35, m(wc, glowOf(P.mobility) ? 0x1a1a1a : 0)); wL.position.set(-0.9, 0, -0.5); g.add(wL);
   if (glowOf(P.mobility)) for (const s of [-1, 1]) add(THREE, g, new THREE.BoxGeometry(0.2, 0.12, 6), new THREE.MeshBasicMaterial({ color: glowOf(P.mobility) }), s * (4.5 + wv * 0.3), 0.25, -1.2);
