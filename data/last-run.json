@@ -1,6 +1,6 @@
 {
  "date": "2026-10-22",
- "part": 0,
+ "part": 1,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -8,6 +8,119 @@
  ],
  "grades": {
   "1": {
+   "asked": 8,
+   "returned": 16,
+   "rejected": {
+    "explain-kanji-out-of-grade": 8
+   },
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "田",
+      "target": "水田",
+      "reading": "すいでん",
+      "sentence": "ひろい水田に水が入る。",
+      "explain": "「水田」は「すいでん」と読みます。",
+      "wrong": [
+       {
+        "text": "すいてん",
+        "tag": "dakuten"
+       },
+       {
+        "text": "みずた",
+        "tag": "onkun_mix"
+       },
+       {
+        "text": "みずでん",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "男",
+      "target": "男の子",
+      "reading": "おとこのこ",
+      "sentence": "げんきな男の子があそぶ。",
+      "explain": "「おとこのこ」は「男の子」と書きます。",
+      "wrong": [
+       {
+        "text": "田の子",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "目の子",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "力の子",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "町",
+      "target": "町",
+      "reading": "まち",
+      "sentence": "ぼくの町には川がある。",
+      "explain": "「町」は「まち」と読みます。",
+      "wrong": [
+       {
+        "text": "ちょう",
+        "tag": "onkun_mix"
+       },
+       {
+        "text": "まっ",
+        "tag": "small_kana"
+       },
+       {
+        "text": "まっち",
+        "tag": "small_kana"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "白",
+      "target": "白い",
+      "reading": "しろい",
+      "sentence": "白い花がさいている。",
+      "explain": "「しろい」は「白い」と書きます。",
+      "wrong": [
+       {
+        "text": "百い",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "日い",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "目い",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 0
+  },
+  "2": {
    "asked": 8,
    "returned": 8,
    "rejected": {},
@@ -17,351 +130,25 @@
    "samples": [],
    "missing": 0
   },
-  "2": {
-   "asked": 8,
-   "returned": 12,
-   "rejected": {
-    "wrong-kanji-out-of-grade": 3,
-    "wrong-dup": 1
-   },
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "語",
-      "target": "国語",
-      "reading": "こくご",
-      "sentence": "がっこうで 国語を まなぶ。",
-      "explain": "「くにの ことば」と かいて「国語」と よみます。",
-      "wrong": [
-       {
-        "text": "国吾",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "国話",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "黒語",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-dup",
-     "item": {
-      "type": "yomi",
-      "kanji": "読",
-      "target": "読む",
-      "reading": "よむ",
-      "sentence": "本を 読む。",
-      "explain": "本や てがみの もじを 見て みなすときは「読む」と よみます。",
-      "wrong": [
-       {
-        "text": "とく",
-        "tag": "similar_word"
-       },
-       {
-        "text": "よむ",
-        "tag": "other"
-       },
-       {
-        "text": "どむ",
-        "tag": "onkun_mix"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "走",
-      "target": "走る",
-      "reading": "はしる",
-      "sentence": "こうていを 走る。",
-      "explain": "はやく あしを うごかして すすむときは「走る」と かきます。",
-      "wrong": [
-       {
-        "text": "起る",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "足る",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "赴る",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "通",
-      "target": "通う",
-      "reading": "かよう",
-      "sentence": "がっこうに 通う。",
-      "explain": "きまった ところへ 何ども 行き来することは「通う」と かきます。",
-      "wrong": [
-       {
-        "text": "通よ",
-        "tag": "other"
-       },
-       {
-        "text": "道う",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "達う",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 0
-  },
   "3": {
    "asked": 8,
-   "returned": 12,
-   "rejected": {
-    "target-kanji": 1,
-    "wrong-kanji-out-of-grade": 3,
-    "wrong-shape": 1
-   },
+   "returned": 8,
+   "rejected": {},
    "unverified": 0,
-   "accepted": 7,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "target-kanji",
-     "item": {
-      "type": "yomi",
-      "kanji": "負",
-      "target": "まける",
-      "reading": "まける",
-      "sentence": "しあいにまけないようにがんばる。",
-      "explain": "「まける」は、おとなりに負けるなどの「まける」だよ。",
-      "wrong": [
-       {
-        "text": "おける",
-        "tag": "similar_word"
-       },
-       {
-        "text": "しゃける",
-        "tag": "other"
-       },
-       {
-        "text": "つかれる",
-        "tag": "other"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "起",
-      "target": "起きる",
-      "reading": "おきる",
-      "sentence": "あさははやくに起きる。",
-      "explain": "「起きる」は、ねているじょうたいからだをあげることだよ。",
-      "wrong": [
-       {
-        "text": "趣きる",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "起いる",
-        "tag": "other"
-       },
-       {
-        "text": "趙きる",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "身",
-      "target": "身体",
-      "reading": "からだ",
-      "sentence": "うんどうして身体をきたえる。",
-      "explain": "「身体」は、人のからだをあらわすよ。",
-      "wrong": [
-       {
-        "text": "射体",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "辛だ",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "躬体",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "軽",
-      "target": "軽い",
-      "reading": "かるい",
-      "sentence": "このにもつはとても軽い。",
-      "explain": "おもさがすくないことを「軽い」というよ。",
-      "wrong": [
-       {
-        "text": "較い",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "転い",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "経い",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 1
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
   },
   "4": {
    "asked": 8,
-   "returned": 12,
-   "rejected": {
-    "wrong-kanji-out-of-grade": 2,
-    "wrong-dup": 1,
-    "sentence-kanji-out-of-grade": 2,
-    "target-kanji": 1,
-    "wrong-shape": 1
-   },
-   "unverified": 1,
-   "accepted": 4,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "象",
-      "target": "象",
-      "reading": "ぞう",
-      "sentence": "動物園で大きな象を見ました。",
-      "explain": "大きな動物の「象」です。",
-      "wrong": [
-       {
-        "text": "像",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "造",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "蔵",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-dup",
-     "item": {
-      "type": "yomi",
-      "kanji": "貨",
-      "target": "貨物",
-      "reading": "かもつ",
-      "sentence": "駅で貨物列車を見かけました。",
-      "explain": "「か」もつと読みます。",
-      "wrong": [
-       {
-        "text": "かもつ",
-        "tag": "other"
-       },
-       {
-        "text": "がもつ",
-        "tag": "dakuten"
-       },
-       {
-        "text": "はもつ",
-        "tag": "similar_word"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "sentence-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "貯",
-      "target": "貯金",
-      "reading": "ちょきん",
-      "sentence": "お小遣いを少し貯金します。",
-      "explain": "お金をためる「貯金」です。",
-      "wrong": [
-       {
-        "text": "町金",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "直金",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "張金",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "target-kanji",
-     "item": {
-      "type": "yomi",
-      "kanji": "課",
-      "target": "国語の時間",
-      "reading": "こくごのじかん",
-      "sentence": "まいにち国語の時間に漢字のべんきょうをする。",
-      "explain": "「国語（こくご）」は小学校のじゅぎょうのなまえです。",
-      "wrong": [
-       {
-        "text": "くにごのじかん",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "こくこのじかん",
-        "tag": "dakuten"
-       },
-       {
-        "text": "こくごのしかん",
-        "tag": "dakuten"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 4
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
   }
  }
 }
