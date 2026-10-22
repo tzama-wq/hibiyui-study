@@ -1,6 +1,6 @@
 {
- "date": "2026-10-22",
- "part": 1,
+ "date": "2026-10-23",
+ "part": 0,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -9,109 +9,94 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 16,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
+  },
+  "2": {
+   "asked": 8,
+   "returned": 11,
    "rejected": {
-    "explain-kanji-out-of-grade": 8
+    "wrong-shape": 3
    },
    "unverified": 0,
    "accepted": 8,
    "rounds": 2,
    "samples": [
     {
-     "reason": "explain-kanji-out-of-grade",
-     "item": {
-      "type": "yomi",
-      "kanji": "田",
-      "target": "水田",
-      "reading": "すいでん",
-      "sentence": "ひろい水田に水が入る。",
-      "explain": "「水田」は「すいでん」と読みます。",
-      "wrong": [
-       {
-        "text": "すいてん",
-        "tag": "dakuten"
-       },
-       {
-        "text": "みずた",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "みずでん",
-        "tag": "onkun_mix"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "explain-kanji-out-of-grade",
+     "reason": "wrong-shape",
      "item": {
       "type": "kaki",
-      "kanji": "男",
-      "target": "男の子",
-      "reading": "おとこのこ",
-      "sentence": "げんきな男の子があそぶ。",
-      "explain": "「おとこのこ」は「男の子」と書きます。",
+      "kanji": "頭",
+      "target": "頭",
+      "reading": "あたま",
+      "sentence": "頭を つよく うった。",
+      "explain": "「あたま」は 「頭」と かきます。",
       "wrong": [
        {
-        "text": "田の子",
-        "tag": "similar_kanji"
+        "text": "顔",
+        "tag": "similar_word"
        },
        {
-        "text": "目の子",
-        "tag": "similar_kanji"
+        "text": "首",
+        "tag": "similar_word"
        },
        {
-        "text": "力の子",
+        "text": "買",
         "tag": "similar_kanji"
        }
       ]
      }
     },
     {
-     "reason": "explain-kanji-out-of-grade",
-     "item": {
-      "type": "yomi",
-      "kanji": "町",
-      "target": "町",
-      "reading": "まち",
-      "sentence": "ぼくの町には川がある。",
-      "explain": "「町」は「まち」と読みます。",
-      "wrong": [
-       {
-        "text": "ちょう",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "まっ",
-        "tag": "small_kana"
-       },
-       {
-        "text": "まっち",
-        "tag": "small_kana"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "explain-kanji-out-of-grade",
+     "reason": "wrong-shape",
      "item": {
       "type": "kaki",
-      "kanji": "白",
-      "target": "白い",
-      "reading": "しろい",
-      "sentence": "白い花がさいている。",
-      "explain": "「しろい」は「白い」と書きます。",
+      "kanji": "風",
+      "target": "風",
+      "reading": "かぜ",
+      "sentence": "つよい 風が ふいている。",
+      "explain": "「かぜ」は 「風」と かきます。",
       "wrong": [
        {
-        "text": "百い",
+        "text": "虫",
         "tag": "similar_kanji"
        },
        {
-        "text": "日い",
+        "text": "図",
         "tag": "similar_kanji"
        },
        {
-        "text": "目い",
+        "text": "雨",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "首",
+      "target": "手首",
+      "reading": "てくび",
+      "sentence": "手首に 時計を つける。",
+      "explain": "「てくび」は 「手首」と かきます。",
+      "wrong": [
+       {
+        "text": "手道",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "手頭",
+        "tag": "similar_word"
+       },
+       {
+        "text": "手目",
         "tag": "similar_kanji"
        }
       ]
@@ -120,34 +105,158 @@
    ],
    "missing": 0
   },
-  "2": {
-   "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
-  },
   "3": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 10,
+   "rejected": {
+    "sentence-kanji-out-of-grade": 1,
+    "target-not-once": 1,
+    "wrong-shape": 1
+   },
    "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
+   "accepted": 7,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "配",
+      "target": "配達",
+      "reading": "はいたつ",
+      "sentence": "手紙を配達するお兄さん。",
+      "explain": "配達は「はいたつ」と読みます。",
+      "wrong": [
+       {
+        "text": "はいだつ",
+        "tag": "dakuten"
+       },
+       {
+        "text": "はたつ",
+        "tag": "small_kana"
+       },
+       {
+        "text": "くばいたつ",
+        "tag": "other"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "target-not-once",
+     "item": {
+      "type": "kaki",
+      "kanji": "開",
+      "target": "開く",
+      "reading": "ひらく",
+      "sentence": "心を開いて話をする。",
+      "explain": "ひらくは「開く」と書きます。",
+      "wrong": [
+       {
+        "text": "間く",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "門く",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "問く",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "配",
+      "target": "心配",
+      "reading": "しんぱい",
+      "sentence": "ともだちを心配する。",
+      "explain": "「心をつかうこと」を「しんぱい」といいます。",
+      "wrong": [
+       {
+        "text": "しんばい",
+        "tag": "dakuten"
+       },
+       {
+        "text": "しんはい",
+        "tag": "dakuten"
+       },
+       {
+        "text": "せんぱい",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 1
   },
   "4": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 10,
+   "rejected": {
+    "wrong-kanji-out-of-grade": 1,
+    "wrong-shape": 1
+   },
    "unverified": 0,
    "accepted": 8,
-   "rounds": 1,
-   "samples": [],
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "郡",
+      "target": "郡",
+      "reading": "ぐん",
+      "sentence": "わたしは 広い 郡に すんでいる。",
+      "explain": "「ぐん」は「郡」と 書きます。",
+      "wrong": [
+       {
+        "text": "君",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "群",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "部",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "量",
+      "target": "分量",
+      "reading": "ぶんりょう",
+      "sentence": "水の 分量を はかる。",
+      "explain": "「分量」は「ぶんりょう」と よみます。",
+      "wrong": [
+       {
+        "text": "ぶんりょ",
+        "tag": "long_vowel"
+       },
+       {
+        "text": "ぶんろう",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "ふんりょう",
+        "tag": "dakuten"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   }
  }
