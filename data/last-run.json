@@ -1,5 +1,5 @@
 {
- "date": "2026-10-23",
+ "date": "2026-10-24",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -19,150 +19,56 @@
   },
   "2": {
    "asked": 8,
-   "returned": 11,
-   "rejected": {
-    "wrong-shape": 3
-   },
+   "returned": 8,
+   "rejected": {},
    "unverified": 0,
    "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "kaki",
-      "kanji": "頭",
-      "target": "頭",
-      "reading": "あたま",
-      "sentence": "頭を つよく うった。",
-      "explain": "「あたま」は 「頭」と かきます。",
-      "wrong": [
-       {
-        "text": "顔",
-        "tag": "similar_word"
-       },
-       {
-        "text": "首",
-        "tag": "similar_word"
-       },
-       {
-        "text": "買",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "kaki",
-      "kanji": "風",
-      "target": "風",
-      "reading": "かぜ",
-      "sentence": "つよい 風が ふいている。",
-      "explain": "「かぜ」は 「風」と かきます。",
-      "wrong": [
-       {
-        "text": "虫",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "図",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "雨",
-        "tag": "similar_word"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "kaki",
-      "kanji": "首",
-      "target": "手首",
-      "reading": "てくび",
-      "sentence": "手首に 時計を つける。",
-      "explain": "「てくび」は 「手首」と かきます。",
-      "wrong": [
-       {
-        "text": "手道",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "手頭",
-        "tag": "similar_word"
-       },
-       {
-        "text": "手目",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    }
-   ],
+   "rounds": 1,
+   "samples": [],
    "missing": 0
   },
   "3": {
    "asked": 8,
-   "returned": 10,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
+  },
+  "4": {
+   "asked": 8,
+   "returned": 11,
    "rejected": {
-    "sentence-kanji-out-of-grade": 1,
-    "target-not-once": 1,
-    "wrong-shape": 1
+    "wrong-shape": 3,
+    "wrong-kanji-out-of-grade": 1
    },
    "unverified": 0,
    "accepted": 7,
    "rounds": 2,
    "samples": [
     {
-     "reason": "sentence-kanji-out-of-grade",
+     "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "配",
-      "target": "配達",
-      "reading": "はいたつ",
-      "sentence": "手紙を配達するお兄さん。",
-      "explain": "配達は「はいたつ」と読みます。",
+      "kanji": "不",
+      "target": "不安",
+      "reading": "ふあん",
+      "sentence": "テストのまえで少し不安だ。",
+      "explain": "「不」は「ふ」とよみます。",
       "wrong": [
        {
-        "text": "はいだつ",
+        "text": "ぶあん",
         "tag": "dakuten"
        },
        {
-        "text": "はたつ",
-        "tag": "small_kana"
-       },
-       {
-        "text": "くばいたつ",
+        "text": "ふあうん",
         "tag": "other"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "target-not-once",
-     "item": {
-      "type": "kaki",
-      "kanji": "開",
-      "target": "開く",
-      "reading": "ひらく",
-      "sentence": "心を開いて話をする。",
-      "explain": "ひらくは「開く」と書きます。",
-      "wrong": [
-       {
-        "text": "間く",
-        "tag": "similar_kanji"
        },
        {
-        "text": "門く",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "問く",
-        "tag": "similar_kanji"
+        "text": "ふおん",
+        "tag": "similar_sound"
        }
       ]
      }
@@ -171,22 +77,72 @@
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "配",
-      "target": "心配",
-      "reading": "しんぱい",
-      "sentence": "ともだちを心配する。",
-      "explain": "「心をつかうこと」を「しんぱい」といいます。",
+      "kanji": "付",
+      "target": "日付",
+      "reading": "ひづけ",
+      "sentence": "ノートにきょうの日付を書く。",
+      "explain": "「日付」は「ひづけ」とよみます。",
       "wrong": [
        {
-        "text": "しんばい",
+        "text": "ひつけ",
         "tag": "dakuten"
        },
        {
-        "text": "しんはい",
+        "text": "ひづき",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "にちづけ",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "伝",
+      "target": "伝言",
+      "reading": "でんごん",
+      "sentence": "友だちに伝言をたのむ。",
+      "explain": "「伝言」は「でんごん」とよみます。",
+      "wrong": [
+       {
+        "text": "てんごん",
         "tag": "dakuten"
        },
        {
-        "text": "せんぱい",
+        "text": "でんこう",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "でんこと",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "付",
+      "target": "付く",
+      "reading": "つく",
+      "sentence": "あかいてがみがポストに付く。",
+      "explain": "「つく」は「付く」とかきます。",
+      "wrong": [
+       {
+        "text": "布く",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "吐く",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "着く",
         "tag": "similar_sound"
        }
       ]
@@ -194,70 +150,6 @@
     }
    ],
    "missing": 1
-  },
-  "4": {
-   "asked": 8,
-   "returned": 10,
-   "rejected": {
-    "wrong-kanji-out-of-grade": 1,
-    "wrong-shape": 1
-   },
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "郡",
-      "target": "郡",
-      "reading": "ぐん",
-      "sentence": "わたしは 広い 郡に すんでいる。",
-      "explain": "「ぐん」は「郡」と 書きます。",
-      "wrong": [
-       {
-        "text": "君",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "群",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "部",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "量",
-      "target": "分量",
-      "reading": "ぶんりょう",
-      "sentence": "水の 分量を はかる。",
-      "explain": "「分量」は「ぶんりょう」と よみます。",
-      "wrong": [
-       {
-        "text": "ぶんりょ",
-        "tag": "long_vowel"
-       },
-       {
-        "text": "ぶんろう",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "ふんりょう",
-        "tag": "dakuten"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 0
   }
  }
 }
