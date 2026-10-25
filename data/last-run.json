@@ -1,5 +1,5 @@
 {
- "date": "2026-10-24",
+ "date": "2026-10-26",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -41,33 +41,32 @@
    "asked": 8,
    "returned": 11,
    "rejected": {
-    "wrong-shape": 3,
-    "wrong-kanji-out-of-grade": 1
+    "wrong-shape": 3
    },
    "unverified": 0,
-   "accepted": 7,
+   "accepted": 8,
    "rounds": 2,
    "samples": [
     {
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "不",
-      "target": "不安",
-      "reading": "ふあん",
-      "sentence": "テストのまえで少し不安だ。",
-      "explain": "「不」は「ふ」とよみます。",
+      "kanji": "加",
+      "target": "加える",
+      "reading": "くわえる",
+      "sentence": "スープにしおを少々加える。",
+      "explain": "「加える」は「くわえる」と読みます。",
       "wrong": [
        {
-        "text": "ぶあん",
-        "tag": "dakuten"
-       },
-       {
-        "text": "ふあうん",
+        "text": "かえる",
         "tag": "other"
        },
        {
-        "text": "ふおん",
+        "text": "くわる",
+        "tag": "other"
+       },
+       {
+        "text": "こわえる",
         "tag": "similar_sound"
        }
       ]
@@ -77,23 +76,23 @@
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "付",
-      "target": "日付",
-      "reading": "ひづけ",
-      "sentence": "ノートにきょうの日付を書く。",
-      "explain": "「日付」は「ひづけ」とよみます。",
+      "kanji": "労",
+      "target": "苦労",
+      "reading": "くろう",
+      "sentence": "山登りで大変な苦労をした。",
+      "explain": "「苦労」は「くろう」と読みます。",
       "wrong": [
        {
-        "text": "ひつけ",
-        "tag": "dakuten"
+        "text": "くろ",
+        "tag": "long_vowel"
        },
        {
-        "text": "ひづき",
+        "text": "くろうつ",
+        "tag": "other"
+       },
+       {
+        "text": "くるう",
         "tag": "similar_sound"
-       },
-       {
-        "text": "にちづけ",
-        "tag": "onkun_mix"
        }
       ]
      }
@@ -102,54 +101,29 @@
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "伝",
-      "target": "伝言",
-      "reading": "でんごん",
-      "sentence": "友だちに伝言をたのむ。",
-      "explain": "「伝言」は「でんごん」とよみます。",
+      "kanji": "協",
+      "target": "協力",
+      "reading": "きょうりょく",
+      "sentence": "みんなで協力してそうじする。",
+      "explain": "「協力」は「きょうりょく」と読みます。",
       "wrong": [
        {
-        "text": "てんごん",
-        "tag": "dakuten"
+        "text": "きょりょく",
+        "tag": "small_kana"
        },
        {
-        "text": "でんこう",
-        "tag": "similar_sound"
+        "text": "きょうりよく",
+        "tag": "small_kana"
        },
        {
-        "text": "でんこと",
-        "tag": "onkun_mix"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "付",
-      "target": "付く",
-      "reading": "つく",
-      "sentence": "あかいてがみがポストに付く。",
-      "explain": "「つく」は「付く」とかきます。",
-      "wrong": [
-       {
-        "text": "布く",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "吐く",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "着く",
+        "text": "こうりょく",
         "tag": "similar_sound"
        }
       ]
      }
     }
    ],
-   "missing": 1
+   "missing": 0
   }
  }
 }
