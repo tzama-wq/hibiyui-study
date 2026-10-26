@@ -109,7 +109,7 @@ export async function startAir3D(o) {
     if (pvp) hud.obj.textContent = ally ? `⚔️ ${esc(net.partner.name)}の HP ${Math.max(0, Math.round((ally.hp / ally.hpMax) * 100))}%` : ''; else hud.obj.textContent = o.mission.boss ? (S.boss && !S.boss.dead && S.enemies.includes(S.boss) ? `ボス HP ${Math.max(0, Math.round((S.boss.hp / S.boss.hpMax) * 100))}%` : 'ボスを たおせ!') : `てき のこり ${left}たい ・ げきつい ${S.kills}`;
     if (ally && hud.pn) { hud.pn.textContent = `${pvp ? '⚔️' : '🤝'} ${net.partner.name}`; hud.pu.style.width = `${clamp(ally.hp / ally.hpMax, 0, 1) * 100}%`; hud.pu.parentElement.classList.toggle('low', ally.hp / ally.hpMax < 0.3); }
     const b = S.bannerT > 0 ? S.banner : ''; if (b !== lastBanner) { lastBanner = b; hud.banner.textContent = b; hud.banner.classList.toggle('on', !!b); }
-    hud.msg.textContent = S.msgT > 0 ? S.msg : '';
+    hud.msg.textContent = sim.remote && sim.silent && sim.silent() && !briefing ? '📡 ホストの がめんが とどくのを まっているよ…' : S.msgT > 0 ? S.msg : '';
     hud.warn.textContent = S.outWarn ? '⚠ えんしゅうから でちゃう! もどって!' : S.groundWarn ? '⚠ うみに ちかいよ!' : S.shoreWarn ? (kind === 'tank' ? '⚠ しまの はしだよ' : '⚠ しまに ちかいよ') : (P.hp / P.hpMax < 0.3 ? '⚠ きたいが あぶない!' : ''); S.groundWarn = 0; S.shoreWarn = 0;
     root.classList.toggle('hurt', S.hurt > 0);
     { const ay = air ? P.yaw : P.turretYaw; const ap = air ? P.pitch : P.aimPitch; const rp = project(P.x + Math.sin(ay) * Math.cos(ap) * 500, (air ? P.y : 8) + Math.sin(ap) * 500, P.z + Math.cos(ay) * Math.cos(ap) * 500); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 ? '' : 'none'; hud.ret.classList.toggle('lock', P.lockTarget.length > 0); }

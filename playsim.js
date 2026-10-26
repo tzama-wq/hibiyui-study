@@ -14,7 +14,8 @@ const sgn = (s) => (s === 'a' ? 1 : -1); // a は +x へ せめる
 const other = (s) => (s === 'a' ? 'b' : 'a');
 
 // のうりょく(40〜200ぐらい)→ 0.8〜1.4 ぐらいの ばいりつ(つよすぎる てきでも おいつけない ほどには しない)
-const mul = (s, lo = 0.8, hi = 1.4) => clamp(lo + (hi - lo) * Math.sqrt(clamp(s, 20, 220) / 120), lo, hi);
+// のうりょく 120 で じょうげん(hi)。そこから さきも ゆっくり のびる(だいたい 430 まで)。つよく しても ちゃんと ききめが ある
+const mul = (s, lo = 0.8, hi = 1.4) => clamp(lo + (hi - lo) * Math.sqrt(clamp(s, 20, 700) / 120), lo, hi + (hi - lo) * 0.9);
 
 export function formationPos(team) {
   const rows = { GK: [], DF: [], MF: [], FW: [] };
@@ -34,9 +35,10 @@ export const TACTICS = {
 const STYLE_TACT = { att: 'attack', bal: 'balance', def: 'counter' };
 // むずかしさ: easy(かんたん・はじめは これ)/ normal / hard。てきの うごき・かんの よさと、じぶんの アシストの つよさが かわる
 export const DIFFS = {
-  easy: { ai: 0.8, spd: 1.05, myAcc: 0.75, opAcc: 1.3, aim: 0.5, gk: 0.1, tackle: 0.16, range: 0.8, pickup: 0.8, stam: 0.55, react: 1.3, press: 1.4 },
-  normal: { ai: 0.95, spd: 1.02, myAcc: 0.9, opAcc: 1.1, aim: 0.25, gk: 0.05, tackle: 0.12, range: 0.6, pickup: 0.65, stam: 0.8, react: 1.1, press: 1.8 },
-  hard: { ai: 1, spd: 1, myAcc: 1, opAcc: 1, aim: 0, gk: 0, tackle: 0.1, range: 0.5, pickup: 0.5, stam: 1, react: 1, press: 2 },
+  easy: { ai: 1.05, spd: 1.06, myAcc: 0.9, opAcc: 0.95, aim: 0.2, gk: 0.03, tackle: 0.06, range: 0.6, pickup: 0.6, stam: 0.8, react: 1.0, press: 2.1 },
+  normal: { ai: 1.25, spd: 1.04, myAcc: 1, opAcc: 0.85, aim: 0.08, gk: 0.01, tackle: 0.04, range: 0.5, pickup: 0.5, stam: 0.95, react: 0.88, press: 2.5 },
+  hard: { ai: 1.45, spd: 1.05, myAcc: 1, opAcc: 0.75, aim: 0, gk: 0, tackle: 0.02, range: 0.45, pickup: 0.45, stam: 1, react: 0.8, press: 2.9 },
+  expert: { ai: 1.7, spd: 1.07, myAcc: 1, opAcc: 0.65, aim: 0, gk: 0, tackle: 0, range: 0.4, pickup: 0.4, stam: 1, react: 0.7, press: 3.3 },
 };
 export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1, extraSec = 60, tactic = 'balance', auto: autoOpt = false, diff = 'easy', mode = 'solo' }) {
   // mode: solo=ひとり(a が にんげん)/ coop=ふたりで a を うごかす / versus=a と b を それぞれ にんげんが うごかす
@@ -44,7 +46,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
   let auto = !!autoOpt;
   const myPow = avg(me.team); const opPow = avg(opp.team);
   function avg(t) { return t.reduce((a, m) => a + (m.stats.SHO + m.stats.PAS + m.stats.SPD + m.stats.DEF + m.stats.STA) / 5, 0) / Math.max(1, t.length); }
-  const aiLevel = clamp((opPow / Math.max(30, myPow)) ** 0.5 * level * DF.ai, 0.5, 1.5); // てきの つよさ(じぶんより つよいほど おおきい)
+  const aiLevel = clamp((opPow / Math.max(30, myPow)) ** 0.5 * level * DF.ai, 0.8, 2.1); // てきの つよさ(じぶんより つよいほど おおきい)
 
   const teams = { a: me, b: opp };
   const tact = { a: TACTICS[tactic] || TACTICS.balance, b: TACTICS[STYLE_TACT[opp.style]] || TACTICS.balance };
@@ -224,7 +226,7 @@ export function createPlay({ me, opp, halfSec = 90, rnd = Math.random, level = 1
     const sg = sgn(p.side); const gx = sg * HX;
     const press = players[other(p.side)].reduce((m, o2) => Math.min(m, len(o2.x - p.x, o2.z - p.z)), 99);
     const dgo = len(gx - p.x, p.z);
-    const err = (1 - clamp(p.stats.SHO / 150, 0, 0.9)) * (0.16 + power * 0.18) * (1 + clamp((28 - dgo) / 28, -0.4, 0) * -0.0 + clamp(dgo / 40, 0, 1) * 0.9) * (press < 2.6 ? 1.5 : 1) * (p.side === 'a' ? DF.myAcc : DF.opAcc);
+    const err = (1 - clamp(p.stats.SHO / 150, 0, 0.96)) * (0.16 + power * 0.18) * (1 + clamp((28 - dgo) / 28, -0.4, 0) * -0.0 + clamp(dgo / 40, 0, 1) * 0.9) * (press < 2.6 ? 1.5 : 1) * (p.side === 'a' ? DF.myAcc : DF.opAcc);
     const tz = clamp(aimZ, -GHW * 1.05, GHW * 1.05) + (rnd() - 0.5) * 2 * err * 12 * (p.stats.SHO > 120 ? 0.7 : 1);
     const a = Math.atan2(tz - p.z, gx - p.x);
     const sp = (16 + 15 * power) * mul(p.stats.SHO, 0.9, 1.25);

@@ -23,7 +23,7 @@ export async function startPlay3D(o) {
   const net = o.net || null; const netMode = net ? net.mode : 'solo'; let hb = null; let sim;
   const mySide = net && net.role === 'guest' && netMode === 'versus' ? 'b' : 'a'; const flip = mySide === 'b'; // あいてがわの ひとは カメラを はんたいから
   if (net && net.role === 'guest') sim = createGuestPlay({ conn: net.conn, me: o.me, opp: o.opp, mode: netMode, halfSec: o.halfSec || 90, mySide, ci: 1 });
-  else { sim = createPlay({ me: o.me, opp: o.opp, halfSec: o.halfSec || 90, level: o.level || 1, tactic: o.tactic || 'balance', auto: watch, diff: net && netMode === 'versus' ? 'hard' : (o.diff || 'easy'), mode: netMode }); if (net) hb = hostBindPlay(sim, net.conn); }
+  else { sim = createPlay({ me: o.me, opp: o.opp, halfSec: o.halfSec || 90, level: o.level || 1, tactic: o.tactic || 'balance', auto: watch, diff: net && netMode === 'versus' ? 'hard' : (o.diff || 'normal'), mode: netMode }); if (net) hb = hostBindPlay(sim, net.conn); }
   if (net) watch = false;
   const S = sim.state;
   const root = document.createElement('div'); root.className = 'p3d';
@@ -132,7 +132,7 @@ export async function startPlay3D(o) {
     hud.sa.textContent = S.score.a; hud.sb.textContent = S.score.b;
     hud.tm.textContent = S.extra ? `延長 ${Math.max(0, Math.ceil(60 - (S.clock - S.e2)))}` : sim.clockText();
     const b = S.bannerT > 0 ? S.banner : ''; if (b !== lastBanner) { lastBanner = b; hud.banner.textContent = b; hud.banner.classList.toggle('on', !!b); }
-    hud.msg.textContent = S.msg || '';
+    hud.msg.textContent = sim.remote && sim.silent && sim.silent() ? '📡 ホストの がめんが とどくのを まっているよ…' : (S.msg || '');
     const att = sim.ball.owner && sim.ball.owner.side === mySide;
     hud.bA.textContent = att ? 'パス' : 'タックル'; hud.bB.textContent = att ? 'シュート' : 'スライド'; hud.bC.textContent = att ? 'ロング' : 'きりかえ';
     const cp = sim.ctrlP(); if (cp) { hud.tag.textContent = watch ? '' : cp.name; }

@@ -119,6 +119,16 @@ export const MISSIONS = [
   { id: 'm6', name: 'きょだい ぼかん', icon: '🚢', brief: 'うみの むこうから きょだいな くうちゅう ぼかんが やって きた! ボスを たおして にっぽんを まもれ!', baseHp: 400, boss: true,
     waves: [{ t: 2, type: 'drone', n: 4 }, { t: 6, type: 'boat', n: 2 }, { t: 16, type: 'boss', n: 1 }], reward: { gold: 2, platinum: 1, pts: 38 }, first: { platinum: 3, shards: 10 } },
 ];
+MISSIONS.push(
+  { id: 'm7', name: 'かいじょうの ぐんかんたい', icon: '⚓', brief: 'おおきな ぐんかんの たいぐんが うみから せまって くる! ボートと くちくかんを ぜんぶ しずめよう。うみの てきに つよい のりものが かつやく!', baseHp: 400, hpMul: 1.1,
+    waves: [{ t: 2, type: 'boat', n: 4 }, { t: 14, type: 'destroyer', n: 2 }, { t: 28, type: 'drone', n: 6 }, { t: 42, type: 'destroyer', n: 3 }, { t: 58, type: 'boat', n: 5 }, { t: 72, type: 'bomber', n: 2 }], reward: { gold: 2, silver: 2, pts: 44 }, first: { platinum: 1, gold: 2 } },
+  { id: 'm8', name: 'さばくの せんしゃぶたい', icon: '🏜️', brief: 'はまべに せんしゃの たいぐんが じょうりく! ばくげききも いっしょに くるぞ。りくの てきに つよい のりものが ゆうり!', baseHp: 420, hpMul: 1.1,
+    waves: [{ t: 2, type: 'etank', n: 5 }, { t: 14, type: 'bomber', n: 3 }, { t: 26, type: 'etank', n: 6 }, { t: 40, type: 'fighter', n: 4 }, { t: 54, type: 'etank', n: 7 }, { t: 68, type: 'drone', n: 8 }], reward: { gold: 2, platinum: 1, pts: 50 }, first: { platinum: 2, gold: 2 } },
+  { id: 'm9', name: 'ぜんめんせんそう', icon: '🔥', brief: 'くう・うみ・りくから ぜんぶ いっぺんに せめて くる! きたいを うまく つかいこなして ちきゅうを まもれ!', baseHp: 460, hpMul: 1.15, dmgMul: 1.1,
+    waves: [{ t: 2, type: 'fighter', n: 4 }, { t: 12, type: 'boat', n: 4 }, { t: 22, type: 'etank', n: 5 }, { t: 34, type: 'destroyer', n: 2 }, { t: 46, type: 'bomber', n: 3 }, { t: 58, type: 'fighter', n: 5 }, { t: 70, type: 'etank', n: 5 }, { t: 80, type: 'drone', n: 10 }], reward: { platinum: 2, gold: 2, pts: 60 }, first: { platinum: 3, gold: 3 } },
+  { id: 'm10', name: 'さいごの ようさい', icon: '👑', brief: 'てきの さいごの きょだい ようさいが うごきだした! おおぜいの ぶかを ひきつれて やって くる。ちきゅうの みらいは きみに かかっている!', baseHp: 480, boss: true, bossMul: 2.2, hpMul: 1.1, dmgMul: 1.1,
+    waves: [{ t: 2, type: 'drone', n: 6 }, { t: 8, type: 'destroyer', n: 2 }, { t: 14, type: 'boss', n: 1 }, { t: 36, type: 'fighter', n: 3 }], reward: { platinum: 3, gold: 3, pts: 90 }, first: { platinum: 5, shards: 30 } },
+);
 export const missionById = (id) => MISSIONS.find((m) => m.id === id);
 export const missionMix = (m) => { const c = { air: 0, sea: 0, ground: 0 }; for (const w of m.waves) c[ENEMY[w.type].dom] += w.n; return c; };
 
@@ -127,7 +137,7 @@ export const missionMix = (m) => { const c = { air: 0, sea: 0, ground: 0 }; for 
 export const PVP_MISSION = { id: 'pvp', name: 'たいせん', icon: '⚔️', brief: '', baseHp: 1, waves: [{ t: 99999, type: 'drone', n: 0 }], reward: {}, pvp: true };
 const domOfKind = (k) => (k === 'plane' ? 'air' : k === 'ship' ? 'sea' : 'ground');
 export function createAir({ vehicle: V0, mission, rnd = Math.random, gentle = false, difficulty = 1, extra = [], pvp = false }) {
-  const M = pvp ? PVP_MISSION : mission; const hpScale = gentle ? 1.45 : 1; const enemyDmg = (gentle ? 0.6 : 1) * difficulty;
+  const M = pvp ? PVP_MISSION : mission; const hpScale = gentle ? 1.45 : 1; const enemyDmg = (gentle ? 0.6 : 1) * difficulty * (M.dmgMul || 1);
   const NP = 1 + extra.length; const eHp = NP > 1 && !pvp ? 1.55 : 1; // ふたりなら てきの HPが おおい
   const startOf = (kind, i) => { const ox = i === 0 ? 0 : i % 2 ? 90 : -90; return kind === 'plane' ? { x: ox, y: 260, z: 120 } : kind === 'tank' ? { x: ox * 1.4, y: 0, z: BASE_Z + 60 } : { x: ox * 2, y: 0, z: BASE_Z + ISLAND + 240 }; };
   const mkPlayer = (V, i) => {
@@ -162,7 +172,7 @@ export function createAir({ vehicle: V0, mission, rnd = Math.random, gentle = fa
 
   function spawn(type, i, n) {
     const E = ENEMY[type]; const ang = (i / Math.max(1, n) - 0.5) * 1.6 + (rnd() - 0.5) * 0.4;
-    const e = { id: ++spawnId, type, dom: E.dom, x: Math.sin(ang) * (500 + rnd() * 500), y: 0, z: BASE_Z + 1250 + rnd() * 450, yaw: Math.PI, pitch: 0, hp: E.hp * (difficulty > 1 ? 1.2 : 1) * eHp, hpMax: E.hp * eHp, speed: E.speed * (0.9 + rnd() * 0.25), cd: 1 + rnd() * 1.5, target: rnd() < 0.55 ? 'base' : 'player', t: 0, ph: rnd() * 6.28, spawnCd: 6, orbit: rnd() < 0.5 ? 1 : -1, stop: false };
+    const e = { id: ++spawnId, type, dom: E.dom, x: Math.sin(ang) * (500 + rnd() * 500), y: 0, z: BASE_Z + 1250 + rnd() * 450, yaw: Math.PI, pitch: 0, hp: E.hp * (difficulty > 1 ? 1.2 : 1) * eHp * (M.hpMul || 1) * (type === 'boss' ? (M.bossMul || 1) : 1), hpMax: E.hp * eHp * (M.hpMul || 1) * (type === 'boss' ? (M.bossMul || 1) : 1), speed: E.speed * (0.9 + rnd() * 0.25), cd: 1 + rnd() * 1.5, target: rnd() < 0.55 ? 'base' : 'player', t: 0, ph: rnd() * 6.28, spawnCd: 6, orbit: rnd() < 0.5 ? 1 : -1, stop: false };
     if (E.dom === 'air') e.y = 140 + rnd() * 320;
     if (type === 'boat' || type === 'destroyer') { e.x = Math.sin(ang) * (700 + rnd() * 500); e.z = BASE_Z + ISLAND + 700 + rnd() * 500; e.target = 'base'; e.stopR = (type === 'destroyer' ? 1180 : 980) + rnd() * 60; }
     if (type === 'etank') { e.x = Math.sin(ang) * (250 + rnd() * 120); e.z = BASE_Z + ISLAND - 20 - rnd() * 40; e.target = 'base'; e.yaw = Math.PI; e.y = 0; }

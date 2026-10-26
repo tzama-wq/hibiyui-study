@@ -282,7 +282,7 @@ function powerHtml() {
     return `<div class="stat-row"><div class="sr-name"><b>${G.STAT_NAME[s]}</b><small>${SUBJ[s]}で ゲット</small></div>
         <div class="sr-bar"><i style="width:${Math.min(100, (G.kidStat(lv) / 150) * 100)}%"></i><u style="left:${(99 / 150) * 100}%"></u></div>
         <div class="sr-val"><b>${G.kidStat(lv)}</b><small>Lv${lv}</small></div>
-        <button class="btn small ${can ? 'gold' : 'gray'}" data-act="upgrade" data-s="${s}" ${can ? '' : 'disabled'}>${lv >= G.MAX_LEVEL ? 'MAX' : `+ (${cost})`}</button>
+        <div class="up-btns">${lv >= G.MAX_LEVEL ? '<button class="btn small gray" disabled>MAX</button>' : [1, 10, 100].map((n) => { const pl = G.upgradePlan(p, s, n); return `<button class="btn small ${pl.count ? (n === 1 ? 'gold' : 'blue') : 'gray'}" data-act="upgrade" data-s="${s}" data-n="${n}" ${pl.count ? '' : 'disabled'}>+${n}<small>${pl.count ? (pl.count < n ? `(${pl.count}こ ${pl.cost}pt)` : `${pl.cost}pt`) : `${n === 1 ? cost : '--'}pt`}</small></button>`; }).join('')}</div>
         <div class="sr-pts">${p.pts[s]}pt</div></div>`;
   }).join('')}
     <div class="muted">縦の線(|)が レジェンドの さいだい(99)。</div>
@@ -323,7 +323,7 @@ const PLAY_LEN = { 60: 'みじかい(2ふん)', 90: 'ふつう(3ふん)', 150: '
 function playToggleHtml(p) {
   const kind = playKind(p); const on = kind !== 'auto'; const len = Number(p.playLen) || 90; const tc = p.playTactic || 'balance';
   return `<div class="playtog"><button class="chipb ${kind === 'play' ? 'on' : ''}" data-act="playmode" data-v="play">🎮 じぶんで うごかす</button><button class="chipb ${kind === 'watch' ? 'on' : ''}" data-act="playmode" data-v="watch">👀 3Dで かんせん</button><button class="chipb ${kind === 'auto' ? 'on' : ''}" data-act="playmode" data-v="auto">▶ オート(2D)</button>
-    ${kind === 'play' ? `<div class="playlen"><b>むずかしさ</b>${[['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']].map(([k2, v2]) => `<button class="chipb ${(p.playDiff || 'easy') === k2 ? 'on' : ''}" data-act="playdiff" data-v="${k2}">${v2}</button>`).join('')}<small>かんたん=てきが よわく、ボールを とりやすく、シュートが はいりやすい</small></div>` : ''}
+    ${kind === 'play' ? `<div class="playlen"><b>むずかしさ</b>${[['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい'], ['expert', 'さいきょう']].map(([k2, v2]) => `<button class="chipb ${(p.playDiff || 'normal') === k2 ? 'on' : ''}" data-act="playdiff" data-v="${k2}">${v2}</button>`).join('')}<small>かんたん=ボールを とりやすく シュートが はいりやすい ・ ふつう=ちょうど いい ・ むずかしい=てきが はやく かしこい ・ さいきょう=ガチの しょうぶ</small></div>` : ''}
     ${on ? `<div class="playlen"><b>せんじゅつ</b>${Object.entries(TACT_JA).map(([k, v]) => `<button class="chipb ${tc === k ? 'on' : ''}" data-act="playtact" data-v="${k}">${v[0]}</button>`).join('')}<small>${TACT_JA[tc][1]}</small></div><div class="playlen">${Object.entries(PLAY_LEN).map(([k, v]) => `<button class="chipb ${len === Number(k) ? 'on' : ''}" data-act="playlen" data-v="${k}">${v}</button>`).join('')}<small>スマホは よこむきで あそぶよ</small></div>` : ''}</div>`;
 }
 let PG = null; // いま あそんでいる 3Dの しあい
@@ -341,7 +341,7 @@ async function startPlayMatchInner(me, opp, cup) {
   const sfxMap = { kick: 'kick', pass: 'pass', tackle: 'tackle', whistle: 'whistle', goal: 'goal', save: 'save' };
   try {
     PG = await startPlay3D({
-      me, opp, mode: kind0 === 'watch' ? 'watch' : 'play', diff: p.playDiff || 'easy', tactic: p.playTactic || 'balance', halfSec: Number(p.playLen) || 90, calm: !!(X.cfg && X.cfg().calm),
+      me, opp, mode: kind0 === 'watch' ? 'watch' : 'play', diff: p.playDiff || 'normal', tactic: p.playTactic || 'balance', halfSec: Number(p.playLen) || 90, calm: !!(X.cfg && X.cfg().calm),
       onSfx: (n) => { if (SFX && sfxMap[n]) SFX.play(sfxMap[n]); },
       onQuit: () => { PG = null; if (SFX) SFX.bgmStop(); X.setView('kid'); X.render(); },
       onEnd: (r) => { PG = null; if (SFX) SFX.bgmStop(); finishPlayMatch(me, opp, cup, r); },
@@ -625,7 +625,8 @@ export function onAct(a, el) {
       return true;
     }
     case 'upgrade': {
-      if (G.upgrade(p, el.dataset.s)) { X.save(); X.fx.beep('ok'); X.fx.vibrate(20); X.fx.floaty('UP!', vw() / 2, vh() * 0.4); }
+      const n = Math.max(1, Math.min(100, Number(el.dataset.n) || 1)); const done = G.upgradeMany(p, el.dataset.s, n);
+      if (done) { X.save(); X.fx.beep('ok'); X.fx.vibrate(20); X.fx.floaty(done > 1 ? `UP! +${done}` : 'UP!', vw() / 2, vh() * 0.4); X.render(); }
       return true;
     }
     case 'netsoccer': openSoccerNet(); return true;

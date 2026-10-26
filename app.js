@@ -386,6 +386,8 @@ const BADGES = [
   { id: 'cup_isekai', icon: '🐉', name: '異世界大会 ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('isekai') },
   { id: 'cup_galaxy', icon: '🌌', name: '銀河系大会 ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('galaxy') },
   { id: 'cup_universe', icon: '🚀', name: '宇宙最強大会 ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('universe') },
+  { id: 'cup_multi', icon: '🌀', name: '多元宇宙大会 ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('multi') },
+  { id: 'cup_god', icon: '⚡', name: '神々の たたかい ゆうしょう', cond: (p) => ((p.cup || {}).cleared || []).includes('god') },
   { id: 'hyp1', icon: '🔬', name: 'はじめて のりこえた', cond: (p) => (p.hypResolved || 0) >= 1 },
   { id: 'hyp5', icon: '🧪', name: '5つ のりこえた', cond: (p) => (p.hypResolved || 0) >= 5 },
   { id: 'rank2', icon: '🚀', name: 'ユースの エース', cond: (p) => rankOf(p.xp).i >= rankIdx('ユースの エース') },
@@ -446,7 +448,7 @@ const BASE_DESC = {
   hat: '3もん れんぞくで せいかい(ハットトリック)', perfect: 'ミスなしで 1セット ぜんぶ せいかい', comeback: 'おやすみの あとの「かくれステージ」を クリア', time: 'タイムマシンを 1かい あそぶ',
   kuku9: '九九の 1〜9の だんが ぜんぶ「できた」', hyp1: 'つまずきの かせつを 1つ のりこえる', hyp5: 'つまずきの かせつを 5つ のりこえる',
   cup_j: 'Jリーグで ゆうしょう', cup_asia: 'アジアカップで ゆうしょう', cup_kirin: 'KIRINカップで ゆうしょう', cup_wc: 'ワールドカップで ゆうしょう',
-  cup_allstar: '世界オールスターで ゆうしょう', cup_isekai: '異世界大会で ゆうしょう', cup_galaxy: '銀河系大会で ゆうしょう', cup_universe: '宇宙最強大会で ゆうしょう',
+  cup_allstar: '世界オールスターで ゆうしょう', cup_isekai: '異世界大会で ゆうしょう', cup_galaxy: '銀河系大会で ゆうしょう', cup_universe: '宇宙最強大会で ゆうしょう', cup_multi: '多元宇宙大会で ゆうしょう', cup_god: '神々の たたかいで ゆうしょう',
 };
 function medalDesc(b) {
   if (BASE_DESC[b.id]) return BASE_DESC[b.id];

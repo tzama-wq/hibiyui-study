@@ -30,18 +30,22 @@ function waitIce(pc, ms = 4000) {
 }
 
 function wrap(pc, chans) {
-  const ls = []; const cl = []; let closed = false;
-  const fire = () => { if (closed) return; closed = true; cl.forEach((f) => { try { f(); } catch { /* ok */ } }); };
-  const feed = (ch) => { ch.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } ls.forEach((f) => f(m)); }; };
+  const ls = []; const cl = []; let closed = false; const [rel, fastCh] = chans;
+  let relOnly = false; let fastRx = 0; const t0 = Date.now(); let tim = 0;
+  const fire = () => { if (closed) return; closed = true; clearInterval(tim); cl.forEach((f) => { try { f(); } catch { /* ok */ } }); };
+  // 「はやい つうしん」(おとしても いい たぐい)が とどかない きしゅだと、そうさも けしきも とまる。とどかなければ ふつうの つうしんに きりかえる
+  const goRel = () => { if (relOnly) return; relOnly = true; try { if (rel.readyState === 'open') rel.send(JSON.stringify({ t: '__net', rel: 1 })); } catch { /* ok */ } };
+  const feed = (ch) => { ch.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } if (ch === fastCh) fastRx = Date.now(); if (m && m.t === '__net') { relOnly = true; return; } if (m && m.t === '__p') return; ls.forEach((f) => f(m)); }; };
   chans.forEach(feed);
   pc.addEventListener('connectionstatechange', () => { if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) fire(); });
   chans.forEach((ch) => { ch.onclose = fire; });
-  const [rel, fastCh] = chans;
+  tim = setInterval(() => { if (closed) return; try { if (!relOnly && fastCh && fastCh.readyState === 'open') fastCh.send('{"t":"__p"}'); } catch { /* ok */ } if (!relOnly && Date.now() - t0 > 2500 && Date.now() - fastRx > 2500) goRel(); }, 500);
+  const sendOn = (c, o) => { if (c.readyState !== 'open') return; if (c === rel && c.bufferedAmount > 120000) return; c.send(JSON.stringify(o)); };
   return {
     pc, send: (o) => { if (rel.readyState === 'open') rel.send(JSON.stringify(o)); },
-    fast: (o) => { const c = fastCh && fastCh.readyState === 'open' ? fastCh : rel; if (c.readyState === 'open') c.send(JSON.stringify(o)); },
-    on: (f) => { ls.push(f); }, onClose: (f) => { cl.push(f); }, isOpen: () => !closed && rel.readyState === 'open',
-    close: () => { closed = true; try { pc.close(); } catch { /* ok */ } },
+    fast: (o) => { const c = !relOnly && fastCh && fastCh.readyState === 'open' ? fastCh : rel; sendOn(c, o); },
+    on: (f) => { ls.push(f); }, onClose: (f) => { cl.push(f); }, isOpen: () => !closed && rel.readyState === 'open', mode: () => (relOnly ? 'reliable' : 'fast'),
+    close: () => { closed = true; clearInterval(tim); try { pc.close(); } catch { /* ok */ } },
   };
 }
 const opened = (ch, ms = 20000) => new Promise((res, rej) => { if (ch.readyState === 'open') { res(); return; } const t = setTimeout(() => rej(new Error('つながらなかったよ(おなじ Wi-Fi か たしかめてね)')), ms); ch.addEventListener('open', () => { clearTimeout(t); res(); }); });

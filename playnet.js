@@ -35,10 +35,12 @@ export function hostBindPlay(sim, conn) {
 // ---- ゲスト ---------------------------------------------------------------------
 export function createGuestPlay({ conn, me, opp, mode, halfSec, mySide = 'b', ci = 1, diff = 'hard' }) {
   const sim = createPlay({ me, opp, halfSec, rnd: () => 0.5, mode, diff, auto: true }); // かたちだけ かりる(うごかさない)
-  const S = sim.state; const ball = sim.ball; const players = sim.players; const flat = [...players.a, ...players.b];
+  const startedAt = Date.now(); const S = sim.state; const ball = sim.ball; const players = sim.players; const flat = [...players.a, ...players.b];
   S.auto = false; S.remote = true; S.ctrl = 0; S.ctrl2 = 0; S.cards = []; S.events = [];
   const tg = flat.map(() => ({ x: 0, z: 0 })); const bt = { x: 0, y: 0.11, z: 0 }; let inited = false;
+  let lastRx = 0;
   const apply = (m) => {
+    lastRx = Date.now();
     S.ph = m.ph; S.clock = m.ck; S.half = m.half; S.score.a = m.sc[0]; S.score.b = m.sc[1]; S.extra = !!m.ex; S.e2 = m.e2; S.banner = m.bn; S.bannerT = m.bt; S.msg = m.ms; S.flash = m.fl; S.ctrl = m.c[0]; S.ctrl2 = m.c[1]; S.done = !!m.dn; S.winner = m.wn || null; S.ctText = m.ct;
     S.poss.a = m.po[0]; S.poss.b = m.po[1]; S.shots.a = m.sh[0]; S.shots.b = m.sh[1]; S.fouls.a = m.fo[0]; S.fouls.b = m.fo[1]; S.offsides.a = m.of[0]; S.offsides.b = m.of[1];
     m.pl.forEach((q, i) => { const p = flat[i]; if (!p) return; tg[i].x = q[0]; tg[i].z = q[1]; p.vx = q[2]; p.vz = q[3]; p.dir = q[4]; p.run = q[5]; p.act = q[6]; p.actT = q[7]; p.stun = q[8]; p.off = !!q[9]; p.dive = !!q[10]; p.stamina = q[11]; if (!inited) { p.x = q[0]; p.z = q[1]; } });
@@ -61,7 +63,7 @@ export function createGuestPlay({ conn, me, opp, mode, halfSec, mySide = 'b', ci
     const k = 1 - Math.exp(-20 * dt); flat.forEach((p, i) => { const q = tg[i]; if (Math.hypot(q.x - p.x, q.z - p.z) > 12) { p.x = q.x; p.z = q.z; } else { p.x += (q.x - p.x) * k; p.z += (q.z - p.z) * k; } });
     if (Math.hypot(bt.x - ball.x, bt.z - ball.z) > 14) { ball.x = bt.x; ball.z = bt.z; } else { ball.x += (bt.x - ball.x) * k; ball.z += (bt.z - ball.z) * k; } ball.y += (bt.y - ball.y) * k;
   };
-  sim.remote = true; sim.lost = () => !conn.isOpen(); sim.conn = conn;
+  sim.remote = true; sim.silent = () => Date.now() - (lastRx || startedAt) > 1500; sim.lost = () => !conn.isOpen(); sim.conn = conn;
   return sim;
 }
 void DYN;

@@ -357,13 +357,21 @@ export function upgrade(p, stat) {
   p.pts[stat] -= cost; p.lv[stat]++;
   return true;
 }
+// n レベルぶん まとめて あげる(ポイントが たりなければ あげられる ところまで)。あげた かずを かえす
+export function upgradeMany(p, stat, n = 1) { let done = 0; for (let i = 0; i < n; i++) { if (!upgrade(p, stat)) break; done++; } return done; }
+// n レベルあげたら ポイントが いくつ いるか(あげられる ぶんだけ)
+export function upgradePlan(p, stat, n = 1) {
+  const pts = ((p.pts || {})[stat]) || 0; let lv = ((p.lv || {})[stat]) || 0; let cost = 0; let count = 0;
+  while (count < n && lv < MAX_LEVEL) { const c = upgradeCost(lv); if (cost + c > pts) break; cost += c; lv++; count++; }
+  return { count, cost };
+}
 export const kidStats = (p) => Object.fromEntries(STATS.map((s) => [s, kidStat(((p.lv || {})[s]) || 0)]));
 
 // ---- メダルの チームバフ(%) ----------------------------------------------------------------
 export const BADGE_BUFFS = {
   goal1: { SHO: 1 }, goal10: { SHO: 2 }, goal50: { SHO: 3 }, goal100: { SHO: 5 }, goal300: { SHO: 8 },
   day3: { STA: 2 }, day7: { STA: 3 }, day30: { STA: 8 },
-  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, kuku9: { SHO: 4, SPD: 2 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 }, cup_allstar: { ALL: 7 }, cup_isekai: { ALL: 8 }, cup_galaxy: { ALL: 9 }, cup_universe: { ALL: 12 },
+  hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, kuku9: { SHO: 4, SPD: 2 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 }, cup_allstar: { ALL: 7 }, cup_isekai: { ALL: 8 }, cup_galaxy: { ALL: 9 }, cup_universe: { ALL: 12 }, cup_multi: { ALL: 14 }, cup_god: { ALL: 18 },
   rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 }, rank_eu: { ALL: 4 }, rank_wc: { ALL: 5 }, rank_max: { ALL: 6 },
   m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 }, m_英語: { PAS: 6 }, m_道徳: { STA: 6 },
 };
@@ -569,6 +577,9 @@ export const CPU_LEVELS = [
   { id: 'hard', name: 'つよい', power: 72, club: 'ストロング ワンダラーズ' },
   { id: 'boss', name: 'ボス', power: 95, club: 'レジェンド オールスターズ' },
   { id: 'god', name: 'ちょうつよい', power: 110, club: 'ドリーム レジェンズ' },
+  { id: 'gold', name: 'ごくつよい', power: 150, club: 'ゴールデン オールスターズ' },
+  { id: 'myth', name: 'でんせつ', power: 260, club: 'ミソロジー FC' },
+  { id: 'omega', name: 'さいきょう', power: 420, club: 'オメガ ゴッズ' },
 ];
 // style: att = こうげき タイプ(まもりが うすい)/ def = まもり タイプ(こうげきが うすい)/ bal = バランス
 const STYLE_MUL = { att: { SHO: 1.12, PAS: 1.1, SPD: 1.06, DEF: 0.88, STA: 0.94 }, def: { SHO: 0.88, PAS: 0.94, SPD: 0.96, DEF: 1.12, STA: 1.08 }, bal: {} };
@@ -670,6 +681,22 @@ export const CUPS = [
     { label: '準決勝', name: 'ちょうしんせい オールスターズ', power: 324, style: 'bal', reward: { platinum: 3 } },
     { label: '決勝', name: 'じくうの はしゃ', power: 340, style: 'def', reward: { platinum: 4 } },
     { label: '最終決戦', name: 'うちゅうの かみ コスモス', power: 360, style: 'att', reward: { platinum: 5 } },
+  ] },
+  // ---- さらに うえの ステージ ----
+  { id: 'multi', name: '多元宇宙大会', icon: '🌀', sub: 'いくつもの うちゅうの 最強が あつまった!', badge: 'cup_multi', final: { platinum: 12, gold: 12 }, rounds: [
+    { label: 'ならんだ せかい', name: 'パラレル ジャパン', power: 372, style: 'bal', reward: { platinum: 3 } },
+    { label: 'さかさまの せかい', name: 'ミラー ユナイテッド', power: 388, style: 'att', reward: { platinum: 3 } },
+    { label: 'じかんの せかい', name: 'クロノス クラブ', power: 405, style: 'def', reward: { platinum: 3 } },
+    { label: 'ゆめの せかい', name: 'ドリーム ワールド', power: 423, style: 'bal', reward: { platinum: 4 } },
+    { label: 'すべての せかい', name: 'マルチバース オールスターズ', power: 442, style: 'att', reward: { platinum: 5 } },
+  ] },
+  { id: 'god', name: '神々の たたかい', icon: '⚡', sub: 'かみさまたちと さいごの しょうぶ! ほんとうの さいきょうは だれだ', badge: 'cup_god', final: { platinum: 20, gold: 20 }, rounds: [
+    { label: '風の かみ', name: 'ウインド ゴッズ', power: 455, style: 'att', reward: { platinum: 3 } },
+    { label: '雷の かみ', name: 'サンダー ゴッズ', power: 475, style: 'att', reward: { platinum: 3 } },
+    { label: '海の かみ', name: 'オーシャン ゴッズ', power: 495, style: 'def', reward: { platinum: 4 } },
+    { label: '太陽の かみ', name: 'サン ゴッズ', power: 520, style: 'bal', reward: { platinum: 4 } },
+    { label: 'あらゆる かみ', name: 'オリンポス オールスターズ', power: 545, style: 'att', reward: { platinum: 5 } },
+    { label: '最終決戦', name: 'ぜんしゅの かみ ゼウス', power: 580, style: 'def', reward: { platinum: 8 } },
   ] },
 ];
 export const cupById = (id) => CUPS.find((c) => c.id === id);

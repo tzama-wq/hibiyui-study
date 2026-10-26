@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import {
   PLAYERS, RARITIES, TICKETS, LEGEND_RATES, TICKET_ORDER, STATS, rates, rollRarity, pull, levelOf, rngSeed,
   studyReward, earnStudyTickets, loginReward, claimLogin, nextBigLogin, emptyTickets, pityLeft, levelOfOwned, ABSORB_PTS, absorb, absorbPts, spareCopies, canAbsorbInto, capUpOf, effectiveStats, POS_CAP_STATS,
-  upgrade, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
+  upgrade, upgradeMany, upgradePlan, upgradeCost, kidStat, addPoints, teamBuff, BADGE_BUFFS, MAX_EQUIP, BUFF_CAP,
   teamSnapshot, ratings, simulate, cpuTeam, goalChance, SLOT_POS, TEAM_SIZE, migrateTeam,
   FORMATIONS, slotsOf, refitTeam, MAX_LEVEL, matchSummary, DIAMOND, diamondReq, claimDiamond, addShards, rarityRank, DIAMOND_CAP, enhance, enhCost, totalPoints, spendPoints, ENH_MAX, STAT_CAP, PLAYERS as ALLP, CUPS, MATCH_TICKET_CAP, cupById, cupUnlocked, cupRound, cupResult, ensureCup, shootout, winChance, cpuTeamAt, addTickets,
 } from '../game.js';
@@ -136,6 +136,7 @@ assert.ok(kidStat(100) > 99, '最大まで強化すると レジェンドより�
   assert.equal(upgrade(p, 'SHO'), false, 'ポイント不足');
   p.pts.PAS = 10_000; p.lv.PAS = 999;
   assert.equal(upgrade(p, 'PAS'), false, 'Lv999が上限');
+  { const q = { pts: { SHO: 1000, PAS: 3, SPD: 0, DEF: 0, STA: 0 }, lv: { SHO: 0, PAS: 0, SPD: 0, DEF: 0, STA: 0 } }; const pl = upgradePlan(q, 'SHO', 10); assert.deepEqual(pl, { count: 10, cost: 10 }, '10レベルぶんの ポイント'); assert.equal(upgradeMany(q, 'SHO', 10), 10); assert.equal(q.lv.SHO, 10); assert.equal(q.pts.SHO, 990); assert.equal(upgradeMany(q, 'PAS', 10), 3, 'たりなければ あげられる ぶんだけ'); assert.equal(upgradeMany(q, 'SPD', 10), 0); }
 }
 
 // ---- バフ ----
@@ -239,11 +240,11 @@ for (const f of FORMATIONS) {
 // ---- たいかい ----
 {
   const all = CUPS.flatMap((c) => c.rounds.map((r) => r.power));
-  assert.deepEqual(CUPS.map((c) => c.id), ['j', 'asia', 'kirin', 'wc', 'allstar', 'isekai', 'galaxy', 'universe']);
+  assert.deepEqual(CUPS.map((c) => c.id), ['j', 'asia', 'kirin', 'wc', 'allstar', 'isekai', 'galaxy', 'universe', 'multi', 'god']);
   for (const c of CUPS) for (let i = 1; i < c.rounds.length; i++) assert.ok(c.rounds[i].power > c.rounds[i - 1].power, `${c.name}: ラウンドごとに つよく なる`);
   const finals = CUPS.map((c) => c.rounds.at(-1).power);
   for (let i = 1; i < finals.length; i++) assert.ok(finals[i] > finals[i - 1], 'たいかいの けっしょうは じゅんばんに つよく なる');
-  assert.ok(Math.min(...all) <= 36 && Math.max(...all) >= 350, 'はばが ひろい');
+  assert.ok(Math.min(...all) <= 36 && Math.max(...all) >= 550, 'はばが ひろい');
   assert.ok(CUPS.every((c) => cupById(c.id).badge && BADGE_BUFFS[c.badge]), 'たいかいごとに メダルと バフ');
   assert.ok(CUPS.every((c) => c.rounds.every((r) => r.name && r.label && r.reward)));
   const p = { tickets: emptyTickets() };

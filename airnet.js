@@ -48,8 +48,9 @@ export function createGuestSim({ conn, mission, vehicle, pvp = false, me = 1, pa
   const foeOf = (id) => (id >= 1000 ? players[id - 1000].foe : S.enemies.find((e) => e.id === id) || null);
   players.forEach((p) => { p.foe = { id: 1000 + p.i, type: 'pl', dom: p.kind === 'plane' ? 'air' : p.kind === 'ship' ? 'sea' : 'ground', x: 0, y: 0, z: 0, pl: p }; });
   let last = null; let seen = 0; const emap = new Map();
+  let lastRx = 0; const startedAt = Date.now();
   const apply = (m) => {
-    last = m; seen++;
+    last = m; seen++; lastRx = Date.now();
     S.t = m.tm; S.ph = m.ph; S.done = !!m.dn; S.win = pvp ? m.wr === me : !!m.wn; S.winner = m.wr; S.stars = m.st; S.kills = m.k; S.banner = m.bn; S.bannerT = m.bt; S.msg = m.ms; S.msgT = m.mt; S.baseHurt = m.bh;
     S.base.hp = m.base[0]; S.base.hpMax = m.base[1]; S.waveI = m.wv;
     { const q = m.pl[me]; if (q && q.hp < players[me].hp) S.hurt = 0.35; }
@@ -75,7 +76,7 @@ export function createGuestSim({ conn, mission, vehicle, pvp = false, me = 1, pa
       for (const e of S.enemies) { if (Math.hypot(e.tx - e.x, e.tz - e.z) > 150) { e.x = e.tx; e.y = e.ty; e.z = e.tz; } else { e.x += (e.tx - e.x) * k; e.y += (e.ty - e.y) * k; e.z += (e.tz - e.z) * k; } }
       if (S.hurt > 0) S.hurt -= dt; sendT += dt; this._acc = (this._acc || 0) + dt; if (this._acc >= 0.033) { this._acc = 0; sendInput(false); } },
     fireMissile: () => ev('missile'), evade: () => ev('evade'), nextTarget: () => { ev('target'); }, aimAt() {},
-    seen: () => seen, lost: () => !conn.isOpen(),
+    seen: () => seen, lost: () => !conn.isOpen(), silent: () => Date.now() - (lastRx || startedAt) > 1500,
   };
 }
 void PLK;

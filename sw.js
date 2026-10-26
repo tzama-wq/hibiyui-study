@@ -1,4 +1,4 @@
-const CACHE = 'hibiyui-v16';
+const CACHE = 'hibiyui-v18';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'gen.js', 'sync.js', 'game.js', 'ui-game.js', 'manifest.webmanifest', 'icon.svg', 'match.js', 'playsim.js', 'play3d.js', 'stadium3d.js', 'airsim.js', 'air3d.js', 'vehicle3d.js', 'world3d.js', 'fx3d.js', 'airnet.js', 'playnet.js', 'net.js', 'ui-net.js', 'vendor/qrcode.js', 'vendor/jsQR.js', 'ui-sky.js', 'vendor/three.module.min.js'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
