@@ -1,6 +1,6 @@
 {
- "date": "2026-10-28",
- "part": 1,
+ "date": "2026-10-29",
+ "part": 0,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -19,193 +19,87 @@
   },
   "2": {
    "asked": 8,
-   "returned": 9,
-   "rejected": {
-    "wrong-shape": 1
-   },
+   "returned": 8,
+   "rejected": {},
    "unverified": 0,
    "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "kaki",
-      "kanji": "昼",
-      "target": "昼休み",
-      "reading": "ひるやすみ",
-      "sentence": "昼休みに 広場で あそぶ。",
-      "explain": "「ひるやすみ」の「ひる」は「昼」と 書きます。",
-      "wrong": [
-       {
-        "text": "日休み",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "画休み",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "夜休み",
-        "tag": "similar_word"
-       }
-      ]
-     }
-    }
-   ],
+   "rounds": 1,
+   "samples": [],
    "missing": 0
   },
   "3": {
    "asked": 8,
    "returned": 9,
    "rejected": {
-    "wrong-kanji-out-of-grade": 1
-   },
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "所",
-      "target": "場所",
-      "reading": "ばしょ",
-      "sentence": "集まる場所をきめる。",
-      "explain": "「ばしょ」の「しょ」は「所」と書きます。",
-      "wrong": [
-       {
-        "text": "場戸",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "場書",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "場初",
-        "tag": "similar_sound"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 0
-  },
-  "4": {
-   "asked": 8,
-   "returned": 11,
-   "rejected": {
-    "wrong-shape": 3,
-    "wrong-kanji-out-of-grade": 1
+    "target-not-once": 1,
+    "wrong-dup": 1
    },
    "unverified": 0,
    "accepted": 7,
    "rounds": 2,
    "samples": [
     {
-     "reason": "wrong-shape",
+     "reason": "target-not-once",
      "item": {
       "type": "yomi",
-      "kanji": "底",
-      "target": "川底",
-      "reading": "かわぞこ",
-      "sentence": "川底の いしを ひろう。",
-      "explain": "「底」は「そこ」とよみます。",
+      "kanji": "暗",
+      "target": "暗い",
+      "reading": "くらい",
+      "sentence": "外が 暗くなった。",
+      "explain": "「暗い」は「くらい」と 読見ます。",
       "wrong": [
        {
-        "text": "かわそこ",
+        "text": "ぐらい",
         "tag": "dakuten"
        },
        {
-        "text": "かわどこ",
-        "tag": "similar_sound"
+        "text": "あんい",
+        "tag": "onkun_mix"
        },
        {
-        "text": "かわすこ",
+        "text": "くるい",
         "tag": "other"
        }
       ]
      }
     },
     {
-     "reason": "wrong-shape",
+     "reason": "wrong-dup",
      "item": {
       "type": "yomi",
-      "kanji": "康",
-      "target": "健康",
-      "reading": "けんこう",
-      "sentence": "健康のために あさ はしる。",
-      "explain": "「康」は「こう」とよみます。",
+      "kanji": "暗",
+      "target": "暗い",
+      "reading": "くらい",
+      "sentence": "よるになってへやの中が暗い。",
+      "explain": "よるや、ひかりがとどかないところは「くらい」とよみます。",
       "wrong": [
        {
-        "text": "けんこ",
-        "tag": "long_vowel"
+        "text": "あん",
+        "tag": "onkun_mix"
        },
        {
-        "text": "けんごう",
+        "text": "くらい",
+        "tag": "other"
+       },
+       {
+        "text": "ぐらい",
         "tag": "dakuten"
-       },
-       {
-        "text": "かんこう",
-        "tag": "similar_sound"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "径",
-      "target": "半径",
-      "reading": "はんけい",
-      "sentence": "円の 半径を じょうぎで はかる。",
-      "explain": "「径」は「けい」とよみます。",
-      "wrong": [
-       {
-        "text": "はんかい",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "はんけ",
-        "tag": "long_vowel"
-       },
-       {
-        "text": "ほんけい",
-        "tag": "similar_sound"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "康",
-      "target": "健康",
-      "reading": "けんこう",
-      "sentence": "まいにち健康に気をつけます。",
-      "explain": "「けんこう」の「こう」の漢字は「康」です。",
-      "wrong": [
-       {
-        "text": "建こう",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "兼こう",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "見こう",
-        "tag": "similar_sound"
        }
       ]
      }
     }
    ],
    "missing": 1
+  },
+  "4": {
+   "asked": 8,
+   "returned": 9,
+   "rejected": {},
+   "unverified": 1,
+   "accepted": 8,
+   "rounds": 2,
+   "samples": [],
+   "missing": 0
   }
  }
 }
