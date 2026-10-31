@@ -1,6 +1,6 @@
 {
- "date": "2026-10-29",
- "part": 0,
+ "date": "2026-10-31",
+ "part": 1,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -29,75 +29,21 @@
   },
   "3": {
    "asked": 8,
-   "returned": 9,
-   "rejected": {
-    "target-not-once": 1,
-    "wrong-dup": 1
-   },
+   "returned": 8,
+   "rejected": {},
    "unverified": 0,
-   "accepted": 7,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "target-not-once",
-     "item": {
-      "type": "yomi",
-      "kanji": "暗",
-      "target": "暗い",
-      "reading": "くらい",
-      "sentence": "外が 暗くなった。",
-      "explain": "「暗い」は「くらい」と 読見ます。",
-      "wrong": [
-       {
-        "text": "ぐらい",
-        "tag": "dakuten"
-       },
-       {
-        "text": "あんい",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "くるい",
-        "tag": "other"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-dup",
-     "item": {
-      "type": "yomi",
-      "kanji": "暗",
-      "target": "暗い",
-      "reading": "くらい",
-      "sentence": "よるになってへやの中が暗い。",
-      "explain": "よるや、ひかりがとどかないところは「くらい」とよみます。",
-      "wrong": [
-       {
-        "text": "あん",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "くらい",
-        "tag": "other"
-       },
-       {
-        "text": "ぐらい",
-        "tag": "dakuten"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 1
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
   },
   "4": {
    "asked": 8,
-   "returned": 9,
+   "returned": 8,
    "rejected": {},
-   "unverified": 1,
+   "unverified": 0,
    "accepted": 8,
-   "rounds": 2,
+   "rounds": 1,
    "samples": [],
    "missing": 0
   }
