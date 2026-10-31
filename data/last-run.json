@@ -1,6 +1,6 @@
 {
- "date": "2026-10-31",
- "part": 1,
+ "date": "2026-11-01",
+ "part": 0,
  "models": [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -9,43 +9,280 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 8,
+   "returned": 9,
    "rejected": {},
-   "unverified": 0,
+   "unverified": 1,
    "accepted": 8,
-   "rounds": 1,
+   "rounds": 2,
    "samples": [],
    "missing": 0
   },
   "2": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 11,
+   "rejected": {
+    "wrong-shape": 1,
+    "sentence-kanji-out-of-grade": 2,
+    "explain-kanji-out-of-grade": 1
+   },
    "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
+   "accepted": 7,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "語",
+      "target": "国語",
+      "reading": "こくご",
+      "sentence": "きょうは 国語の じかんが ある。",
+      "explain": "「こくご」は「国語」と かきます。",
+      "wrong": [
+       {
+        "text": "国言",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "国話",
+        "tag": "similar_word"
+       },
+       {
+        "text": "国記",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "買",
+      "target": "買物",
+      "reading": "かいもの",
+      "sentence": "ははと いっしょに 買物へ いく。",
+      "explain": "「買物」は「かいもの」と よみます。",
+      "wrong": [
+       {
+        "text": "がいもの",
+        "tag": "dakuten"
+       },
+       {
+        "text": "かいぶつ",
+        "tag": "similar_word"
+       },
+       {
+        "text": "ばいもの",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "近",
+      "target": "近所",
+      "reading": "きんじょ",
+      "sentence": "近所の いぬと あそぶ。",
+      "explain": "「近所」は「きんじょ」と よみます。",
+      "wrong": [
+       {
+        "text": "ちかしょ",
+        "tag": "onkun_mix"
+       },
+       {
+        "text": "きんしょ",
+        "tag": "dakuten"
+       },
+       {
+        "text": "ちかじょ",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "買",
+      "target": "買い",
+      "reading": "かい",
+      "sentence": "妹は パンを 買いに 行きます。",
+      "explain": "「かい」は「買」という 漢字を 書きます。",
+      "wrong": [
+       {
+        "text": "貝い",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "会い",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "売り",
+        "tag": "other"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 1
   },
   "3": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 13,
+   "rejected": {
+    "wrong-shape": 5,
+    "sentence-kanji-out-of-grade": 1
+   },
    "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
+   "accepted": 7,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "皿",
+      "target": "皿",
+      "reading": "さら",
+      "sentence": "新しい皿を使う。",
+      "explain": "「皿」は、「さら」と読みます。",
+      "wrong": [
+       {
+        "text": "ざら",
+        "tag": "dakuten"
+       },
+       {
+        "text": "さろ",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "さらん",
+        "tag": "other"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "相",
+      "target": "相談",
+      "reading": "そうだん",
+      "sentence": "先生に相談する。",
+      "explain": "「そうだん」の「そう」は「相」と書きます。",
+      "wrong": [
+       {
+        "text": "想談",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "箱談",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "対談",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "県",
+      "target": "県",
+      "reading": "けん",
+      "sentence": "わたしがすむ県。",
+      "explain": "「県」は、「けん」と読みます。",
+      "wrong": [
+       {
+        "text": "かん",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "けい",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "げん",
+        "tag": "dakuten"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "短",
+      "target": "短い",
+      "reading": "みじかい",
+      "sentence": "このえんぴつは短い。",
+      "explain": "「みじかい」は「短」と書きます。",
+      "wrong": [
+       {
+        "text": "知い",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "矢い",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "細い",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 1
   },
   "4": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
+   "returned": 9,
+   "rejected": {
+    "wrong-shape": 1
+   },
+   "unverified": 1,
+   "accepted": 7,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "牧",
+      "target": "牧場",
+      "reading": "ぼくじょう",
+      "sentence": "牧場で 牛に えさを やる。",
+      "explain": "「牧場」は「ぼくじょう」と よみます。",
+      "wrong": [
+       {
+        "text": "ぼくじよう",
+        "tag": "small_kana"
+       },
+       {
+        "text": "もくじょう",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "ぼくぞう",
+        "tag": "dakuten"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 1
   }
  }
 }
