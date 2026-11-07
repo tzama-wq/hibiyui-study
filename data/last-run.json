@@ -1,5 +1,5 @@
 {
- "date": "2026-11-04",
+ "date": "2026-11-07",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -23,47 +23,152 @@
    "rejected": {
     "wrong-shape": 1
    },
-   "unverified": 0,
-   "accepted": 8,
+   "unverified": 1,
+   "accepted": 7,
    "rounds": 2,
    "samples": [
     {
      "reason": "wrong-shape",
      "item": {
-      "type": "kaki",
-      "kanji": "原",
-      "target": "野原",
-      "reading": "のはら",
-      "sentence": "広い野原を走る。",
-      "explain": "「のはら」は「野原」とかきます。",
+      "type": "yomi",
+      "kanji": "才",
+      "target": "天才",
+      "reading": "てんさい",
+      "sentence": "兄は天才かもしれない。",
+      "explain": "「天才」は「てんさい」とよみます。「才」は「さい」とよみます。",
       "wrong": [
        {
-        "text": "野田",
-        "tag": "similar_word"
+        "text": "てんざい",
+        "tag": "dakuten"
        },
        {
-        "text": "野白",
-        "tag": "similar_kanji"
+        "text": "てんせい",
+        "tag": "similar_sound"
        },
        {
-        "text": "野本",
-        "tag": "other"
+        "text": "てんしゃい",
+        "tag": "small_kana"
        }
       ]
      }
     }
    ],
-   "missing": 0
+   "missing": 1
   },
   "3": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
+   "returned": 12,
+   "rejected": {
+    "sentence-kanji-out-of-grade": 2,
+    "target-not-once": 2,
+    "wrong-shape": 1
+   },
+   "unverified": 1,
+   "accepted": 6,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "反",
+      "target": "反対",
+      "reading": "はんたい",
+      "sentence": "友達と反対のほうこうへあるく。",
+      "explain": "「反対」は「はんたい」とよみます。",
+      "wrong": [
+       {
+        "text": "はんだい",
+        "tag": "dakuten"
+       },
+       {
+        "text": "はんてい",
+        "tag": "similar_word"
+       },
+       {
+        "text": "ほんたい",
+        "tag": "other"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "target-not-once",
+     "item": {
+      "type": "kaki",
+      "kanji": "取",
+      "target": "取る",
+      "reading": "とる",
+      "sentence": "本を手に取ってよむ。",
+      "explain": "「とる」は「取」の漢字をつかって「取る」と書きます。",
+      "wrong": [
+       {
+        "text": "受る",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "通る",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "助る",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "target-not-once",
+     "item": {
+      "type": "yomi",
+      "kanji": "向",
+      "target": "向かう",
+      "reading": "むかう",
+      "sentence": "学校に向かって歩く。",
+      "explain": "「向かう」は「むかう」とよみます。",
+      "wrong": [
+       {
+        "text": "こうかう",
+        "tag": "onkun_mix"
+       },
+       {
+        "text": "むがう",
+        "tag": "dakuten"
+       },
+       {
+        "text": "むこう",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "君",
+      "target": "君",
+      "reading": "きみ",
+      "sentence": "君と手をつないで歩く。",
+      "explain": "「きみ」は「君」の漢字をつかって「君」と書きます。",
+      "wrong": [
+       {
+        "text": "右",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "名",
+        "tag": "similar_word"
+       },
+       {
+        "text": "口",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 2
   },
   "4": {
    "asked": 8,
