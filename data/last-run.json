@@ -1,5 +1,5 @@
 {
- "date": "2026-11-07",
+ "date": "2026-11-09",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -9,6 +9,132 @@
  "grades": {
   "1": {
    "asked": 8,
+   "returned": 9,
+   "rejected": {},
+   "unverified": 1,
+   "accepted": 8,
+   "rounds": 2,
+   "samples": [],
+   "missing": 0
+  },
+  "2": {
+   "asked": 8,
+   "returned": 14,
+   "rejected": {
+    "sentence-kanji-out-of-grade": 3,
+    "explain-kanji-out-of-grade": 2,
+    "wrong-kanji-out-of-grade": 3,
+    "wrong-shape": 1
+   },
+   "unverified": 0,
+   "accepted": 5,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "用",
+      "target": "用事",
+      "reading": "ようじ",
+      "sentence": "きょうは だいじな 用事がある。",
+      "explain": "「用事」は「ようじ」と よみます。",
+      "wrong": [
+       {
+        "text": "ようし",
+        "tag": "dakuten"
+       },
+       {
+        "text": "よじ",
+        "tag": "long_vowel"
+       },
+       {
+        "text": "つぎごう",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "画",
+      "target": "画家",
+      "reading": "がか",
+      "sentence": "しょうらい 画家に なりたい。",
+      "explain": "えを かく ひとは 漢字で「画家」と かきます。",
+      "wrong": [
+       {
+        "text": "画科",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "画歌",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "図家",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "yomi",
+      "kanji": "番",
+      "target": "番号",
+      "reading": "ばんごう",
+      "sentence": "じぶんの 番号を たしかめる。",
+      "explain": "「番号」は「ばんごう」と よみます。",
+      "wrong": [
+       {
+        "text": "はんごう",
+        "tag": "dakuten"
+       },
+       {
+        "text": "ばんご",
+        "tag": "long_vowel"
+       },
+       {
+        "text": "つがいごう",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "直",
+      "target": "直す",
+      "reading": "なおす",
+      "sentence": "こわれた おもちゃを 直す。",
+      "explain": "もとに もどす ときは「直す」と かきます。",
+      "wrong": [
+       {
+        "text": "真す",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "具す",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "正す",
+        "tag": "other"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 3
+  },
+  "3": {
+   "asked": 8,
    "returned": 8,
    "rejected": {},
    "unverified": 0,
@@ -16,159 +142,6 @@
    "rounds": 1,
    "samples": [],
    "missing": 0
-  },
-  "2": {
-   "asked": 8,
-   "returned": 9,
-   "rejected": {
-    "wrong-shape": 1
-   },
-   "unverified": 1,
-   "accepted": 7,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "才",
-      "target": "天才",
-      "reading": "てんさい",
-      "sentence": "兄は天才かもしれない。",
-      "explain": "「天才」は「てんさい」とよみます。「才」は「さい」とよみます。",
-      "wrong": [
-       {
-        "text": "てんざい",
-        "tag": "dakuten"
-       },
-       {
-        "text": "てんせい",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "てんしゃい",
-        "tag": "small_kana"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 1
-  },
-  "3": {
-   "asked": 8,
-   "returned": 12,
-   "rejected": {
-    "sentence-kanji-out-of-grade": 2,
-    "target-not-once": 2,
-    "wrong-shape": 1
-   },
-   "unverified": 1,
-   "accepted": 6,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "sentence-kanji-out-of-grade",
-     "item": {
-      "type": "yomi",
-      "kanji": "反",
-      "target": "反対",
-      "reading": "はんたい",
-      "sentence": "友達と反対のほうこうへあるく。",
-      "explain": "「反対」は「はんたい」とよみます。",
-      "wrong": [
-       {
-        "text": "はんだい",
-        "tag": "dakuten"
-       },
-       {
-        "text": "はんてい",
-        "tag": "similar_word"
-       },
-       {
-        "text": "ほんたい",
-        "tag": "other"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "target-not-once",
-     "item": {
-      "type": "kaki",
-      "kanji": "取",
-      "target": "取る",
-      "reading": "とる",
-      "sentence": "本を手に取ってよむ。",
-      "explain": "「とる」は「取」の漢字をつかって「取る」と書きます。",
-      "wrong": [
-       {
-        "text": "受る",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "通る",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "助る",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "target-not-once",
-     "item": {
-      "type": "yomi",
-      "kanji": "向",
-      "target": "向かう",
-      "reading": "むかう",
-      "sentence": "学校に向かって歩く。",
-      "explain": "「向かう」は「むかう」とよみます。",
-      "wrong": [
-       {
-        "text": "こうかう",
-        "tag": "onkun_mix"
-       },
-       {
-        "text": "むがう",
-        "tag": "dakuten"
-       },
-       {
-        "text": "むこう",
-        "tag": "similar_word"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "kaki",
-      "kanji": "君",
-      "target": "君",
-      "reading": "きみ",
-      "sentence": "君と手をつないで歩く。",
-      "explain": "「きみ」は「君」の漢字をつかって「君」と書きます。",
-      "wrong": [
-       {
-        "text": "右",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "名",
-        "tag": "similar_word"
-       },
-       {
-        "text": "口",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 2
   },
   "4": {
    "asked": 8,
