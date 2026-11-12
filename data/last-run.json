@@ -1,5 +1,5 @@
 {
- "date": "2026-11-09",
+ "date": "2026-11-12",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -9,148 +9,123 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 9,
+   "returned": 8,
    "rejected": {},
-   "unverified": 1,
+   "unverified": 0,
    "accepted": 8,
-   "rounds": 2,
+   "rounds": 1,
    "samples": [],
    "missing": 0
   },
   "2": {
    "asked": 8,
-   "returned": 14,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
+   "missing": 0
+  },
+  "3": {
+   "asked": 8,
+   "returned": 10,
    "rejected": {
-    "sentence-kanji-out-of-grade": 3,
-    "explain-kanji-out-of-grade": 2,
-    "wrong-kanji-out-of-grade": 3,
-    "wrong-shape": 1
+    "wrong-shape": 2
    },
    "unverified": 0,
-   "accepted": 5,
+   "accepted": 8,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "注",
+      "target": "注意",
+      "reading": "ちゅうい",
+      "sentence": "車に注意してあるく。",
+      "explain": "「注意」は「ちゅうい」とよみます。",
+      "wrong": [
+       {
+        "text": "ちょうい",
+        "tag": "small_kana"
+       },
+       {
+        "text": "しゅうい",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "ちゆい",
+        "tag": "small_kana"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "消",
+      "target": "消す",
+      "reading": "けす",
+      "sentence": "電気を消す。",
+      "explain": "「消す」は「けす」とよみます。",
+      "wrong": [
+       {
+        "text": "きす",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "こす",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "しょうす",
+        "tag": "onkun_mix"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 0
+  },
+  "4": {
+   "asked": 8,
+   "returned": 9,
+   "rejected": {
+    "sentence-kanji-out-of-grade": 1
+   },
+   "unverified": 0,
+   "accepted": 8,
    "rounds": 2,
    "samples": [
     {
      "reason": "sentence-kanji-out-of-grade",
      "item": {
       "type": "yomi",
-      "kanji": "用",
-      "target": "用事",
-      "reading": "ようじ",
-      "sentence": "きょうは だいじな 用事がある。",
-      "explain": "「用事」は「ようじ」と よみます。",
+      "kanji": "標",
+      "target": "標識",
+      "reading": "ひょうしき",
+      "sentence": "道で標識を見ました。",
+      "explain": "「ひょう」とよみます。",
       "wrong": [
        {
-        "text": "ようし",
+        "text": "びょうしき",
         "tag": "dakuten"
        },
        {
-        "text": "よじ",
-        "tag": "long_vowel"
+        "text": "ほうしき",
+        "tag": "similar_word"
        },
        {
-        "text": "つぎごう",
-        "tag": "onkun_mix"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "explain-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "画",
-      "target": "画家",
-      "reading": "がか",
-      "sentence": "しょうらい 画家に なりたい。",
-      "explain": "えを かく ひとは 漢字で「画家」と かきます。",
-      "wrong": [
-       {
-        "text": "画科",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "画歌",
-        "tag": "similar_sound"
-       },
-       {
-        "text": "図家",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "sentence-kanji-out-of-grade",
-     "item": {
-      "type": "yomi",
-      "kanji": "番",
-      "target": "番号",
-      "reading": "ばんごう",
-      "sentence": "じぶんの 番号を たしかめる。",
-      "explain": "「番号」は「ばんごう」と よみます。",
-      "wrong": [
-       {
-        "text": "はんごう",
-        "tag": "dakuten"
-       },
-       {
-        "text": "ばんご",
-        "tag": "long_vowel"
-       },
-       {
-        "text": "つがいごう",
-        "tag": "onkun_mix"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "直",
-      "target": "直す",
-      "reading": "なおす",
-      "sentence": "こわれた おもちゃを 直す。",
-      "explain": "もとに もどす ときは「直す」と かきます。",
-      "wrong": [
-       {
-        "text": "真す",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "具す",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "正す",
-        "tag": "other"
+        "text": "とうしき",
+        "tag": "similar_word"
        }
       ]
      }
     }
    ],
-   "missing": 3
-  },
-  "3": {
-   "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
-  },
-  "4": {
-   "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
    "missing": 0
   }
  }
