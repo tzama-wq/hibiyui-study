@@ -1,5 +1,5 @@
 {
- "date": "2026-11-13",
+ "date": "2026-11-15",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -21,7 +21,70 @@
    "asked": 8,
    "returned": 10,
    "rejected": {
-    "wrong-shape": 1,
+    "wrong-shape": 2
+   },
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "園",
+      "target": "公園",
+      "reading": "こうえん",
+      "sentence": "日曜日に公園へ行く。",
+      "explain": "「公園」は「こうえん」と よみます。",
+      "wrong": [
+       {
+        "text": "ごうえん",
+        "tag": "dakuten"
+       },
+       {
+        "text": "こえん",
+        "tag": "long_vowel"
+       },
+       {
+        "text": "こうおん",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "夏",
+      "target": "夏休み",
+      "reading": "なつやすみ",
+      "sentence": "夏休みがたのしみだ。",
+      "explain": "「なつやすみ」は「夏休み」と かきます。",
+      "wrong": [
+       {
+        "text": "冬休み",
+        "tag": "similar_word"
+       },
+       {
+        "text": "麦休み",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "夏体み",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 0
+  },
+  "3": {
+   "asked": 8,
+   "returned": 11,
+   "rejected": {
+    "wrong-shape": 2,
     "wrong-kanji-out-of-grade": 1
    },
    "unverified": 0,
@@ -32,22 +95,22 @@
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "体",
-      "target": "体",
-      "reading": "からだ",
-      "sentence": "毎日 体を うごかします。",
-      "explain": "「体」は「からだ」と よみます。",
+      "kanji": "育",
+      "target": "育てる",
+      "reading": "そだてる",
+      "sentence": "はなのたねを育てる。",
+      "explain": "「育てる」は「そだてる」とよみます。",
       "wrong": [
        {
-        "text": "がらだ",
-        "tag": "dakuten"
-       },
-       {
-        "text": "かただ",
+        "text": "すだてる",
         "tag": "similar_sound"
        },
        {
-        "text": "ていた",
+        "text": "そだでる",
+        "tag": "dakuten"
+       },
+       {
+        "text": "いくてる",
         "tag": "onkun_mix"
        }
       ]
@@ -57,61 +120,48 @@
      "reason": "wrong-kanji-out-of-grade",
      "item": {
       "type": "kaki",
-      "kanji": "何",
-      "target": "何",
-      "reading": "なに",
-      "sentence": "手の中に 何が ありますか。",
-      "explain": "「なに」は「何」と かきます。",
+      "kanji": "苦",
+      "target": "苦い",
+      "reading": "にがい",
+      "sentence": "苦いくすりをのむ。",
+      "explain": "「にがい」は「苦い」とかきます。",
       "wrong": [
        {
-        "text": "向",
+        "text": "草い",
         "tag": "similar_kanji"
        },
        {
-        "text": "同",
+        "text": "告い",
         "tag": "similar_kanji"
        },
        {
-        "text": "南",
-        "tag": "other"
+        "text": "具い",
+        "tag": "similar_kanji"
        }
       ]
      }
-    }
-   ],
-   "missing": 0
-  },
-  "3": {
-   "asked": 8,
-   "returned": 10,
-   "rejected": {
-    "wrong-shape": 1
-   },
-   "unverified": 1,
-   "accepted": 8,
-   "rounds": 2,
-   "samples": [
+    },
     {
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "病",
-      "target": "病気",
-      "reading": "びょうき",
-      "sentence": "病気がすっかりなおる。",
-      "explain": "病気の「病」は「びょう」とよみます。",
+      "kanji": "荷",
+      "target": "荷物",
+      "reading": "にもつ",
+      "sentence": "重い荷物をはこぶ。",
+      "explain": "「荷物」は「にもつ」とよみます。",
       "wrong": [
        {
-        "text": "ひょうき",
+        "text": "はもつ",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "にもづ",
         "tag": "dakuten"
        },
        {
-        "text": "びようき",
-        "tag": "small_kana"
-       },
-       {
-        "text": "へいき",
-        "tag": "similar_sound"
+        "text": "かぶつ",
+        "tag": "onkun_mix"
        }
       ]
      }
@@ -121,12 +171,65 @@
   },
   "4": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
+   "returned": 11,
+   "rejected": {
+    "wrong-shape": 2
+   },
+   "unverified": 1,
    "accepted": 8,
-   "rounds": 1,
-   "samples": [],
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "老",
+      "target": "老人",
+      "reading": "ろうじん",
+      "sentence": "老人が こうえんを あるいている。",
+      "explain": "「老」は「ろう」と よみます。",
+      "wrong": [
+       {
+        "text": "おいじん",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "ろうしん",
+        "tag": "dakuten"
+       },
+       {
+        "text": "ろうじーん",
+        "tag": "long_vowel"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "良",
+      "target": "良好",
+      "reading": "りょうこう",
+      "sentence": "体の 調子が 良好だ。",
+      "explain": "「良」は「りょう」と よみます。",
+      "wrong": [
+       {
+        "text": "りょこう",
+        "tag": "small_kana"
+       },
+       {
+        "text": "りょうごう",
+        "tag": "dakuten"
+       },
+       {
+        "text": "ろうこう",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   }
  }
