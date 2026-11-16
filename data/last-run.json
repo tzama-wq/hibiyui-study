@@ -1,5 +1,5 @@
 {
- "date": "2026-11-15",
+ "date": "2026-11-16",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -19,73 +19,19 @@
   },
   "2": {
    "asked": 8,
-   "returned": 10,
-   "rejected": {
-    "wrong-shape": 2
-   },
+   "returned": 8,
+   "rejected": {},
    "unverified": 0,
    "accepted": 8,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "園",
-      "target": "公園",
-      "reading": "こうえん",
-      "sentence": "日曜日に公園へ行く。",
-      "explain": "「公園」は「こうえん」と よみます。",
-      "wrong": [
-       {
-        "text": "ごうえん",
-        "tag": "dakuten"
-       },
-       {
-        "text": "こえん",
-        "tag": "long_vowel"
-       },
-       {
-        "text": "こうおん",
-        "tag": "similar_sound"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "kaki",
-      "kanji": "夏",
-      "target": "夏休み",
-      "reading": "なつやすみ",
-      "sentence": "夏休みがたのしみだ。",
-      "explain": "「なつやすみ」は「夏休み」と かきます。",
-      "wrong": [
-       {
-        "text": "冬休み",
-        "tag": "similar_word"
-       },
-       {
-        "text": "麦休み",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "夏体み",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    }
-   ],
+   "rounds": 1,
+   "samples": [],
    "missing": 0
   },
   "3": {
    "asked": 8,
-   "returned": 11,
+   "returned": 9,
    "rejected": {
-    "wrong-shape": 2,
-    "wrong-kanji-out-of-grade": 1
+    "wrong-shape": 1
    },
    "unverified": 0,
    "accepted": 8,
@@ -95,73 +41,23 @@
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "育",
-      "target": "育てる",
-      "reading": "そだてる",
-      "sentence": "はなのたねを育てる。",
-      "explain": "「育てる」は「そだてる」とよみます。",
+      "kanji": "農",
+      "target": "農家",
+      "reading": "のうか",
+      "sentence": "農家でおこめをつくる。",
+      "explain": "「農家」は「のうか」とよみます。",
       "wrong": [
        {
-        "text": "すだてる",
-        "tag": "similar_sound"
+        "text": "のか",
+        "tag": "long_vowel"
        },
        {
-        "text": "そだでる",
+        "text": "のうが",
         "tag": "dakuten"
        },
        {
-        "text": "いくてる",
-        "tag": "onkun_mix"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "苦",
-      "target": "苦い",
-      "reading": "にがい",
-      "sentence": "苦いくすりをのむ。",
-      "explain": "「にがい」は「苦い」とかきます。",
-      "wrong": [
-       {
-        "text": "草い",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "告い",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "具い",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "荷",
-      "target": "荷物",
-      "reading": "にもつ",
-      "sentence": "重い荷物をはこぶ。",
-      "explain": "「荷物」は「にもつ」とよみます。",
-      "wrong": [
-       {
-        "text": "はもつ",
+        "text": "のうかい",
         "tag": "similar_sound"
-       },
-       {
-        "text": "にもづ",
-        "tag": "dakuten"
-       },
-       {
-        "text": "かぶつ",
-        "tag": "onkun_mix"
        }
       ]
      }
@@ -171,35 +67,36 @@
   },
   "4": {
    "asked": 8,
-   "returned": 11,
+   "returned": 12,
    "rejected": {
-    "wrong-shape": 2
+    "wrong-shape": 5,
+    "wrong-kanji-out-of-grade": 1
    },
-   "unverified": 1,
-   "accepted": 8,
+   "unverified": 0,
+   "accepted": 6,
    "rounds": 2,
    "samples": [
     {
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "老",
-      "target": "老人",
-      "reading": "ろうじん",
-      "sentence": "老人が こうえんを あるいている。",
-      "explain": "「老」は「ろう」と よみます。",
+      "kanji": "訓",
+      "target": "訓読み",
+      "reading": "くんよみ",
+      "sentence": "この 漢字の 訓読みを 調べる。",
+      "explain": "「訓」は「くん」と読みます。",
       "wrong": [
        {
-        "text": "おいじん",
+        "text": "きんよみ",
         "tag": "similar_sound"
        },
        {
-        "text": "ろうしん",
-        "tag": "dakuten"
+        "text": "くんゆみ",
+        "tag": "similar_sound"
        },
        {
-        "text": "ろうじーん",
-        "tag": "long_vowel"
+        "text": "こうよみ",
+        "tag": "other"
        }
       ]
      }
@@ -208,29 +105,79 @@
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "良",
-      "target": "良好",
-      "reading": "りょうこう",
-      "sentence": "体の 調子が 良好だ。",
-      "explain": "「良」は「りょう」と よみます。",
+      "kanji": "説",
+      "target": "説明",
+      "reading": "せつめい",
+      "sentence": "先生の 説明を よく 聞く。",
+      "explain": "「説」は「せつ」と読みます。",
       "wrong": [
        {
-        "text": "りょこう",
-        "tag": "small_kana"
-       },
-       {
-        "text": "りょうごう",
+        "text": "ぜつめい",
         "tag": "dakuten"
        },
        {
-        "text": "ろうこう",
+        "text": "せつけい",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "せつみょう",
+        "tag": "other"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "象",
+      "target": "象",
+      "reading": "ぞう",
+      "sentence": "動物園で 象を 見た。",
+      "explain": "「ぞう」は「象」と書きます。",
+      "wrong": [
+       {
+        "text": "像",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "相",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "想",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "貨",
+      "target": "金貨",
+      "reading": "きんか",
+      "sentence": "大切な 金貨を 見せる。",
+      "explain": "「貨」は「か」と読みます。",
+      "wrong": [
+       {
+        "text": "ぎんか",
+        "tag": "dakuten"
+       },
+       {
+        "text": "きんが",
+        "tag": "dakuten"
+       },
+       {
+        "text": "きんけ",
         "tag": "similar_sound"
        }
       ]
      }
     }
    ],
-   "missing": 0
+   "missing": 2
   }
  }
 }
