@@ -21,10 +21,10 @@ export const GOD = 'god'; // 神チケット(べんきょうの ごほうびや 
 
 export const STATS = ['SHO', 'PAS', 'SPD', 'DEF', 'STA'];
 export const STAT_NAME = { SHO: 'シュート', PAS: 'パス', SPD: 'スピード', DEF: 'まもり', STA: 'スタミナ' };
-export const SUBJECT_STAT = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA', 英語: 'PAS', 道徳: 'STA' };
+export const SUBJECT_STAT = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA', 英語: 'PAS', 道徳: 'STA', サッカー: 'SHO' };
 // ポイントの たまる さき(がくねんで けいけんする 教科が ちがっても、ぜんぶの のうりょくが のびる ように、じゅんばんに わける)
 //  小2は 生活(理科・社会が ない)、小4は 理科・社会(生活が ない)。
-export const SUBJECT_STATS = { 算数: ['SHO'], 国語: ['PAS'], 理科: ['SPD', 'STA'], 社会: ['DEF', 'STA'], 生活: ['SPD', 'DEF', 'STA'], 英語: ['PAS'], 道徳: ['STA', 'DEF'] };
+export const SUBJECT_STATS = { 算数: ['SHO'], 国語: ['PAS'], 理科: ['SPD', 'STA'], 社会: ['DEF', 'STA'], 生活: ['SPD', 'DEF', 'STA'], 英語: ['PAS'], 道徳: ['STA', 'DEF'], サッカー: ['SHO', 'PAS'] };
 // 11にんで しあいをする(4-4-2)。じゅんばん: FW2 → MF4 → DF4 → GK1
 // フォーメーション: わくの じゅんばんは いつも FW → MF → DF → GK。かずが かわるだけ
 export const FORMATIONS = [
@@ -373,7 +373,7 @@ export const BADGE_BUFFS = {
   day3: { STA: 2 }, day7: { STA: 3 }, day30: { STA: 8 },
   hat: { SHO: 3, PAS: 2 }, perfect: { ALL: 3 }, comeback: { STA: 3, SPD: 2 }, time: { SPD: 3 }, hyp1: { ALL: 2 }, hyp5: { ALL: 4 }, kuku9: { SHO: 4, SPD: 2 }, cup_j: { ALL: 2 }, cup_asia: { ALL: 3 }, cup_kirin: { ALL: 4 }, cup_wc: { ALL: 6 }, cup_allstar: { ALL: 7 }, cup_isekai: { ALL: 8 }, cup_galaxy: { ALL: 9 }, cup_universe: { ALL: 12 }, cup_multi: { ALL: 14 }, cup_god: { ALL: 18 },
   rank2: { ALL: 2 }, rank4: { ALL: 3 }, rank5: { ALL: 5 }, rank_eu: { ALL: 4 }, rank_wc: { ALL: 5 }, rank_max: { ALL: 6 },
-  m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 }, m_英語: { PAS: 6 }, m_道徳: { STA: 6 },
+  m_算数: { SHO: 6 }, m_国語: { PAS: 6 }, m_理科: { SPD: 6 }, m_社会: { DEF: 6 }, m_生活: { STA: 6 }, m_英語: { PAS: 6 }, m_道徳: { STA: 6 }, m_サッカー: { SHO: 3, PAS: 3 },
 };
 export const MAX_EQUIP = 3;
 export const BUFF_CAP = 40;

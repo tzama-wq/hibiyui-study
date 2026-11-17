@@ -1,6 +1,8 @@
 import * as sync from './sync.js';
 import { addPoints, addTickets, addShards, cupById, ensureCup, emptyStatMap, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
+import { LESSONS, LEVEL_NAME } from './soccer-guide.js';
+import { figSvg } from './soccer-figs.js';
 import { skyInit, skyHome, hangarHtml, onSkyAct, ensureSky } from './ui-sky.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
 import { TAGS, unitsOf, skillsUpTo, byId, currentUnits, makeQuestion, makeQuestionTier, isCalcUnit, makeProbe, shuffle, registerKokugo, registerKnowledge, registerGeo, registerKanjiDrill, setKanjiStats, kanjiProgress, setSeen, KUKU_DAN } from './gen.js';
@@ -205,7 +207,7 @@ function buildSet(kid, mode, unitId) {
     const kdrill = kos.find((u) => u.kanjiDrill); const kctx = kos.find((u) => u.id === `g${kid.grade}_kanji`); const kother = kos.filter((u) => !u.kanjiDrill);
     const ko = kdrill || pickKo(); let ko2 = (() => { const r = Math.random(); return r < 0.4 && kdrill ? kdrill : r < 0.75 && kctx ? kctx : (kother.length ? kother[Math.floor(Math.random() * kother.length)] : pickKo()); })();
     const month = new Date().getMonth() + 1;
-    const know = unitsOf(kid.grade).filter((u) => ['理科', '社会', '生活', '英語', '道徳'].includes(u.subject) || (u.subject === '算数' && u.items)); // 算数の「ことがら」たんげんも まぜる
+    const know = unitsOf(kid.grade).filter((u) => ['理科', '社会', '生活', '英語', '道徳', 'サッカー'].includes(u.subject) || (u.subject === '算数' && u.items)); // 算数の「ことがら」たんげんも まぜる
     const knowNow = know.filter((u) => u.months.includes(month));
     const kpool = knowNow.length ? knowNow : know;
     const kn = kpool.length ? kpool[Math.floor(Math.random() * kpool.length)] : null;
@@ -415,7 +417,7 @@ const BADGES = [
   { id: 'rank_eu', icon: '🌍', name: 'ヨーロッパの スター', cond: (p) => rankOf(p.xp).i >= rankIdx('ヨーロッパの スター') },
   { id: 'rank_wc', icon: '🏆', name: 'ワールドカップの スター', cond: (p) => rankOf(p.xp).i >= rankIdx('ワールドカップの スター') },
   { id: 'rank_max', icon: '👑', name: 'サッカーの でんせつ', cond: (p) => rankOf(p.xp).i >= RANKS.length - 1 },
-  ...[['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱'], ['英語', '🔤'], ['道徳', '💛']].map(([sj, icon]) => (
+  ...[['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱'], ['英語', '🔤'], ['道徳', '💛'], ['サッカー', '⚽']].map(([sj, icon]) => (
     { id: `m_${sj}`, icon, name: `${sj}の プロ`, cond: (p, k) => masterCount(p, k, sj) >= 3 })),
 ];
 // ---- メダルを 3ばいに(まいにちの がんばり・九九・ちず・たいかい・ガチャ・きょうか・ランク) ----------------------------
@@ -424,7 +426,7 @@ const BADGES = [
   const cupTitles = (p) => Object.values((p.cup || {}).titles || {}).reduce((a, b) => a + b, 0);
   const owned = (p) => Object.keys(p.owned || {});
   const enhSum = (p) => Object.values(p.plv || {}).reduce((a, b) => a + b, 0);
-  const SP = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA', 英語: 'PAS', 道徳: 'STA' };
+  const SP = { 算数: 'SHO', 国語: 'PAS', 理科: 'SPD', 社会: 'DEF', 生活: 'STA', 英語: 'PAS', 道徳: 'STA', サッカー: 'SHO' };
   const more = []; const add = (id, icon, name, cond, buff) => more.push({ id, icon, name, cond, buff });
   [[500, '🏆', { SHO: 10 }], [1000, '💯', { SHO: 12 }], [2000, '🔥', { SHO: 14 }], [3000, '🌋', { SHO: 16 }]].forEach(([n, i, b]) => add(`goal${n}`, i, `${n}ゴール`, (p) => p.goals >= n, b));
   [[60, '📆', { STA: 10 }], [100, '💯', { STA: 12 }], [200, '🎖️', { STA: 14 }], [365, '🎆', { STA: 16 }]].forEach(([n, i, b]) => add(`day${n}`, i, n === 365 ? '1ねん れんしゅう' : `${n}日 れんしゅう`, (p) => p.days.length >= n, b));
@@ -452,7 +454,7 @@ const BADGES = [
   add('enhmax', '🔥', 'きょうか MAX', (p) => Object.values(p.plv || {}).some((v) => v >= ENH_MAX), { ALL: 5 });
   [['プロ1ねんめ', '🥅', { ALL: 2 }, 'rank_pro'], ['Jリーグ MVP', '🏅', { ALL: 3 }, 'rank_jmvp'], ['チャンピオンズリーグの スター', '🌟', { ALL: 5 }, 'rank_cl'], ['バロンドール', '🏆', { ALL: 6 }, 'rank_ballon']]
     .forEach(([nm, i, b, id]) => add(id, i, nm, (p) => rankOf(p.xp).i >= rankIdx(nm), b));
-  [['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱'], ['英語', '🔤'], ['道徳', '💛']].forEach(([sj, icon]) => {
+  [['算数', '🔢'], ['国語', '📖'], ['理科', '🔬'], ['社会', '🏙️'], ['生活', '🌱'], ['英語', '🔤'], ['道徳', '💛'], ['サッカー', '⚽']].forEach(([sj, icon]) => {
     add(`m10_${sj}`, icon, `${sj}の たつじん`, (p, k) => masterCount(p, k, sj) >= 10, { [SP[sj]]: 8 });
     add(`m20_${sj}`, icon, `${sj}の はかせ`, (p, k) => masterCount(p, k, sj) >= 20, { [SP[sj]]: 10 });
   });
@@ -586,8 +588,8 @@ setInterval(() => { if (sync.enabled() && document.visibilityState === 'visible'
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync.enabled()) syncNow(); });
 const MILESTONES = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000];
 const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'いま' : m < 60 ? `${m}ふん前` : m < 1440 ? `${Math.round(m / 60)}じかん前` : `${Math.round(m / 1440)}日前`; };
-const SUBJECT_ICON = { 算数: '🔢', 国語: '📖', 理科: '🔬', 社会: '🏙️', 生活: '🌱', 英語: '🔤', 道徳: '💛' };
-const SUBJECTS = ['算数', '国語', '理科', '社会', '生活', '英語', '道徳'];
+const SUBJECT_ICON = { 算数: '🔢', 国語: '📖', 理科: '🔬', 社会: '🏙️', 生活: '🌱', 英語: '🔤', 道徳: '💛', サッカー: '⚽' };
+const SUBJECTS = ['算数', '国語', '理科', '社会', '生活', '英語', '道徳', 'サッカー'];
 
 // ---- 選手カード(能力値) ----------------------------------------------------------
 // 教科ごとの「ほんとに できる 度合い」を 40〜99 の 能力値に する。ぜんぶ ⬜ なら 40 から スタート。
@@ -876,7 +878,7 @@ function vKid() {
   if (!S.pin) return vPinGate();
   const k = kidOf(); const p = S.kids[k.id]; refreshDay(p);
   let body;
-  if (tab === 'train') body = (cfg().gentle ? '' : labCard(k, p)) + kukuCard(k, p) + shapeCard(k, p) + timeMachineCard(k, p) + practiceCard(k, p);
+  if (tab === 'train') body = soccerSchoolCard(k, p) + (cfg().gentle ? '' : labCard(k, p)) + kukuCard(k, p) + shapeCard(k, p) + timeMachineCard(k, p) + practiceCard(k, p);
   else if (tab === 'gacha') body = gachaTab();
   else if (tab === 'team') body = p.gmode === 'sky' ? hangarHtml(k, p) : teamTab();
   else body = p.gmode === 'sky' ? skyHome(k, p) : homeTab(k, p);
@@ -900,6 +902,24 @@ function shapeCard(k, p) {
   return `<section class="panel"><h2 class="sec">QUIZ <small>かたち・はた あてクイズ</small></h2>
     <div class="muted">かたちや はたを みて、どこか あてよう! ${e ? 'ゆうめいな ところから だすよ。' : 'ぜんぶで 47都道府県と せかいの くにが でるよ。'}</div>
     <div class="row">${us.map((u) => `<button class="btn gold" data-act="start" data-mode="practice" data-unit="${u.id}">${u.id.includes('flag') ? '🚩 くにの はた' : u.id.includes('pref') ? '🗾 にほんの かたち' : '🌏 せかいの かたち'}</button>`).join('')}</div></section>`;
+}
+// ---- サッカーきょうしつ(ずかいつきの れんしゅう・テクニック + ルールもんだい) -----------------------------------
+function soccerSchoolCard(k, p) {
+  const done = (p.sc || {}).done || {}; const t = todayStr();
+  const ruleUnits = skillsUpTo(k.grade).filter((u) => u.subject === 'サッカー');
+  const stat = ruleUnits.length ? Math.round((ruleUnits.filter((u) => ['ok', 'sprout'].includes(status(p, u.id))).length / ruleUnits.length) * 100) : 0;
+  const lesson = (l) => { const d = done[l.id] || { n: 0, last: '' }; const today = d.last === t;
+    return `<details class="sc-lesson"><summary><span class="sc-ic">${l.icon}</span><b>${l.title}</b><span class="sc-lv lv${l.level}">${LEVEL_NAME[l.level]}</span>${d.n ? `<span class="sc-n">✅ ${d.n}かい</span>` : ''}</summary>
+      <div class="sc-body">${l.figs.map((f) => `<div class="sc-fig">${figSvg(f)}</div>`).join('')}
+        <p class="sc-goal">🎯 ${l.goal}</p>
+        <b>やりかた</b><ol>${l.steps.map((s2) => `<li>${s2}</li>`).join('')}</ol>
+        <b>コツ</b><ul>${l.tips.map((s2) => `<li>${s2}</li>`).join('')}</ul>
+        <p class="muted">⏱ めやす: ${l.menu}</p>
+        <button class="btn small ${today ? 'gray' : 'gold'}" data-act="scdone" data-id="${l.id}" ${today ? 'disabled' : ''}>${today ? '✅ きょうは やった!' : '💪 やってみた!(+ポイント)'}</button></div></details>`; };
+  return `<section class="panel sc-school"><h2 class="sec">SOCCER SCHOOL <small>サッカーきょうしつ</small></h2>
+    <div class="muted">ずかいを みて じっさいに やってみよう! まいにち すこしずつで うまくなるよ。${p.sc && p.sc.days ? ` れんしゅう ${p.sc.days}日` : ''}</div>
+    ${LESSONS.map(lesson).join('')}
+    ${ruleUnits.length ? `<h3 class="sec" style="margin-top:14px">RULES <small>ルール もんだい</small> <span class="chip">${stat}% マスター</span></h3><div class="sc-rules">${ruleUnits.map((u) => `<button class="btn small gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${u.name}</button>`).join('')}</div>` : ''}</section>`;
 }
 function practiceCard(k, p) {
   const btn = (u, label) => `<button class="btn gray" data-act="start" data-mode="practice" data-unit="${u.id}">${ICON[status(p, u.id)]} ${label}</button>`;
@@ -1418,6 +1438,11 @@ document.addEventListener('click', (e) => {
   else if (a === 'bind') {
     if (!askPin()) return;
     S.bound = el.dataset.id; kidId = S.bound; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
+  }
+  else if (a === 'scdone') {
+    const id = el.dataset.id; const l = LESSONS.find((x) => x.id === id); if (!l) return;
+    const p = S.kids[kidId]; const t = todayStr(); p.sc = p.sc || { done: {}, days: 0, last: '' }; const d = (p.sc.done[id] = p.sc.done[id] || { n: 0, last: '' });
+    if (d.last !== t) { d.n++; d.last = t; if (p.sc.last !== t) { p.sc.days++; p.sc.last = t; } p.xp += 8; const st = addPoints(p, 'サッカー', 2); if (!p.days.includes(t)) p.days.push(t); p.lastDate = t; save(); toast(`💪 「${l.title}」 おつかれさま! XP +8 ${st ? `・ポイント +2` : ''}`); beep('ok'); }
   }
   else if (a === 'rename') {
     const id = el.dataset.id; const kk = KIDS.find((x) => x.id === id); if (!kk) return;

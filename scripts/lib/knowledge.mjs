@@ -11,8 +11,9 @@
 // ルビ: 学年で習わない漢字は {神奈川|かながわ} のように書く(アプリで<ruby>になる)。
 //       ルビの外側の漢字は、その学年までに習う漢字だけ使える。
 import { allowedSet, kanjiOf } from './kokugo.mjs';
+import { FIG_NAMES } from '../../soccer-figs.js';
 
-export const SUBJECTS = ['理科', '社会', '生活', '国語', '算数', '英語', '道徳']; // 算数は「考え方・図形・量・グラフ」の ことがらの もんだい(けいさんの もんだいは gen.js)
+export const SUBJECTS = ['理科', '社会', '生活', '国語', '算数', '英語', '道徳', 'サッカー']; // 算数は「考え方・図形・量・グラフ」の ことがらの もんだい(けいさんの もんだいは gen.js)
 export const RUBY_RE = /\{([^|{}]+)\|([^{}]+)\}/g;
 export const stripRuby = (s) => String(s).replace(RUBY_RE, '');
 // ルビを外して、表示される文字(ルビの親文字)だけにする。重複判定などに使う
@@ -54,6 +55,7 @@ export function validateFile(file, kanji) {
       checkText('q', it.q, file.subject === '国語' ? 160 : 70, allowed, errs, ww); // 国語は みじかい ぶんしょうを のせられる
       checkText('correct', it.correct, 24, allowed, errs, ww);
       checkText('why', it.why, 90, allowed, errs, ww);
+      if (it.fig !== undefined && !FIG_NAMES.includes(it.fig)) errs.push(`${ww}: fig は ${FIG_NAMES.join('/')} のどれか`);
       if (qs.has(it.q)) errs.push(`${ww}: 同じ問題文が重複`);
       qs.add(it.q);
       if (!Array.isArray(it.wrong) || it.wrong.length < 2 || it.wrong.length > 3) return errs.push(`${ww}: wrong は 2〜3こ`);

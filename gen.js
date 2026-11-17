@@ -1,5 +1,6 @@
 // 算数の出題ジェネレーター。答えはすべてコードで計算する(AIには任せない)。
 // 間違いの選択肢には「つまずき原因タグ」を付け、誤答から原因を特定する。
+import { figSvg } from './soccer-figs.js';
 
 const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 const pick = (a) => a[rnd(0, a.length - 1)];
@@ -668,7 +669,8 @@ function fromKnowledge(unit, forced) {
     { label: lab(it.correct), ok: true },
     ...wrong.map((w) => ({ label: lab(w.label), ok: false, tag: 'know_mixup', note: ruby(w.note) })),
   ]);
-  return { text: (it.svg ? `<div class="shapebox">${it.svg}</div>` : '') + ruby(it.q), why: ruby(it.why), choices, id: it.id, ...(it.hlabel ? { hlabel: it.hlabel } : {}) };
+  const svg = it.svg || (it.fig ? figSvg(it.fig) : '');
+  return { text: (svg ? `<div class="shapebox">${svg}</div>` : '') + ruby(it.q), why: ruby(it.why), choices, id: it.id, ...(it.hlabel ? { hlabel: it.hlabel } : {}) };
 }
 
 export function registerKnowledge(list) {

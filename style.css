@@ -751,3 +751,10 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .lbars{display:inline-flex;gap:3px;align-items:flex-end;height:36px}.lbars i{display:block;width:12px;background:#9bb7e8;min-height:3px}.lbars i.today{background:#2f6df6}
 .lsubs{display:flex;flex-wrap:wrap;gap:8px 14px;margin:4px 0}.lsub{display:flex;gap:6px;align-items:center;font-size:12px}.lsub i{display:block;width:80px;height:8px;background:rgba(0,0,0,.12)}.lsub u{display:block;height:100%;background:#2fa86a}.lsub em{font-style:normal;font-weight:800}
 .lweak{margin:4px 0;font-size:12px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}.lweak .tag.red{background:#fde2e0;color:#b3261e}
+
+/* サッカーきょうしつ */
+.sc-lesson{border-top:1px solid rgba(255,255,255,.1);padding:6px 0}.sc-lesson summary{display:flex;gap:8px;align-items:center;cursor:pointer;list-style:none;padding:6px 0}.sc-lesson summary::-webkit-details-marker{display:none}
+.sc-ic{font-size:22px}.sc-lv{margin-left:auto;font-size:10px;padding:2px 8px;font-weight:800;color:#fff}.sc-lv.lv1{background:#2fa86a}.sc-lv.lv2{background:#2f6df6}.sc-lv.lv3{background:#d6341e}.sc-n{font-size:11px;color:var(--gold)}
+.sc-body{padding:4px 2px 10px;font-size:13px;line-height:1.55}.sc-body ol,.sc-body ul{margin:4px 0 8px;padding-left:20px}.sc-goal{margin:6px 0;padding:6px 8px;background:rgba(255,210,63,.14);border-left:4px solid var(--gold);font-weight:800}
+.sc-fig{margin:6px 0}.sfig{width:100%;height:auto;max-width:440px;display:block;margin:4px auto;border-radius:8px}.shapebox .sfig{max-width:380px}
+.sc-rules{display:flex;flex-wrap:wrap;gap:6px}.sc-rules .btn.small{width:auto;display:inline-block;margin:0}
