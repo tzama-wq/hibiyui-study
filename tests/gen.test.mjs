@@ -17,7 +17,7 @@ for (const units of Object.values(UNITS)) {
       const know = !!u.items; // 事実リスト方式(理科・社会・生活・国語のことば)は 3〜4こ
       if (know) assert.ok(q.choices.length === 3 || q.choices.length === 4, `choices ${ctx}`);
       else assert.equal(q.choices.length, 4, `choices!=4 ${ctx}`);
-      assert.ok(!/<(?!\/?(small|br|ruby|rt)>)/.test(q.text), `unsafe html ${ctx}`);
+      assert.ok(!/<(?!\/?(small|br|ruby|rt)>)/.test(q.text.replace(/<div class="shapebox"><svg[\s\S]*?<\/svg><\/div>/, '')), `unsafe html ${ctx}`); // サッカーの ずかい(自前の SVG)は のぞく
       assert.equal(q.choices.filter((c) => c.ok).length, 1, `ok count ${ctx}`);
       assert.equal(new Set(q.choices.map((c) => c.label)).size, q.choices.length, `dup labels ${ctx}`);
       for (const c of q.choices) if (!c.ok) assert.ok(TAGS[c.tag], `bad tag ${c.tag} ${ctx}`);
