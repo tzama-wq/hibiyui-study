@@ -745,3 +745,9 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 
 .up-btns{display:flex;gap:4px;align-items:stretch}.up-btns .btn.small{display:flex;flex-direction:column;align-items:center;justify-content:center;width:auto;min-width:46px;padding:4px 6px;margin:0;line-height:1.1}.up-btns .btn small{font-size:9px;font-weight:700;opacity:.9}.btn.blue{background:linear-gradient(#4aa3ff,#2a62c8)}
 .stat-row .up-btns{grid-column:1/5;justify-content:flex-end}.stat-row .up-btns .btn.small{padding:6px 8px}
+
+/* パパの へや: がくしゅう じょうきょう */
+.learn{padding:10px 0;border-top:1px solid rgba(0,0,0,.1)}.learn:first-of-type{border-top:0}.lhead{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.lrow{display:flex;gap:8px;align-items:flex-end;margin:6px 0;flex-wrap:wrap}
+.lbars{display:inline-flex;gap:3px;align-items:flex-end;height:36px}.lbars i{display:block;width:12px;background:#9bb7e8;min-height:3px}.lbars i.today{background:#2f6df6}
+.lsubs{display:flex;flex-wrap:wrap;gap:8px 14px;margin:4px 0}.lsub{display:flex;gap:6px;align-items:center;font-size:12px}.lsub i{display:block;width:80px;height:8px;background:rgba(0,0,0,.12)}.lsub u{display:block;height:100%;background:#2fa86a}.lsub em{font-style:normal;font-weight:800}
+.lweak{margin:4px 0;font-size:12px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}.lweak .tag.red{background:#fde2e0;color:#b3261e}

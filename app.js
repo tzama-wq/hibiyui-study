@@ -359,9 +359,28 @@ function animateCounts() {
 const ringSvg = (cls, pct) => `<svg class="${cls}" viewBox="0 0 44 44"><circle class="rg-bg" cx="22" cy="22" r="18"/><circle class="rg-fg" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="113.1" data-ring="${pct}"/></svg>`;
 
 // ---- きょうだい共有 ---------------------------------------------------------
-const summary = (k) => { const p = S.kids[k.id]; return { name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null, team: summaryTeam(k, p),
+const summary = (k) => { const p = S.kids[k.id]; return { learn: learnSummary(k, p), name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null, team: summaryTeam(k, p),
   asks: (p.ask || []).slice(0, 10).map(({ id, date, text, t }) => ({ id, date, text: String(text).slice(0, 600), t })), ack: (S.ack || []).slice(-80),
   gods: (p.godReq || []).slice(0, 6).map(({ id, date, n, t }) => ({ id, date, n, t })) }; };
+// ---- がくしゅうの ようす(パパが みんなの スマホを あけなくても わかる ように きょうゆう) ----------------
+// まいにちの かいとうすう(14にち ぶん)。subject ごとにも かぞえる
+function bumpDaily(p, ok, subject) {
+  const t = todayStr(); p.daily = p.daily || {}; const d = (p.daily[t] = p.daily[t] || { n: 0, ok: 0, s: {} });
+  d.n++; if (ok) d.ok++; d.s = d.s || {}; if (subject) d.s[subject] = (d.s[subject] || 0) + 1;
+  const ks = Object.keys(p.daily).sort(); while (ks.length > 14) delete p.daily[ks.shift()];
+}
+function streakOf(p) { const set = new Set(p.days || []); let n = 0; let t = Date.now(); if (!set.has(dstr(new Date(t)))) t -= 864e5; while (set.has(dstr(new Date(t)))) { n++; t -= 864e5; } return n; }
+function learnSummary(k, p) {
+  const daily = p.daily || {}; const d7 = []; for (let i = 6; i >= 0; i--) { const x = daily[dstr(new Date(Date.now() - i * 864e5))]; d7.push(x ? [x.n, x.ok, (x.s || {})['算数'] || 0, (x.s || {})['国語'] || 0] : [0, 0, 0, 0]); }
+  const subj = {}; const weak = [];
+  for (const u of skillsUpTo(k.grade)) {
+    const st = status(p, u.id); const e = (subj[u.subject] = subj[u.subject] || { ok: 0, sprout: 0, shaky: 0, gap: 0, unknown: 0 }); e[st]++;
+    if (['算数', '国語'].includes(u.subject) && ['gap', 'shaky'].includes(st)) weak.push([u.subject, u.name.slice(0, 14), st === 'gap' ? 2 : 1]);
+  }
+  weak.sort((a, b) => b[2] - a[2]);
+  const kjw = Object.entries(p.kj || {}).filter(([, e]) => e.ng >= 2 && !kjMastered(e)).sort((a, b) => b[1].ng - a[1].ng).slice(0, 8).map((c) => c[0]);
+  return { d7, last: p.lastDate || null, streak: streakOf(p), subj, weak: weak.slice(0, 8), kj: { n: kjCount(p), weak: kjw }, boost: (p.boost || {}).done || 0 };
+}
 // ---- メダル(実績) -------------------------------------------------------------
 const masterCount = (p, k, sj) => skillsUpTo(k.grade).filter((u) => u.subject === sj && ['ok', 'sprout'].includes(status(p, u.id)) && (p.units[u.id] || {}).ok >= 3).length;
 const BADGES = [
@@ -1157,9 +1176,26 @@ function vPapa() {
   const ownerCard = `<div class="card"><h2>📱 この スマホの もちぬし</h2>
     <p>いまは「<b>${S.bound ? KIDS.find((k) => k.id === S.bound).name : 'きまっていません'}</b>」の スマホです。ほかの子の もんだいは ひらけません。</p>
     ${KIDS.filter((k) => k.id !== S.bound).map((k) => `<button class="btn small gray" data-act="rebind" data-id="${k.id}">${k.name}の スマホに かえる</button>`).join('')}</div>`;
+  const learnCard = () => {
+    const bars = (v) => { const max = Math.max(5, ...v.map((x) => x[0])); return `<span class="lbars">${v.map((x, i) => `<i title="${x[0]}もん" style="height:${Math.max(3, (x[0] / max) * 34)}px" class="${i === 6 ? 'today' : ''}"></i>`).join('')}</span>`; };
+    const rows = KIDS.map((k) => {
+      const d = dataFor(k); const L = d.learn; const rem = S.remote && S.remote[k.id];
+      if (!L) return `<div class="learn"><b>${esc(k.name)}</b> <span class="muted">まだ データが とどいてないよ(${k.name}が アプリを ひらくと とどくよ)</span></div>`;
+      const t = todayStr(); const did = L.last === t; const tn = (L.d7[6] || [0, 0])[0]; const tok = (L.d7[6] || [0, 0])[1];
+      const pct = (sj) => { const e = (L.subj || {})[sj]; if (!e) return null; const tot = Object.values(e).reduce((a, b) => a + b, 0) || 1; return Math.round(((e.ok + e.sprout) / tot) * 100); };
+      const sp = ['算数', '国語'].map((sj) => { const v = pct(sj); return v == null ? '' : `<span class="lsub"><b>${SUBJECT_ICON[sj]} ${sj}</b><i><u style="width:${v}%"></u></i><em>${v}%</em></span>`; }).join('');
+      const weak = (L.weak || []).map((w) => `<span class="tag ${w[2] === 2 ? 'red' : ''}">${w[0] === '算数' ? '🔢' : '📖'} ${esc(w[1])}</span>`).join('');
+      return `<div class="learn"><div class="lhead"><b>${esc(k.name)}(${k.grade}ねん)</b><span class="chip ${did ? 'gold' : 'red'}">${did ? `✅ きょうは ${tn}もん(せいかい ${tok})` : '⚠ きょうは まだ'}</span>${L.streak ? `<span class="chip">🔥 ${L.streak}日 れんぞく</span>` : ''}</div>
+        <div class="lrow"><span class="muted">この 7日</span>${bars(L.d7)}<span class="muted">ぜんぶで ${L.d7.reduce((a, x) => a + x[0], 0)}もん ・ さいごに やった日: ${L.last || 'まだ'}${rem && rem.t ? ` ・ ${ago(rem.t)}に こうしん` : ''}</span></div>
+        <div class="lsubs">${sp}</div>
+        ${weak ? `<div class="lweak"><b>にがてな たんげん</b> ${weak}</div>` : '<div class="muted">にがてな たんげんは いまの ところ ないよ 🎉</div>'}
+        ${(L.kj && (L.kj.weak || []).length) ? `<div class="lweak"><b>まちがえやすい 漢字</b> ${L.kj.weak.map((c) => `<span class="tag red">${esc(c)}</span>`).join('')}<small class="muted"> (れんしゅう ずみ ${L.kj.n}もじ)</small></div>` : ''}</div>`;
+    }).join('');
+    return `<div class="card"><h2>📊 みんなの がくしゅう じょうきょう</h2><p class="muted">スマホを ひとつずつ あけなくても、みんなの ようすが ここで わかるよ(${sync.enabled() ? 'つながっています' : '⚠ 「きょうだいと つなぐ」を ひらくと ほかの スマホの ようすも みえるよ'})。</p>${rows}</div>`;
+  };
   const godList = godPending();
   const godCardP = `<div class="card"><h2>🎫 神チケット(おしらせ)</h2>${godList.length ? godList.map((r) => `<p style="border-left:4px solid #ffcc00;padding-left:8px"><b>${esc(r.kid.name)}</b>が ${r.date} に 1日 ${r.n}もん たっせい! 🎫神チケットを 1まい ゲットしたよ<br><button class="btn small gray" data-act="godseen" data-gid="${r.id}">✅ みたよ</button></p>`).join('') : '<p class="muted">あたらしい おしらせは ないよ(1日 100もん=はじめて+まちがえた もんだい で 神チケットが じどうで くばられるよ)</p>'}</div>`;
-  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${godCardP}${updCard}${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${learnCard()}${godCardP}${updCard}${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
     <p class="muted">学校の すすみ具合が ちがう ときは、「いまの たんげん」を えらんでね。</p></main>`;
 }
 
@@ -1256,7 +1292,7 @@ function answer(idx, unknown) {
   }
   const gentle = !!cfg().gentle; const second = !!it.tried; // まちがいが にがて モード: はじめての まちがいは せめず、もういちど えらべる
   const u = (p.units[it.unit.id] = p.units[it.unit.id] || { ok: 0, ng: 0, h: [] });
-  u.h = (u.h || []).concat(ok ? 1 : 0).slice(-6);
+  u.h = (u.h || []).concat(ok ? 1 : 0).slice(-6); bumpDaily(p, ok, it.unit.subject);
   if (q.id) { p.seen = [...(p.seen || []).filter((x) => x !== q.id), q.id].slice(-300); setSeen(p.seen); }
   if (ok) { u.d = u.d || []; if (!u.d.includes(todayStr())) u.d.push(todayStr()); u.d = u.d.slice(-5); }
   if (it.retry) { p.rt = p.rt || { ok: 0, ng: 0 }; p.rt[ok ? 'ok' : 'ng']++; }
