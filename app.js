@@ -143,6 +143,9 @@ function buildInf(kid, n) {
     return { unit: e.unit, q: limitQ(q, kc.choices), retry: false, probe: false, inf: e.key };
   });
 }
+// 「にがて ブースト」: さんすう・こくごを きたえる(にがてな たんげんを まとめて・けいけんち +50%・ポイント 2ばい)
+const BOOST_SUBJ = ['算数', '国語'];
+const boostWeakOf = (k, p) => skillsUpTo(k.grade).filter((u) => BOOST_SUBJ.includes(u.subject) && ['gap', 'shaky'].includes(status(p, u.id)));
 // ---- 漢字・算数の「にがては ほきょう・とくいは のばす」 ----------------------------------
 const kjMastered = (st) => !!st && st.ok >= 3 && (st.str || 0) >= 3 && st.ng / Math.max(1, st.ok + st.ng) < 0.25;
 const kjCount = (p) => Object.values(p.kj || {}).filter(kjMastered).length;
@@ -183,6 +186,16 @@ function buildSet(kid, mode, unitId) {
   } else if (mode === 'kanji') { // 「かんじ トレーニング」: にがてな 漢字を おおく(1字ずつの よみ・かき + ぶんの なかの 漢字)
     const drill = unitsOf(kid.grade).find((u) => u.kanjiDrill); const ctx = byId[`g${kid.grade}_kanji`];
     plan = Array.from({ length: SET_SIZE }, (_, i) => (drill && (i % 3 !== 2 || !ctx) ? drill : ctx || drill || cur[0]));
+  } else if (mode === 'boost') { // 「にがて ブースト」: さんすうと こくごの にがてを こうごに 10もん
+    const N = Math.max(SET_SIZE, 10);
+    const mw = mathWeakOf(kid, p); const back = backCandidates(kid).filter(isCalcUnit); const mpool = mw.length ? mw : back.length ? back : sk.filter(isCalcUnit).slice(-4);
+    const kos = unitsOf(kid.grade).filter((u) => u.subject === '国語'); const kw = boostWeakOf(kid, p).filter((u) => u.subject === '国語');
+    const drill = kos.find((u) => u.kanjiDrill); const kctx = kos.find((u) => u.id === `g${kid.grade}_kanji`);
+    const kpool = [...kw, ...(drill ? [drill, drill] : []), ...(kctx ? [kctx] : []), ...(kw.length ? [] : kos.filter((u) => !u.kanjiDrill))];
+    plan = Array.from({ length: N }, (_, i) => {
+      if (i % 2 === 0 && mpool.length) { const u = pickWeightedBy(mpool, (x) => ({ gap: 3, shaky: 1.6 }[status(p, x.id)] || 1)); return { unit: u, tier: status(p, u.id) === 'gap' ? 'easy' : 'normal' }; }
+      return kpool.length ? kpool[Math.floor(Math.random() * kpool.length)] : cur[0];
+    });
   } else if (mode === 'mathweak') { // 「さんすう ほきょう」: にがての たんげんを やさしい もんだいから
     const mw = mathWeakOf(kid, p); const back = backCandidates(kid).filter(isCalcUnit);
     const pool = mw.length ? mw : back.length ? back : [cur[0]];
@@ -806,6 +819,7 @@ function homeTab(k, p) {
     <button class="match-btn" data-act="start" data-mode="daily"><small>TODAY'S MATCH</small><b>${p.today.sets > 0 ? T(cfg()).again : T(cfg()).start}</b>
       <span>${p.today.sets > 0 ? '✅ きょうの しあい クリア ・ ' : `${cfg().setSize}もん ・ `}${cur.map((u) => u.name).join('、')}</span></button>
     ${weakChallengeBtn(k, p)}
+    ${boostCard(k, p)}
     ${kanjiCard(k, p)}
     ${mathCard(k, p)}
     ${infChallengeBtn(k, p)}
@@ -821,6 +835,14 @@ function weakCount(k, p) {
   const act = activeList(p).filter((h) => byId[h.unit]).length;
   const wu = skillsUpTo(k.grade).filter((u) => ['gap', 'shaky'].includes(status(p, u.id))).length;
   return keys.size + act + wu;
+}
+function boostCard(k, p) {
+  const wk = boostWeakOf(k, p); const done = (p.boost || {}).date === todayStr();
+  const top = (sj) => wk.filter((u) => u.subject === sj).sort((a, b) => ({ gap: 0, shaky: 1 }[status(p, a.id)] - { gap: 0, shaky: 1 }[status(p, b.id)]) || a.grade - b.grade).slice(0, 2);
+  const tags = [...top('算数'), ...top('国語')].map((u) => `<i>${SUBJECT_ICON[u.subject]} ${u.name}</i>`).join('');
+  return `<button class="skill-card boost" data-act="start" data-mode="boost"><small>WEAK BOOST</small><b>🔥 さんすう・こくご ブースト</b>
+    <span>10もん ・ けいけんち +50% ・ ポイント 2ばい ・ ${done ? '✅ きょうの ごほうびは もらったよ(なんど でも OK)' : '🎫 クリアで シルバー1・ブロンズ2・💠3'}</span>
+    ${tags ? `<div class="sk-row weak"><span>にがて: ${tags}</span></div>` : '<span class="muted">にがてが ないよ! どんどん ちょうせん してね</span>'}</button>`;
 }
 function kanjiCard(k, p) {
   const drill = unitsOf(k.grade).find((u) => u.kanjiDrill); if (!drill) return '';
@@ -964,7 +986,7 @@ function vQuiz() {
   $app.innerHTML = `
     <div class="quiz-top"><button class="link" data-act="quit">🛋️ やすむ</button>
       <div class="scoreboard"><span class="sb-l">⚽ <b>${Q.good}</b></span><span class="sb-m">${inf ? `♾️<small>${inf.count}</small>` : it.retry ? 'やりなおし' : `${baseI}<small>/${baseN}</small>`}</span>
-        <span class="sb-r">${it.revenge || it.rkey ? '⭐ リベンジ' : Q.mode === 'endless' ? '♾️ むげん' : Q.mode === 'weak' ? '💪 じゃくてん' : tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
+        <span class="sb-r">${it.revenge || it.rkey ? '⭐ リベンジ' : Q.mode === 'endless' ? '♾️ むげん' : Q.mode === 'boost' ? '🔥 ブースト' : Q.mode === 'weak' ? '💪 じゃくてん' : tx.mode[Q.mode === 'bonus' ? 'bonus' : Q.mode === 'back' ? 'back' : it.retry ? 'retry' : (it.probe || Q.mode === 'hyp') ? 'probe' : 'normal']}</span></div><span class="clock"></span></div>
     <div class="remain">${remain}</div>
     <div class="pitch"><span class="ball" style="left:calc(${pct}% + 6px);transform:rotate(${Q.i * 150}deg)">⚽</span><span class="goal">🥅</span></div>
     <div class="dots">${Q.items.map((x, i) => `<i class="${x.res || ''} ${i === Q.i ? 'cur' : ''}"></i>`).join('')}</div>
@@ -1337,8 +1359,9 @@ function answer(idx, unknown) {
     if (Q.combo === 3 && !second) { xp += 10; Q.hat = true; }
     const rep = repBonus(k); xp += rep;
     if (it.unit.grade < k.grade) xp = Math.max(2, Math.round(xp / 2)); // まえの がくねんは ポイントが はんぶん
+    const bst = BOOST_SUBJ.includes(it.unit.subject); if (bst) xp += Math.max(2, Math.round(xp * 0.5)); // さんすう・こくごは けいけんち +50%、つよく なる ポイントは 2ばい
     Q.xp += xp; p.goals++; it.res = 'ok';
-    const st = addPoints(p, it.unit.subject, 2); if (st) Q.pts[st] = (Q.pts[st] || 0) + 2;
+    const bp = bst ? 4 : 2; const st = addPoints(p, it.unit.subject, bp); if (st) Q.pts[st] = (Q.pts[st] || 0) + bp;
     if (it.rkey) { // リベンジの せいこう: 2かい(べつの 日)で「のりこえた」
       const r = (p.revenge || []).find((x) => x.key === it.rkey);
       if (r && !it.tried) {
@@ -1401,12 +1424,15 @@ function finish() {
   if (shards) addShards(p, shards);
   const info = { good: Q.good, total: Q.items.length, mode: Q.mode, perfect: perfectNow };
   const gotTickets = awardStudy(p, info, t);
+  let boostReward = false;
+  if (Q.mode === 'boost') { p.boost = p.boost || { date: '', done: 0 }; if (p.boost.date !== t && Q.good >= 6) { p.boost.date = t; p.boost.done++; addTickets(p, { silver: 1, bronze: 2 }); addShards(p, 3); boostReward = true; } }
   const capped = !Object.keys(gotTickets).length && Object.keys(studyReward(info)).length > 0;
   save();
   const selAfter = dataFor(k).sel.state;
   const tags = Object.entries(Q.missTags).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([x]) => x).filter((x) => x !== 'unknown' || Object.keys(Q.missTags).length === 1);
   Q.result = { good: Q.good, total: Q.items.length, xp: bonusXp, hat: Q.hat, tags, rankUp: after.i > before.i, rankName: after.name, callup: selBefore !== 'in' && selAfter === 'in', newBadges: newly.map((b) => ({ icon: b.icon, name: b.name })), tickets: gotTickets, capped, shards, overcome: Q.overcome || 0, pts: Q.pts, hyp: (Q.hyp || []).map((e) => ({ type: e.type, label: hypLabel(e.h) })) };
   lastCount.score = 0;
+  if (boostReward) setTimeout(() => toast('🔥 にがて ブースト クリア! 🎫ブロンズ×2・シルバー×1・💠×3'), 900);
   view = 'result'; toTop = true; render();
   if (Q.result.good >= Math.ceil(Q.result.total * 0.6) || Q.result.rankUp || Q.result.callup || Q.result.newBadges.length || Q.result.hyp.some((e) => e.type === 'resolved')) {
     setTimeout(() => { confetti(innerWidth / 2, innerHeight * 0.32, 110, 1.5); beep('win'); vibrate([60, 40, 60, 40, 120]); }, 400);
