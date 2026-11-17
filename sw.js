@@ -1,5 +1,5 @@
-const CACHE = 'hibiyui-v20';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'gen.js', 'sync.js', 'game.js', 'soccer-figs.js', 'soccer-guide.js', 'ui-game.js', 'manifest.webmanifest', 'icon.svg', 'match.js', 'playsim.js', 'play3d.js', 'stadium3d.js', 'airsim.js', 'air3d.js', 'vehicle3d.js', 'world3d.js', 'fx3d.js', 'airnet.js', 'playnet.js', 'net.js', 'ui-net.js', 'vendor/qrcode.js', 'vendor/jsQR.js', 'ui-sky.js', 'vendor/three.module.min.js'];
+const CACHE = 'hibiyui-v21';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'gen.js', 'sync.js', 'game.js', 'soccer-figs.js', 'soccer-guide.js', 'ui-game.js', 'manifest.webmanifest', 'icon.svg', 'match.js', 'playsim.js', 'play3d.js', 'stadium3d.js', 'airsim.js', 'air3d.js', 'vehicle3d.js', 'world3d.js', 'fx3d.js', 'airnet.js', 'playnet.js', 'net.js', 'ui-net.js', 'push.js', 'vendor/qrcode.js', 'vendor/jsQR.js', 'ui-sky.js', 'vendor/three.module.min.js'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
   self.skipWaiting();
@@ -19,4 +19,14 @@ self.addEventListener('fetch', (e) => {
       return r;
     }).catch(() => caches.match(e.request))
   );
+});
+
+// プッシュつうち(GitHub Actions の scripts/send-push.mjs が おくる): れんしゅうの おしらせ(かんたんな もんだい)
+self.addEventListener('push', (e) => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'ひびゆいFC', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'ひびゆいFC', { body: d.body || '', tag: d.tag || 'hibiyui', renotify: true, data: { url: d.url || './' } }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close(); const url = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => { for (const c of cs) { if ('focus' in c) { if (c.navigate) c.navigate(url).catch(() => {}); return c.focus(); } } return self.clients.openWindow(url); }));
 });

@@ -760,3 +760,10 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .sc-rules{display:flex;flex-wrap:wrap;gap:6px}.sc-rules .btn.small{width:auto;display:inline-block;margin:0}
 
 .skill-card.boost{background:linear-gradient(135deg,#7a1f1f,#c25a1a);color:#fff;border:0;width:100%;text-align:left}.skill-card.boost small{color:#ffd9a0}.skill-card.boost .sk-row{margin-top:6px;background:rgba(0,0,0,.25);padding:6px}.skill-card.boost i{background:rgba(255,255,255,.18);padding:1px 6px;margin:2px;display:inline-block;font-style:normal;font-size:12px}
+
+/* プッシュつうち・つうちから ひらく クイズ */
+.panel.notif .btn.small{display:inline-block;width:auto;margin-top:8px}
+.teaser{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:14px}
+.tz-box{background:linear-gradient(160deg,#16306a,#101a38);border:3px solid #ffd23f;color:#fff;max-width:420px;width:100%;padding:16px;text-align:center}.tz-box small{color:#ffd23f;letter-spacing:.2em}.tz-box h2{margin:8px 0 14px;font-size:24px}
+.tz-ch{display:flex;gap:10px}.tz-ch button{flex:1;padding:14px 4px;font:inherit;font-size:20px;font-weight:900;background:#23418a;color:#fff;border:2px solid #7fa6ff;cursor:pointer}.tz-ch button.good{background:#1f8a4a;border-color:#8bf0b0}.tz-ch button.dim{opacity:.45}
+.tz-res{margin:12px 0;min-height:20px}.tz-res p{font-size:14px;margin:6px 0}.tz-box .btn{display:block;width:100%}.tz-x{margin-top:8px}

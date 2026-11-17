@@ -2,6 +2,7 @@ import * as sync from './sync.js';
 import { addPoints, addTickets, addShards, cupById, ensureCup, emptyStatMap, registerBuffs, PLAYER_BY_ID, ENH_MAX, studyReward, PRACTICE_TICKET_CAP as PRACTICE_CAP } from './game.js';
 import { DEFAULTS, PRESETS, OPTIONS, BOOLS, cfgOf, setCfg, applyPreset, lockMsFor, waitWrongMs, estimateMinutes, planPreview, T } from './cfg.js';
 import { LESSONS, LEVEL_NAME } from './soccer-guide.js';
+import * as pushn from './push.js';
 import { figSvg } from './soccer-figs.js';
 import { skyInit, skyHome, hangarHtml, onSkyAct, ensureSky } from './ui-sky.js';
 import { gameInit, ensureGame, ticketBar, loginCard, gachaTab, teamTab, battleView, onAct as gameAct, summaryTeam, awardStudy, resetBattle } from './ui-game.js';
@@ -374,7 +375,7 @@ function animateCounts() {
 const ringSvg = (cls, pct) => `<svg class="${cls}" viewBox="0 0 44 44"><circle class="rg-bg" cx="22" cy="22" r="18"/><circle class="rg-fg" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="113.1" data-ring="${pct}"/></svg>`;
 
 // ---- きょうだい共有 ---------------------------------------------------------
-const summary = (k) => { const p = S.kids[k.id]; return { learn: learnSummary(k, p), name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null, team: summaryTeam(k, p),
+const summary = (k) => { const p = S.kids[k.id]; return { learn: learnSummary(k, p), push: pushn.subFor(k.id), name: k.name, grade: k.grade, xp: p.xp, goals: p.goals, days: p.days.length, rank: rankOf(p.xp).name, recent: p.days.slice(-14), callup: p.callup || null, team: summaryTeam(k, p),
   asks: (p.ask || []).slice(0, 10).map(({ id, date, text, t }) => ({ id, date, text: String(text).slice(0, 600), t })), ack: (S.ack || []).slice(-80),
   gods: (p.godReq || []).slice(0, 6).map(({ id, date, n, t }) => ({ id, date, n, t })) }; };
 // ---- がくしゅうの ようす(パパが みんなの スマホを あけなくても わかる ように きょうゆう) ----------------
@@ -826,7 +827,8 @@ function homeTab(k, p) {
     ${godCard(k, p)}
     ${left > 0 ? `<button class="event-btn" data-act="start" data-mode="bonus"><small>SPECIAL STAGE</small><b>🌟 かくれステージ</b><span>のこり ${left} ・ ポイント 2ばい ・ あせらなくて OK</span></button>` : ''}
     ${medalShelf(k, p)}
-    ${selfCfgCard(k)}`;
+    ${selfCfgCard(k)}
+    ${notifCard(k)}`;
 }
 
 // 「じゃくてんに チャレンジ」: まちがえた ないようの ふくしゅう
@@ -836,6 +838,33 @@ function weakCount(k, p) {
   const wu = skillsUpTo(k.grade).filter((u) => ['gap', 'shaky'].includes(status(p, u.id))).length;
   return keys.size + act + wu;
 }
+// ---- プッシュつうち(まだ れんしゅうして いない ひに かんたんな もんだいを おくる) ----------------------------------------
+function notifCard(k) {
+  const st = pushn.state(k.id); const sy = sync.enabled();
+  const msg = { unsupported: 'この ブラウザでは おしらせが つかえないよ(ホームがめんに ついかした アプリで ためしてね)', denied: 'おしらせが ブロックされているよ。ブラウザの せっていで ゆるしてね', on: '🔔 ON! まだ れんしゅうして いない ひの ゆうがたに、かんたんな もんだいが とどくよ', off: 'まだ れんしゅうして いない ひの ゆうがたに、かんたんな もんだいを おしらせするよ(こたえは アプリを ひらくと わかる!)' }[st];
+  return `<section class="panel notif"><h2 class="sec">NOTICE <small>おしらせ</small></h2><div class="muted">${msg}</div>
+    ${st === 'off' ? (sy ? '<button class="btn small gold" data-act="pushon">🔔 おしらせを ONに する</button>' : '<div class="muted">⚠ さきに「パパの へや」→「きょうだいと つなぐ」を せっていしてね</div>') : ''}
+    ${st === 'on' ? '<button class="btn small gray" data-act="pushoff">おしらせを OFFに する</button>' : ''}</section>`;
+}
+// つうちを タップして ひらいた とき: さっきの もんだいを だして、こたえあわせ
+let TEASER = null;
+try { const t = new URLSearchParams(location.search).get('t'); if (t) { TEASER = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)))); history.replaceState(null, '', location.pathname + location.hash); } } catch { TEASER = null; }
+function showTeaser() {
+  if (!TEASER) return; const d = TEASER; TEASER = null; const k = kidId && kidOf(); const key = `${d.q}|${d.a}|${d.b}`;
+  const el = document.createElement('div'); el.className = 'teaser';
+  el.innerHTML = `<div class="tz-box"><small>QUIZ</small><h2>${esc(d.q)}</h2><div class="tz-ch"><button data-c="a">A: ${esc(d.a)}</button><button data-c="b">B: ${esc(d.b)}</button></div><div class="tz-res"></div><button class="btn small gray tz-x">とじる</button></div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('.tz-x')) { el.remove(); return; }
+    const b = e.target.closest('[data-c]'); if (!b || el.dataset.done) return; el.dataset.done = '1'; const ok = b.dataset.c === d.ans;
+    el.querySelectorAll('[data-c]').forEach((x) => { x.classList.add(x.dataset.c === d.ans ? 'good' : 'dim'); });
+    let extra = ''; if (k) { const p = S.kids[k.id]; p.teasers = p.teasers || []; if (!p.teasers.includes(key)) { p.teasers = [...p.teasers.slice(-30), key]; if (ok) { p.xp += 5; extra = ' (XP +5)'; } save(); } }
+    el.querySelector('.tz-res').innerHTML = `<b>${ok ? '⭕ せいかい!' : '❌ ざんねん…'}${extra}</b><p>${esc(d.why || '')}</p><button class="btn gold tz-go" data-act="start" data-mode="boost">🔥 つづけて ブースト(10もん)</button>`;
+    if (ok) { confetti(innerWidth / 2, innerHeight * 0.4, 80, 1.2); beep('win'); }
+    el.querySelector('.tz-go').addEventListener('click', () => el.remove());
+  });
+}
+setTimeout(showTeaser, 1200);
 function boostCard(k, p) {
   const wk = boostWeakOf(k, p); const done = (p.boost || {}).date === todayStr();
   const top = (sj) => wk.filter((u) => u.subject === sj).sort((a, b) => ({ gap: 0, shaky: 1 }[status(p, a.id)] - { gap: 0, shaky: 1 }[status(p, b.id)]) || a.grade - b.grade).slice(0, 2);
@@ -1235,9 +1264,17 @@ function vPapa() {
     }).join('');
     return `<div class="card"><h2>📊 みんなの がくしゅう じょうきょう</h2><p class="muted">スマホを ひとつずつ あけなくても、みんなの ようすが ここで わかるよ(${sync.enabled() ? 'つながっています' : '⚠ 「きょうだいと つなぐ」を ひらくと ほかの スマホの ようすも みえるよ'})。</p>${rows}</div>`;
   };
+  const pushSetup = `<div class="card"><h2>🔔 プッシュつうち(まだの 子に かんたんな もんだい)</h2>
+    <p class="muted">その日 まだ れんしゅうして いない 子の スマホへ、ゆうがた(16:30・18:30)に「かんたんな もんだい」の おしらせが とどきます。19:30には まだの 子を パパに おしらせ。<br>
+    ① 子どもの スマホで ホームがめんの「おしらせ」を ONに する(パパの スマホも OK)<br>
+    ② GitHub の リポジトリ → Settings → Secrets and variables → Actions に 3つ いれる:</p>
+    <p><b>FIREBASE_DB</b> <button class="btn small gray" data-act="copyval" data-v="${esc(sync.getCfg().db || '')}">📋 コピー</button><br><span class="muted" style="word-break:break-all">${esc(sync.getCfg().db || '(まだ つながって いません)')}</span></p>
+    <p><b>FAMILY_CODE</b> <button class="btn small gray" data-act="copyval" data-v="${esc(sync.getCfg().fc || '')}">📋 コピー</button><br><span class="muted" style="word-break:break-all">${esc(sync.getCfg().fc ? '(うえの ボタンで コピー。ひみつの コードです)' : '(まだ つながって いません)')}</span></p>
+    <p><b>VAPID_PRIVATE_KEY</b><br><span class="muted">パソコンの <code>.secrets/vapid-private.txt</code> の なかみを そのまま いれます(ひみつの かぎ)</span></p>
+    <p class="muted">③ Actions タブ → push-reminder → Run workflow(dry=true)で ためせます。</p></div>`;
   const godList = godPending();
   const godCardP = `<div class="card"><h2>🎫 神チケット(おしらせ)</h2>${godList.length ? godList.map((r) => `<p style="border-left:4px solid #ffcc00;padding-left:8px"><b>${esc(r.kid.name)}</b>が ${r.date} に 1日 ${r.n}もん たっせい! 🎫神チケットを 1まい ゲットしたよ<br><button class="btn small gray" data-act="godseen" data-gid="${r.id}">✅ みたよ</button></p>`).join('') : '<p class="muted">あたらしい おしらせは ないよ(1日 100もん=はじめて+まちがえた もんだい で 神チケットが じどうで くばられるよ)</p>'}</div>`;
-  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${learnCard()}${godCardP}${updCard}${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
+  $app.innerHTML = `<div class="quiz-top"><button class="link" data-act="home">← もどる</button><span class="mode">👨 パパの へや</span><span></span></div><main>${learnCard()}${pushSetup}${godCardP}${updCard}${pinCard}${cfgCard()}${hypReport()}${ownerCard}${repAdmin}${syncCard}${tagRows}
     <p class="muted">学校の すすみ具合が ちがう ときは、「いまの たんげん」を えらんでね。</p></main>`;
 }
 
@@ -1465,6 +1502,15 @@ document.addEventListener('click', (e) => {
     if (!askPin()) return;
     S.bound = el.dataset.id; kidId = S.bound; tab = 'home'; view = 'kid'; toTop = true; save(); syncNow();
   }
+  else if (a === 'pushon') {
+    const k = kidOf(); pushn.enable(k.id).then(async (r) => {
+      if (r.ok) { toast('🔔 おしらせを ONに したよ!'); await pushn.preview('🧠 もんだい! わかるかな?', `${k.name}、7 × 8 = ?\nA: 54   B: 56\n👉 こんな ふうに とどくよ`); syncNow(); } else toast(r.reason === 'denied' ? 'おしらせが ゆるされなかったよ' : 'おしらせを ONに できなかったよ');
+      render();
+    });
+    return;
+  }
+  else if (a === 'pushoff') { pushn.disable().then(() => { toast('おしらせを OFFに したよ'); syncNow(); render(); }); return; }
+  else if (a === 'copyval') { navigator.clipboard && navigator.clipboard.writeText(el.dataset.v || '').then(() => toast('コピーしたよ')).catch(() => toast('コピーできなかったよ')); return; }
   else if (a === 'scdone') {
     const id = el.dataset.id; const l = LESSONS.find((x) => x.id === id); if (!l) return;
     const p = S.kids[kidId]; const t = todayStr(); p.sc = p.sc || { done: {}, days: 0, last: '' }; const d = (p.sc.done[id] = p.sc.done[id] || { n: 0, last: '' });

@@ -1,0 +1,55 @@
+name: push-reminder
+
+# 日本時間の 16:30 と 18:30 に、その日 まだ れんしゅうしていない 子の スマホへ「かんたんな もんだい」の プッシュつうちを おくる。
+# 19:30 には、まだの 子が いたら パパに おしらせ。
+# 使うには Settings → Secrets and variables → Actions に FIREBASE_DB / FAMILY_CODE / VAPID_PRIVATE_KEY を入れる(README の「プッシュつうち」)。
+on:
+  schedule:
+    - cron: '30 7 * * *' # JST 16:30 first
+    - cron: '30 9 * * *' # JST 18:30 late
+    - cron: '30 10 * * *' # JST 19:30 papa
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'first / late / papa'
+        default: 'first'
+      dry:
+        description: 'dry run(おくらない)'
+        default: 'true'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: push-reminder
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: web-push を いれる
+        run: npm i --no-save web-push@3
+      - name: つうちを おくる
+        env:
+          FIREBASE_DB: ${{ secrets.FIREBASE_DB }}
+          FAMILY_CODE: ${{ secrets.FAMILY_CODE }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          SCHEDULE: ${{ github.event.schedule }}
+          IN_SLOT: ${{ github.event.inputs.slot }}
+          IN_DRY: ${{ github.event.inputs.dry }}
+        run: |
+          case "$SCHEDULE" in
+            "30 7 * * *") SLOT=first ;;
+            "30 9 * * *") SLOT=late ;;
+            "30 10 * * *") SLOT=papa ;;
+            *) SLOT="${IN_SLOT:-first}" ;;
+          esac
+          DRY=""
+          if [ "$IN_DRY" = "true" ]; then DRY="--dry"; fi
+          node scripts/send-push.mjs "$SLOT" $DRY
