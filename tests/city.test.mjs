@@ -179,4 +179,8 @@ for (const planeId of ['plane', 'hawk']) {
   const sim = mk(); const S = sim.state; const P = S.player; const c = S.crooks.find((x) => x.wid === 'joe'); P.weapon = 'pistol'; c.state = 'idle'; c.hp = c.hpMax; sim.input.gun = true; sim.ammoOf('pistol').mag = 12;
   P.x = c.x - (rg('pistol') + 20); P.z = c.z; run(sim, 1, () => { P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; P.wCd = 0; P.x = c.x - (rg('pistol') + 20); P.z = c.z; }); sim.input.gun = false; assert.equal(c.hp, c.hpMax, 'しゃていの そとには とどかない');
 }
+// ---- じたくで たまを ほじゅう ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const A = sim.ammoOf('pistol'); A.mag = 1; A.reserve = 3; tele(sim, GARAGE.x, GARAGE.z); run(sim, 0.5); const sp = ammoSpec(weaponOf('pistol')); assert.equal(A.reserve, sp.cap, 'じたくで よびが まんたん'); assert.equal(A.mag, sp.mag, 'じたくで マガジンも まんたん');
+}
 console.log('OK: city');
