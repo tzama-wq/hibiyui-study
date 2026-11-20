@@ -1,5 +1,5 @@
 // 地球防衛隊「シティ」: じゆうに うごける 街の ルールと うごき(画面には さわらない。node で テストできる)。
-//   あるいて・くるま・バイク・せんしゃ・ふね・ひこうき・せんとうきに のりおりして、してい手配はんを たいほして けんしょう金を もらう。
+//   あるいて・くるま・バイク・せんしゃ・ふね・ひこうき・せんとうきに のりおりして、指名手配はんを たいほして けんしょう金を もらう。
 //   const sim = createCity({ stats, vehicles, owned, rnd, gentle, coins, arrests });  sim.input = { turn, climb, gun, boost, aimX, aimY };
 //   sim.interact()(のる/おりる/ミッション/おみせ/たいほ) ・ sim.fireMissile() ・ sim.step(dt) ・ sim.takeEvents()
 //   ざひょう: x=よこ, y=たかさ, z=おく。からだの むき yaw: まえ = (sin yaw, cos yaw)
@@ -26,7 +26,7 @@ export const SCHOOL = polyBox(CM.schoolPoly, { x0: 0, x1: 80, z0: 300, z1: 400, 
 export const PARK3 = polyBox(CM.parkPoly, { x0: 220, x1: 280, z0: 330, z1: 410, cx: 250, cz: 370 }); // 綱島東三丁目公園
 export const SCHOOL_POLY = CM.schoolPoly; export const PARK3_POLY = CM.parkPoly;
 export const HQ = { x: PLAZA.cx, z: PLAZA.cz, r: 30 };
-export const BOARD = { x: PLAZA.cx + 48, z: PLAZA.cz - 36 }; // してい手配ボード
+export const BOARD = { x: PLAZA.cx + 48, z: PLAZA.cz - 36 }; // 指名手配ボード
 export const KOBAN = { x: PLAZA.cx - 4, z: PLAZA.cz - 46 }; // 駅まえの こうばん
 export const GARAGE = { x: HOME.cx, z: HOME.z0 + 38 }; // ガレージ(じたく)
 // 「ほんぶ」は じたくに とうごう(かいふく・のりものの しゅうり・ひとじちの おくりとどけ・ふっかつ)。HQ は えきまえの めじるし(ちかくの おみせ・ミッションの きじゅん)としてだけ のこす
@@ -105,8 +105,8 @@ export const VCAT = [
   { id: 'phantom', need: { a: 8, m: 6 }, name: 'ファントム ステルス', icon: '✈️', kind: 'jet', model: 'stealth', price: 36000, speed: 165, turn: 1.15, hp: 210, gun: 56, missiles: 8, desc: 'さいしんの ステルス せんとうき' },
 ];
 export const catalogOf = (id) => VCAT.find((v) => v.id === id);
-// かいほうじょうけん: a=つかまえた してい手配はんの にんずう / m=クリアした ミッションの かいすう
-export const needText = (n) => (n ? [n.m ? `ミッション ${n.m}かい クリア` : '', n.a ? `してい手配はん ${n.a}にん たいほ` : ''].filter(Boolean).join(' + ') : '');
+// かいほうじょうけん: a=つかまえた 指名手配はんの にんずう / m=クリアした ミッションの かいすう
+export const needText = (n) => (n ? [n.m ? `ミッション ${n.m}かい クリア` : '', n.a ? `指名手配はん ${n.a}にん たいほ` : ''].filter(Boolean).join(' + ') : '');
 // ぶきカタログ(GTAの ぶきを まなんだ ラインナップ。たまは なくならない)。rate=1びょうに なんかい / expl=ばくはつ / g=おちる つよさ
 export const WEAPONS = [
   { id: 'fist', name: 'こぶし', icon: '👊', cat: '近接', price: 0, melee: true, dmg: 8, rate: 2.5, range: 2.6 },
@@ -168,7 +168,7 @@ export function catalogV(it, ks) {
 }
 export const carStats = (ks) => catalogV(catalogOf('sedan'), ks); // (むかしの なまえ)
 
-// ---- してい手配はん(けんしょう金つき) -------------------------------------------------------------
+// ---- 指名手配はん(けんしょう金つき) -------------------------------------------------------------
 export const CROOKS = {
   thug: { name: 'チンピラ', hp: 50, dmg: 4, speed: 4.6, range: 55, fire: 1.7 },
   gunman: { name: 'ごうとう', hp: 90, dmg: 6, speed: 5, range: 70, fire: 1.4 },
@@ -177,7 +177,7 @@ export const CROOKS = {
   cop: { name: 'おまわりさん', hp: 80, dmg: 5, speed: 5.8, range: 60, fire: 1.3 },
   bounty: { name: '賞金かせぎ', hp: 120, dmg: 7, speed: 6, range: 75, fire: 1.0 },
 };
-// てはい(してい手配): はんざいの おもさで 「てはいど」が ふえる→★の かず。じかんで きえる・こうばんで ばっきん
+// てはい(指名手配): はんざいの おもさで 「てはいど」が ふえる→★の かず。じかんで きえる・こうばんで ばっきん
 export const HEAT_AT = [10, 35, 70, 110, 160]; export const HEAT_DUR = [0, 150, 240, 360, 480, 600]; export const HEAT_FINE = [0, 200, 500, 1000, 1800, 3000];
 export const WANTED = [
   { id: 'joe', name: 'コソドロ ジョー', crime: 'ぬすみ・ごうとう みすい', stars: 1, bounty: 100, type: 'thug', spot: pn(HQ.x - 360, HQ.z + 40), guards: 0 },
@@ -277,7 +277,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const applyEq = () => { const q = eqStat(); const hm = FS.hpMax + q.hp; const r = P.hp / (P.hpMax || hm); P.hpMax = hm; P.hp = Math.min(hm, Math.max(1, Math.round(hm * r))); S.eq = q; };
   applyEq(); P.hp = P.hpMax;
   // ---- てはい ----
-  const crime = (pts, why) => { const l0 = S.lv; S.heat = Math.min(220, S.heat + pts); S.lv = HEAT_AT.filter((t) => S.heat >= t).length; S.fine = HEAT_FINE[S.lv]; if (S.lv > 0) S.heatT = Math.max(S.heatT, HEAT_DUR[S.lv]); if (S.lv > l0) { banner(`🚨 してい手配 ${'⭐'.repeat(S.lv)}!`, 2.6); snd('warn'); ev({ t: 'wanted', lv: S.lv }); } else if (why && S.lv > 0) msg(why, 1.6); };
+  const crime = (pts, why) => { const l0 = S.lv; S.heat = Math.min(220, S.heat + pts); S.lv = HEAT_AT.filter((t) => S.heat >= t).length; S.fine = HEAT_FINE[S.lv]; if (S.lv > 0) S.heatT = Math.max(S.heatT, HEAT_DUR[S.lv]); if (S.lv > l0) { banner(`🚨 指名手配 ${'⭐'.repeat(S.lv)}!`, 2.6); snd('warn'); ev({ t: 'wanted', lv: S.lv }); } else if (why && S.lv > 0) msg(why, 1.6); };
   const clearHeat = (why) => { S.heat = 0; S.lv = 0; S.heatT = 0; S.fine = 0; for (const c of S.crooks) if (c.hunter) c.gone = true; for (const c of S.traffic) if (c.cop) c.dead = 99999; if (why) msg(why, 3); };
   const hurtWalker = (w, dmg, runover) => { if (w.dead > 0) return; w.hp = (w.hp == null ? 40 : w.hp) - dmg; w.scared = 8; if (w.idle) { w.idle = false; w.spd = 1.8; if (S.relocWalker) S.relocWalker(w); } fx('spark', w.x, 1.2, w.z, 4); if (w.hp <= 0) { w.dead = 14; snd('down'); fx('spark', w.x, 1.5, w.z, 8); crime(runover ? 25 : 28, '🚨 いっぱんの ひとを たおした!'); } else crime(8, '🚨 いっぱんの ひとに あてた!'); };
   const rayWalker = (from, dv, range, wall) => { let best = null; let ba = 9; for (const w of S.walkers) { if (w.dead > 0) continue; const vx = w.x - from.x; const vy = 1.1 - from.y; const vz = w.z - from.z; const dist = hyp(vx, vy, vz); if (dist > range || dist > wall || dist < 1) continue; const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / dist, -1, 1)); if (a < 0.9 / dist + 0.04 && a < ba) { ba = a; best = w; } } return best; };
@@ -346,7 +346,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     for (const st of STORES) cand('store', st.id, st.x, st.z, 11, `${st.icon} ${st.name}(${st.sub})`);
     cand('soccer', 'soccer', SOCCER.x, SOCCER.z, 18, '⚽ サッカーじょうへ いく');
     cand('koban', 'koban', KOBAN.x, KOBAN.z, 12, S.lv > 0 ? `🚓 こうばん(ばっきん 🪙${S.fine} で てはいが きえる)` : '🚓 こうばん');
-    cand('board', 'board', BOARD.x, BOARD.z, 11, '📋 してい手配ボードを みる');
+    cand('board', 'board', BOARD.x, BOARD.z, 11, '📋 指名手配ボードを みる');
     cand('garage', 'garage', GARAGE.x, GARAGE.z, 14, '🏠 じたく(ガレージ)');
     cand('job', 'job', JOB.x, JOB.z, 12, '💼 おしごと(綱島東小学校)'); if (CM.polyIn && CM.polyIn(SCHOOL_POLY, px, pz)) cand('job', 'job', px, pz, 9999, '💼 おしごと(がっこうに はいったよ)');
     if (!S.mission) for (const m of CITY_MISSIONS) cand('mission', m.id, m.start.x, m.start.z, 14, `${m.icon} ミッション「${m.name}」`);
@@ -492,14 +492,17 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (P.dead > 0) return;
     if (P.chute) { P.y = Math.max(0, P.y - 7 * dt); P.yaw += input.turn * 0.6 * dt; P.x += Math.sin(P.yaw) * input.climb * 6 * dt; P.z += Math.cos(P.yaw) * input.climb * 6 * dt; if (isWater(P.x, P.z)) { P.x = HQ.x; P.z = HQ.z - 40; } pushOut(P, 1.2); if (P.y <= 0.01) P.chute = false; return; }
     if (!v) {
-      const mx = input.moveX || 0; const my = input.moveY || 0; const mag = Math.min(1, Math.hypot(mx, my)); const dash = boost || mag >= 0.85; const sp = (dash ? FS.run : FS.speed) * (P.buff.speed > 0 ? 1.3 : 1) * (1 + S.eq.spd); // スティックを ふかく たおすと ダッシュ
+      const mx = input.moveX || 0; const my = input.moveY || 0; const mag = Math.min(1, Math.hypot(mx, my)); if (P.tired && P.boost >= 30) P.tired = false; const dash = (boost || mag >= 0.85) && !P.tired && P.boost > 0; const sp = (dash ? FS.run : FS.speed) * (P.buff.speed > 0 ? 1.3 : 1) * (1 + S.eq.spd); // スティックを ふかく たおすと ダッシュ
       if (mag > 0.08) { // スマホ ふうの そうさ: スティックの むきに カメラを きじゅんに あるく
         const cy = P.camYaw; let dx = Math.sin(cy) * my - Math.cos(cy) * mx; let dz = Math.cos(cy) * my + Math.sin(cy) * mx; const L = hyp(dx, dz) || 1; dx /= L; dz /= L;
         P.speed = lerp(P.speed, (dash ? 1 : Math.min(1, mag / 0.8)) * sp, 1 - Math.exp(-10 * dt)); const lockd = input.gun || input.aimLock; const want = lockd ? P.camYaw : Math.atan2(dx, dz); P.yaw += clamp(angDiff(want, P.yaw), -14 * dt, 14 * dt); P.moveRel = angDiff(Math.atan2(dx, dz), P.yaw); P.moving = true;
         groundMove(P, P.x + dx * P.speed * dt, P.z + dz * P.speed * dt, 1.1, false);
       } else if (input.turn || input.climb) { const target = input.climb >= 0 ? input.climb * sp : input.climb * sp * 0.5; P.speed = lerp(P.speed, target, 1 - Math.exp(-9 * dt)); P.yaw += input.turn * FS.turn * dt; P.camFree = false; groundMove(P, P.x + Math.sin(P.yaw) * P.speed * dt, P.z + Math.cos(P.yaw) * P.speed * dt, 1.1, false); }
       else { P.moving = false; P.speed = lerp(P.speed, 0, 1 - Math.exp(-12 * dt)); if (input.gun || input.aimLock) P.yaw += clamp(angDiff(P.camYaw, P.yaw), -14 * dt, 14 * dt); }
-      P.y = 0; P.boost = clamp(P.boost + (dash && mag > 0.1 ? -8 : 20) * dt, 0, 100); return;
+      P.y = 0;
+      // ダッシュメーター: ダッシュ中は へる(STAが たかいほど もつ)。0で「つかれた」→ 30まで かいふくするまで ダッシュ できない
+      if (dash && mag > 0.1) { P.boost = Math.max(0, P.boost - Math.max(9, 22 - ks.STA * 0.08) * dt); P.dashRest = 0.7; if (P.boost <= 0) { P.tired = true; msg('😮‍💨 つかれた! すこし やすんでね', 1.8); } } else { P.dashRest = Math.max(0, (P.dashRest || 0) - dt); if (P.dashRest <= 0) P.boost = Math.min(100, P.boost + (mag > 0.1 ? (P.tired ? 8 : 12) : 22) * dt); }
+      return;
     }
     const V = v.V; const k = v.kind;
     if (isAir(k)) {
@@ -570,12 +573,12 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
       const L = c.path.cum[c.path.cum.length - 1]; const ahead = S.pathAt(c.path, c.s + c.dir * 9); const px = ahead.x; const pz = ahead.z; let blocked = false;
       if (!c.hostile && hyp(px - P.x, pz - P.z) < 7) blocked = true; for (const o of S.traffic) if (o !== c && !o.dead && hyp(px - o.x, pz - o.z) < 6) blocked = true; if (isWater(px, pz) || inRect(AIRFIELD, px, pz) || inRect(HOME, px, pz)) { c.dir *= -1; c.off = c.path.hw * 0.5 * c.dir; blocked = false; }
       c.wait = blocked ? Math.min(2, c.wait + dt) : 0; if (c.stun > 0) { c.stun -= dt; blocked = true; } const sp = c.spd * (c.hostile && hyp(c.x - P.x, c.z - P.z) < 90 ? 1.7 : 1); if (!blocked) c.s += c.dir * sp * dt; if (c.s > L) { c.s = L; c.dir = -1; c.off = c.path.hw * 0.5 * c.dir; } if (c.s < 0) { c.s = 0; c.dir = 1; c.off = c.path.hw * 0.5 * c.dir; } S.placeOn(c, c.path, c.off);
-      // のりものが ぶつかる(いっぱんの くるま・バイク・してい手配はんの くるま)
+      // のりものが ぶつかる(いっぱんの くるま・バイク・指名手配はんの くるま)
       if (pv && !isAir(pv.kind) && pv.kind !== 'ship' && P.dead <= 0 && hyp(c.x - pv.x, c.z - pv.z) < c.r + (pv.kind === 'tank' ? 6 : pv.kind === 'bike' ? 1.6 : 3.2) && S.t - (c.hitT || -9) > 1.1) {
         c.hitT = S.t; const sp0 = Math.abs(pv.speed); const tank = pv.kind === 'tank'; const dmg = clamp(6 + sp0 * 0.6 + (c.hostile ? 9 : 0), 6, 70) * (tank ? 0.15 : 1);
         c.stun = 2.5; fx('spark', (c.x + pv.x) / 2, 1.5, (c.z + pv.z) / 2, 6); snd('bump'); const ox = pv.x - c.x; const oz = pv.z - c.z; const od = hyp(ox, oz) || 1; pv.x += (ox / od) * 2.2; pv.z += (oz / od) * 2.2; pv.speed *= tank ? 0.8 : -0.25;
         if (!tank) { pv.hits = (pv.hits || 0) + 1; hurtPlayer(dmg); if (pv.hits >= pv.hitMax - 1 && pv.hits < pv.hitMax && S.t - (pv.warnT || -9) > 2) { pv.warnT = S.t; msg('💥 こわれそう! もう すこしで ばくはつ!', 2.4); } if (pv.hits >= pv.hitMax && P.dead <= 0 && P.mode === 'veh') { P.invuln = 0; hurtPlayer(99999); } else msg(`💥 ぶつかった! (${pv.hits}/${pv.hitMax}かい で こわれる)`, 1.6); }
-        if (!c.hostile) crime(c.hp - (tank ? 99 : 1) <= 0 ? 14 : 4, '🚨 くるまに ぶつけた!'); c.hp -= tank ? 99 : 1; if (c.hp <= 0) { c.dead = c.cop ? 99999 : 12; fx('big', c.x, 2, c.z, 10); snd('bigboom'); if (c.cop) { crime(20, '🚨 パトカーを こわした!'); } else if (c.hostile) { P.coins += 120; S.stats.coins += 120; msg('🚔 してい手配はんの のりものを たおした! 🪙+120', 3); ev({ t: 'crash', hostile: true }); } }
+        if (!c.hostile) crime(c.hp - (tank ? 99 : 1) <= 0 ? 14 : 4, '🚨 くるまに ぶつけた!'); c.hp -= tank ? 99 : 1; if (c.hp <= 0) { c.dead = c.cop ? 99999 : 12; fx('big', c.x, 2, c.z, 10); snd('bigboom'); if (c.cop) { crime(20, '🚨 パトカーを こわした!'); } else if (c.hostile) { P.coins += 120; S.stats.coins += 120; msg('🚔 指名手配はんの のりものを たおした! 🪙+120', 3); ev({ t: 'crash', hostile: true }); } }
       }
     }
     if (pv && (pv.kind === 'car' || pv.kind === 'bike' || pv.kind === 'tank') && Math.abs(pv.speed) > 3 && P.dead <= 0) for (const w of S.walkers) if (!(w.dead > 0) && hyp(w.x - pv.x, w.z - pv.z) < (pv.kind === 'tank' ? 5 : 2.6)) hurtWalker(w, 999, true);

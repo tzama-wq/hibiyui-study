@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
 
-const st = (v) => ({ SHO: v, PAS: v, SPD: v, DEF: v, STA: v });
+const FSrun = (sim) => 12 + 70 * 0.012 + 0; const st = (v) => ({ SHO: v, PAS: v, SPD: v, DEF: v, STA: v });
 const ch = (id, rarity, pos) => ({ id, name: id, face: '', rarity, pos, stats: st(90) });
 const chars = [ch('f', 'legend', 'FW'), ch('m', 'legend', 'MF'), ch('d', 'legend', 'DF'), ch('g', 'super', 'GK'), ch('f2', 'rare', 'FW')];
 const veh = (kind, ks) => { const lo = autoLoadout(kind, chars); const parts = {}; for (const [s, id] of Object.entries(lo)) parts[s] = partOf(kind, s, chars.find((c) => c.id === id)); return buildVehicle({ vehicle: kind, name: 'P', kidStats: ks, parts }); };
@@ -61,7 +61,7 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
   tele(sim, GARAGE.x, GARAGE.z); assert.equal(S.nearby && S.nearby.kind, 'garage'); sim.interact(); assert.equal(S.ui, 'garage'); sim.closeUi();
   tele(sim, BOARD.x, BOARD.z); assert.equal(S.nearby && S.nearby.kind, 'board'); sim.interact(); assert.ok(S.wanted.length === 8 && S.wanted.every((w) => w.alive));
 }
-// ---- してい手配はんを たいほ ----
+// ---- 指名手配はんを たいほ ----
 {
   const sim = mk(st(100)); const S = sim.state; const P = S.player; const joe = () => S.crooks.find((c) => c.wid === 'joe'); const j = joe(); assert.ok(j && S.crooks.length >= 20);
   tele(sim, j.x - 14, j.z); P.yaw = Math.PI / 2;
@@ -202,7 +202,7 @@ for (const planeId of ['plane', 'hawk']) {
   const run1 = (e) => { const q = mk(st(70), 3, e); const Q = q.state.player; Q.x = 0; Q.z = 0; q.input.moveY = 1; q.input.moveX = 0; for (let i = 0; i < 40; i++) q.step(0.05); return Q.speed; };
   assert.ok(run1({ eqOwned: ['rocket'], equip: { feet: 'rocket' } }) > run1({}) * 1.2, 'くつで はやく はしる');
 }
-// ---- てはい(してい手配) ----
+// ---- てはい(指名手配) ----
 {
   const sim = mk(); const S = sim.state; const P = S.player; P.coins = 5000; assert.equal(S.lv, 0);
   const w = S.walkers.find((x) => x.path) || S.walkers[0]; sim.crime(8); assert.equal(S.lv, 0, 'ちいさな はんざいでは まだ ★0'); sim.crime(30); assert.ok(S.lv >= 1 && S.heatT > 100 && S.fine > 0, '★が つく・じかん・ばっきん');
@@ -211,5 +211,11 @@ for (const planeId of ['plane', 'hawk']) {
   const before = P.coins; const f = S.fine; P.x = 0; P.z = 0; const kb = sim.payFine(); assert.ok(kb.ok && P.coins === before - f && S.lv === 0, 'ばっきんで かいじょ'); run(sim, 4); assert.ok(!S.crooks.some((c) => c.hunter && !c.gone && c.state !== 'down') || true);
   sim.crime(60); const s2 = S.lv; assert.ok(s2 >= 2); P.coins = 1000; sim.state.player.hp = 1; sim.state.player.invuln = 0; sim.state.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); run(sim, 0.2); assert.equal(P.coins, 500, 'てはいちゅうに たおされると おかねが はんぶん'); assert.equal(S.lv, 0, 'たおされると てはいは きえる');
   const s3 = mk(); const P3 = s3.state.player; const w3 = s3.state.walkers.find((x) => !x.idle && x.path); w3.x = P3.x + 8; w3.z = P3.z; P3.camYaw = Math.PI / 2; P3.yaw = Math.PI / 2; P3.weapon = 'pistol'; s3.state.walkers.forEach((x) => { if (x !== w3) { x.x = 9999; x.z = 9999; } }); s3.input.gun = true; for (let i = 0; i < 40; i++) { w3.x = P3.x + 8; w3.z = P3.z; P3.wCd = 0; P3.camYaw = Math.PI / 2; s3.step(0.05); } s3.input.gun = false; assert.ok(s3.state.lv >= 1, 'いっぱんの ひとを うつと てはい');
+}
+// ---- ダッシュメーター ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; P.x = HQ.x; P.z = HQ.z; const fy = freeYaw(P.x, P.z, 400); P.camYaw = fy; P.yaw = fy; P.camFree = true;
+  sim.input.moveY = 1; let tiredAt = -1; for (let i = 0; i < 20 * 14; i++) { sim.step(0.05); if (P.tired && tiredAt < 0) tiredAt = i * 0.05; P.x = HQ.x; P.z = HQ.z; } assert.ok(tiredAt > 2 && tiredAt < 12, 'ダッシュを つづけると メーターが ゼロに なって つかれる'); assert.ok(P.boost < 40, 'メーターが へった');
+  for (let i = 0; i < 20; i++) { sim.step(0.05); P.x = HQ.x; P.z = HQ.z; } assert.ok(P.tired, 'まだ つかれている'); assert.ok(P.speed < FSrun(sim) * 0.8, 'つかれると ダッシュできず おそい'); sim.input.moveY = 0; for (let i = 0; i < 20 * 6; i++) sim.step(0.05); assert.ok(P.boost > 60 || !P.tired, 'やすむと かいふく');
 }
 console.log('OK: city');

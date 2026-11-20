@@ -3,7 +3,7 @@
 //  ・シェーダ: すべての マテリアルの ちょうてんを「その ばしょの ちけいの たかさ」ぶん もちあげる(ちいさい ぶったいは たてに ずれるだけ)
 //  ・じめんは ほうせんを ちけいの こうばいから つくり、ひかげで おかが みえる
 import { TERRAIN } from './terrain-data.js';
-import { AIRFIELD, HOME, PLAZA, MALL_TRESA, MALL_APITA, SOCCER_ZONE, RIVER, riverDist, isWater } from './citymap.js';
+import { AIRFIELD, HOME, PLAZA, MALL_TRESA, MALL_APITA, SOCCER_ZONE, RIVER, riverDist, roadsOf } from './citymap.js';
 
 export const EXAG = 0.9; // おかの たかさの ばいりつ
 const DEFORM_CAP = 15; // おかの さいだかの めやす(m): ゲームが あそびにくく ならない ように おさえる
@@ -20,7 +20,10 @@ const grid = new Float32Array(N * N);
   grid.set(blur(grid, 2));
   const at = (x, z) => grid[Math.max(0, Math.min(N - 1, Math.round((z + R) / STEP))) * N + Math.max(0, Math.min(N - 1, Math.round((x + R) / STEP)))];
   // かわは ひくく
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; const d = riverDist(x, z); if (d < RIVER.hw) grid[j * N + i] = 0; else if (d < RIVER.hw + 22) { const w = (d - RIVER.hw) / 22; grid[j * N + i] = Math.min(grid[j * N + i], 0.6 + w * 4); } }
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; const d = riverDist(x, z); if (d < RIVER.hw) grid[j * N + i] = 0; else if (d < RIVER.hw + 44) { const w = (d - RIVER.hw) / 44; grid[j * N + i] = Math.min(grid[j * N + i], w * w * (3 - 2 * w) * 1.3); } }
+  // はしの まわりは たいらに(はしを わたるとき じめんに うまらない・ゆるやかな ざか)
+  { const segD = (px, pz, a, b) => { const dx = b[0] - a[0]; const dz = b[1] - a[1]; const L2 = dx * dx + dz * dz || 1; const t = Math.max(0, Math.min(1, ((px - a[0]) * dx + (pz - a[1]) * dz) / L2)); return Math.hypot(px - a[0] - dx * t, pz - a[1] - dz * t); };
+    for (const r of roadsOf()) { if (!r.br) continue; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; let d = 1e9; for (let k = 1; k < r.pts.length; k++) d = Math.min(d, segD(x, z, r.pts[k - 1], r.pts[k])); const m = r.hw + 34; if (d < m) { const w = d < r.hw + 14 ? 1 : 1 - (d - r.hw - 14) / 20; const q = w * w * (3 - 2 * w); grid[j * N + i] = grid[j * N + i] * (1 - q) + 0.9 * q; } } } }
   // ひろば・じたく・くうこう・モール・サッカーじょうは たいらに ならす
   for (const r of [PLAZA, HOME, AIRFIELD, MALL_TRESA, MALL_APITA, SOCCER_ZONE]) {
     if (!r) continue; const m = 14; let sum = 0; let n = 0;
@@ -28,6 +31,7 @@ const grid = new Float32Array(N * N);
     const mean = n ? sum / n : at((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2);
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; const dx = Math.max(r.x0 - x, 0, x - r.x1); const dz = Math.max(r.z0 - z, 0, z - r.z1); const d = Math.hypot(dx, dz); if (d < m) { const w = 1 - d / m; const s = w * w * (3 - 2 * w); grid[j * N + i] = grid[j * N + i] * (1 - s) + mean * s; } }
   }
+  grid.set(blur(grid, 2));
 }
 export const terrainH = (x, z) => {
   const fx = Math.max(0, Math.min(N - 1.001, (x + R) / STEP)); const fz = Math.max(0, Math.min(N - 1.001, (z + R) / STEP)); const i = Math.floor(fx); const j = Math.floor(fz); const u = fx - i; const v = fz - j;

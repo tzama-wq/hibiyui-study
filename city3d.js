@@ -157,7 +157,7 @@ export async function startCity3D(o) {
     for (const sx of [-1, 1]) { const po = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 9, 8), new THREE.MeshStandardMaterial({ color: '#2a6ad1' })); po.position.set(SOCCER.x + sx * 8, 4.5, SOCCER_ZONE.z1 + 5); g.add(po); } const arch = new THREE.Mesh(new THREE.BoxGeometry(17, 1.4, 1), new THREE.MeshStandardMaterial({ color: '#2a6ad1', emissive: '#2a6ad1', emissiveIntensity: 0.4 })); arch.position.set(SOCCER.x, 9.5, SOCCER_ZONE.z1 + 5); g.add(arch);
     g.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(g); }
   { const bd = new THREE.Group(); const wood = new THREE.MeshStandardMaterial({ color: '#7a5230', roughness: 0.9 }); const post = new THREE.Mesh(new THREE.BoxGeometry(0.6, 5, 0.6), wood); const board = new THREE.Mesh(new THREE.BoxGeometry(6.4, 3.6, 0.3), wood);
-    const c = document.createElement('canvas'); c.width = 256; c.height = 144; const g2 = c.getContext('2d'); g2.fillStyle = '#e8d9a0'; g2.fillRect(0, 0, 256, 144); g2.fillStyle = '#b3201a'; g2.font = 'bold 26px sans-serif'; g2.textAlign = 'center'; g2.fillText('WANTED', 128, 30); g2.fillStyle = '#3a2a1a'; g2.font = '44px sans-serif'; for (let i = 0; i < 4; i++) g2.fillText('☠', 40 + i * 58, 92); g2.font = 'bold 18px sans-serif'; g2.fillText('してい手配ボード', 128, 130);
+    const c = document.createElement('canvas'); c.width = 256; c.height = 144; const g2 = c.getContext('2d'); g2.fillStyle = '#e8d9a0'; g2.fillRect(0, 0, 256, 144); g2.fillStyle = '#b3201a'; g2.font = 'bold 26px sans-serif'; g2.textAlign = 'center'; g2.fillText('WANTED', 128, 30); g2.fillStyle = '#3a2a1a'; g2.font = '44px sans-serif'; for (let i = 0; i < 4; i++) g2.fillText('☠', 40 + i * 58, 92); g2.font = 'bold 18px sans-serif'; g2.fillText('指名手配ボード', 128, 130);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const face = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.2), new THREE.MeshBasicMaterial({ map: t })); face.position.z = 0.17; board.position.y = 4.2; face.position.y = 4.2; const p2 = post.clone(); post.position.set(-2.4, 2.5, 0); p2.position.set(2.4, 2.5, 0); bd.add(post, p2, board, face);
     const sp = iconSprite(THREE, '📋', '#e8d9a0'); sp.scale.set(5, 5, 1); sp.position.y = 9.5; bd.add(sp); bd.position.set(BOARD.x, 0, BOARD.z + 3); bd.rotation.y = Math.PI; bd.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(bd); }
   { // こうばん(しろい はこ・あおい やね・あかい ランプ)
@@ -297,7 +297,7 @@ export async function startCity3D(o) {
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   const showHelp = () => { openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>❓ シティの あそびかた</h3><div class="hp">
       <p>🕹️ ひだり: うごく ・ みぎ: ねらう ・ ボタンで うつ・のる・おりる</p>
-      <p>📋 <b>ボード</b>: してい手配はんを みる→たおして「たいほ」→ <b>けんしょう金</b></p>
+      <p>📋 <b>ボード</b>: 指名手配はんを みる→たおして「たいほ」→ <b>けんしょう金</b></p>
       <p>🔫 <b>ぶきや</b>: ぶきを かう ・ 🔁ボタン/Qキーで きりかえ</p>
       <p>💼 <b>おしごと</b>: さんすう・こくごで おきゅうりょう</p>
       <p>🏁 <b>ガレージ</b>: のりものを かう・のる ・ 🏁⚡ボタンで ワープ</p>
@@ -400,7 +400,7 @@ export async function startCity3D(o) {
   const openBoard = () => {
     const draw = (note = 'タップで ついせき(ちずに 🎯)。たおして ばんざいした はんにんに ちかづいて「たいほ」! はじめての たいほは チケットも もらえるよ') => {
       sim.refreshWanted();
-      shopEl.innerHTML = `<div class="sh-box"><h3>📋 してい手配ボード</h3><div class="sh-coin">🪙 ${P.coins}・つかまえた ${S.stats.arrests}にん</div>${S.wanted.map((w) => `<button class="sh-item bd ${S.tracked === w.id ? 'trk' : ''}" data-id="${w.id}"><span>${'⭐'.repeat(w.stars)}</span><div><b>${esc(w.name)}</b><small>${esc(w.crime)}${w.caught ? `・たいほ ${w.caught}かい` : ''}${w.alive ? '' : '・(いまは いないよ)'}</small></div><em>🪙${w.bounty}${S.tracked === w.id ? ' 🎯' : ''}</em></button>`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`;
+      shopEl.innerHTML = `<div class="sh-box"><h3>📋 指名手配ボード</h3><div class="sh-coin">🪙 ${P.coins}・つかまえた ${S.stats.arrests}にん</div>${S.wanted.map((w) => `<button class="sh-item bd ${S.tracked === w.id ? 'trk' : ''}" data-id="${w.id}"><span>${'⭐'.repeat(w.stars)}</span><div><b>${esc(w.name)}</b><small>${esc(w.crime)}${w.caught ? `・たいほ ${w.caught}かい` : ''}${w.alive ? '' : '・(いまは いないよ)'}</small></div><em>🪙${w.bounty}${S.tracked === w.id ? ' 🎯' : ''}</em></button>`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`;
     };
     openModal(draw);
     shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b) return; sim.track(b.dataset.id); draw(S.tracked ? 'ついせき ちゅう! ちずを みてね' : 'ついせきを やめたよ'); };
@@ -419,6 +419,8 @@ export async function startCity3D(o) {
     g.fillStyle = '#2a6ea0'; g.fillRect(-1700, -1700, 3400, 3400); g.drawImage(gc, -MAPR, -MAPR, MAPR * 2, MAPR * 2);
         const dot = (x, z, c, r, sq) => { g.fillStyle = c; if (sq) g.fillRect(x - r, z - r, r * 2, r * 2); else { g.beginPath(); g.arc(x, z, r, 0, 6.283); g.fill(); } };
     g.lineWidth = rot ? R / 90 : 3; g.strokeStyle = 'rgba(40,40,46,.9)'; g.setLineDash([]); for (const [nm, P] of Object.entries(RAILS)) { g.strokeStyle = nm === 'shin' ? 'rgba(40,170,180,.95)' : 'rgba(30,30,36,.95)'; g.setLineDash(nm === 'shin' ? [16, 10] : []); g.beginPath(); P.forEach(([x, z], i) => (i ? g.lineTo(x, z) : g.moveTo(x, z))); g.stroke(); } g.setLineDash([]);
+    { g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; g.setLineDash([]); for (const r of roadsOf()) { if (!r.br) continue; g.beginPath(); r.pts.forEach(([x, z], i) => (i ? g.lineTo(x, z) : g.moveTo(x, z))); g.strokeStyle = '#fff'; g.lineWidth = Math.max(r.hw * 2 + 6, rot ? R / 18 : R / 44); g.stroke(); g.strokeStyle = '#ff9f1a'; g.lineWidth = Math.max(r.hw * 2 + 1, rot ? R / 30 : R / 75); g.stroke();
+        if (!rot) { const m = r.pts[Math.floor(r.pts.length / 2)]; g.save(); g.translate(m[0], m[1]); g.rotate(Math.PI); g.font = `bold ${R / 20}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = R / 160; g.strokeStyle = '#000'; g.fillStyle = '#fff'; g.strokeText('橋', 0, -R / 18); g.fillText('橋', 0, -R / 18); g.restore(); } } g.restore(); }
     const rr = rot ? R / 26 : 7; for (const { m } of startMarkers) if (!S.mission) { dot(m.start.x, m.start.z, '#ffd23f', rr * 1.1); }
     if (S.mission && S.mission.targets && S.mission.targets[S.mission.stage]) { const t = S.mission.targets[S.mission.stage]; dot(t.x, t.z, '#27d8ff', rr * 1.3); }
     if (S.mission && (S.mission.id === 'rescue' || (S.mission.id === 'delivery' && S.mission.stage === 1))) dot(BASE.x, BASE.z, '#7dffa0', rr * 1.3);
@@ -436,7 +438,7 @@ export async function startCity3D(o) {
     if (rot) { g.fillStyle = '#fff'; g.beginPath(); g.moveTo(size / 2, size / 2 - 9); g.lineTo(size / 2 - 7, size / 2 + 8); g.lineTo(size / 2 + 7, size / 2 + 8); g.closePath(); g.fill(); g.strokeStyle = '#27d8ff'; g.lineWidth = 3; g.beginPath(); g.arc(size / 2, size / 2, size / 2 - 2, 0, 6.283); g.stroke(); }
   };
   function updateHud() {
-    const v = sim.vehicleOf(); const hp = v ? v.hp / v.hpMax : P.hp / P.hpMax; hud.hp.style.width = `${clamp(hp, 0, 1) * 100}%`; hud.hpw.classList.toggle('low', hp < 0.3); hud.boost.style.width = `${clamp(P.boost, 0, 100)}%`;
+    const v = sim.vehicleOf(); const hp = v ? v.hp / v.hpMax : P.hp / P.hpMax; hud.hp.style.width = `${clamp(hp, 0, 1) * 100}%`; hud.hpw.classList.toggle('low', hp < 0.3); hud.boost.style.width = `${clamp(P.boost, 0, 100)}%`; hud.boost.parentElement.parentElement.classList.toggle('tired', !!P.tired);
     const hasMis = !!(v && v.V.missiles); hud.msw.style.display = hasMis ? '' : 'none'; if (hasMis) hud.ms.textContent = `🚀 ×${v.mis == null ? v.V.missiles : v.mis}`; root.querySelector('.ab-ms').style.display = hasMis ? '' : 'none';
     hud.coin.textContent = P.coins;
     const n = S.nearby; const showAct = !!n && n.kind !== 'exit' || (n && n.kind === 'exit'); hud.act.hidden = !showAct; if (showAct) { hud.act.textContent = n.label; hud.act.classList.toggle('exit', n.kind === 'exit'); }
@@ -484,7 +486,7 @@ export async function startCity3D(o) {
     // くるま(かざり)
     for (const c of S.traffic) { let m = trafficM.get(c.id); if (!m) { { const mdl = c.model || 'sedan'; const col = mdl === 'sedan' ? ['#4a90d9', '#d85a8a', '#5aa86a', '#8a8f9a', '#f2f2f2', '#6a4ad8', '#2a2e38', '#b8c0cc'][c.tone % 8] : undefined; const itb = catalogOf(mdl); if (itb && itb.kind === 'bike') { m = makeBikeModel(THREE, itb.model); m.userData.rider.visible = true; } else m = glbCar(mdl, col) || makeCarModel(THREE, mdl, col); if (c.hostile) { const sp = iconSprite(THREE, '⚠', '#ff4d4d'); sp.scale.set(4.2, 4.2, 1); sp.position.y = 4.6; m.add(sp); } } m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); trafficM.set(c.id, m); } m.position.set(c.x, 0, c.z); m.rotation.y = c.yaw; m.visible = !c.hidden && Math.hypot(c.x - P.x, c.z - P.z) < 700; }
     for (const [id, m] of trafficM) if (!S.traffic.some((c) => c.id === id)) { scene.remove(m); trafficM.delete(id); }
-    // はんにん(してい手配はんは なまえと けんしょう金の ふだつき)
+    // はんにん(指名手配はんは なまえと けんしょう金の ふだつき)
     const rseen = new Set();
     for (const c of S.crooks) {
       const d = Math.hypot(c.x - P.x, c.z - P.z); if (d > 320) continue; let e = crookM.get(c.id);
