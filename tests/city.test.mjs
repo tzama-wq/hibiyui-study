@@ -37,7 +37,7 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
   assert.ok(sim.interact() && P.mode === 'foot', 'おりる');
   P.x = HQ.x + 20; P.z = HQ.z + 30; sim.input.climb = 1; P.yaw = Math.PI / 2; run(sim, 5); assert.ok(!insideBuilding(P.x, P.z, 0), 'ほんぶに めりこまない'); sim.input.climb = 0;
   assert.ok(S.pickups.length > 20 && S.walkers.length > 5 && S.traffic.length >= 4);
-  const t = S.traffic[0]; tele(sim, t.x + 3, t.z); run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'tcar'); const nt = S.traffic.length; assert.ok(sim.interact() && P.mode === 'veh' && S.traffic.length === nt - 1, 'くるまを かりられる');
+  const t = S.traffic[0]; tele(sim, t.x + 3, t.z); run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'tcar'); const nt = S.traffic.length; sim.interact(); if (P.mode !== 'veh') { assert.ok(t.denied && S.lv === 0, 'だめと いわれた'); sim.interact(); assert.ok(P.mode === 'veh' && S.lv >= 1, 'ことわられたのに のると どろぼう★1'); } else assert.equal(S.lv, 0, 'OKなら ★は つかない'); assert.equal(S.traffic.length, nt - 1, 'くるまを かりられる');
   sim.input.climb = 1; run(sim, 2); assert.ok(sim.vehicleOf().speed > 5); sim.input.climb = 0; sim.interact(); run(sim, 45); assert.ok(!S.vehicles.some((v) => v.temp), 'かりた くるまは きえる');
 }
 // ---- いろいろな のりもの ----
@@ -215,7 +215,7 @@ for (const planeId of ['plane', 'hawk']) {
   sim.gunHit(); assert.equal(S.lv, 3, 'うつと 1かいで ★3'); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 4, 'そのあと うつたびに ★+1'); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 5); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 5, '★5が さいだい');
   assert.ok(S.heatT >= 900, '★が たかいほど じかんが ながい');
   for (let i = 0; i < 700; i++) { sim.step(0.05); P.hp = P.hpMax; } assert.equal(S.lv, 5, '★5は すぐには きえない');
-  const cops = S.crooks.filter((c) => c.hunter).length + S.traffic.filter((c) => c.cop).length + S.jets.length; assert.ok(cops >= 16 && cops <= 24, `★5は 20にん ぐらい (${cops})`); assert.ok(S.jets.length >= 3 && S.traffic.some((c) => c.cop) && S.crooks.some((c) => c.hunter === 'cop'), 'せんとうき・パトカー・あるく けいさつ');
+  const cops = S.crooks.filter((c) => c.hunter).length + S.traffic.filter((c) => c.cop).length + S.jets.length + S.helis.length; assert.ok(cops >= 17 && cops <= 26, `★5は 20にん ぐらい (${cops})`); assert.ok(S.jets.length >= 3 && S.helis.length >= 3 && S.traffic.some((c) => c.cop) && S.crooks.some((c) => c.hunter === 'cop'), 'せんとうき・パトカー・あるく けいさつ');
   const kb = sim.payFine(); assert.ok(!kb.ok && S.lv === 5, '★5は ばっきんで けせない'); assert.ok(!sim.fastTravel().ok, '★5は ワープ できない');
   P.coins = 1000; P.hp = 1; P.invuln = 0; S.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); sim.step(0.1); assert.equal(P.coins, 500, 'たおされると おかねが はんぶん'); assert.equal(S.lv, 0, 'たおされると かいじょ'); assert.equal(S.jets.length, 0);
   { const e = mk(); e.raise(5); e.state.heatT = 0.5; e.state.player.invuln = 99; for (let i = 0; i < 40; i++) e.step(0.05); assert.equal(e.state.lv, 0, '★5でも ながく にげきれば おわる'); }
@@ -231,5 +231,10 @@ for (const planeId of ['plane', 'hawk']) {
   const sim = mk(); const S = sim.state; const P = S.player; P.x = HQ.x; P.z = HQ.z; const fy = freeYaw(P.x, P.z, 400); P.camYaw = fy; P.yaw = fy; P.camFree = true;
   sim.input.moveY = 1; let tiredAt = -1; for (let i = 0; i < 20 * 14; i++) { sim.step(0.05); if (P.tired && tiredAt < 0) tiredAt = i * 0.05; P.x = HQ.x; P.z = HQ.z; } assert.ok(tiredAt > 2 && tiredAt < 12, 'ダッシュを つづけると メーターが ゼロに なって つかれる'); assert.ok(P.boost < 40, 'メーターが へった');
   for (let i = 0; i < 20; i++) { sim.step(0.05); P.x = HQ.x; P.z = HQ.z; } assert.ok(P.tired, 'まだ つかれている'); assert.ok(P.speed < FSrun(sim) * 0.8, 'つかれると ダッシュできず おそい'); sim.input.moveY = 0; for (let i = 0; i < 20 * 6; i++) sim.step(0.05); assert.ok(P.boost > 60 || !P.tired, 'やすむと かいふく');
+}
+// ---- くるまを かりる(運転手が OKの ときだけ) ----
+{
+  let ok = 0; let no = 0; for (let k = 0; k < 12; k++) { const sim = mk(st(70), 3 + k); const S = sim.state; const P = S.player; const t = S.traffic.find((x) => !x.hostile && !x.dead); tele(sim, t.x + 3, t.z); run(sim, 0.1); if (!S.nearby || S.nearby.kind !== 'tcar') continue; sim.interact(); if (P.mode === 'veh') { ok++; assert.equal(S.lv, 0); } else { no++; assert.ok(t.denied && S.lv === 0); sim.interact(); assert.ok(P.mode === 'veh' && S.lv === 1, 'ぬすむと ★1'); } }
+  assert.ok(ok > 0 && no > 0, `OK(${ok})と だめ(${no})の りょうほうが ある`);
 }
 console.log('OK: city');

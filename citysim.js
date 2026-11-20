@@ -268,7 +268,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const S = {
     t: 0, ph: 'play', events: [], snd: [], msg: '', msgT: 0, banner: '', bannerT: 0,
     player: { mode: 'foot', x: SPAWN.x, y: 0, z: SPAWN.z, yaw: SPAWN.yaw, pitch: 0, roll: 0, speed: 0, hp: FS.hpMax, hpMax: FS.hpMax, boost: 100, aimRel: 0, aimPitch: 0.05, veh: null, invuln: 0, dead: 0, hurt: 0, coins, wCd: 0, buff: { dmg: 0, speed: 0 }, weapon: 'pistol', noAim: 0, camYaw: SPAWN.yaw, camFree: false, reload: 0, reloadId: null, bloom: 0, chute: false, carry: 0, kos: 0, target: null, missileCd: 0, lastHurt: -99 },
-    vehicles: [], civs: [], crooks: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, owned: [...new Set([...DEFAULT_OWNED, ...owned])], wOwned: [...new Set([...DEFAULT_WEAPONS, ...weapons])], arrests: { ...arrests }, tracked: null, swing: 0, heat: 0, lv: 0, heatT: 0, fine: 0, melee: 0, jets: [], ammo: { ...ammo }, eqOwned: [...new Set(eqOwned.filter((id) => equipOf(id)))], equip: {},
+    vehicles: [], civs: [], crooks: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, owned: [...new Set([...DEFAULT_OWNED, ...owned])], wOwned: [...new Set([...DEFAULT_WEAPONS, ...weapons])], arrests: { ...arrests }, tracked: null, swing: 0, heat: 0, lv: 0, heatT: 0, fine: 0, melee: 0, jets: [], helis: [], ammo: { ...ammo }, eqOwned: [...new Set(eqOwned.filter((id) => equipOf(id)))], equip: {},
     wanted: [], stats: { coins: 0, arrests: 0, bounty: 0, missions: 0 },
   };
   const P = S.player; let nid = 100; P.weapon = weapon && S.wOwned.includes(weapon) ? weapon : 'pistol';
@@ -282,20 +282,21 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const addStar = (why) => raise(S.lv + 1, why);
   const gunHit = (why) => { if (S.lv < 3) raise(3, why); else if (S.t - (S.starT || -9) > 0.25) { S.starT = S.t; addStar(why); } };
   const meleeHit = (why) => { S.melee++; if (S.melee >= 3) { S.melee = 0; raise(1, why); } else msg(`🚨 なぐった(${S.melee}/3)`, 1.2); };
-  const clearHeat = (why) => { S.heat = 0; S.lv = 0; S.heatT = 0; S.fine = 0; S.melee = 0; S.jets = []; for (const c of S.crooks) if (c.hunter) c.gone = true; for (const c of S.traffic) if (c.cop) c.dead = 99999; if (why) msg(why, 3); };
+  const clearHeat = (why) => { S.heat = 0; S.lv = 0; S.heatT = 0; S.fine = 0; S.melee = 0; S.jets = []; S.helis = []; S.missiles = S.missiles.filter((m) => !m.enemy); for (const c of S.crooks) if (c.hunter) c.gone = true; for (const c of S.traffic) if (c.cop) c.dead = 99999; if (why) msg(why, 3); };
   const hurtWalker = (w, dmg, how) => { if (w.dead > 0) return; w.hp = (w.hp == null ? 40 : w.hp) - dmg; w.scared = 8; if (w.idle) { w.idle = false; w.spd = 1.8; if (S.relocWalker) S.relocWalker(w); } fx('spark', w.x, 1.2, w.z, 4); if (how === 'melee') meleeHit('🚨 いっぱんの ひとを なぐった!'); else gunHit('🚨 いっぱんの ひとを やった!'); if (w.hp <= 0) { w.dead = 14; snd('down'); fx('spark', w.x, 1.5, w.z, 8); } };
   const rayWalker = (from, dv, range, wall) => { let best = null; let ba = 9; for (const w of S.walkers) { if (w.dead > 0) continue; const vx = w.x - from.x; const vy = 1.1 - from.y; const vz = w.z - from.z; const dist = hyp(vx, vy, vz); if (dist > range || dist > wall || dist < 1) continue; const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / dist, -1, 1)); if (a < 0.9 / dist + 0.04 && a < ba) { ba = a; best = w; } } return best; };
   const nearestWalker = (maxD, cone, yaw) => { let best = null; let bd = maxD; for (const w of S.walkers) { if (w.dead > 0) continue; const d = hyp(w.x - P.x, w.z - P.z); if (d > bd || Math.abs(angDiff(Math.atan2(w.x - P.x, w.z - P.z), yaw)) > cone) continue; bd = d; best = w; } return best; };
   const spawnHunter = (t) => { for (let i = 0; i < 80; i++) { const rp = roadPoint(R2, 1); const dd = hyp(rp.x - P.x, rp.z - P.z); if (dd < 55 || dd > 200 || insideBuilding(rp.x, rp.z) || inRect(AIRFIELD, rp.x, rp.z) || inRect(HOME, rp.x, rp.z) || isWater(rp.x, rp.z)) continue; const c = spawnCrook(t === 'cop' ? 'cop' : 'bounty', rp.x, rp.z, { wander: 20 }); c.hunter = t; c.alert = true; return true; } return false; };
   const spawnCopCar = () => { const cps = S.carPaths || []; if (!cps.length) return false; for (let i = 0; i < 120; i++) { const cp = cps[Math.floor(rnd() * cps.length)]; const sx = rnd() * cp.cum[cp.cum.length - 1]; const q = S.pathAt(cp, sx); const dd = hyp(q.x - P.x, q.z - P.z); if (dd < 80 || dd > 230) continue; const dir = rnd() < 0.5 ? 1 : -1; const c = { id: ++nid, path: cp, s: sx, dir, off: cp.hw * 0.5 * dir, spd: 16, tone: 0, model: 'police', bike: false, hostile: true, cop: true, hp: 2, x: 0, z: 0, yaw: 0, wait: 0, dead: 0, r: 2.6 }; S.placeOn(c, cp, c.off); S.traffic.push(c); return true; } return false; };
   // ★ごとの おいかけてくる かず: [あるく けいさつ, 賞金かせぎ, パトカー, せんとうき] ★5は ぜんぶで 20
-  const HUNT = [[0, 0, 0, 0], [1, 0, 0, 0], [2, 0, 1, 0], [3, 1, 2, 0], [5, 2, 3, 1], [9, 3, 5, 3]];
+  const HUNT = [[0, 0, 0, 0, 0], [1, 0, 0, 0, 0], [2, 0, 1, 0, 0], [3, 1, 2, 0, 0], [5, 2, 3, 1, 1], [8, 2, 5, 3, 3]]; // [あるく けいさつ, 賞金かせぎ, パトカー, せんとうき, ヘリ] ★5は ぜんぶで 21
   const spawnJet = () => { const a = rnd() * 6.283; const d = 260 + rnd() * 120; const j = { id: ++nid, x: P.x + Math.sin(a) * d, z: P.z + Math.cos(a) * d, y: 70 + rnd() * 40, yaw: a + Math.PI, spd: 46, cd: 1 + rnd() * 2, ph: rnd() * 6, model: 'hawk' }; S.jets.push(j); return true; };
+  const spawnHeli = () => { const a = rnd() * 6.283; const d = 130 + rnd() * 80; S.helis.push({ id: ++nid, x: P.x + Math.sin(a) * d, z: P.z + Math.cos(a) * d, y: 32, yaw: a + Math.PI, ang: a, cd: 1 + rnd(), burst: 0, ph: rnd() * 6 }); return true; };
   const maintainHunters = () => {
     S.crooks = S.crooks.filter((c) => !c.gone); const lv = S.lv; const H = HUNT[lv]; let made = 0;
     for (const [t, n0] of [['cop', H[0]], ['bounty', H[1]]]) { let n = S.crooks.filter((c) => c.hunter === t && c.state !== 'down').length; while (n < n0 && made < 3) { if (!spawnHunter(t)) break; n++; made++; } }
     S.traffic = S.traffic.filter((c) => !(c.cop && c.dead > 1000)); let k = S.traffic.filter((c) => c.cop).length; while (k < H[2] && made < 4 && spawnCopCar()) { k++; made++; }
-    while (S.jets.length < H[3]) spawnJet();
+    while (S.jets.length < H[3]) spawnJet(); while (S.helis.length < H[4]) spawnHeli();
   };
   function payFine() {
     if (S.lv <= 0) { msg('いまは 指名手配されて いないよ', 2.4); return { ok: false, why: 'てはい なし' }; } if (S.lv >= 5) { msg('🚨 ★5は ばっきんでは ゆるされない! ながく にげきるしか ない!', 3); return { ok: false, why: '★5' }; } const f = S.fine; if (P.coins < f) { msg(`ばっきん 🪙${f} が たりないよ…`, 2.8); return { ok: false, why: 'コインが たりない' }; }
@@ -348,7 +349,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (P.mode === 'foot') {
       for (const c of S.crooks) if (c.state === 'down' && !c.hunter) cand('arrest', c.id, c.x, c.z, 6, `🚔 たいほする${c.wid ? `(けんしょう金 ${bountyOf(c)})` : ''}`);
       for (const v of S.vehicles) if (!v.occ) cand('veh', v.id, v.x, v.z, v.kind === 'ship' ? 26 : 12, `${VNAME[v.kind] || '🚗'} ${v.name || ''}に のる`);
-      for (const t of S.traffic) if (!t.dead && !t.hostile) cand('tcar', t.id, t.x, t.z, 7, '🚓 くるまを かりる(おまわりさん)');
+      for (const t of S.traffic) if (!t.dead && !t.hostile) cand('tcar', t.id, t.x, t.z, 7, t.denied ? '🚨 むりやり うばう(どろぼうに なるよ!)' : '🚗 うんてんしゅに たのむ(くるまを かりる)');
       for (const c of S.civs) if (c.state === 'need') cand('civ', c.id, c.x, c.z, 9, '🆘 ひとを たすける');
     } else cand('exit', 'exit', px, pz, 999, cur() && isAir(cur().kind) && P.y > 12 ? '🪂 パラシュートで おりる' : '🚪 おりる');
     for (const st of STORES) cand('store', st.id, st.x, st.z, 11, `${st.icon} ${st.name}(${st.sub})`);
@@ -560,6 +561,12 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   }
   function stepMissiles(dt) {
     for (const m of S.missiles) {
+      if (m.enemy) { // てきの ミサイル: プレイヤーを おいかける
+        m.t += dt; const vcur = cur(); const tyy = vcur && isAir(vcur.kind) ? P.y : 1.5; const dx = P.x - m.x; const dy = tyy - m.y; const dz = P.z - m.z; const d = hyp(dx, dy, dz) || 1; const c0 = hyp(m.vx, m.vy, m.vz) || 1; const k = clamp(1.8 * dt, 0, 1);
+        m.vx += ((dx / d) * c0 - m.vx) * k; m.vy += ((dy / d) * c0 - m.vy) * k; m.vz += ((dz / d) * c0 - m.vz) * k; m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+        if (d < 5 || m.y < 0.4 || insideBuilding(m.x, m.z, m.y)) { m.t = 99; fx('boom', m.x, Math.max(1, m.y), m.z, 12); snd('boom'); const dd = hyp(P.x - m.x, P.z - m.z); if (dd < 12 && P.dead <= 0) hurtPlayer(m.dmg * (dd < 6 ? 1 : 0.5)); }
+        continue;
+      }
       m.t += dt; if (m.g) m.vy -= m.g * dt; const tg = S.crooks.find((r) => r.id === m.target);
       if (tg) { const vx = tg.x - m.x; const vy = 1.6 - m.y; const vz = tg.z - m.z; const d = hyp(vx, vy, vz) || 1; const k = clamp(4.2 * dt, 0, 1); const c0 = hyp(m.vx, m.vy, m.vz) || 1; m.vx += ((vx / d) * c0 - m.vx) * k; m.vy += ((vy / d) * c0 - m.vy) * k; m.vz += ((vz / d) * c0 - m.vz) * k; }
       m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
@@ -596,7 +603,13 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
       const dx = P.x - j.x; const dz = P.z - j.z; const dp = hyp(dx, dz); const want = Math.atan2(dx, dz); j.yaw += clamp(angDiff(want, j.yaw), -1.0 * dt, 1.0 * dt); j.x += Math.sin(j.yaw) * j.spd * dt; j.z += Math.cos(j.yaw) * j.spd * dt; j.ph += dt; j.cd -= dt;
       const facing = Math.abs(angDiff(want, j.yaw)); const vcur = cur(); const ty = vcur && isAir(vcur.kind) ? P.y : 1.4;
       if (j.cd <= 0 && dp < 220 && facing < 0.3 && P.dead <= 0) { j.cd = 1.6 + rnd() * 0.8; const d3 = hyp(dp, j.y - ty) || 1; for (let k = 0; k < 2; k++) { const sx = (rnd() - 0.5) * 0.05; S.bullets.push({ x: j.x, y: j.y, z: j.z, vx: (dx / d3) * 95 + sx * 60, vy: ((ty - j.y) / d3) * 95, vz: (dz / d3) * 95, t: -k * 0.12, dmg: 4 }); } snd('cshot'); }
+      if (S.lv >= 5) { j.mcd = (j.mcd == null ? 3 + rnd() * 4 : j.mcd) - dt; if (j.mcd <= 0 && dp < 280 && facing < 0.45 && P.dead <= 0) { j.mcd = 6 + rnd() * 3; const d3 = hyp(dp, j.y - ty) || 1; S.missiles.push({ enemy: true, x: j.x, y: j.y - 1, z: j.z, vx: (dx / d3) * 62, vy: ((ty - j.y) / d3) * 62, vz: (dz / d3) * 62, t: 0, life: 7, dmg: 26, g: 0 }); snd('missile'); } }
       if (dp > 520) { j.x = P.x + Math.sin(j.yaw + Math.PI) * 300; j.z = P.z + Math.cos(j.yaw + Math.PI) * 300; }
+    }
+    for (const h of S.helis) { // ヘリ: うえに はりついて ぐるぐる まわりながら きかんじゅうで うつ
+      h.ph += dt; h.ang += 0.28 * dt; const orb = 42 + Math.sin(h.ph * 0.4) * 12; const tx = P.x + Math.sin(h.ang) * orb; const tz = P.z + Math.cos(h.ang) * orb; const ddx = tx - h.x; const ddz = tz - h.z; const dd = hyp(ddx, ddz) || 1; const sp = Math.min(26, dd * 1.2); h.x += (ddx / dd) * sp * dt; h.z += (ddz / dd) * sp * dt; h.y += (30 + Math.sin(h.ph) * 4 - h.y) * Math.min(1, dt); h.yaw += clamp(angDiff(Math.atan2(P.x - h.x, P.z - h.z), h.yaw), -2 * dt, 2 * dt);
+      const dp = hyp(P.x - h.x, P.z - h.z); const vcur = cur(); const ty = vcur && isAir(vcur.kind) ? P.y : 1.4; h.cd -= dt; h.burst = (h.burst || 0) - dt;
+      if (h.burst <= -1.0) h.burst = 1.4; if (h.burst > 0 && h.cd <= 0 && dp < 150 && P.dead <= 0) { h.cd = 0.3; const d3 = hyp(dp, h.y - ty) || 1; const sx = (rnd() - 0.5) * 0.07; const sz = (rnd() - 0.5) * 0.07; S.bullets.push({ x: h.x, y: h.y - 1, z: h.z, vx: ((P.x - h.x) / d3 + sx) * 80, vy: ((ty - h.y) / d3) * 80, vz: ((P.z - h.z) / d3 + sz) * 80, t: 0, dmg: 3 }); snd('cshot'); }
     }
     if (pv && (pv.kind === 'car' || pv.kind === 'bike' || pv.kind === 'tank') && Math.abs(pv.speed) > 3 && P.dead <= 0) for (const w of S.walkers) if (!(w.dead > 0) && hyp(w.x - pv.x, w.z - pv.z) < (pv.kind === 'tank' ? 5 : 2.6)) hurtWalker(w, 999, 'run');
     if (S.lv > 0) { S.heatT -= dt; S.huntT = (S.huntT || 0) - dt; if (S.heatT <= 0) clearHeat('🕊️ にげきった! 指名手配が とけたよ'); else if (S.huntT <= 0) { S.huntT = S.lv >= 4 ? 1.2 : 2.5; maintainHunters(); } }
@@ -638,7 +651,10 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   function interact() {
     if (P.dead > 0) return false; const n = S.nearby; if (!n) return false;
     if (n.kind === 'veh') { const v = S.vehicles.find((x) => x.id === n.id); if (v && !v.occ) { enter(v); return true; } }
-    else if (n.kind === 'tcar') { const t = S.traffic.find((x) => x.id === n.id); if (t) { raise(1, '🚨 パトカーを かってに のった!'); const it = catalogOf(t.model) || catalogOf('sedan'); const v = mkVeh(`tmp${++nid}`, it.kind, catalogV(it, ks), { x: t.x, z: t.z, yaw: t.yaw }, { temp: true, cat: it.id }); S.vehicles.push(v); S.traffic = S.traffic.filter((x) => x !== t); S.walkers.push({ id: ++nid, x: t.x + 3, z: t.z, yaw: t.yaw + 1.6, vert: t.vert, line: t.vert ? t.line + 4 : t.line, dir: 1, spd: 2.5, scared: 6, look: nid }); enter(v); msg('おまわりさん! くるまを おかりします!', 2.5); return true; } }
+    else if (n.kind === 'tcar') { const t = S.traffic.find((x) => x.id === n.id); if (t) {
+      if (!t.asked) { t.asked = true; t.ok = rnd() < 0.5; if (!t.ok) { t.denied = true; msg('運転手「だめ!」…むりやり のると どろぼうだよ', 3); snd('warn'); return true; } msg('運転手「いいよ! だいじに のってね」', 2.4); }
+      else if (t.denied) raise(1, '🚨 くるまを ぬすんだ! どろぼう!');
+      const it = catalogOf(t.model) || catalogOf('sedan'); const v = mkVeh(`tmp${++nid}`, it.kind, catalogV(it, ks), { x: t.x, z: t.z, yaw: t.yaw }, { temp: true, cat: it.id }); S.vehicles.push(v); S.traffic = S.traffic.filter((x) => x !== t); S.walkers.push({ id: ++nid, x: t.x + 3, z: t.z, yaw: t.yaw + 1.6, vert: t.vert, line: t.vert ? t.line + 4 : t.line, dir: 1, spd: 2.5, scared: 6, look: nid }); enter(v); if (t.denied) msg('🚨 くるまを うばった!', 2.5); return true; } }
     else if (n.kind === 'exit') { leave(); return true; }
     else if (n.kind === 'store') { S.ui = 'store'; ev({ t: 'store', id: n.id }); return true; }
     else if (n.kind === 'soccer') { ev({ t: 'soccer' }); return true; }

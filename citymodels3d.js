@@ -171,6 +171,20 @@ function fin(THREE, pts, thick, mat) { // よこから みた たてがた(x=ま
 const flameOf = (THREE, r, len) => { const f = new THREE.Mesh(new THREE.ConeGeometry(r, len, 10, 1, true), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); f.rotation.x = -Math.PI / 2; f.position.z = -len / 2; return f; };
 
 const AIR_SPAN = { cessna: [5.6, -4.6], trainer: [5.4, -5.8], bizjet: [6.6, -7.4], fighter: [5.0, -7.0], stealth: [6.4, -5.0] };
+// パトロールヘリ(あおい ボディ・ローター・きかんじゅう)。まえは +z
+export function makeHeliModel(THREE) {
+  const g = new THREE.Group(); const m = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.25, ...o });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1.7, 16, 12), m('#1d2f63')); body.scale.set(1, 0.95, 1.7); body.position.y = 0; g.add(body);
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(1.2, 14, 10), m('#9fd4ff', { metalness: 0.6, roughness: 0.15 })); glass.scale.set(1, 0.85, 1.1); glass.position.set(0, 0.35, 1.6); g.add(glass);
+  const boom = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 5.6), m('#1d2f63')); boom.position.set(0, 0.35, -4.2); g.add(boom);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.7, 0.9), m('#f2f2f2')); fin.position.set(0, 1.1, -6.8); g.add(fin);
+  const rotor = new THREE.Group(); for (let i = 0; i < 2; i++) { const bl = new THREE.Mesh(new THREE.BoxGeometry(11, 0.07, 0.45), m('#222')); bl.rotation.y = (i * Math.PI) / 2; rotor.add(bl); } rotor.position.y = 2.1; g.add(rotor);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 6), m('#333')); mast.position.y = 1.85; g.add(mast);
+  const trot = new THREE.Group(); const tb = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.6, 0.25), m('#222')); trot.add(tb); trot.position.set(0.25, 1.3, -6.8); g.add(trot);
+  for (const sx of [-1, 1]) { const sk = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 3.6), m('#444')); sk.position.set(sx * 1.2, -1.7, 0.2); g.add(sk); for (const sz of [-0.9, 1]) { const lg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.9, 0.08), m('#444')); lg.position.set(sx * 1.2, -1.2, sz); g.add(lg); } }
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), new THREE.MeshBasicMaterial({ color: '#ff3b3b' })); lamp.position.set(0, 1.85, 0.6); g.add(lamp); const lamp2 = lamp.clone(); lamp2.material = new THREE.MeshBasicMaterial({ color: '#3b6bff' }); lamp2.position.set(0, 1.85, -0.6); g.add(lamp2);
+  g.userData = { rotor, trot }; return g;
+}
 export function makeAirModel(THREE, model = 'trainer') {
   const g = makeAirBase(THREE, model); const [sp, tz] = AIR_SPAN[model] || [5, -5];
   const mk = (c, x, z) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, 0.05, z); return m; };
