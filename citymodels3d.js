@@ -256,6 +256,7 @@ function makeAirBase(THREE, model) {
 
 // ---- ぶき(てに もつ モデル。にぎりが げんてん・さきが +Z・うえが +Y) ------------------------------------
 export function makeWeaponModel(THREE, id = 'pistol') {
+  if (id === 'omega') id = 'railgun'; else if (id === 'tempest') id = 'minigun';
   const C = collector(THREE); const gm = '#1c1e24'; const gm2 = '#2c2f38'; const st = '#aab2be'; const wd = '#6a4526'; const wd2 = '#8a5a30'; const gl = '#7fe7ff';
   const b = (cls, w, h, d, c, x, y, z, rx = 0) => C.box(cls, w, h, d, c, [x, y, z], [rx, 0, 0]); const cy = (cls, r1, r2, len, c, x, y, z, seg = 10) => C.cyl(cls, r1, r2, len, c, [x, y, z], [Math.PI / 2, 0, 0], seg);
   const grip = (len = 0.1, x = 0, z = 0, c = gm2, rx = 0.22) => b('metal', 0.034, len, 0.05, c, x, -len / 2 + 0.02, z, rx);

@@ -32,11 +32,12 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
   const sim = mk(); const S = sim.state; const P = S.player;
   sim.input.climb = 1; run(sim, 2); assert.ok(Math.hypot(P.x - SPAWN.x, P.z - SPAWN.z) > 6, 'あるける'); sim.input.climb = 0;
   P.x = MS('harbor').x; P.z = MS('harbor').z; P.yaw = Math.PI; sim.input.climb = 1; run(sim, 8); assert.ok(!isWater(P.x, P.z), 'あるいて うみに はいれない'); sim.input.climb = 0;
-  const c1 = S.vehicles.find((v) => v.id === 'sedan'); c1.x = SPAWN.x + 6; c1.z = SPAWN.z + 6; P.x = SPAWN.x + 10; P.z = SPAWN.z + 6; P.yaw = 0; run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'veh'); assert.ok(sim.interact()); assert.equal(P.mode, 'veh');
+  const c1 = S.vehicles.find((v) => v.id === 'sedan'); c1.x = HQ.x + 6; c1.z = HQ.z + 6; P.x = HQ.x + 10; P.z = HQ.z + 6; P.yaw = 0; run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'veh'); assert.ok(sim.interact()); assert.equal(P.mode, 'veh');
   sim.input.climb = 1; run(sim, 3); assert.ok(sim.vehicleOf().speed > 10, 'くるまが はしる'); sim.input.climb = 0; run(sim, 3);
   assert.ok(sim.interact() && P.mode === 'foot', 'おりる');
   P.x = HQ.x + 20; P.z = HQ.z + 30; sim.input.climb = 1; P.yaw = Math.PI / 2; run(sim, 5); assert.ok(!insideBuilding(P.x, P.z, 0), 'ほんぶに めりこまない'); sim.input.climb = 0;
   assert.ok(S.pickups.length > 20 && S.walkers.length > 5 && S.traffic.length >= 4);
+  S.lv = 0; S.heat = 0; S.heatT = 0; S.fine = 0; S.crooks = S.crooks.filter((c) => !c.hunter); S.traffic = S.traffic.filter((c) => !c.cop); // (ここまでで くるまを うんてんして ひとを ひいた ぶん)
   const t = S.traffic[0]; tele(sim, t.x + 3, t.z); run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'tcar'); const nt = S.traffic.length; sim.interact(); if (P.mode !== 'veh') { assert.ok(t.denied && S.lv === 0, 'だめと いわれた'); sim.interact(); assert.ok(P.mode === 'veh' && S.lv >= 1, 'ことわられたのに のると どろぼう★1'); } else assert.equal(S.lv, 0, 'OKなら ★は つかない'); assert.equal(S.traffic.length, nt - 1, 'くるまを かりられる');
   sim.input.climb = 1; run(sim, 2); assert.ok(sim.vehicleOf().speed > 5); sim.input.climb = 0; sim.interact(); run(sim, 45); assert.ok(!S.vehicles.some((v) => v.temp), 'かりた くるまは きえる');
 }
@@ -44,11 +45,11 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
 {
   const sim = mk(st(80), 3, { owned: VCAT.map((v) => v.id) }); const S = sim.state; const P = S.player;
   for (const id of ['sports', 'bike', 'truck', 'racer', 'pbike', 'suv']) {
-    const v = S.vehicles.find((x) => x.id === id); assert.ok(v, id); P.mode = 'foot'; P.veh = null; v.occ = false; v.x = SPAWN.x + 6; v.z = SPAWN.z + 6; v.yaw = freeYaw(v.x, v.z); v.speed = 0; P.x = SPAWN.x + 9; P.z = SPAWN.z + 6; run(sim, 0.1); assert.equal(S.nearby.id, id); sim.interact(); assert.equal(sim.vehicleOf().id, id);
+    const v = S.vehicles.find((x) => x.id === id); assert.ok(v, id); P.mode = 'foot'; P.veh = null; v.occ = false; v.x = HQ.x + 6; v.z = HQ.z + 6; v.yaw = freeYaw(v.x, v.z); v.speed = 0; P.x = HQ.x + 9; P.z = HQ.z + 6; run(sim, 0.1); assert.equal(S.nearby.id, id); sim.interact(); assert.equal(sim.vehicleOf().id, id);
     sim.input.climb = 1; let sp = 0; run(sim, 3.5, () => { const vv = sim.vehicleOf(); if (vv) sp = Math.max(sp, vv.speed); }); assert.ok(sp > catalogV(catalogOf(id), st(80)).speed * 0.7, `${id}: はしる (${sp.toFixed(0)})`); sim.input.climb = 0; sim.interact(); run(sim, 1);
   }
   for (const id of ['cessna', 'trainer', 'bizjet', 'hawk', 'phantom']) {
-    P.mode = 'foot'; P.veh = null; const v = S.vehicles.find((x) => x.id === id); assert.ok(v && isAir(v.kind), id); v.occ = false; P.x = v.x + 4; P.z = v.z; run(sim, 0.1); sim.interact(); assert.equal(sim.vehicleOf().id, id); assert.ok(P.y > 30);
+    P.mode = 'foot'; P.veh = null; const v = S.vehicles.find((x) => x.id === id); assert.ok(v && isAir(v.kind), id); v.occ = false; assert.ok(sim.summon(id).ok, 'ガレージの メニューから のる'); assert.equal(sim.vehicleOf().id, id); assert.ok(P.y > 30);
     run(sim, 3); assert.ok(Math.hypot(v.x - v.home.x, v.z - v.home.z) > 60, `${id}: とぶ`); sim.interact(); run(sim, 25);
   }
   assert.ok(catalogOf('phantom').price > catalogOf('hawk').price && catalogOf('hawk').missiles >= 6, 'せんとうきは たかい・ミサイル');
@@ -93,7 +94,7 @@ const drive = (sim, tx, tz, { speed = 1 } = {}) => {
   tele(sim, BASE.x, BASE.z); P.hp = P.hpMax; run(sim, 8); assert.ok(!S.mission && S.done.rescue === 1, 'ひとじちを ほんぶへ とどけて クリア');
 }
 {
-  const sim = mk(st(100)); const S = sim.state; const P = S.player; tele(sim, MS('gang').x, MS('gang').z); sim.interact(); assert.equal(S.mission.id, 'gang'); const mc = () => S.crooks.filter((c) => c.mission); assert.equal(mc().length, 5);
+  const sim = mk(st(100), 3, { owned: [...DEFAULT_OWNED, 'tank'] }); const S = sim.state; const P = S.player; tele(sim, MS('gang').x, MS('gang').z); sim.interact(); assert.equal(S.mission.id, 'gang'); const mc = () => S.crooks.filter((c) => c.mission); assert.equal(mc().length, 5);
   const tank = S.vehicles.find((v) => v.id === 'tank'); tank.x = MS('gang').x + 6; tank.z = MS('gang').z; tele(sim, MS('gang').x + 10, MS('gang').z); sim.interact(); assert.equal(sim.vehicleOf().kind, 'tank');
   run(sim, 200, () => { P.hp = P.hpMax; const r = mc().filter((c) => c.state !== 'down').sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0]; if (!r) { sim.input.gun = false; return; } const d = Math.hypot(r.x - P.x, r.z - P.z); if (d > 60 || !clearLine(P.x, P.z, 4, r.x, r.z, 1.6)) hopLos(sim, r); else { let aa = Math.atan2(r.x - P.x, r.z - P.z) - P.yaw; while (aa > Math.PI) aa -= 2 * Math.PI; while (aa < -Math.PI) aa += 2 * Math.PI; sim.input.turn = Math.max(-1, Math.min(1, aa * 2.5)); sim.input.climb = 0; } sim.aimAt(r); sim.input.gun = d < 150; if (d < 250) sim.fireMissile(); });
   sim.input.gun = false; assert.ok(mc().length > 0 && mc().every((c) => c.state === 'down'), `ぜんいん たおれた (のこり ${mc().filter((c) => c.state !== 'down').length})`);
@@ -107,7 +108,7 @@ const drive = (sim, tx, tz, { speed = 1 } = {}) => {
   run(sim, 400, () => { const t = S.mission && S.mission.targets[S.mission.stage]; if (!t) return; drive(sim, t.x, t.z); }); assert.ok(S.done.harbor === 1, 'ふねで ブイを まわって クリア');
 }
 for (const planeId of ['plane', 'hawk']) {
-  const sim = mk(st(100), 3, { owned: [...DEFAULT_OWNED, 'hawk'] }); const S = sim.state; const P = S.player; tele(sim, MS('sky').x, MS('sky').z); sim.interact(); assert.equal(S.mission.id, 'sky');
+  const sim = mk(st(100), 3, { owned: [...DEFAULT_OWNED, 'hawk', 'plane'] }); const S = sim.state; const P = S.player; tele(sim, MS('sky').x, MS('sky').z); sim.interact(); assert.equal(S.mission.id, 'sky');
   const pl = S.vehicles.find((v) => v.id === planeId); tele(sim, pl.x + 3, pl.z); assert.ok(sim.interact()); assert.ok(isAir(sim.vehicleOf().kind) && P.y > 30);
   run(sim, 400, () => { P.hp = P.hpMax; const v = sim.vehicleOf(); if (!v) return; const t = S.mission && S.mission.targets[S.mission.stage]; if (!t) return; let d = Math.atan2(t.x - v.x, t.z - v.z) - v.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; sim.input.turn = Math.max(-1, Math.min(1, d * 2.5)); const hd = Math.hypot(t.x - v.x, t.z - v.z); const want = Math.atan2(t.y - v.y, hd) - v.pitch; sim.input.climb = Math.max(-1, Math.min(1, want * 3)); });
   assert.ok(S.done.sky === 1, `${planeId}: リングを ぜんぶ くぐって クリア (${S.mission ? S.mission.got : '-'}/6)`);
@@ -211,16 +212,16 @@ for (const planeId of ['plane', 'hawk']) {
 // ---- 指名手配 ----
 {
   const sim = mk(); const S = sim.state; const P = S.player; P.coins = 5000; assert.equal(S.lv, 0);
-  sim.meleeHit(); sim.meleeHit(); assert.equal(S.lv, 0, 'なぐるのは 3かいで ★1'); sim.meleeHit(); assert.equal(S.lv, 1, '3かい なぐると ★1');
-  sim.gunHit(); assert.equal(S.lv, 3, 'うつと 1かいで ★3'); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 4, 'そのあと うつたびに ★+1'); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 5); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 5, '★5が さいだい');
+  for (let i = 0; i < 4; i++) sim.meleeHit(); assert.equal(S.lv, 0, 'なぐるのは 5かいで ★1'); sim.meleeHit(); assert.equal(S.lv, 1, '5かい なぐると ★1');
+  sim.gunHit(); assert.equal(S.lv, 2, 'うつと 1かいで ★2'); const hit = (n) => { for (let i = 0; i < n; i++) { S.cntT = -9; sim.gunHit(); } }; hit(1); assert.equal(S.lv, 2, '1かいでは まだ'); hit(1); assert.equal(S.lv, 3, '2かい あてると ★+1'); hit(4); assert.equal(S.lv, 5); hit(4); assert.equal(S.lv, 5, '★5が さいだい');
   assert.ok(S.heatT >= 900, '★が たかいほど じかんが ながい');
   for (let i = 0; i < 700; i++) { sim.step(0.05); P.hp = P.hpMax; } assert.equal(S.lv, 5, '★5は すぐには きえない');
   const cops = S.crooks.filter((c) => c.hunter).length + S.traffic.filter((c) => c.cop).length + S.jets.length + S.helis.length; assert.ok(cops >= 17 && cops <= 26, `★5は 20にん ぐらい (${cops})`); assert.ok(S.jets.length >= 3 && S.helis.length >= 3 && S.traffic.some((c) => c.cop) && S.crooks.some((c) => c.hunter === 'cop'), 'せんとうき・パトカー・あるく けいさつ');
   const kb = sim.payFine(); assert.ok(!kb.ok && S.lv === 5, '★5は ばっきんで けせない'); assert.ok(!sim.fastTravel().ok, '★5は ワープ できない');
   P.coins = 1000; P.hp = 1; P.invuln = 0; S.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); sim.step(0.1); assert.equal(P.coins, 500, 'たおされると おかねが はんぶん'); assert.equal(S.lv, 0, 'たおされると かいじょ'); assert.equal(S.jets.length, 0);
   { const e = mk(); e.raise(5); e.state.heatT = 0.5; e.state.player.invuln = 99; for (let i = 0; i < 40; i++) e.step(0.05); assert.equal(e.state.lv, 0, '★5でも ながく にげきれば おわる'); }
-  const s2 = mk(); const P2 = s2.state.player; P2.coins = 5000; s2.gunHit(); assert.equal(s2.state.lv, 3); const f = s2.state.fine; assert.ok(f > 0 && s2.state.heatT > 100); const b0 = P2.coins; const ok2 = s2.payFine(); assert.ok(ok2.ok && P2.coins === b0 - f && s2.state.lv === 0, '★3までは ばっきんで かいじょ');
-  const s3 = mk(); const P3 = s3.state.player; const w3 = s3.state.walkers.find((x) => !x.idle && x.path); w3.x = P3.x + 8; w3.z = P3.z; P3.camYaw = Math.PI / 2; P3.yaw = Math.PI / 2; P3.weapon = 'pistol'; s3.state.walkers.forEach((x) => { if (x !== w3) { x.x = 9999; x.z = 9999; } }); s3.input.gun = true; for (let i = 0; i < 6; i++) { w3.x = P3.x + 8; w3.z = P3.z; P3.wCd = 0; P3.camYaw = Math.PI / 2; s3.step(0.05); if (s3.state.lv >= 3) break; } s3.input.gun = false; assert.ok(s3.state.lv >= 3, 'いっぱんの ひとを うつと ★3');
+  const s2 = mk(); const P2 = s2.state.player; P2.coins = 5000; s2.raise(3); assert.equal(s2.state.lv, 3); const f = s2.state.fine; assert.ok(f > 0 && s2.state.heatT > 100); const b0 = P2.coins; const ok2 = s2.payFine(); assert.ok(ok2.ok && P2.coins === b0 - f && s2.state.lv === 0, '★3までは ばっきんで かいじょ');
+  const s3 = mk(); const P3 = s3.state.player; const w3 = s3.state.walkers.find((x) => !x.idle && x.path); w3.x = P3.x + 8; w3.z = P3.z; P3.camYaw = Math.PI / 2; P3.yaw = Math.PI / 2; P3.weapon = 'pistol'; s3.state.walkers.forEach((x) => { if (x !== w3) { x.x = 9999; x.z = 9999; } }); s3.input.gun = true; for (let i = 0; i < 6; i++) { w3.x = P3.x + 8; w3.z = P3.z; P3.wCd = 0; P3.camYaw = Math.PI / 2; s3.step(0.05); if (s3.state.lv >= 2) break; } s3.input.gun = false; assert.ok(s3.state.lv >= 2, 'いっぱんの ひとを うつと ★2');
 }
 // ---- くるまが はしっている ----
 {
@@ -274,7 +275,7 @@ for (const planeId of ['plane', 'hawk']) {
   S.arrests = Object.fromEntries(WANTED.map((w) => [w.id, 3])); S.done = { a: 10, b: 10, c: 10, d: 10, e: 10, f: 10 }; sim.addJobOk(999);
   for (const e of EQUIP) if (!(e.need && e.need.all)) assert.ok(sim.buyEquip(e.id).ok, e.id); assert.ok(!sim.buyEquip('u_suit').ok, 'そうびだけでは まだ'); for (const it of VCAT) if (!S.owned.includes(it.id)) assert.ok(sim.buyVehicle(it.id).ok, it.id);
   const u1 = sim.ultimateProgress(); assert.equal(u1.have, u1.total); assert.ok(!sim.buyEquip('u_suit').ok, 'かくれキャラの しれんを クリアするまで かえない'); tele(sim, SECRET.x, SECRET.z); run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'secret', 'かくれキャラに はなしかけられる'); sim.interact(); assert.ok(S.mission && S.mission.id === 'secret' && S.crooks.filter((c) => c.mission).length === 8, 'かくしミッションが はじまる'); assert.ok(S.mission.timeLeft > 100); S.crooks = S.crooks.filter((c) => !c.mission); run(sim, 0.2); assert.ok(S.done.secret === 1 && !S.mission, 'かくしミッション クリア');
-  assert.ok(sim.buyEquip('u_suit').ok && sim.buyEquip('u_boots').ok && sim.buyEquip('u_helm').ok, 'ぜんぶ かって しれんを クリアすると さいきょうが かえる'); assert.ok(S.eq.hp >= 220 && S.eq.def >= 0.6 && S.eq.spd >= 0.75 && S.eq.aim >= 1 && S.eq.acc >= 0.75, 'さいきょうの こうか');
+  assert.ok(sim.buyEquip('u_suit').ok && sim.buyEquip('u_boots').ok && sim.buyEquip('u_helm').ok, 'ぜんぶ かって しれんを クリアすると さいきょうが かえる'); assert.ok(S.eq.hp >= 220 && S.eq.def >= 0.6 && S.eq.spd >= 0.75 && S.eq.aim >= 1 && S.eq.acc >= 0.75, 'さいきょうの こうか'); assert.ok(sim.buyWeapon('omega').ok && sim.buyWeapon('tempest').ok && sim.ammoOf('omega').mag === 3, 'さいきょうの ぶきも かえる'); const lowc = mk(); lowc.state.player.coins = 1e7; assert.ok(!lowc.buyWeapon('omega').ok, 'ぜんぶ そろえて かくしミッションを クリアするまで かえない');
 }
 // ---- オートAIMの ON/OFF・ふっかつで 指名手配が きえる・じたくに かくれる ----
 {
@@ -299,5 +300,19 @@ for (const planeId of ['plane', 'hawk']) {
   const got = (d) => { P.x = d.x; P.z = d.z; P.invuln = 5; sim.step(0.05); };
   if (wp) { assert.ok(!S.wOwned.includes(wp.drop.id)); got(wp); assert.ok(S.wOwned.includes(wp.drop.id), 'ぶきを てにいれる'); } if (eq) { got(eq); assert.ok(S.eqOwned.includes(eq.drop.id), 'そうびを てにいれる'); }
   const coins0 = P.coins; for (const d of S.pickups.filter((p) => p.kind === 'drop')) got(d); assert.ok(P.coins > coins0, 'コインも おちる');
+}
+// ---- せんしゃ・せんとうきは かわないと のれない / ガレージで くるまに のらない / くるまごとの スピード ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const tank = S.vehicles.find((v) => v.id === 'tank'); tele(sim, tank.x + 4, tank.z); run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'lockveh', 'かう まえは 🔒'); sim.interact(); assert.ok(!sim.vehicleOf(), 'のれない'); assert.ok(!sim.summon('tank').ok && !sim.summon('plane').ok, 'ガレージからも のれない');
+  P.coins = 99999; assert.ok(!sim.buyVehicle('tank').ok, 'ミッションの じょうけん'); S.done = { patrol: 2 }; assert.ok(sim.buyVehicle('tank').ok && sim.buyVehicle('plane').ok, 'かえる'); assert.ok(sim.summon('tank').ok && sim.vehicleOf().id === 'tank', 'かったら のれる');
+  const sim2 = mk(); const S2 = sim2.state; tele(sim2, GARAGE.x, GARAGE.z); run(sim2, 0.1); assert.equal(S2.nearby && S2.nearby.kind, 'garage', 'じたくに はいろうと したら くるまに のらない');
+  const sp = (id) => VCAT.find((v) => v.id === id).speed; assert.ok(sp('truck') < sp('sedan') && sp('sedan') < sp('suv') && sp('suv') < sp('sports') && sp('sports') < sp('racer') && sp('scooter') < sp('bike'), 'くるまごとに さいこうそくどが ちがう'); assert.ok(Math.max(...VCAT.filter((v) => v.kind === 'car' || v.kind === 'bike').map((v) => v.speed)) <= 40, 'すこし おそく');
+}
+// ---- よこに あるいても カメラが かってに まわらない・ひき(10にんで★1) ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; P.x = HQ.x; P.z = HQ.z; const fy = freeYaw(P.x, P.z, 40); P.camYaw = fy; P.yaw = fy; P.camFree = false; sim.input.autoAim = false; sim.input.moveX = 1; sim.input.moveY = 0; for (let i = 0; i < 60; i++) { sim.step(0.05); P.x = HQ.x; P.z = HQ.z; } sim.input.moveX = 0; assert.ok(Math.abs(Math.atan2(Math.sin(P.camYaw - fy), Math.cos(P.camYaw - fy))) < 0.01, `カメラが まわらない (${(P.camYaw - fy).toFixed(2)})`);
+  const r = mk(); const R = r.state; assert.ok(r.summon('sedan').ok); const rv = r.vehicleOf(); const ws = R.walkers.filter((w) => !(w.dead > 0)).slice(0, 12); R.player.invuln = 99;
+  for (let i = 0; i < 12; i++) { const w = ws[i]; rv.speed = 12; w.dead = 0; rv.x = w.x - Math.sin(rv.yaw) * 1.2; rv.z = w.z - Math.cos(rv.yaw) * 1.2; r.step(0.05); if (i === 8) assert.equal(R.lv, 0, '9にん ひいても まだ ★0'); if (i === 9) assert.ok(R.lv >= 1 && R.lv <= 1, '10にん ひくと ★1(それいじょうは あがらない)'); }
+  assert.equal(R.lv, 1, 'ひいた だけでは ★1 まで');
 }
 console.log('OK: city');

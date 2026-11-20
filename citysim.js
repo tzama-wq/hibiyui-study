@@ -89,24 +89,30 @@ export const roadPoint = (R, minCls = 1) => { const rl = CM.roadsOf().filter((r)
 export const footStats = (ks) => ({ vehicle: 'foot', speed: 5.6 + ks.SPD * 0.0064, run: 9.6 + ks.SPD * 0.0096, hpMax: Math.round(70 + ks.DEF * 0.7), gunDps: Math.round(18 + ks.SHO * 0.1), range: 75, turn: 2.4 });
 // のりものカタログ(model=3Dの かたち)。price=コイン。free=さいしょから もっている
 export const VCAT = [
-  { id: 'sedan', name: 'ふつうの くるま', icon: '🚗', kind: 'car', model: 'sedan', price: 0, free: true, speed: 30, turn: 1.7, hp: 130, gun: 20, desc: 'まちを はしる ふつうの くるま' },
-  { id: 'police', name: 'パトカー', icon: '🚓', kind: 'car', model: 'police', price: 0, free: true, speed: 34, turn: 1.8, hp: 170, gun: 26, desc: 'サイレンつき! ぼうえいたいの パトカー' },
-  { id: 'scooter', name: 'スクーター', icon: '🛵', kind: 'bike', model: 'scooter', price: 0, free: true, speed: 24, turn: 2.6, hp: 60, gun: 14, desc: 'ちいさくて こまわりが きく' },
-  { id: 'taxi', name: 'タクシー', icon: '🚕', kind: 'car', model: 'taxi', price: 800, speed: 30, turn: 1.7, hp: 130, gun: 16, desc: 'きいろい タクシー' },
-  { id: 'suv', name: 'SUV', icon: '🚙', kind: 'car', model: 'suv', price: 1800, speed: 32, turn: 1.5, hp: 210, gun: 22, desc: 'がんじょうな 4WD' },
-  { id: 'bike', name: 'バイク', icon: '🏍️', kind: 'bike', model: 'bike', price: 1400, speed: 44, turn: 2.6, hp: 70, gun: 18, desc: 'はやい ロードバイク' },
-  { id: 'pbike', need: { a: 2 }, name: '白バイ', icon: '🏍️', kind: 'bike', model: 'pbike', price: 2080, speed: 42, turn: 2.7, hp: 95, gun: 24, desc: 'サイレンつきの けいさつの バイク' },
-  { id: 'truck', name: 'トラック', icon: '🚚', kind: 'car', model: 'truck', price: 2600, speed: 24, turn: 1.2, hp: 340, gun: 18, desc: 'おおきくて とても じょうぶ' },
-  { id: 'sports', need: { a: 1 }, name: 'スポーツカー', icon: '🏎️', kind: 'car', model: 'sports', price: 3200, speed: 44, turn: 2.0, hp: 125, gun: 22, desc: 'スピードが じまんの くるま' },
-  { id: 'racer', need: { m: 3 }, name: 'レーサーバイク', icon: '🏍️', kind: 'bike', model: 'racer', price: 6000, speed: 64, turn: 2.8, hp: 70, gun: 18, desc: 'ちょう はやい バイク' },
+  { id: 'sedan', name: 'ふつうの くるま', icon: '🚗', kind: 'car', model: 'sedan', price: 0, free: true, speed: 18, turn: 1.7, hp: 130, gun: 20, desc: 'まちを はしる ふつうの くるま' },
+  { id: 'police', name: 'パトカー', icon: '🚓', kind: 'car', model: 'police', price: 0, free: true, speed: 21, turn: 1.8, hp: 170, gun: 26, desc: 'サイレンつき! ぼうえいたいの パトカー' },
+  { id: 'scooter', name: 'スクーター', icon: '🛵', kind: 'bike', model: 'scooter', price: 0, free: true, speed: 14, turn: 2.6, hp: 60, gun: 14, desc: 'ちいさくて こまわりが きく' },
+  { id: 'taxi', name: 'タクシー', icon: '🚕', kind: 'car', model: 'taxi', price: 800, speed: 17, turn: 1.7, hp: 130, gun: 16, desc: 'きいろい タクシー' },
+  { id: 'suv', name: 'SUV', icon: '🚙', kind: 'car', model: 'suv', price: 1800, speed: 19, turn: 1.5, hp: 210, gun: 22, desc: 'がんじょうな 4WD' },
+  { id: 'bike', name: 'バイク', icon: '🏍️', kind: 'bike', model: 'bike', price: 1400, speed: 26, turn: 2.6, hp: 70, gun: 18, desc: 'はやい ロードバイク' },
+  { id: 'pbike', need: { a: 2 }, name: '白バイ', icon: '🏍️', kind: 'bike', model: 'pbike', price: 2080, speed: 25, turn: 2.7, hp: 95, gun: 24, desc: 'サイレンつきの けいさつの バイク' },
+  { id: 'truck', name: 'トラック', icon: '🚚', kind: 'car', model: 'truck', price: 2600, speed: 13, turn: 1.2, hp: 340, gun: 18, desc: 'おおきくて とても じょうぶ' },
+  { id: 'sports', need: { a: 1 }, name: 'スポーツカー', icon: '🏎️', kind: 'car', model: 'sports', price: 3200, speed: 28, turn: 2.0, hp: 125, gun: 22, desc: 'スピードが じまんの くるま' },
+  { id: 'racer', need: { m: 3 }, name: 'レーサーバイク', icon: '🏍️', kind: 'bike', model: 'racer', price: 6000, speed: 38, turn: 2.8, hp: 70, gun: 18, desc: 'ちょう はやい バイク' },
   { id: 'cessna', name: 'プロペラ機', icon: '🛩️', kind: 'plane', model: 'cessna', price: 2400, speed: 50, turn: 0.95, hp: 100, gun: 0, desc: 'ゆっくり そらを さんぽ' },
-  { id: 'super', need: { a: 3 }, name: 'スーパーカー', icon: '🏎️', kind: 'car', model: 'super', price: 9600, speed: 58, turn: 2.1, hp: 115, gun: 24, desc: 'とびきり はやい!' },
+  { id: 'super', need: { a: 3 }, name: 'スーパーカー', icon: '🏎️', kind: 'car', model: 'super', price: 9600, speed: 34, turn: 2.1, hp: 115, gun: 24, desc: 'とびきり はやい!' },
   { id: 'trainer', need: { m: 2 }, name: 'れんしゅうき', icon: '✈️', kind: 'jet', model: 'trainer', price: 6000, speed: 92, turn: 1.1, hp: 130, gun: 24, missiles: 2, desc: 'ジェットの はじめの いっぽ' },
   { id: 'bizjet', need: { m: 5 }, name: 'ビジネスジェット', icon: '🛫', kind: 'jet', model: 'bizjet', price: 10000, speed: 125, turn: 0.95, hp: 150, gun: 0, desc: 'そらを ゆうがに ひこう' },
   { id: 'hawk', need: { a: 5, m: 4 }, name: 'ホーク せんとうき', icon: '🛩️', kind: 'jet', model: 'fighter', price: 18000, speed: 138, turn: 1.1, hp: 170, gun: 42, missiles: 6, desc: 'ミサイルを つんだ せんとうき' },
   { id: 'phantom', need: { a: 8, m: 6 }, name: 'ファントム ステルス', icon: '✈️', kind: 'jet', model: 'stealth', price: 36000, speed: 165, turn: 1.15, hp: 210, gun: 56, missiles: 8, desc: 'さいしんの ステルス せんとうき' },
 ];
 export const catalogOf = (id) => VCAT.find((v) => v.id === id);
+// かわないと のれない とくべつな きかん(せんしゃ・ぼうえいたいの せんとうき)
+export const SPECIALS = [
+  { id: 'tank', name: 'せんしゃ', icon: '🚜', price: 14000, need: { m: 2 }, speed: 22, desc: 'ミサイルつきの ぼうえいたいの せんしゃ' },
+  { id: 'plane', name: 'ぼうえいたいの せんとうき', icon: '✈️', price: 9000, need: { m: 1 }, speed: 110, desc: 'きみの チームで つくった せんとうき' },
+];
+export const specialOf = (id) => SPECIALS.find((x) => x.id === id);
 // かいほうじょうけん: a=つかまえた 指名手配はんの にんずう / m=クリアした ミッションの かいすう
 export const needText = (n) => (n ? [n.all ? 'そうび・のりもの・せんとうきを ぜんぶ かう' : '', n.secret ? 'まちの かくれキャラの しれんに クリア' : '', n.m ? `ミッション ${n.m}かい クリア` : '', n.a ? `指名手配はん ${n.a}にん たいほ` : '', n.j ? `がっこうの おしごとで せいかい ${n.j}もん` : ''].filter(Boolean).join(' + ') : '');
 // ぶきカタログ(GTAの ぶきを まなんだ ラインナップ。たまは なくならない)。rate=1びょうに なんかい / expl=ばくはつ / g=おちる つよさ
@@ -160,6 +166,9 @@ const AMMO = {
   sniper: [5, 2.8, 40, 0.05, 0], marksman: [8, 2.4, 64, 0.03, 0.05], heavysniper: [3, 3.6, 18, 0.07, 0],
   grenade: [1, 1.0, 10, 0.02, 0], molotov: [1, 1.2, 10, 0.02, 0], grenadel: [6, 3.0, 24, 0.03, 0], rpg: [1, 3.2, 10, 0.04, 0], homing: [1, 3.6, 6, 0.04, 0], railgun: [3, 3.5, 12, 0.05, 0],
 };
+// ぜんぶ かって かくしミッションを クリアすると かえる 「さいきょうの ぶき」
+WEAPONS.push({ id: 'omega', name: '👑 オメガ ブラスター', icon: '🌟', cat: 'じゅうかき', price: 1500000, dmg: 900, rate: 0.9, range: 600, spread: 0.0004, snd: 'bigboom', need: { all: true, secret: true } }, { id: 'tempest', name: '👑 テンペスト ガトリング', icon: '🌪️', cat: 'じゅうかき', price: 1000000, dmg: 70, rate: 16, range: 320, spread: 0.008, snd: 'gun', need: { all: true, secret: true } });
+AMMO.omega = [3, 3.0, 15, 0.05, 0]; AMMO.tempest = [300, 5, 1500, 0.01, 0.2];
 export const ammoSpec = (w) => { const a = w && AMMO[w.id]; return a ? { mag: a[0], reload: a[1], cap: a[2], recoil: a[3], fall: a[4] } : null; };
 export const DEFAULT_WEAPONS = WEAPONS.filter((w) => !w.price).map((w) => w.id);
 export const DEFAULT_OWNED = VCAT.filter((v) => v.free).map((v) => v.id);
@@ -307,13 +316,13 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const applyEq = () => { const q = eqStat(); const hm = FS.hpMax + q.hp; const r = P.hp / (P.hpMax || hm); P.hpMax = hm; P.hp = Math.min(hm, Math.max(1, Math.round(hm * r))); S.eq = q; };
   applyEq(); P.hp = P.hpMax;
   // ---- てはい ----
-  // 指名手配: なぐる3かいで★1・うつと 1かいで★3・そのあと けいさつや いっぱんの ひとを うつたびに ★+1(★5が さいだい)
+  // 指名手配(ゆるめ): 1ぷんで 10にん ひくと★1・なぐる5かいで★1・いっぱんの ひとを うつと ★2・そのあと 2かい あてるごとに ★+1(けいさつは 3かい・のりものは 4かい)(★5が さいだい)
   const raise = (to, why) => { const l0 = S.lv; S.lv = Math.min(5, Math.max(S.lv, to)); S.heat = S.lv; S.fine = HEAT_FINE[S.lv]; if (S.lv > 0) S.heatT = Math.max(S.heatT, HEAT_DUR[S.lv]); if (S.lv > l0) { banner(S.lv >= 5 ? '🚨 ★5 ながい あいだ にげきれ!!' : `🚨 指名手配 ${'⭐'.repeat(S.lv)}!`, 2.6); snd('warn'); ev({ t: 'wanted', lv: S.lv }); } else if (why && S.lv > 0) msg(why, 1.4); };
   const addStar = (why) => raise(S.lv + 1, why);
-  const gunHit = (why) => { if (S.lv < 3) raise(3, why); else if (S.t - (S.starT || -9) > 0.25) { S.starT = S.t; addStar(why); } };
-  const meleeHit = (why) => { S.melee++; if (S.melee >= 3) { S.melee = 0; raise(1, why); } else msg(`🚨 なぐった(${S.melee}/3)`, 1.2); };
-  const clearHeat = (why) => { S.heat = 0; S.lv = 0; S.heatT = 0; S.fine = 0; S.melee = 0; S.jets = []; S.helis = []; S.missiles = S.missiles.filter((m) => !m.enemy); S.crooks = S.crooks.filter((c) => !c.hunter); S.traffic = S.traffic.filter((c) => !c.cop); if (why) msg(why, 3); };
-  const hurtWalker = (w, dmg, how) => { if (w.dead > 0) return; w.hp = (w.hp == null ? 40 : w.hp) - dmg; w.scared = 8; if (w.idle) { w.idle = false; w.spd = 1.8; if (S.relocWalker) S.relocWalker(w); } fx('spark', w.x, 1.2, w.z, 4); if (how === 'melee') meleeHit('🚨 いっぱんの ひとを なぐった!'); else gunHit('🚨 いっぱんの ひとを やった!'); if (w.hp <= 0) { w.dead = 14; snd('down'); fx('spark', w.x, 1.5, w.z, 8); } };
+  const gunHit = (why, per = 2) => { if (S.lv < 2) { S.gunCnt = 0; raise(2, why); } else if (S.t - (S.cntT || -9) > 0.3) { S.cntT = S.t; S.gunCnt = (S.gunCnt || 0) + 1; if (S.gunCnt >= per) { S.gunCnt = 0; addStar(why); } } };
+  const meleeHit = (why) => { S.melee++; if (S.melee >= 5) { S.melee = 0; raise(1, why); } else msg(`🚨 なぐった(${S.melee}/5)`, 1.2); };
+  const clearHeat = (why) => { S.heat = 0; S.lv = 0; S.heatT = 0; S.fine = 0; S.melee = 0; S.gunCnt = 0; S.runs = []; S.jets = []; S.helis = []; S.missiles = S.missiles.filter((m) => !m.enemy); S.crooks = S.crooks.filter((c) => !c.hunter); S.traffic = S.traffic.filter((c) => !c.cop); if (why) msg(why, 3); };
+  const hurtWalker = (w, dmg, how) => { if (w.dead > 0) return; w.hp = (w.hp == null ? 40 : w.hp) - dmg; w.scared = 8; if (w.idle) { w.idle = false; w.spd = 1.8; if (S.relocWalker) S.relocWalker(w); } fx('spark', w.x, 1.2, w.z, 4); if (how === 'melee') meleeHit('🚨 いっぱんの ひとを なぐった!'); else if (how === 'run') { S.runs = (S.runs || []).filter((t) => S.t - t < 60); S.runs.push(S.t); if (S.runs.length >= 10) raise(1, '🚨 たくさんの ひとを ひいた!'); else if (S.runs.length >= 5 && S.lv < 1) msg(`⚠️ ひとを ひきすぎ ちゅうい!(${S.runs.length}/10)`, 1.4); } else gunHit('🚨 いっぱんの ひとを やった!'); if (w.hp <= 0) { w.dead = 14; snd('down'); fx('spark', w.x, 1.5, w.z, 8); } };
   const rayWalker = (from, dv, range, wall) => { let best = null; let ba = 9; for (const w of S.walkers) { if (w.dead > 0) continue; const vx = w.x - from.x; const vy = 1.1 - from.y; const vz = w.z - from.z; const dist = hyp(vx, vy, vz); if (dist > range || dist > wall || dist < 1) continue; const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / dist, -1, 1)); if (a < 0.9 / dist + 0.04 && a < ba) { ba = a; best = w; } } return best; };
   const nearestWalker = (maxD, cone, yaw) => { let best = null; let bd = maxD; for (const w of S.walkers) { if (w.dead > 0) continue; const d = hyp(w.x - P.x, w.z - P.z); if (d > bd || Math.abs(angDiff(Math.atan2(w.x - P.x, w.z - P.z), yaw)) > cone) continue; bd = d; best = w; } return best; };
   const spawnHunter = (t) => { for (let i = 0; i < 80; i++) { const rp = roadPoint(R2, 1); const dd = hyp(rp.x - P.x, rp.z - P.z); if (dd < 55 || dd > 200 || insideBuilding(rp.x, rp.z) || inRect(AIRFIELD, rp.x, rp.z) || inRect(HOME, rp.x, rp.z) || isWater(rp.x, rp.z)) continue; const c = spawnCrook(t === 'cop' ? 'cop' : 'bounty', rp.x, rp.z, { wander: 20 }); c.hunter = t; c.alert = true; return true; } return false; };
@@ -379,7 +388,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     const cand = (kind, id, x, z, r, label, extra = {}) => { const d = hyp(px - x, pz - z); if (d < r && d < bd) { bd = d; best = { kind, id, label, d, ...extra }; } };
     if (P.mode === 'foot') {
       for (const c of S.crooks) if (c.state === 'down' && !c.hunter) cand('arrest', c.id, c.x, c.z, 6, `🚔 たいほする${c.wid ? `(けんしょう金 ${bountyOf(c)})` : ''}`);
-      for (const v of S.vehicles) if (!v.occ) cand('veh', v.id, v.x, v.z, v.kind === 'ship' ? 26 : 12, `${VNAME[v.kind] || '🚗'} ${v.name || ''}に のる`);
+      for (const v of S.vehicles) if (!v.occ) { if (!canRide(v)) { cand('lockveh', v.id, v.x, v.z, 12, `🔒 ${specialOf(v.id).name}(トレッサで かうと のれるよ)`); continue; } if (!v.temp && v.kind !== 'ship' && inRect(HOME, v.x, v.z)) continue; /* じたくの なかの くるまは ガレージの メニューから のる */ cand('veh', v.id, v.x, v.z, v.kind === 'ship' ? 26 : 12, `${VNAME[v.kind] || '🚗'} ${v.name || ''}に のる`); }
       for (const t of S.traffic) if (!t.dead && !t.hostile) cand('tcar', t.id, t.x, t.z, 7, t.denied ? '🚨 むりやり うばう(どろぼうに なるよ!)' : '🚗 うんてんしゅに たのむ(くるまを かりる)');
       for (const c of S.civs) if (c.state === 'need') cand('civ', c.id, c.x, c.z, 9, '🆘 ひとを たすける');
     } else cand('exit', 'exit', px, pz, 999, cur() && isAir(cur().kind) && P.y > 12 ? '🪂 パラシュートで おりる' : '🚪 おりる');
@@ -395,7 +404,9 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (!S.secretHint && !(S.done.secret > 0) && hyp(P.x - SECRET.x, P.z - SECRET.z) < 110) { const u = ultimateProgress(); if (u.have >= u.total) { S.secretHint = true; msg('🔔 ちかくに ふしぎな けはいが する…', 4); } }
     S.nearby = best;
   };
+  const canRide = (v) => !specialOf(v.id) || S.owned.includes(v.id);
   const enter = (v) => {
+    if (!canRide(v)) { msg('🔒 まだ かっていないよ(トレッサで かおう)', 2.4); return; }
     P.mode = 'veh'; P.veh = v.id; v.occ = true; v.away = 0; P.aimRel = 0; P.aimPitch = 0.05; P.noAim = 0; P.boost = 100;
     if (isAir(v.kind)) { v.y = 60; v.speed = v.V.speed; v.pitch = 0; v.yaw = v.home.yaw; msg(`${VNAME[v.kind]} ${v.name}に のったよ! そらへ!`); }
     else msg(`${VNAME[v.kind] || ''} ${v.name}に のったよ`);
@@ -466,10 +477,10 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   };
   const downCrook = (c) => { if (c.wid) dropLoot(c); { const sp = ammoSpec(weaponOf(P.weapon)); const A = sp && am(P.weapon); if (A) A.reserve = Math.min(sp.cap, A.reserve + Math.ceil(sp.mag * 0.5)); } c.state = 'down'; c.downT = 0; c.hp = Math.max(1, Math.round(c.hpMax * 0.2)); snd('down'); fx('spark', c.x, 3, c.z, 5); };
   const hitAir = (u, dmg) => {
-    u.hp -= dmg; u.flash = 0.12; gunHit('🚨 けいさつの のりものを うった!'); fx('spark', u.x, u.y, u.z, 3);
+    u.hp -= dmg; u.flash = 0.12; gunHit('🚨 けいさつの のりものを うった!', 4); fx('spark', u.x, u.y, u.z, 3);
     if (u.hp <= 0) { fx('big', u.x, u.y, u.z, 16); snd('bigboom'); const jet = u.air === 'jet'; const reward = jet ? 350 : 250; P.coins += reward; S.stats.coins += reward; S.airRespawn = S.t + 14; S.helis = S.helis.filter((x) => x !== u); S.jets = S.jets.filter((x) => x !== u); msg(`${jet ? '✈️ せんとうき' : '🚁 ヘリ'}を おとした! 🪙+${reward}`, 2.6); ev({ t: 'airkill', jet }); }
   };
-  const hitCrook = (c, dmg) => { if (c.air) { hitAir(c, dmg); return; } if (c.state === 'down') return; if (c.hunter) gunHit('🚨 けいさつを うった!'); c.hp -= dmg; c.alert = true; if (c.hp <= c.hpMax * 0.22) downCrook(c); };
+  const hitCrook = (c, dmg) => { if (c.air) { hitAir(c, dmg); return; } if (c.state === 'down') return; if (c.hunter) gunHit('🚨 けいさつを うった!', 3); c.hp -= dmg; c.alert = true; if (c.hp <= c.hpMax * 0.22) downCrook(c); };
   const arrest = (c) => {
     S.crooks = S.crooks.filter((x) => x !== c); P.kos++; S.stats.arrests++; snd('win'); fx('spark', c.x, 3, c.z, 6);
     const coins = bountyOf(c); P.coins += coins; S.stats.coins += coins; S.stats.bounty += coins;
@@ -531,7 +542,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (!cur()) return fireFoot();
     const v = cur(); const kind = v ? v.kind : 'foot'; const dps = v ? v.V.gunDps : FS.gunDps; if (!dps) { if (S.t - (P.nogunT || -9) > 3) { P.nogunT = S.t; msg('この のりものには ぶきが ないよ'); } return; }
     const air = isAir(kind); const range = air ? 650 : kind === 'ship' ? 800 : kind === 'tank' ? 600 : kind === 'car' || kind === 'bike' ? 140 : FS.range;
-    if ((kind === 'foot' || kind === 'car' || kind === 'bike') && P.noAim > 0.8) { const yaw0 = v ? v.yaw : P.yaw; const t = nearestCrook(range, 0.9, yaw0); if (t) { P.aimRel = clamp(angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0), -1.5, 1.5); P.aimPitch = clamp(Math.atan2(2.5 - (kind === 'foot' ? 1.6 : 2), Math.hypot(t.x - P.x, t.z - P.z)), -0.2, 0.4); } }
+    if (input.autoAim && (kind === 'foot' || kind === 'car' || kind === 'bike') && P.noAim > 0.8) { const yaw0 = v ? v.yaw : P.yaw; const t = nearestCrook(range, 0.9, yaw0); if (t) { P.aimRel = clamp(angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0), -1.5, 1.5); P.aimPitch = clamp(Math.atan2(2.5 - (kind === 'foot' ? 1.6 : 2), Math.hypot(t.x - P.x, t.z - P.z)), -0.2, 0.4); } }
     const d = aimDir(); const dv = dirOf(d.yaw, d.pitch); let best = null; let ba = 9;
     for (const r of [...S.crooks, ...S.helis, ...S.jets]) {
       if (r.state === 'down') continue; const ty = r.y != null ? r.y : air ? Math.max(1.5, d.from.y - 0.25 * hyp(r.x - d.from.x, r.z - d.from.z)) : 1.6; const vx = r.x - d.from.x; const vy = ty - d.from.y; const vz = r.z - d.from.z; const dist = hyp(vx, vy, vz); if (dist > range) continue;
@@ -561,6 +572,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (!v) {
       const mx = input.moveX || 0; const my = input.moveY || 0; const mag = Math.min(1, Math.hypot(mx, my)); if (P.tired && P.boost >= 30) P.tired = false; const dash = (boost || mag >= 0.85) && !P.tired && P.boost > 0; const sp = (dash ? FS.run : FS.speed) * (P.buff.speed > 0 ? 1.3 : 1) * (1 + S.eq.spd); // スティックを ふかく たおすと ダッシュ
       if (mag > 0.08) { // スマホ ふうの そうさ: スティックの むきに カメラを きじゅんに あるく
+        P.camFree = true; // カメラ(レティクル)は からだの むきに ひきずられない
         const cy = P.camYaw; let dx = Math.sin(cy) * my - Math.cos(cy) * mx; let dz = Math.cos(cy) * my + Math.sin(cy) * mx; const L = hyp(dx, dz) || 1; dx /= L; dz /= L;
         P.speed = lerp(P.speed, (dash ? 1 : Math.min(1, mag / 0.8)) * sp, 1 - Math.exp(-10 * dt)); const lockd = input.gun || input.aimLock; const want = lockd ? P.camYaw : Math.atan2(dx, dz); P.yaw += clamp(angDiff(want, P.yaw), -14 * dt, 14 * dt); P.moveRel = angDiff(Math.atan2(dx, dz), P.yaw); P.moving = true;
         groundMove(P, P.x + dx * P.speed * dt, P.z + dz * P.speed * dt, 1.1, false);
@@ -722,6 +734,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     else if (n.kind === 'store') { S.ui = 'store'; ev({ t: 'store', id: n.id }); return true; }
     else if (n.kind === 'soccer') { ev({ t: 'soccer' }); return true; }
     else if (n.kind === 'koban') { payFine(); return true; }
+    else if (n.kind === 'lockveh') { msg('🔒 トレッサの「のりもの」で かうと のれるよ', 3); return true; }
     else if (n.kind === 'board') { refreshWanted(); S.ui = 'board'; ev({ t: 'board' }); return true; }
     else if (n.kind === 'garage') { S.ui = 'garage'; ev({ t: 'garage' }); return true; }
     else if (n.kind === 'job') { S.ui = 'job'; ev({ t: 'job' }); return true; }
@@ -741,7 +754,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     P.coins -= it.cost; ev({ t: 'buy', id }); return { ok: true };
   }
   function buyVehicle(id) {
-    const it = catalogOf(id); if (!it) return { ok: false, why: 'ない' }; if (S.owned.includes(id)) return { ok: false, why: 'もう もってるよ' }; if (!meets(it.need)) return { ok: false, why: `まだ かえないよ(${needText(it.need)})` }; if (P.coins < it.price) return { ok: false, why: 'コインが たりないよ' };
+    const it = catalogOf(id) || specialOf(id); if (!it) return { ok: false, why: 'ない' }; if (S.owned.includes(id)) return { ok: false, why: 'もう もってるよ' }; if (!meets(it.need)) return { ok: false, why: `まだ かえないよ(${needText(it.need)})` }; if (P.coins < it.price) return { ok: false, why: 'コインが たりないよ' };
     P.coins -= it.price; S.owned.push(id); parkOwned(); ev({ t: 'buyveh', id }); snd('win'); return { ok: true };
   }
   function buyWeapon(id) {
@@ -763,7 +776,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (v) leave(); P.chute = false; P.x = GARAGE.x; P.z = GARAGE.z + 10; P.y = 0; P.speed = 0; P.yaw = Math.PI; fx('spark', P.x, 2, P.z, 8); snd('door'); msg('🏁 ガレージに ワープしたよ!', 2.2); return { ok: true };
   }
   function summon(id) {
-    const v = S.vehicles.find((x) => x.id === id && !x.temp); if (!v) return { ok: false, why: 'ないよ' }; if (v.kind === 'ship') return { ok: false, why: 'ふねは みなとに あるよ' };
+    const v = S.vehicles.find((x) => x.id === id && !x.temp); if (!v) return { ok: false, why: 'ないよ' }; if (!canRide(v)) return { ok: false, why: 'まだ かっていないよ(トレッサで かおう)' }; if (v.kind === 'ship') return { ok: false, why: 'ふねは みなとに あるよ' };
     if (P.dead > 0) return { ok: false, why: '' }; if (cur() && cur() !== v) { if (isAir(cur().kind) && P.y > 12) return { ok: false, why: 'そらでは つかえないよ' }; leave(); }
     v.occ = false; v.x = GARAGE.x - 4; v.z = GARAGE.z + 12; v.y = 0; v.yaw = Math.PI; v.speed = 0; v.hp = v.hpMax; P.x = GARAGE.x; P.z = GARAGE.z + 4; P.chute = false; enter(v); S.ui = null; return { ok: true };
   }
