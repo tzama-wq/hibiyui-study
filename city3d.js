@@ -231,7 +231,7 @@ export async function startCity3D(o) {
 
   // ---- ものたち ----
   let heldId = ''; let heldM = null;
-  const me = makePerson(THREE, { shirt: '#e8eaf0', jacket: true, jacketColor: '#2d62d6', pants: '#1f2635', hair: '#1a1410', hairStyle: 0, bag: '#c9473a', scale: 1.0 }); scene.add(me); const vmodels = new Map();
+  const me = makePerson(THREE, { shirt: '#3a3a3e', jacket: true, jacketColor: '#1c1d21', pants: '#4a5a34', cargo: true, boots: true, shoe: '#4a3020', sole: '#1a1612', hair: '#2a1c14', hairStyle: 0, stubble: true, scale: 1.0 }); scene.add(me); const vmodels = new Map();
   const mkVehModel = (v) => { let m; if (v.cat) { const it = catalogOf(v.cat) || catalogOf('sedan'); m = it.kind === 'bike' ? makeBikeModel(THREE, it.model) : isAir(it.kind) ? makeAirModel(THREE, it.model) : makeCarModel(THREE, it.model); } else m = makeVehicleModel(THREE, o.specs[v.kind]); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); vmodels.set(v.id, m); return m; };
   for (const v of S.vehicles) mkVehModel(v);
   const npcs = new Map(); const trafficM = new Map(); const crookM = new Map(); const pickM = new Map();
@@ -327,14 +327,14 @@ export async function startCity3D(o) {
   // ---- おしごと(もんだいに こたえて おきゅうりょう) ----
   const openJob = () => {
     const N = 5; const st = { n: 0, ok: 0, subj: 'mix', q: null };
-    const intro = () => { shopEl.innerHTML = `<div class="sh-box"><h3>💼 おしごとセンター</h3><div class="sh-coin">🪙 ${P.coins}</div><p class="jb-p">もんだいに こたえて おきゅうりょうを もらおう!<br>${N}もん・せいかい 1もんで 🪙20・ぜんぶ せいかいで +🪙40</p><button class="sh-item" data-s="算数"><span>🔢</span><div><b>さんすうの おしごと</b><small>けいさんや ずけい</small></div></button><button class="sh-item" data-s="国語"><span>📖</span><div><b>こくごの おしごと</b><small>かんじ・ことば</small></div></button><button class="sh-item" data-s="mix"><span>🎲</span><div><b>おまかせ</b><small>さんすう+こくご</small></div></button><button class="btn gray sh-x">とじる</button></div>`; };
+    const intro = () => { shopEl.innerHTML = `<div class="sh-box"><h3>💼 おしごとセンター</h3><div class="sh-coin">🪙 ${P.coins}</div><p class="jb-p">もんだいに こたえて おきゅうりょうを もらおう!<br>${N}もん・せいかい 1もんで 🪙40・ぜんぶ せいかいで +🪙80</p><button class="sh-item" data-s="算数"><span>🔢</span><div><b>さんすうの おしごと</b><small>けいさんや ずけい</small></div></button><button class="sh-item" data-s="国語"><span>📖</span><div><b>こくごの おしごと</b><small>かんじ・ことば</small></div></button><button class="sh-item" data-s="mix"><span>🎲</span><div><b>おまかせ</b><small>さんすう+こくご</small></div></button><button class="btn gray sh-x">とじる</button></div>`; };
     const ask = () => {
       const subj = st.subj === 'mix' ? (st.n % 2 ? '国語' : '算数') : st.subj; const q = o.getJobQuestion ? o.getJobQuestion(subj) : null;
       if (!q) { shopEl.innerHTML = `<div class="sh-box"><h3>💼 おしごと</h3><p class="jb-p">いまは おしごとが ないみたい…</p><button class="btn gray sh-x">とじる</button></div>`; return; }
       st.q = q; shopEl.innerHTML = `<div class="sh-box jb"><h3>💼 おしごと ${st.n + 1}/${N}</h3><div class="jb-q">${q.text}</div>${q.choices.map((c, i) => `<button class="sh-item jb-c" data-i="${i}"><b>${c.label}</b></button>`).join('')}<div class="sh-note jb-r"></div></div>`;
     };
     const done = () => {
-      const perfect = st.ok === N; const pay = st.ok * 20 + (perfect ? 40 : 0); if (pay) sim.addCoins(pay); if (o.onJobDone) o.onJobDone({ correct: st.ok, total: N, pay, perfect }); saveNow();
+      const perfect = st.ok === N; const pay = st.ok * 40 + (perfect ? 80 : 0); if (pay) sim.addCoins(pay); if (o.onJobDone) o.onJobDone({ correct: st.ok, total: N, pay, perfect }); saveNow();
       shopEl.innerHTML = `<div class="sh-box"><h3>💼 おつかれさま!</h3><div class="jb-big">${perfect ? '🌟 パーフェクト!' : st.ok >= 3 ? '👍 よくできました' : 'ざんねん…またね'}</div><p class="jb-p">せいかい ${st.ok}/${N}<br>おきゅうりょう 🪙+${pay}</p><div class="sh-coin">🪙 ${P.coins}</div><button class="sh-item" data-again="1"><span>🔁</span><div><b>もういちど はたらく</b></div></button><button class="btn gray sh-x">とじる</button></div>`;
     };
     openModal(intro);
@@ -344,7 +344,7 @@ export async function startCity3D(o) {
       if (e.target.closest('[data-again]')) { intro(); return; }
       const nx = e.target.closest('.jb-next'); if (nx) { st.n++; if (st.n >= N) done(); else ask(); return; }
       const c = e.target.closest('.jb-c'); if (!c || c.dataset.done) return; const ch = st.q.choices[+c.dataset.i]; shopEl.querySelectorAll('.jb-c').forEach((x) => { x.dataset.done = '1'; const k = st.q.choices[+x.dataset.i]; x.classList.add(k.ok ? 'good' : 'dim'); });
-      if (ch.ok) { st.ok++; snd0('win'); } else snd0('lose'); const r = shopEl.querySelector('.jb-r'); r.innerHTML = `<b>${ch.ok ? '⭕ せいかい! 🪙+20' : '❌ ざんねん'}</b>${st.q.why ? `<div class="jb-why">${st.q.why}</div>` : ''}<button class="btn gold jb-next">${st.n + 1 >= N ? 'けっかを みる' : 'つぎへ ▶'}</button>`;
+      if (ch.ok) { st.ok++; snd0('win'); } else snd0('lose'); const r = shopEl.querySelector('.jb-r'); r.innerHTML = `<b>${ch.ok ? '⭕ せいかい! 🪙+40' : '❌ ざんねん'}</b>${st.q.why ? `<div class="jb-why">${st.q.why}</div>` : ''}<button class="btn gold jb-next">${st.n + 1 >= N ? 'けっかを みる' : 'つぎへ ▶'}</button>`;
     };
   };
   const snd0 = (n) => { if (o.onSfx) o.onSfx(n); };
@@ -460,7 +460,7 @@ export async function startCity3D(o) {
     const f = { x: Math.sin(P.yaw) * Math.cos(P.pitch || 0), y: Math.sin(P.pitch || 0), z: Math.cos(P.yaw) * Math.cos(P.pitch || 0) };
     let bx; let by; let bz; let lx; let ly; let lz; const k = 1 - Math.exp(-8 * dt);
     if (isAir(kind)) { const dd = kind === 'jet' ? 30 : 26; bx = P.x - f.x * dd; by = P.y - f.y * dd + 7; bz = P.z - f.z * dd; lx = P.x + f.x * 90; ly = P.y + f.y * 90; lz = P.z + f.z * 90; }
-    else { const cy = kind === 'tank' || kind === 'ship' ? P.yaw + P.aimRel : P.yaw; const d = { foot: 8, car: 12, bike: 9, tank: 30, ship: 68 }[kind]; const h = { foot: 3.6, car: 5, bike: 4.2, tank: 15, ship: 30 }[kind]; bx = P.x - Math.sin(cy) * d; by = (P.chute ? P.y : 0) + h; bz = P.z - Math.cos(cy) * d; lx = P.x + Math.sin(cy) * 80; ly = (P.chute ? P.y : 0) + (kind === 'foot' ? 2 : 6) + (kind === 'tank' || kind === 'ship' ? Math.tan(P.aimPitch) * 80 : 0); lz = P.z + Math.cos(cy) * 80; }
+    else { const cy = kind === 'tank' || kind === 'ship' ? P.yaw + P.aimRel : P.yaw; const d = { foot: 5.4, car: 11, bike: 8, tank: 30, ship: 68 }[kind]; const h = { foot: 2.7, car: 4.6, bike: 3.8, tank: 15, ship: 30 }[kind]; bx = P.x - Math.sin(cy) * d; by = (P.chute ? P.y : 0) + h; bz = P.z - Math.cos(cy) * d; lx = P.x + Math.sin(cy) * 80; ly = (P.chute ? P.y : 0) + (kind === 'foot' ? 2 : 6) + (kind === 'tank' || kind === 'ship' ? Math.tan(P.aimPitch) * 80 : 0); lz = P.z + Math.cos(cy) * 80; }
     if (!cam.init) { cam.x = bx; cam.y = by; cam.z = bz; cam.init = true; } cam.x += (bx - cam.x) * k; cam.y += (by - cam.y) * k; cam.z += (bz - cam.z) * k;
     camera.position.set(cam.x, Math.max(2.2, cam.y), cam.z); camera.up.set(0, 1, 0); camera.lookAt(lx, ly, lz);
     sky.position.set(camera.position.x, 0, camera.position.z); sea.position.x = camera.position.x; sea.position.z = camera.position.z; sea.material.uniforms.time.value = tt;

@@ -55,7 +55,7 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
 {
   const sim = mk(); const S = sim.state; const P = S.player; P.coins = 50; assert.equal(sim.buy('heal').ok, false); P.hp = 10; assert.ok(sim.buy('heal').ok && P.hp === P.hpMax && P.coins === 40);
   assert.equal(sim.buy('silver').ok, false); assert.ok(sim.buy('bronze').ok && P.coins === 0); assert.ok(sim.takeEvents().some((e) => e.t === 'buy' && e.id === 'bronze'));
-  P.coins = 250; assert.equal(sim.buyVehicle('hawk').ok, false, 'たりない'); assert.equal(sim.buyVehicle('sedan').ok, false, 'もってる'); assert.ok(sim.buyVehicle('taxi').ok && P.coins === 50 && S.vehicles.some((v) => v.id === 'taxi' && v.cat === 'taxi')); assert.ok(sim.takeEvents().some((e) => e.t === 'buyveh' && e.id === 'taxi'));
+  const tp = catalogOf('taxi').price; P.coins = tp + 50; assert.equal(sim.buyVehicle('hawk').ok, false, 'たりない'); assert.equal(sim.buyVehicle('sedan').ok, false, 'もってる'); assert.ok(sim.buyVehicle('taxi').ok && P.coins === 50 && S.vehicles.some((v) => v.id === 'taxi' && v.cat === 'taxi')); assert.ok(sim.takeEvents().some((e) => e.t === 'buyveh' && e.id === 'taxi'));
   tele(sim, GARAGE.x, GARAGE.z); assert.equal(S.nearby && S.nearby.kind, 'garage'); sim.interact(); assert.equal(S.ui, 'garage'); sim.closeUi();
   tele(sim, BOARD.x, BOARD.z); assert.equal(S.nearby && S.nearby.kind, 'board'); sim.interact(); assert.ok(S.wanted.length === 8 && S.wanted.every((w) => w.alive));
 }
@@ -130,7 +130,7 @@ for (const planeId of ['plane', 'hawk']) {
   const sim = mk(); const S = sim.state; const P = S.player; assert.equal(P.weapon, 'pistol');
   P.coins = 100000; assert.equal(sim.buyWeapon('railgun').ok, false, 'じょうけんが まだ'); assert.ok(sim.buyWeapon('knife').ok && P.weapon === 'knife', 'かって そうび'); assert.equal(sim.buyWeapon('knife').ok, false);
   const w0 = P.weapon; assert.notEqual(sim.cycleWeapon(1), w0, 'きりかえ'); sim.equip('bat'); assert.equal(P.weapon, 'bat'); assert.equal(sim.equip('railgun'), false);
-  assert.equal(sim.buyVehicle('hawk').ok, false, 'レアは ミッションと たいほが ひつよう'); assert.ok(/ミッション/.test(needText({ m: 2 })) && P.coins === 100000 - 60);
+  assert.equal(sim.buyVehicle('hawk').ok, false, 'レアは ミッションと たいほが ひつよう'); assert.ok(/ミッション/.test(needText({ m: 2 })) && P.coins === 100000 - WEAPONS.find((w) => w.id === 'knife').price);
   // ぶきで はんにんを たおす(ちかくで)
   for (const w of ['bat', 'pistol']) { const s2 = mk(); const P2 = s2.state.player; P2.weapon = w; const c = s2.state.crooks.find((x) => x.wid === 'joe'); P2.x = c.x; P2.z = c.z - (w === 'bat' ? 2.4 : 12); P2.yaw = 0; c.state = 'idle'; s2.input.gun = true; run(s2, 8, () => { P2.hp = P2.hpMax; P2.yaw = Math.atan2(c.x - P2.x, c.z - P2.z); }); s2.input.gun = false; assert.ok(c.state === 'down', `${w}で たおせる`); }
   // ばくはつぶき
@@ -138,7 +138,7 @@ for (const planeId of ['plane', 'hawk']) {
   // ワープ・のりものを ガレージで のる
   const s3 = mk(st(70), 3, { owned: VCAT.map((v) => v.id) }); const P3 = s3.state.player; P3.x = -300; P3.z = 300; assert.ok(s3.fastTravel().ok && Math.hypot(P3.x - GARAGE.x, P3.z - GARAGE.z) < 20, 'ガレージへ ワープ');
   const sp = s3.summon('hawk'); assert.ok(sp.ok && s3.vehicleOf() && s3.vehicleOf().id === 'hawk', 'ガレージから のる'); assert.equal(s3.summon('ship').ok, false);
-  const s4 = mk(); s4.state.player.coins = 5000; s4.state.arrests = { joe: 1, momo: 1, gonzo: 1 }; assert.ok(s4.buyVehicle('super').ok, 'たいほが ふえると レアを かえる');
+  const s4 = mk(); s4.state.player.coins = 30000; s4.state.arrests = { joe: 1, momo: 1, gonzo: 1 }; assert.ok(s4.buyVehicle('super').ok, 'たいほが ふえると レアを かえる');
   const s5 = mk(); s5.addCoins(50); assert.equal(s5.state.player.coins, 50, 'おしごとの おきゅうりょう');
 }
 console.log('OK: city');
