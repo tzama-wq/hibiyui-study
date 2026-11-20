@@ -176,6 +176,8 @@ export const CROOKS = {
   gunman: { name: 'ごうとう', hp: 90, dmg: 6, speed: 5, range: 70, fire: 1.4 },
   boss: { name: 'ボス', hp: 260, dmg: 9, speed: 4.2, range: 85, fire: 1.0 },
   runner: { name: 'ひったくり', hp: 36, dmg: 0, speed: 8.5, range: 0, fire: 99 },
+  elite: { name: 'エリート', hp: 420, dmg: 11, speed: 6, range: 95, fire: 0.8, rad: 3.2 },
+  legend: { name: 'レジェンド', hp: 1200, dmg: 15, speed: 6.2, range: 110, fire: 0.6, rad: 3.8 },
   cop: { name: 'おまわりさん', hp: 80, dmg: 5, speed: 5.8, range: 60, fire: 1.3 },
   bounty: { name: '賞金かせぎ', hp: 120, dmg: 7, speed: 6, range: 75, fire: 1.0 },
 };
@@ -191,7 +193,21 @@ export const WANTED = [
   { id: 'shadow', name: 'シャドウ', crime: 'みなとの みつゆ', stars: 3, bounty: 900, type: 'gunman', spot: pn(-520, 120), guards: 3 },
   { id: 'don', name: 'ドン・カルロ', crime: 'ギャングの ボス', stars: 4, bounty: 1500, type: 'boss', spot: pn(560, -420, 1, 600), guards: 4 },
   { id: 'king', name: 'キング・ガレオン', crime: 'おおきな しんじゅ ごうだつ', stars: 5, bounty: 3000, type: 'boss', spot: pn(-40, 560), guards: 6 },
+  // レアな 指名手配はん(つよい・たおすと レアな ぶき・そうびを おとす)
+  { id: 'kaito', name: '怪盗ファントム', crime: 'びじゅつかん ぜんぶ ぬすんだ', stars: 5, bounty: 4000, type: 'elite', rarity: 'rare', spot: pn(-640, -560, 1, 500), guards: 3, guardType: 'gunman' },
+  { id: 'tiger', name: 'あかとら タイガー', crime: 'ギャングの よういんぼう', stars: 5, bounty: 5000, type: 'elite', rarity: 'rare', spot: pn(640, 600, 1, 500), guards: 3, guardType: 'gunman' },
+  { id: 'oni', name: 'おに ゴウキ', crime: 'ぶき ふうじゅう あばれもの', stars: 5, bounty: 6000, type: 'elite', rarity: 'rare', spot: pn(120, -700, 1, 500), guards: 4, guardType: 'gunman' },
+  { id: 'dragon', name: 'りゅうじん ドラゴ', crime: 'あんこくがいの おう', stars: 5, bounty: 12000, type: 'elite', rarity: 'super', hpMul: 1.8, spot: pn(700, -620, 1, 500), guards: 5, guardType: 'elite' },
+  { id: 'raven', name: 'くろがらす レイヴン', crime: 'そらの ほうせき ごうだつ', stars: 5, bounty: 15000, type: 'elite', rarity: 'super', hpMul: 2.2, spot: pn(-100, 760, 1, 500), guards: 5, guardType: 'elite' },
+  { id: 'kaiser', name: 'こうてい カイザー', crime: 'まち ぜんたいを しはい', stars: 5, bounty: 40000, type: 'legend', rarity: 'super2', spot: pn(-700, 640, 1, 500), guards: 8, guardType: 'boss' },
 ];
+export const RARITY_NAME = { rare: 'レア', super: 'スーパーレア', super2: 'レジェンド' };
+// たおした ときの おとしもの(レアほど いい ぶき・そうび)。p: かくりつ
+const DROP_POOLS = {
+  rare: { w: ['revolver', 'specialcarbine', 'marksman', 'pump', 'assaultsg'], e: ['vest', 'turbo', 'tactical'], pw: 0.75, pe: 0.5, coins: 800 },
+  super: { w: ['heavysniper', 'minigun', 'rpg', 'combatmg', 'grenadel'], e: ['armor', 'rocket', 'goggle'], pw: 0.9, pe: 0.75, coins: 2500 },
+  super2: { w: ['railgun', 'homing', 'heavyrifle'], e: ['bsuit', 'lightning', 'hmask'], pw: 1, pe: 1, coins: 8000 },
+};
 
 // ---- ミッション ---------------------------------------------------------------------------------
 const hubA = (ang, rad, c = 1) => pn(HQ.x - Math.cos(ang) * rad, HQ.z + Math.sin(ang) * rad, c, 300);
@@ -421,18 +437,34 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   function spawnCrook(type, x, z, o = {}) {
     if (insideBuilding(x, z, 0) || isWater(x, z)) { const f = freeAround(x, z); x = f.x; z = f.z; }
     const T = CROOKS[type]; const hp = Math.round(T.hp * (o.hpMul || 1));
-    const c = { id: ++nid, type, x, z, yaw: rnd() * 6.28, hp, hpMax: hp, cd: 1 + rnd(), homeX: x, homeZ: z, wander: o.wander || 36, state: 'idle', t: 0, downT: 0, mission: !!o.mission, wid: o.wid || null, speed: T.speed, ph: rnd() * 6, alert: false, look: Math.floor(rnd() * 8), flee: 0 };
+    const c = { id: ++nid, type, x, z, yaw: rnd() * 6.28, hp, hpMax: hp, cd: 1 + rnd(), homeX: x, homeZ: z, wander: o.wander || 36, state: 'idle', t: 0, downT: 0, mission: !!o.mission, wid: o.wid || null, rad: T.rad || 0, speed: T.speed, ph: rnd() * 6, alert: false, look: Math.floor(rnd() * 8), flee: 0 };
     S.crooks.push(c); return c;
   }
   const bountyOf = (c) => { if (c.wid) { const w = WANTED.find((x) => x.id === c.wid); const n = S.arrests[c.wid] || 0; return Math.round(w.bounty * (n === 0 ? 1 : 0.5)); } return c.minor ? 40 : 0; };
   const spawnWanted = (w) => {
-    spawnCrook(w.type, w.spot.x, w.spot.z, { wid: w.id, wander: 30, hpMul: 1 });
-    for (let i = 0; i < w.guards; i++) { const a = (i / w.guards) * 6.28; spawnCrook(w.stars >= 4 && i < 2 ? 'gunman' : 'thug', w.spot.x + Math.cos(a) * 22, w.spot.z + Math.sin(a) * 22, { wander: 30, hpMul: 1, guardOf: w.id }); }
+    spawnCrook(w.type, w.spot.x, w.spot.z, { wid: w.id, wander: 30, hpMul: w.hpMul || 1 });
+    for (let i = 0; i < w.guards; i++) { const a = (i / w.guards) * 6.28; spawnCrook(w.guardType || (w.stars >= 4 && i < 2 ? 'gunman' : 'thug'), w.spot.x + Math.cos(a) * 22, w.spot.z + Math.sin(a) * 22, { wander: 30, hpMul: 1, guardOf: w.id }); }
   };
   const respawnAt = {}; for (const w of WANTED) spawnWanted(w);
-  const refreshWanted = () => { S.wanted = WANTED.map((w) => { const c = S.crooks.find((x) => x.wid === w.id); return { id: w.id, name: w.name, crime: w.crime, stars: w.stars, bounty: Math.round(w.bounty * ((S.arrests[w.id] || 0) === 0 ? 1 : 0.5)), alive: !!c, x: c ? c.x : null, z: c ? c.z : null, caught: S.arrests[w.id] || 0, state: c ? c.state : 'gone' }; }); };
+  const refreshWanted = () => { S.wanted = WANTED.map((w) => { const c = S.crooks.find((x) => x.wid === w.id); return { id: w.id, name: w.name, rarity: w.rarity || null, rname: w.rarity ? RARITY_NAME[w.rarity] : '', crime: w.crime, stars: w.stars, bounty: Math.round(w.bounty * ((S.arrests[w.id] || 0) === 0 ? 1 : 0.5)), alive: !!c, x: c ? c.x : null, z: c ? c.z : null, caught: S.arrests[w.id] || 0, state: c ? c.state : 'gone' }; }); };
   refreshWanted();
-  const downCrook = (c) => { { const sp = ammoSpec(weaponOf(P.weapon)); const A = sp && am(P.weapon); if (A) A.reserve = Math.min(sp.cap, A.reserve + Math.ceil(sp.mag * 0.5)); } c.state = 'down'; c.downT = 0; c.hp = Math.max(1, Math.round(c.hpMax * 0.2)); snd('down'); fx('spark', c.x, 3, c.z, 5); };
+    const dropPickup = (x, z, d, icon, col) => { S.pickups.push({ id: ++nid, kind: 'drop', x: x + (rnd() - 0.5) * 5, z: z + (rnd() - 0.5) * 5, v: 0, drop: d, icon, col, life: 150 }); };
+  const dropLoot = (c) => {
+    const w = WANTED.find((x) => x.id === c.wid); if (!w || c.dropped) return; c.dropped = true; const pool = DROP_POOLS[w.rarity];
+    dropPickup(c.x, c.z, { t: 'coins', v: pool ? pool.coins : Math.round(w.bounty * 0.3) }, '🪙', '#ffd23f'); dropPickup(c.x, c.z, { t: 'heal' }, '❤️', '#ff6a8a'); dropPickup(c.x, c.z, { t: 'ammo' }, '📦', '#9fe29f');
+    const pick = (list, own) => { const un = list.filter((id) => !own.includes(id)); const arr = un.length ? un : list; return arr[Math.floor(rnd() * arr.length)]; };
+    if (pool) { if (rnd() < pool.pw) dropPickup(c.x, c.z, { t: 'weapon', id: pick(pool.w, S.wOwned) }, '🔫', w.rarity === 'super2' ? '#ff5aff' : w.rarity === 'super' ? '#ffb02a' : '#5ac8ff'); if (rnd() < pool.pe) dropPickup(c.x, c.z, { t: 'equip', id: pick(pool.e, S.eqOwned) }, '👕', w.rarity === 'super2' ? '#ff5aff' : w.rarity === 'super' ? '#ffb02a' : '#5ac8ff'); }
+    else if (w.stars >= 3 && rnd() < 0.2) dropPickup(c.x, c.z, { t: 'weapon', id: pick(['heavypistol', 'smg', 'pump', 'assault'], S.wOwned) }, '🔫', '#5ac8ff');
+    msg(`${w.rarity ? '✨ ' : ''}アイテムを おとした! ひろおう!`, 3); snd('coin');
+  };
+  const applyDrop = (d) => {
+    if (d.t === 'coins') { P.coins += d.v; S.stats.coins += d.v; snd('coin'); msg(`🪙 +${d.v}`, 1.6); }
+    else if (d.t === 'heal') { P.hp = P.hpMax; snd('win'); msg('❤️ HPが ぜんかいふく!', 2); }
+    else if (d.t === 'ammo') { for (const wid of S.wOwned) { const sp = ammoSpec(weaponOf(wid)); if (sp) { const A = am(wid); A.reserve = sp.cap; A.mag = Math.max(A.mag, sp.mag); } } snd('win'); msg('📦 たまを ぜんぶ ほじゅう!', 2); }
+    else if (d.t === 'weapon') { const w = weaponOf(d.id); if (!w) return; if (S.wOwned.includes(d.id)) { P.coins += 800; msg(`🎁 ${w.name}(もってる) → 🪙+800`, 2.4); } else { S.wOwned.push(d.id); const sp = ammoSpec(w); if (sp) S.ammo[d.id] = { mag: sp.mag, reserve: Math.floor(sp.cap / 2) }; msg(`🎁 ${w.icon || ''} ${w.name} を てにいれた!`, 3.4); ev({ t: 'dropget', kind: 'weapon', id: d.id }); } snd('win'); }
+    else if (d.t === 'equip') { const e = equipOf(d.id); if (!e) return; if (S.eqOwned.includes(d.id)) { P.coins += 1000; msg(`🎁 ${e.name}(もってる) → 🪙+1000`, 2.4); } else { S.eqOwned.push(d.id); if (!S.equip[e.slot]) { S.equip[e.slot] = d.id; applyEq(); } msg(`🎁 ${e.icon} ${e.name} を てにいれた!`, 3.4); ev({ t: 'dropget', kind: 'equip', id: d.id }); } snd('win'); }
+  };
+  const downCrook = (c) => { if (c.wid) dropLoot(c); { const sp = ammoSpec(weaponOf(P.weapon)); const A = sp && am(P.weapon); if (A) A.reserve = Math.min(sp.cap, A.reserve + Math.ceil(sp.mag * 0.5)); } c.state = 'down'; c.downT = 0; c.hp = Math.max(1, Math.round(c.hpMax * 0.2)); snd('down'); fx('spark', c.x, 3, c.z, 5); };
   const hitAir = (u, dmg) => {
     u.hp -= dmg; u.flash = 0.12; gunHit('🚨 けいさつの のりものを うった!'); fx('spark', u.x, u.y, u.z, 3);
     if (u.hp <= 0) { fx('big', u.x, u.y, u.z, 16); snd('bigboom'); const jet = u.air === 'jet'; const reward = jet ? 350 : 250; P.coins += reward; S.stats.coins += reward; S.airRespawn = S.t + 14; S.helis = S.helis.filter((x) => x !== u); S.jets = S.jets.filter((x) => x !== u); msg(`${jet ? '✈️ せんとうき' : '🚁 ヘリ'}を おとした! 🪙+${reward}`, 2.6); ev({ t: 'airkill', jet }); }
@@ -441,7 +473,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const arrest = (c) => {
     S.crooks = S.crooks.filter((x) => x !== c); P.kos++; S.stats.arrests++; snd('win'); fx('spark', c.x, 3, c.z, 6);
     const coins = bountyOf(c); P.coins += coins; S.stats.coins += coins; S.stats.bounty += coins;
-    if (c.wid) { const w = WANTED.find((x) => x.id === c.wid); const first = (S.arrests[c.wid] || 0) === 0; S.arrests[c.wid] = (S.arrests[c.wid] || 0) + 1; respawnAt[c.wid] = S.t + 120; const tk = {}; if (first) { if (w.stars >= 5) tk.gold = 2; else if (w.stars >= 4) tk.gold = 1; else if (w.stars >= 3) tk.silver = 1; else if (w.stars >= 2) tk.bronze = 1; }
+    if (c.wid) { const w = WANTED.find((x) => x.id === c.wid); const first = (S.arrests[c.wid] || 0) === 0; S.arrests[c.wid] = (S.arrests[c.wid] || 0) + 1; respawnAt[c.wid] = S.t + (w.rarity === 'super2' ? 1500 : w.rarity === 'super' ? 900 : w.rarity ? 600 : 120); const tk = {}; if (first) { if (w.stars >= 5) tk.gold = 2; else if (w.stars >= 4) tk.gold = 1; else if (w.stars >= 3) tk.silver = 1; else if (w.stars >= 2) tk.bronze = 1; }
       ev({ t: 'bounty', id: c.wid, name: w.name, stars: w.stars, coins, tickets: tk, first }); banner(`🚔 ${w.name} を たいほ!`, 3.2); msg(`けんしょう金 🪙+${coins}${Object.keys(tk).length ? ' + チケット' : ''}`, 4); }
     else { ev({ t: 'arrest', coins }); msg(coins ? `たいほ! 🪙+${coins}` : 'たいほ!', 2.2); }
     refreshWanted();
@@ -521,7 +553,11 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   function movePlayer(dt) {
     const v = cur(); const boost = input.boost;
     if (P.dead > 0) return;
-    if (P.chute) { P.y = Math.max(0, P.y - 7 * dt); P.yaw += input.turn * 0.6 * dt; P.x += Math.sin(P.yaw) * input.climb * 6 * dt; P.z += Math.cos(P.yaw) * input.climb * 6 * dt; if (isWater(P.x, P.z)) { P.x = HQ.x; P.z = HQ.z - 40; } pushOut(P, 1.2); if (P.y <= 0.01) P.chute = false; return; }
+    if (P.chute) { // パラシュート: たかい ときは はやく、ひくく なるほど ゆっくり おりる。スティックは カメラの むきで いどう
+      const fall = clamp(P.y * 0.12, 6, 20); P.y = Math.max(0, P.y - fall * dt); const mx = input.moveX || 0; const my = input.moveY || 0; const mag = Math.min(1, Math.hypot(mx, my));
+      if (mag > 0.08) { const cy = P.camYaw; let dx = Math.sin(cy) * my - Math.cos(cy) * mx; let dz = Math.cos(cy) * my + Math.sin(cy) * mx; const L = hyp(dx, dz) || 1; dx /= L; dz /= L; P.x += dx * 9 * mag * dt; P.z += dz * 9 * mag * dt; P.yaw += clamp(angDiff(Math.atan2(dx, dz), P.yaw), -3 * dt, 3 * dt); }
+      else { P.yaw += input.turn * 0.6 * dt; P.x += Math.sin(P.yaw) * input.climb * 8 * dt; P.z += Math.cos(P.yaw) * input.climb * 8 * dt; }
+      if (isWater(P.x, P.z)) { P.x = HQ.x; P.z = HQ.z - 40; } pushOut(P, 1.2); if (P.y <= 0.01) { P.chute = false; P.speed = 0; } return; }
     if (!v) {
       const mx = input.moveX || 0; const my = input.moveY || 0; const mag = Math.min(1, Math.hypot(mx, my)); if (P.tired && P.boost >= 30) P.tired = false; const dash = (boost || mag >= 0.85) && !P.tired && P.boost > 0; const sp = (dash ? FS.run : FS.speed) * (P.buff.speed > 0 ? 1.3 : 1) * (1 + S.eq.spd); // スティックを ふかく たおすと ダッシュ
       if (mag > 0.08) { // スマホ ふうの そうさ: スティックの むきに カメラを きじゅんに あるく
@@ -599,7 +635,8 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     S.missiles = S.missiles.filter((m) => m.t < m.life);
   }
   function stepWorld(dt) {
-    for (const p of S.pickups.slice()) if (hyp(p.x - P.x, p.z - P.z) < (P.mode === 'veh' ? 7 : 3) && (P.y < 12 || P.mode === 'foot')) { S.pickups = S.pickups.filter((x) => x !== p); if (p.kind === 'gem') { ev({ t: 'gem', v: 1 }); snd('gem'); msg('💎 ほうせきを みつけた!', 2); P.coins += p.v; S.stats.coins += p.v; } else { P.coins += p.v; S.stats.coins += p.v; snd('coin'); } }
+    if (S.pickups.some((p) => p.life != null)) S.pickups = S.pickups.filter((p) => p.life == null || (p.life -= dt) > 0);
+    for (const p of S.pickups.slice()) if (hyp(p.x - P.x, p.z - P.z) < (P.mode === 'veh' ? 7 : p.kind === 'drop' ? 4.5 : 3) && (P.y < 12 || P.mode === 'foot')) { S.pickups = S.pickups.filter((x) => x !== p); if (p.kind === 'drop') applyDrop(p.drop); else if (p.kind === 'gem') { ev({ t: 'gem', v: 1 }); snd('gem'); msg('💎 ほうせきを みつけた!', 2); P.coins += p.v; S.stats.coins += p.v; } else { P.coins += p.v; S.stats.coins += p.v; snd('coin'); } }
     S.relocT = (S.relocT || 0) + dt; const fire = P.mode === 'foot' && (input.gun || P.wCd > 0.1) && (weaponOf(P.weapon) || {}).range > 5;
     for (const w of S.walkers) { if (w.dead > 0) { w.dead -= dt; if (w.dead <= 0) { w.hp = 40; w.idle = false; w.scared = 0; if (!(S.relocWalker && S.relocWalker(w))) w.dead = 3; } continue; } if (w.idle) { if (fire && hyp(w.x - P.x, w.z - P.z) < 30) { w.idle = false; w.scared = 6; w.relocFlee = true; if (S.relocWalker) S.relocWalker(w); w.spd = 1.8; } continue; } if (!w.path) continue;
       if (S.relocT > 0.4 && hyp(w.x - P.x, w.z - P.z) > 300) { if (S.relocWalker(w)) { S.relocT = 0; } }

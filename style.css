@@ -814,3 +814,4 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-stars{top:calc(env(safe-area-inset-top,0px) + 50px)!important;right:calc(env(safe-area-inset-right,0px) + 136px)!important}
 .ab.boost.tired i u{background:#ff5a4a!important;animation:rl .4s infinite alternate}.ab.boost.tired span{color:#ff9a8a}
 .c3d .ab-auto{position:absolute;right:100px;bottom:14px;width:62px;height:40px;border-radius:12px;background:#2a8a5a;font-size:10px;line-height:1.05;padding:0}.c3d .ab-auto b{font-size:13px}.c3d .ab-auto.off{background:#5a5f68;color:#ccc}.c3d:not(.foot) .ab-auto{display:none}
+.rar{font-style:normal;font-size:10px;padding:1px 5px;border-radius:6px;color:#fff;background:#3a8ad8}.rar.r-super{background:#e08a1a}.rar.r-super2{background:linear-gradient(90deg,#d83ad8,#ffcf3a)}

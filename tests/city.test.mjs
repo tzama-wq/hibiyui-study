@@ -21,7 +21,7 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
   for (const m of CITY_MISSIONS) for (const p of [...(m.points || []), ...(m.civs || []), ...(m.pickup ? [m.pickup] : [])]) { if (m.water) assert.ok(isWater(p.x, p.z), `${m.id}: うみの うえ`); else assert.ok(!isWater(p.x, p.z) && !insideBuilding(p.x, p.z, 0), `${m.id}: たてものの そと (${p.x},${p.z})`); }
   { let q = 5; const R = () => { q = (q * 1664525 + 1013904223) % 4294967296; return q / 4294967296; }; for (let i = 0; i < 600; i++) { const rp = roadPoint(R, 0); if (isRoad(rp.x, rp.z)) assert.ok(!insideBuilding(rp.x, rp.z, 0), `みちに たてものが ない (${rp.x},${rp.z})`); } }
   assert.ok(isWater(0, riverZ(0)) && !isWater(HQ.x, HQ.z) && isWater(2000, 0) && isWater(-150, riverZ(-150)) && BRIDGES.length >= 2 && !isWater(BRIDGES[0].x, BRIDGES[0].z) && MAPDATA.buildings.length > 1000, 'かわ・はし・まちの そと・ほんものの ちず');
-  assert.equal(WANTED.length, 8); assert.ok(WANTED.every((w, i) => i === 0 || w.bounty >= WANTED[i - 1].bounty), 'つよい ほど けんしょう金が おおい');
+  assert.equal(WANTED.length, 14); assert.ok(WANTED.every((w, i) => i === 0 || w.bounty >= WANTED[i - 1].bounty), 'つよい ほど けんしょう金が おおい');
   assert.ok(VCAT.length >= 16 && VCAT.some((v) => v.kind === 'bike') && VCAT.some((v) => v.kind === 'jet') && VCAT.some((v) => v.kind === 'plane') && VCAT.filter((v) => v.kind === 'car').length >= 6, 'のりものが いろいろ');
   const sim = mk(st(70), 3, { owned: VCAT.map((v) => v.id) });
   for (const v of sim.state.vehicles) { assert.ok(!isWater(v.x, v.z) || v.kind === 'ship', `ガレージの のりもの ${v.id}`); assert.ok(!insideBuilding(v.x, v.z, 0), `たてものの そと ${v.id} (${v.x},${v.z})`); }
@@ -59,7 +59,7 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
   assert.equal(sim.buy('silver').ok, false); assert.ok(sim.buy('bronze').ok && P.coins === 0); assert.ok(sim.takeEvents().some((e) => e.t === 'buy' && e.id === 'bronze'));
   const tp = catalogOf('taxi').price; P.coins = tp + 50; assert.equal(sim.buyVehicle('hawk').ok, false, 'たりない'); assert.equal(sim.buyVehicle('sedan').ok, false, 'もってる'); assert.ok(sim.buyVehicle('taxi').ok && P.coins === 50 && S.vehicles.some((v) => v.id === 'taxi' && v.cat === 'taxi')); assert.ok(sim.takeEvents().some((e) => e.t === 'buyveh' && e.id === 'taxi'));
   tele(sim, GARAGE.x, GARAGE.z); assert.equal(S.nearby && S.nearby.kind, 'garage'); sim.interact(); assert.equal(S.ui, 'garage'); sim.closeUi();
-  tele(sim, BOARD.x, BOARD.z); assert.equal(S.nearby && S.nearby.kind, 'board'); sim.interact(); assert.ok(S.wanted.length === 8 && S.wanted.every((w) => w.alive));
+  tele(sim, BOARD.x, BOARD.z); assert.equal(S.nearby && S.nearby.kind, 'board'); sim.interact(); assert.ok(S.wanted.length === 14 && S.wanted.every((w) => w.alive));
 }
 // ---- 指名手配はんを たいほ ----
 {
@@ -283,5 +283,21 @@ for (const planeId of ['plane', 'hawk']) {
   const sim = mk(); const S = sim.state; const P = S.player; tele(sim, HQ.x, HQ.z); sim.raise(3); S.huntT = 0; for (let i = 0; i < 80; i++) { P.invuln = 5; sim.step(0.05); } P.hp = 1; P.invuln = 0; S.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); sim.step(0.05); assert.equal(S.lv, 0, 'たおされたら かいじょ'); sim.raise(2); for (let i = 0; i < 70; i++) sim.step(0.05); assert.ok(S.lv >= 0);
   const h = mk(); const HS = h.state; const HP = HS.player; h.raise(3); tele(h, BASE.x, BASE.z); HP.lastHurt = -99; for (let i = 0; i < 20 * 14; i++) { HP.invuln = 5; h.step(0.05); if (HS.lv === 0) break; } assert.equal(HS.lv, 0, 'じたくに かくれて 12びょう じっとすると かいじょ'); assert.ok(!HS.crooks.some((c) => c.hunter), 'かくれている あいだは おってが でない');
   const f = mk(); f.raise(5); tele(f, BASE.x, BASE.z); for (let i = 0; i < 20 * 14; i++) { f.state.player.invuln = 5; f.step(0.05); } assert.equal(f.state.lv, 5, '★5は かくれられない');
+}
+// ---- パラシュートは ちゃんと おりる・うごける ----
+{
+  const sim = mk(st(70), 3, { owned: ['hawk'] }); const S = sim.state; const P = S.player; assert.ok(sim.summon('hawk').ok); const v = sim.vehicleOf(); v.y = 250; P.y = 250; for (let i = 0; i < 5; i++) sim.step(0.05); assert.equal(S.nearby && S.nearby.kind, 'exit'); sim.interact(); assert.ok(P.chute && P.mode === 'foot');
+  const x0 = P.x; const z0 = P.z; P.camYaw = 1; sim.input.moveY = 1; let t = 0; while (P.chute && t < 60) { sim.step(0.05); t += 0.05; } sim.input.moveY = 0; assert.ok(!P.chute && P.y === 0, 'ちゃくちできる'); assert.ok(t < 30, `250mから 30びょういない (${t.toFixed(1)}びょう)`); assert.ok(Math.hypot(P.x - x0, P.z - z0) > 60, 'スティックで すすめる');
+}
+// ---- してい手配はんが アイテムを おとす・レアは つよい ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const raresIds = ['kaito', 'tiger', 'oni', 'dragon', 'raven', 'kaiser']; for (const id of raresIds) assert.ok(S.crooks.some((c) => c.wid === id), `${id} が いる`);
+  const hpOf = (id) => S.crooks.find((c) => c.wid === id).hpMax; assert.ok(hpOf('kaito') > hpOf('king') * 1.2 && hpOf('dragon') > hpOf('kaito') * 1.5 && hpOf('kaiser') > hpOf('dragon'), 'レアほど つよい');
+  const joe = S.crooks.find((c) => c.wid === 'joe'); joe.hp = 1; sim.interact; P.x = joe.x - 20; P.z = joe.z; const before = S.pickups.length; sim.hit ? 0 : 0;
+  const kaito = S.crooks.find((c) => c.wid === 'kaito'); P.weapon = 'pistol'; kaito.hp = 1; P.x = kaito.x - 20; P.z = kaito.z; P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; P.wCd = 0; sim.input.gun = true; for (let i = 0; i < 30 && kaito.state !== 'down'; i++) { P.invuln = 5; P.wCd = 0; P.camYaw = Math.PI / 2; P.aimPitch = 0.05; kaito.x = P.x + 20; kaito.z = P.z; sim.step(0.05); } sim.input.gun = false;
+  assert.equal(kaito.state, 'down', 'たおれた'); const drops = S.pickups.filter((p) => p.kind === 'drop'); assert.ok(drops.length >= 3 && drops.some((d) => d.drop.t === 'heal') && drops.some((d) => d.drop.t === 'ammo'), 'おとしもの'); const wp = drops.find((d) => d.drop.t === 'weapon'); const eq = drops.find((d) => d.drop.t === 'equip');
+  const got = (d) => { P.x = d.x; P.z = d.z; P.invuln = 5; sim.step(0.05); };
+  if (wp) { assert.ok(!S.wOwned.includes(wp.drop.id)); got(wp); assert.ok(S.wOwned.includes(wp.drop.id), 'ぶきを てにいれる'); } if (eq) { got(eq); assert.ok(S.eqOwned.includes(eq.drop.id), 'そうびを てにいれる'); }
+  const coins0 = P.coins; for (const d of S.pickups.filter((p) => p.kind === 'drop')) got(d); assert.ok(P.coins > coins0, 'コインも おちる');
 }
 console.log('OK: city');
