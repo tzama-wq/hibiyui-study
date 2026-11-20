@@ -4,6 +4,8 @@ import * as G from './game.js';
 import { VEHICLES, SLOTS, RARITY_NAME, RARITY_RANK, partOf, buildVehicle, autoLoadout, MISSIONS, missionById, missionMix, PVP_MISSION } from './airsim.js';
 import { pairUI, modal, closeModal } from './ui-net.js';
 import { startAir3D, startPreview, stopPreview } from './air3d.js';
+import { startCity3D } from './city3d.js';
+import { carStats } from './citysim.js';
 import { createSfx } from './sfx.js';
 
 let X; let SFX = null; let AG = null; let STARTING = false;
@@ -29,7 +31,7 @@ export const ensureSky = (p) => {
   const s = p.sky; s.cleared = s.cleared && !Array.isArray(s.cleared) ? s.cleared : {}; s.daily = s.daily || { date: '', n: 0 };
   if (!VEHICLES[s.vehicle]) s.vehicle = 'plane';
   s.loadout = s.loadout || {}; for (const v of VKEYS) s.loadout[v] = s.loadout[v] || {};
-  s.firsts = s.firsts || {}; s.colors = s.colors || {}; s.names = s.names || {};
+  s.firsts = s.firsts || {}; s.colors = s.colors || {}; s.names = s.names || {}; s.city = s.city && typeof s.city === 'object' ? s.city : { coins: 0, done: {}, kos: 0, daily: { date: '', n: 0 } }; s.city.done = s.city.done || {}; s.city.daily = s.city.daily || { date: '', n: 0 };
   delete s.pilot; return s;
 };
 
@@ -69,6 +71,7 @@ export function skyHome(k, p) {
     <div class="sky-me"><b>${VEHICLES[sk.vehicle].icon} ${sk.names[sk.vehicle] ? esc(sk.names[sk.vehicle]) : `${esc(k.name)}の ${VEHICLES[sk.vehicle].name}`}</b> <em>パワー ${V.rating}</em>${bars(V)}
       <div class="muted">そうび ${eq}/5 ${eq < 5 ? '… かくのう庫で ぶひんを つけると もっと つよく なるよ' : ''}</div>
       <button class="btn small gray" data-act="tab" data-tab="team">🛠 かくのう庫で そうびする</button></div>
+    <div class="netcard city"><b>🏙️ シティ(じゆうに あそぶ)</b><div class="muted">まちを じゆうに あるいて、くるま・せんしゃ・ふね・ひこうきに のりおり! ミッションや コインあつめ、おみせも あるよ。</div><div class="muted">🪙 ${(sk.city || {}).coins || 0} ・ ミッション クリア ${Object.values((sk.city || {}).done || {}).reduce((a, b) => a + b, 0)}かい</div><button class="btn gold" data-act="citygo">🏙️ シティへ でかける</button></div>
     <div class="netcard"><b>📡 ふたりで あそぶ</b><div class="muted">おなじ Wi-Fi の スマホ 2だいで、きょうりょく(いっしょに てきを たおす)か たいせん(のりもの どうしで たたかう)!</div><button class="btn gold" data-act="netsky">📡 つなぐ</button></div>
     <h3 class="sec">MISSION <small>ミッション</small></h3>
     <div class="muted">どの のりものでも クリアできるよ。ミッションごとに くう✈️・うみ🚢・りく🚜の てきが ちがうよ。あいしょうの いい のりものを さがそう!</div>
@@ -156,6 +159,7 @@ export function onSkyAct(a, el) {
     case 'skyveh': { if (VEHICLES[el.dataset.v]) { sk.vehicle = el.dataset.v; delete sk.pick; X.save(); X.render(); } return true; }
     case 'skygo': startMission(el.dataset.m); return true;
     case 'netsky': openSkyNet(); return true;
+    case 'citygo': startCity(); return true;
     case 'skyclear': { delete sk.last; X.save(); X.render(); return true; }
     case 'skyslot': { sk.pick = sk.pick === el.dataset.slot ? null : el.dataset.slot; X.render(); return true; }
     case 'skyput': {
@@ -208,4 +212,32 @@ function lobby(conn, role, hello) {
   });
   conn.onClose(() => { if (!started) { closeModal(); X.toast('つうしんが きれたよ'); } });
   show(); sendHello();
+}
+
+// ---- シティ(じゆうに うごける まち) ------------------------------------------------------------
+async function startCity() {
+  if (STARTING) return false; STARTING = true;
+  try {
+    const k = X.kid(); const p = X.p(); const sk = ensureSky(p); const ks = G.kidStats(p); const city = sk.city;
+    const tank = specOf(k, p, 'tank'); const ship = specOf(k, p, 'ship'); const plane = specOf(k, p, 'plane');
+    X.toast('🏙️ まちへ いくよ…'); SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false)); stopPreview();
+    const map = { gun: 'gun', missile: 'missile', boom: 'boom', bigboom: 'bigboom', hit: 'hit', warn: 'warn', win: 'win', lose: 'lose', coin: 'spark', gem: 'win', door: 'evade', bump: 'hit', mission: 'warn' };
+    try {
+      AG = await startCity3D({ kidName: k.name, stats: ks, vehicles: { car: carStats(ks), tank: tank.V, ship: ship.V, plane: plane.V }, specs: { tank: tank.spec, ship: ship.spec, plane: plane.spec }, coins: city.coins, done: city.done, calm: !!(X.cfg && X.cfg().calm), gentle: !!(X.cfg && X.cfg().gentle),
+        onSfx: (n) => { if (SFX && map[n]) SFX.play(map[n]); },
+        onSave: (r) => { city.coins = r.coins; city.done = { ...r.done }; city.kos = (city.kos || 0) + 0; X.save(); },
+        onReward: (e) => cityReward(e),
+        onBuy: (id) => { const pp = X.p(); if (id === 'shard') G.addShards(pp, 5); else G.addTickets(pp, { [id]: 1 }); X.save(); X.toast(`🎁 ${id === 'shard' ? 'ダイヤの かけら ×5' : 'ガチャチケット ×1'} を かったよ!`); },
+        onQuit: () => { AG = null; X.render(); } });
+    } catch (err) { AG = null; X.toast('3Dを ひらけなかったよ…'); return false; }
+    return true;
+  } finally { STARTING = false; }
+}
+function cityReward(e) {
+  const p = X.p(); const sk = ensureSky(p); const t = X.today(); const c = sk.city; c.daily = c.daily.date === t ? c.daily : { date: t, n: 0 };
+  const tickets = { ...e.reward }; let note = '';
+  if (!e.first) { if (c.daily.n < 3) c.daily.n++; else { for (const kk of Object.keys(tickets)) delete tickets[kk]; note = '(きょうは チケットは おしまい)'; } }
+  const { shards, ...tk } = tickets; if (Object.keys(tk).length) G.addTickets(p, tk); if (shards) G.addShards(p, shards);
+  if (e.pts) { const SP = ['SHO', 'PAS', 'SPD', 'DEF', 'STA']; p.pts = { ...G.emptyStatMap(), ...(p.pts || {}) }; for (const s2 of SP) p.pts[s2] += e.pts; }
+  p.xp += 20; X.save(); X.toast(`🎁 ${e.name} クリア! ${rewardText(tickets)} ${e.pts ? `💪${e.pts}pt` : ''} 🪙+${e.coins} ${note}`);
 }

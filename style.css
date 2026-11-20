@@ -767,3 +767,16 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .tz-box{background:linear-gradient(160deg,#16306a,#101a38);border:3px solid #ffd23f;color:#fff;max-width:420px;width:100%;padding:16px;text-align:center}.tz-box small{color:#ffd23f;letter-spacing:.2em}.tz-box h2{margin:8px 0 14px;font-size:24px}
 .tz-ch{display:flex;gap:10px}.tz-ch button{flex:1;padding:14px 4px;font:inherit;font-size:20px;font-weight:900;background:#23418a;color:#fff;border:2px solid #7fa6ff;cursor:pointer}.tz-ch button.good{background:#1f8a4a;border-color:#8bf0b0}.tz-ch button.dim{opacity:.45}
 .tz-res{margin:12px 0;min-height:20px}.tz-res p{font-size:14px;margin:6px 0}.tz-box .btn{display:block;width:100%}.tz-x{margin-top:8px}
+
+/* 地球防衛隊 シティ */
+.c3d .c3d-coin{margin-top:3px;font-size:14px;font-weight:900;color:#ffd23f;background:rgba(6,16,34,.6);padding:2px 8px}
+.c3d-map{position:absolute;top:calc(env(safe-area-inset-top,0px) + 50px);right:calc(env(safe-area-inset-right,0px) + 8px);width:120px;height:120px;border-radius:50%;background:#143a5c}
+.c3d-bigmapbtn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);right:calc(env(safe-area-inset-right,0px) + 56px);pointer-events:auto;background:rgba(6,16,34,.78);color:#fff;border:2px solid #fff;font-size:18px;width:40px;height:36px;cursor:pointer}
+.c3d-cancel{position:absolute;top:calc(env(safe-area-inset-top,0px) + 62px);left:50%;transform:translateX(-50%);pointer-events:auto;background:rgba(80,20,20,.8);color:#fff;border:2px solid #ff8a8a;font:inherit;font-size:11px;padding:3px 10px;cursor:pointer}
+.c3d-mis{max-width:56vw}
+.ab-act{right:196px;bottom:100px;width:auto!important;height:auto!important;border-radius:14px!important;padding:12px 16px;background:#1fa35a;font-size:15px!important;max-width:44vw;line-height:1.2}.ab-act.exit{background:#c25a1a}
+.c3d-bigmap{position:absolute;inset:0;z-index:7;background:rgba(0,0,0,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}.c3d-bigmap[hidden]{display:none}.c3d-bigmap canvas{width:min(86vh,90vw);height:min(86vh,90vw);border:3px solid #27d8ff;background:#143a5c}
+.c3d-shop{position:absolute;inset:0;z-index:9;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:10px}.c3d-shop[hidden]{display:none}
+.sh-box{background:#0c1a36;border:3px solid #ffd23f;color:#fff;max-width:420px;width:100%;max-height:94%;overflow:auto;padding:12px;text-align:center}.sh-box h3{margin:0 0 4px;color:#ffd23f}.sh-coin{font-weight:900;margin-bottom:6px}
+.sh-item{display:flex;gap:8px;align-items:center;width:100%;margin:5px 0;padding:8px;background:#162a52;border:2px solid #3a5aa0;color:#fff;font:inherit;text-align:left;cursor:pointer}.sh-item:disabled{opacity:.45}.sh-item span{font-size:24px}.sh-item small{display:block;font-size:10px;opacity:.75}.sh-item em{margin-left:auto;font-style:normal;color:#ffd23f;font-weight:900}.sh-item b{display:block}.sh-note{min-height:18px;font-size:12px;color:#7fe7ff;margin:6px 0}
+.netcard.city{border-color:#2fa86a}

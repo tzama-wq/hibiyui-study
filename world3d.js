@@ -54,6 +54,7 @@ function cloudTexture(THREE) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
+export { skyMat, SEA_VS, SEA_FS };
 export function buildWorld(THREE, scene, renderer, opts = {}) {
   const shadows = !!opts.shadows; const R = mulberry(7);
   const sunDir = new THREE.Vector3(-0.45, 0.62, -0.35).normalize();
