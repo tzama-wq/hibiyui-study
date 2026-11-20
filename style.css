@@ -799,3 +799,4 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-bigmap canvas{transform:scale(-1,-1)}.c3d-bigmap{gap:6px}.bm-hint{background:rgba(6,16,34,.8);color:#fff;font-size:12px;font-weight:900;padding:3px 10px;border:2px solid #ffe14a}.bm-btns{display:flex;gap:8px}.c3d-pinhud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 132px);left:8px;background:rgba(150,20,40,.85);color:#fff;border:2px solid #fff;font-size:14px;font-weight:900;padding:2px 10px;z-index:3}.c3d-pinhud[hidden]{display:none}
 .c3d-bigmap canvas{width:min(68vh,90vw);height:min(68vh,90vw)}
 .c3d.air .ab-act{right:10px!important;bottom:auto!important;top:calc(env(safe-area-inset-top,0px) + 186px)!important;max-width:40vw}
+.c3d-wep.empty{border-color:#ff4d4d;color:#ff9a9a}.c3d .ab-wp{background:#2a7a5a}.c3d .ab-wp.need{background:#e0a020;animation:rl .6s infinite alternate}@keyframes rl{to{filter:brightness(1.5)}}

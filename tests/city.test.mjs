@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
+import { weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
 
 const st = (v) => ({ SHO: v, PAS: v, SPD: v, DEF: v, STA: v });
@@ -163,5 +163,14 @@ for (const planeId of ['plane', 'hawk']) {
   const sim = mk(); const S = sim.state; const P = S.player; const c = S.crooks.find((x) => x.wid === 'joe'); P.weapon = 'pistol'; const r = 75;
   P.x = c.x - 40; P.z = c.z; sim.step(1 / 30); assert.ok(P.target, 'しゃていの なか: ロックできる');
   P.x = c.x - (r + 40); P.z = c.z; sim.step(1 / 30); assert.ok(!P.target || P.target.id !== c.id, 'しゃてい+αの そと: ロックできない');
+}
+// ---- たまの かず・リロード ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'pistol'; const A = sim.ammoOf('pistol'); const sp = ammoSpec(weaponOf('pistol')); assert.equal(A.mag, sp.mag);
+  const c = S.crooks.find((x) => x.wid === 'joe'); P.x = c.x - 30; P.z = c.z; c.state = 'down'; sim.input.gun = true; run(sim, 1.2, () => { P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; }); sim.input.gun = false; assert.ok(A.mag < sp.mag, 'うつと たまが へる');
+  A.mag = 0; A.reserve = 20; sim.input.gun = true; run(sim, 0.1, () => { P.wCd = 0; }); assert.ok(P.reload > 0, 'からに なると じどうで リロード'); sim.input.gun = false; run(sim, sp.reload + 0.3); assert.equal(A.mag, sp.mag, 'リロードで マガジンが ふえる'); assert.equal(A.reserve, 20 - sp.mag, 'よびの たまが へる');
+  A.mag = 0; A.reserve = 0; sim.input.gun = true; run(sim, 1, () => { P.wCd = 0; }); assert.equal(A.mag, 0, 'たまが ないと うてない'); sim.input.gun = false;
+  P.coins = 1000; assert.ok(sim.buy('ammo').ok && sim.ammoOf('pistol').reserve === ammoSpec(weaponOf('pistol')).cap, 'たまの ほじゅう');
+  sim.ammoOf('pistol').mag = sp.mag; assert.ok(sim.reload() === false, 'まんたんでは リロードしない'); P.weapon = 'sniper'; const sa = sim.ammoOf('sniper'); assert.ok(sa.mag <= 5 && ammoSpec(weaponOf('sniper')).reload > ammoSpec(weaponOf('pistol')).reload, 'スナイパーは マガジンが すくなく リロードが おそい');
 }
 console.log('OK: city');
