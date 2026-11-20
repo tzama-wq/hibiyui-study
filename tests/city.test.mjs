@@ -158,4 +158,10 @@ for (const planeId of ['plane', 'hawk']) {
   const cy2 = fy + Math.PI / 2; P.x = x0; P.z = z0; P.camYaw = cy2; P.yaw = cy2; sim.input.aimLock = true; sim.input.moveX = 1; sim.input.moveY = 0; run(sim, 0.8); const lateral = Math.abs(((P.x - x0) * Math.cos(cy2) - (P.z - z0) * Math.sin(cy2))); const along = Math.abs((P.x - x0) * Math.sin(cy2) + (P.z - z0) * Math.cos(cy2));
   assert.ok(Math.abs(Math.atan2(Math.sin(P.yaw - P.camYaw), Math.cos(P.yaw - P.camYaw))) < 0.25, 'ねらい中は からだが カメラを むいたまま'); assert.ok(lateral > along, 'ねらい中の よこいどう(ストレイフ)'); sim.input.aimLock = false; sim.input.moveX = 0;
 }
+// ---- ねらいあわせは ぶきの しゃてい+αだけ ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const c = S.crooks.find((x) => x.wid === 'joe'); P.weapon = 'pistol'; const r = 75;
+  P.x = c.x - 40; P.z = c.z; sim.step(1 / 30); assert.ok(P.target, 'しゃていの なか: ロックできる');
+  P.x = c.x - (r + 40); P.z = c.z; sim.step(1 / 30); assert.ok(!P.target || P.target.id !== c.id, 'しゃてい+αの そと: ロックできない');
+}
 console.log('OK: city');

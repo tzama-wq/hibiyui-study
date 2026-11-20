@@ -565,7 +565,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     movePlayer(dt); setNear();
     if (input.gun) fireGun(dt);
     stepCrooks(dt); stepMissiles(dt); stepWorld(dt); stepMission(dt);
-    P.target = nearestCrook(600, 6.3, P.yaw);
+    { const Wt = weaponOf(P.weapon) || {}; P.target = nearestCrook(cur() ? 600 : (Wt.range || 3) + 12, 6.3, P.yaw); } // あるいている ときは ぶきの しゃてい+12mの なかだけ ねらいが きく
   }
   return {
     state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, equip, cycleWeapon, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
