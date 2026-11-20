@@ -800,3 +800,4 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-bigmap canvas{width:min(68vh,90vw);height:min(68vh,90vw)}
 .c3d.air .ab-act{right:10px!important;bottom:auto!important;top:calc(env(safe-area-inset-top,0px) + 186px)!important;max-width:40vw}
 .c3d-wep.empty{border-color:#ff4d4d;color:#ff9a9a}.c3d .ab-wp{background:#2a7a5a}.c3d .ab-wp.need{background:#e0a020;animation:rl .6s infinite alternate}@keyframes rl{to{filter:brightness(1.5)}}
+.c3d-jobbtn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 48px);right:calc(env(safe-area-inset-right,0px) + 104px);pointer-events:auto;z-index:3;background:rgba(42,122,224,.92);color:#fff;border:2px solid #fff;font-size:16px;width:40px;height:36px;cursor:pointer;padding:0}

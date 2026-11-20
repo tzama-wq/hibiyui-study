@@ -160,7 +160,7 @@ for (const planeId of ['plane', 'hawk']) {
 }
 // ---- ねらいあわせは ぶきの しゃてい+αだけ ----
 {
-  const sim = mk(); const S = sim.state; const P = S.player; const c = S.crooks.find((x) => x.wid === 'joe'); P.weapon = 'pistol'; const r = 75;
+  const sim = mk(); const S = sim.state; const P = S.player; const c = S.crooks.find((x) => x.wid === 'joe'); P.weapon = 'pistol'; const r = weaponOf('pistol').range;
   P.x = c.x - 40; P.z = c.z; sim.step(1 / 30); assert.ok(P.target, 'しゃていの なか: ロックできる');
   P.x = c.x - (r + 40); P.z = c.z; sim.step(1 / 30); assert.ok(!P.target || P.target.id !== c.id, 'しゃてい+αの そと: ロックできない');
 }
@@ -172,5 +172,11 @@ for (const planeId of ['plane', 'hawk']) {
   A.mag = 0; A.reserve = 0; sim.input.gun = true; run(sim, 1, () => { P.wCd = 0; }); assert.equal(A.mag, 0, 'たまが ないと うてない'); sim.input.gun = false;
   P.coins = 1000; assert.ok(sim.buy('ammo').ok && sim.ammoOf('pistol').reserve === ammoSpec(weaponOf('pistol')).cap, 'たまの ほじゅう');
   sim.ammoOf('pistol').mag = sp.mag; assert.ok(sim.reload() === false, 'まんたんでは リロードしない'); P.weapon = 'sniper'; const sa = sim.ammoOf('sniper'); assert.ok(sa.mag <= 5 && ammoSpec(weaponOf('sniper')).reload > ammoSpec(weaponOf('pistol')).reload, 'スナイパーは マガジンが すくなく リロードが おそい');
+}
+// ---- ぶきごとの しゃてい ----
+{
+  const rg = (id) => weaponOf(id).range; assert.ok(rg('sawedoff') < rg('pistol') && rg('pistol') < rg('assault') && rg('assault') < rg('sniper') && rg('sniper') < rg('heavysniper'), 'ぶきごとに しゃていが ちがう');
+  const sim = mk(); const S = sim.state; const P = S.player; const c = S.crooks.find((x) => x.wid === 'joe'); P.weapon = 'pistol'; c.state = 'idle'; c.hp = c.hpMax; sim.input.gun = true; sim.ammoOf('pistol').mag = 12;
+  P.x = c.x - (rg('pistol') + 20); P.z = c.z; run(sim, 1, () => { P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; P.wCd = 0; P.x = c.x - (rg('pistol') + 20); P.z = c.z; }); sim.input.gun = false; assert.equal(c.hp, c.hpMax, 'しゃていの そとには とどかない');
 }
 console.log('OK: city');
