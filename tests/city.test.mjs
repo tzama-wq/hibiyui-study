@@ -183,6 +183,12 @@ for (const planeId of ['plane', 'hawk']) {
 {
   const sim = mk(); const S = sim.state; const P = S.player; const A = sim.ammoOf('pistol'); A.mag = 1; A.reserve = 3; tele(sim, GARAGE.x, GARAGE.z); run(sim, 0.5); const sp = ammoSpec(weaponOf('pistol')); assert.equal(A.reserve, sp.cap, 'じたくで よびが まんたん'); assert.equal(A.mag, sp.mag, 'じたくで マガジンも まんたん');
 }
+// ---- じたくの かいふくは あんぜんな ときだけ ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const A = sim.ammoOf('pistol'); tele(sim, GARAGE.x, GARAGE.z); sim.raise(3); P.hp = 20; A.mag = 0; A.reserve = 0; run(sim, 3); assert.ok(P.hp < 40, `指名手配ちゅうは じたくで かいふく しない (${P.hp})`); assert.equal(A.reserve, 0, '指名手配ちゅうは たまも ほじゅう されない');
+  const s2 = mk(); const Q = s2.state.player; tele(s2, GARAGE.x, GARAGE.z); Q.hp = 20; Q.lastHurt = s2.state.t; run(s2, 2); assert.ok(Q.hp < 30, 'ダメージを うけた ばかりは かいふく しない');
+  const s3 = mk(); const R = s3.state.player; tele(s3, GARAGE.x, GARAGE.z); R.hp = 20; R.lastHurt = -99; run(s3, 3); assert.ok(R.hp > 60, 'あんぜんな ときは じたくで かいふく');
+}
 // ---- くるま・バイクに ぶつかると ダメージ、なんかいかで こわれる ----
 {
   const sim = mk(); const S = sim.state; const P = S.player; const car = S.vehicles.find((v) => v.id === 'sedan'); const c = S.traffic.find((x) => !x.hostile && !x.bike);

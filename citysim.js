@@ -601,7 +601,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (pv && (pv.kind === 'car' || pv.kind === 'bike' || pv.kind === 'tank') && Math.abs(pv.speed) > 3 && P.dead <= 0) for (const w of S.walkers) if (!(w.dead > 0) && hyp(w.x - pv.x, w.z - pv.z) < (pv.kind === 'tank' ? 5 : 2.6)) hurtWalker(w, 999, 'run');
     if (S.lv > 0) { S.heatT -= dt; S.huntT = (S.huntT || 0) - dt; if (S.heatT <= 0) clearHeat('🕊️ にげきった! 指名手配が とけたよ'); else if (S.huntT <= 0) { S.huntT = S.lv >= 4 ? 1.2 : 2.5; maintainHunters(); } }
     // こわれた のりものは じたくで なおる(ひとが のってない とき)
-    for (const v of S.vehicles) if (!v.occ && !v.temp && v.hits > 0 && hyp(v.x - GARAGE.x, v.z - GARAGE.z) < 30) { v.hits = 0; v.hp = v.hpMax; }
+    for (const v of S.vehicles) if (!v.occ && !v.temp && v.hits > 0 && S.lv <= 0 && hyp(v.x - GARAGE.x, v.z - GARAGE.z) < 30) { v.hits = 0; v.hp = v.hpMax; }
     for (const c of S.civs) {
       if (c.state === 'need') c.fear = Math.max(0, c.fear - dt);
       else if (c.state === 'carried') { const d = hyp(c.x - P.x, c.z - P.z); const want = Math.atan2(P.x - c.x, P.z - c.z); c.yaw = want; if (d > 5 && P.mode === 'foot') { const s = Math.min(d - 4, 9 * dt + d * dt * 1.5); c.x += Math.sin(want) * s; c.z += Math.cos(want) * s; } else if (P.mode === 'veh') { c.x = P.x; c.z = P.z; } if (isWater(c.x, c.z)) { c.x = P.x; c.z = P.z; } }
@@ -613,12 +613,15 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (!S.mission && S.t > 20 && S.t - (S.lastRaid || -999) > 75 && !S.crooks.some((c) => c.minor)) { S.lastRaid = S.t; for (let tr = 0; tr < 80; tr++) { const rp = roadPoint(rnd, 1); const dd = hyp(rp.x - P.x, rp.z - P.z); if (dd > 70 && dd < 220 && isRoad(rp.x, rp.z) && !insideBuilding(rp.x, rp.z)) { const c = spawnCrook('runner', rp.x, rp.z, { wander: 40 }); c.minor = true; banner('⚠ ひったくりが にげてる! つかまえて!', 2.6); snd('warn'); break; } } }
     for (const c of S.crooks.slice()) if (c.minor && hyp(c.x - P.x, c.z - P.z) > 420) S.crooks = S.crooks.filter((x) => x !== c);
     for (const v of S.vehicles.slice()) { if (v.occ) continue; const d = hyp(v.x - P.x, v.z - P.z); if (v.temp) { v.idle = (v.idle || 0) + dt; if (v.idle > 40) { S.vehicles = S.vehicles.filter((x) => x !== v); continue; } } else if (d > 120 && hyp(v.x - v.home.x, v.z - v.home.z) > 3) { v.away += dt; if (v.away > 30) { v.x = v.home.x; v.z = v.home.z; v.y = 0; v.yaw = v.home.yaw; v.speed = 0; v.away = 0; } } else v.away = 0; v.speed *= Math.exp(-2 * dt); if (isAir(v.kind) && !v.occ) { v.y = 0; if (!v.temp) { v.x = v.home.x; v.z = v.home.z; } } }
-    if (P.mode === 'foot' && hyp(P.x - GARAGE.x, P.z - GARAGE.z) < 24 && P.dead <= 0) { // じたくに いると たまが ほじゅうされ、HPも なおる
+    // じたくの かいふく・ほじゅうは 「あんぜんな とき」だけ(指名手配ちゅう・6びょうい ないに ダメージを うけた ときは つかえない=じたくで ずっと たたかえない)
+    const homeSafe = S.lv <= 0 && S.t - (P.lastHurt == null ? -99 : P.lastHurt) > 6; const atHome = P.mode === 'foot' && hyp(P.x - GARAGE.x, P.z - GARAGE.z) < 24 && P.dead <= 0;
+    if (atHome && !homeSafe && S.t - (P.homeWarnT || -99) > 6) { P.homeWarnT = S.t; msg(S.lv > 0 ? '🚨 指名手配ちゅうは じたくでも かいふく できない!' : '💥 たたかっている あいだは じたくでも かいふく できない!', 2.4); }
+    if (atHome && homeSafe) { // じたくに いると たまが ほじゅうされ、HPも なおる
       if (P.hp < P.hpMax) P.hp = Math.min(P.hpMax, P.hp + 20 * dt);
       if (S.t - (P.homeAmmoT || -99) > 12) { let need = false; for (const wid of S.wOwned) { const sp = ammoSpec(weaponOf(wid)); if (sp) { const A = am(wid); if (A.reserve < sp.cap || A.mag < sp.mag) { A.reserve = sp.cap; A.mag = sp.mag; need = true; } } } P.homeAmmoT = S.t; if (need) { snd('win'); msg('🏠 じたくで たまを ほじゅうしたよ!', 2.4); } }
     }
-    if (P.mode === 'foot' && hyp(P.x - BASE.x, P.z - BASE.z) < BASE.r && P.hp < P.hpMax) P.hp = Math.min(P.hpMax, P.hp + 14 * dt);
-    else if (P.mode === 'foot' && S.t - P.lastHurt > 6) P.hp = Math.min(P.hpMax, P.hp + 3 * dt);
+    if (homeSafe && P.mode === 'foot' && hyp(P.x - BASE.x, P.z - BASE.z) < BASE.r && P.hp < P.hpMax) P.hp = Math.min(P.hpMax, P.hp + 14 * dt);
+    else if (P.mode === 'foot' && S.lv <= 0 && S.t - P.lastHurt > 6) P.hp = Math.min(P.hpMax, P.hp + 3 * dt);
     const v = cur(); if (v && v.V.missiles && (v.mis == null ? v.V.missiles : v.mis) < v.V.missiles) { v.misT = (v.misT || 0) + dt; if (v.misT > 6) { v.misT = 0; v.mis = (v.mis == null ? v.V.missiles : v.mis) + 1; } }
   }
   function stepMission(dt) {
