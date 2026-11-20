@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import * as HM from '../cityhome.js';
+import { JOBS as JOBS_, SYMPTOMS as SYM_ } from '../citysim.js';
 import { EQUIP, weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, SECRET, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
 
@@ -322,5 +324,33 @@ for (const planeId of ['plane', 'hawk']) {
   assert.ok(sim.fastTravel('w0').ok && !sim.fastTravel('w1').ok, 'とうろく ばしょへ・あきスロットは とべない');
   tele(sim, HQ.x, HQ.z); assert.ok(sim.registerWarp(1).ok && S.warps[1] && Math.abs(S.warps[1].x - HQ.x) < 1, 'いまの いちを とうろく'); assert.ok(sim.registerWarp(2).ok); assert.ok(!sim.registerWarp(3).ok, '3かしょまで'); tele(sim, 0, 0); assert.ok(sim.fastTravel('w1').ok && Math.abs(P.x - S.warps[1].x) < 30, 'とうろくへ ワープ'); sim.removeWarp(1); assert.ok(!sim.fastTravel('w1').ok, 'けしたら とべない');
   sim.raise(5); assert.ok(!sim.fastTravel('home').ok, '★5は とべない');
+}
+// ---- はこにわ(じたくの かぐ・かくちょう) ----
+{
+  const h = HM.emptyHome(); assert.equal(HM.roomSize(h).w, 6); assert.ok(HM.placeItem(h, 'bed', 0, 0, 0) && !HM.placeItem(h, 'bed', 0, 0, 0), 'ベッドは 1こ だけ'); HM.addFurn(h, 'sofa', 1); assert.ok(!HM.placeItem(h, 'sofa', 1, 1, 0), 'かさなる ばしょには おけない'); assert.ok(HM.placeItem(h, 'sofa', 3, 3, 0)); assert.ok(!HM.placeItem(h, 'plant', 6, 0, 0), 'へやの そとには おけない');
+  assert.ok(HM.rotateItem(h, 1) && h.items[1].r === 1, 'まわせる'); assert.ok(HM.moveItem(h, 1, 4, 1) && !HM.moveItem(h, 1, 5, 4), 'うごかせる(はみだし NG)'); assert.ok(HM.storeItem(h, 1) && h.inv.sofa === 2, 'しまえる');
+  assert.equal(HM.expand(h, 100), -1, 'おかねが ないと かくちょう できない'); assert.equal(HM.expand(h, 5000), 3000); assert.equal(h.lv, 1); assert.equal(HM.roomSize(h).w, 8); assert.ok(h.houses.includes('c') && HM.setHouse(h, 'c') && !HM.setHouse(h, 'e'), 'かくちょうで あたらしい がいかん');
+  assert.equal(HM.buyStyle(h, 'floor', 'tile', 100), -1); assert.equal(HM.buyStyle(h, 'floor', 'tile', 1000), 600); assert.equal(h.floor, 'tile'); assert.equal(HM.buyStyle(h, 'floor', 'wood', 0), 0);
+  const n = HM.normalizeHome({ lv: 99, items: [{ id: 'bed', x: 50, y: 0 }, { id: 'zzz', x: 0, y: 0 }, { id: 'sofa', x: 0, y: 0 }], inv: { bed: -1, foo: 2, cat: 2 }, floor: 'x' }); assert.equal(n.lv, 3); assert.equal(n.items.length, 1); assert.deepEqual(n.inv, { cat: 2 }); assert.equal(n.floor, 'wood');
+}
+// ---- しょくぎょう(けいさつ・SWAT・しょうぼう・きゅうきゅう)・スマホ ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; assert.equal(S.job, 'none'); P.x = HQ.x; P.z = HQ.z; assert.ok(!sim.setJob('police').ok, 'じたくの ちかくで えらぶ'); tele(sim, BASE.x, BASE.z); assert.ok(!sim.summon('firetruck').ok, 'しょくぎょうが ないと しょうぼうしゃに のれない');
+  assert.ok(sim.setJob('police').ok); const furn0 = Object.values(S.home.inv).reduce((q, n) => q + n, 0); for (let i = 0; i < 20 * 20; i++) { P.invuln = 5; sim.step(0.05); } assert.ok(S.tasks.some((t) => t.type === 'snatch'), 'ひったくりの しごとが でる');
+  const t = S.tasks.find((x) => x.type === 'snatch'); const c = S.crooks.find((x) => x.id === t.cid); assert.ok(c && c.task); tele(sim, c.x - 2, c.z); P.invuln = 5; sim.step(0.02); c.x = P.x + 2; c.z = P.z; sim.step(0.02); const coins0 = P.coins; assert.equal(S.nearby && S.nearby.kind, 'arrest', 'けいさつは つかまえられる'); assert.ok(sim.interact()); sim.step(0.1); assert.ok(P.coins > coins0 && !S.tasks.some((x) => x.id === t.id), 'しごと かんりょうで コイン'); assert.ok(Object.values(S.home.inv).reduce((q, n) => q + n, 0) > furn0, 'かぐが もらえる');
+  tele(sim, BASE.x, BASE.z); assert.ok(sim.setJob('swat').ok && S.loaned.length >= 3 && S.wOwned.includes('rpg'), 'SWATは ぶきを かりる'); assert.ok(sim.setJob('fire').ok && !S.wOwned.includes('rpg') && S.loaned.length === 0, 'やめると ぶきを かえす');
+}
+{ // しょうぼう
+  const sim = mk(); const S = sim.state; const P = S.player; tele(sim, BASE.x, BASE.z); assert.ok(sim.setJob('fire').ok); S.fireT = 0.1; for (let i = 0; i < 10; i++) { P.invuln = 5; sim.step(0.05); } assert.ok(S.fires.length >= 1, 'かじが おきる'); const f = S.fires[0];
+  assert.ok(sim.summon('firetruck').ok && sim.vehicleOf().id === 'firetruck'); const v = sim.vehicleOf(); v.x = f.x - 16; v.z = f.z; v.yaw = Math.PI / 2; P.aimRel = 0; const coins0 = P.coins; sim.input.gun = true; for (let i = 0; i < 20 * 8 && S.fires.includes(f); i++) { P.invuln = 5; v.x = f.x - 16; v.z = f.z; v.yaw = Math.PI / 2; v.speed = 0; sim.step(0.05); } sim.input.gun = false; assert.ok(!S.fires.includes(f), 'みずで かじが きえる'); assert.ok(P.coins > coins0, 'しょうぼうの ほうしゅう');
+}
+{ // きゅうきゅう
+  const sim = mk(); const S = sim.state; const P = S.player; tele(sim, BASE.x, BASE.z); assert.ok(sim.setJob('ems').ok); S.taskT = 0.1; for (let i = 0; i < 10; i++) { P.invuln = 5; sim.step(0.05); } assert.ok(S.patients.length >= 1 && sim.hospitals.length === 3, 'かんじゃ・びょういんは 3かしょ'); const p = S.patients[0];
+  assert.ok(!sim.treat(p.id, false).ok && p.state === 'need', 'まちがい'); assert.ok(sim.treat(p.id, true).ok && p.state === 'treated'); assert.ok(sim.summon('ambulance').ok); const v = sim.vehicleOf(); v.x = p.x + 3; v.z = p.z; P.x = v.x; P.z = v.z; P.invuln = 5; sim.step(0.05); sim.step(0.05); assert.equal(p.state, 'loaded', 'きゅうきゅうしゃに のせる');
+  const h = sim.hospitals[p.hosp]; v.x = h.x; v.z = h.z; P.x = h.x; P.z = h.z; const coins0 = P.coins; P.invuln = 5; sim.step(0.05); sim.step(0.05); assert.ok(!S.patients.includes(p) && P.coins > coins0, 'びょういんに はこぶと ほうしゅう');
+}
+{ // スマホ
+  const sim = mk(st(70), 3, { owned: [...DEFAULT_OWNED, 'sports'] }); const S = sim.state; const P = S.player; P.coins = 99999; assert.ok(!sim.callVehicle('sports').ok, 'スマホが ないと よべない'); assert.ok(sim.buy('phone').ok && S.hasPhone && !sim.buy('phone').ok, 'スマホを かう'); tele(sim, HQ.x, HQ.z);
+  assert.ok(sim.callVehicle('sports').ok && sim.vehicleOf().id === 'sports' && Math.hypot(sim.vehicleOf().x - HQ.x, sim.vehicleOf().z - HQ.z) < 40, 'その場で よべる'); assert.ok(!sim.callVehicle('super').ok, 'もっていない のりものは よべない'); assert.ok(!sim.callVehicle('firetruck').ok, 'しょくぎょうが ちがうと よべない');
 }
 console.log('OK: city');

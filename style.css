@@ -865,3 +865,13 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .sh-head{flex:none;display:flex;gap:4px 12px;align-items:baseline;justify-content:center;flex-wrap:wrap;margin-bottom:4px}.sh-head>h3,.sh-head>.sh-coin{margin:0!important}
 .sh-box>.sh-note{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 @media (max-height:360px){.c3d-shop .sh-box{padding:7px 10px;border-radius:12px}.sh-box>h3{font-size:14px}.sh-box>.sh-coin{font-size:12px}.sh-box>.sh-tabs{margin:0 0 4px;gap:4px}.sh-tabs .chipb{padding:3px 7px;font-size:11px}.sh-item{padding:4px 8px;margin:3px 0}.sh-box>.sh-note{font-size:10px;margin-top:3px;-webkit-line-clamp:2}.sh-box>.sh-x{margin-top:4px;padding:4px 0}.sh-grp{margin:6px 0 2px;font-size:11px}}
+
+.c3d-jobchip{position:absolute;top:calc(env(safe-area-inset-top,0px) + 124px);left:8px;z-index:3;pointer-events:none;background:rgba(6,16,34,.72);border:1.5px solid rgba(255,255,255,.3);border-radius:10px;padding:4px 8px;font-size:11px;line-height:1.4;max-width:min(44vw,300px);color:#fff}.c3d-jobchip b{color:#ffd84a}.c3d-jobchip i{font-style:normal;color:#7fe7ff}.c3d-jobchip[hidden]{display:none}
+
+.sh-box.room canvas.rm{display:block;margin:4px auto;border:2px solid #ffd23f;border-radius:10px;max-width:100%;height:auto;image-rendering:auto;background:#222}
+.rm-acts{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:4px 0}.rm-acts .btn{padding:5px 10px;font-size:12px}
+.sh-item>span[style]{flex:none;width:36px;height:36px;border-radius:10px;border:2px solid rgba(255,255,255,.35)}
+
+.sh-box.room .rm-wrap{display:flex;gap:10px;align-items:flex-start}.sh-box.room .rm-left{flex:none;max-width:100%}.sh-box.room .rm-right{flex:1;min-width:0}.rm-note{font-size:11px;margin:4px 0 0;opacity:.9;text-wrap:balance}
+@media (max-width:559px){.sh-box.room .rm-wrap{flex-direction:column;align-items:stretch}}
+@media (min-width:560px){.sh-box.room .sh-list{overflow:hidden;display:flex;flex-direction:column}.sh-box.room .rm-wrap{flex:1;min-height:0}.sh-box.room .rm-right{max-height:100%;overflow-y:auto;overscroll-behavior:contain}.sh-box.room .rm-left{max-height:100%;overflow:auto}}

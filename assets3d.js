@@ -61,5 +61,5 @@ export async function loadCityAssets(THREE) {
     const sx = o.w ? o.w / size.x : su; const sz = o.d ? o.d / size.z : su; const sy = o.h ? o.h / size.y : Math.min(sx, sz);
     const inner = new THREE.Group(); inner.add(obj); inner.scale.set(sx, sy, sz); inner.position.set(-c.x * sx, -bx.min.y * sy, -c.z * sz); const wrap = new THREE.Group(); wrap.add(inner); wrap.rotation.y = o.yaw || 0; return wrap;
   }
-  return { ok: true, models, person, car, kit, prop, has: (k) => !!models[k] };
+  return { ok: true, models, person, car, kit, prop, retint: tint, has: (k) => !!models[k] };
 }

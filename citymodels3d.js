@@ -459,3 +459,28 @@ export function labelSprite(THREE, text, sub, color = '#ffd23f', w = 320) {
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.font = 'bold 40px CityLatin, CityJP, sans-serif'; g.fillText(text, w / 2, 36); g.fillStyle = color; g.font = 'bold 34px CityLatin, CityJP, sans-serif'; g.fillText(sub, w / 2, 80);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.renderOrder = 22; s.scale.set(w / 52, 112 / 52, 1); s.userData.sub = sub; return s;
 }
+
+// ---- しょくぎょうの のりもの(しょうぼうしゃ・きゅうきゅうしゃ・SWATの そうこうしゃ)。まえは +z。userData.siren=[あか,あお] userData.nozzle=ほうすいの でぐち ----
+export function makeServiceVehicle(THREE, model = 'firetruck') {
+  const g = new THREE.Group(); const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.25, ...o });
+  const bx = (w, h, d, c, x, y, z, o) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(c, o)); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+  const wheel = (x, z, r = 0.55) => { const w = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.45, 14), M('#15161a', { roughness: 0.9, metalness: 0 })); w.rotation.z = Math.PI / 2; w.position.set(x, r, z); g.add(w); const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.45, r * 0.45, 0.48, 10), M('#9aa0a8')); hub.rotation.z = Math.PI / 2; hub.position.set(x, r, z); g.add(hub); };
+  const decal = (text, w, h, bg, fg, x, y, z, ry, fs = 64) => { const c = document.createElement('canvas'); c.width = 256; c.height = Math.round(256 * h / w); const k = c.getContext('2d'); if (bg) { k.fillStyle = bg; k.fillRect(0, 0, c.width, c.height); } k.fillStyle = fg; k.font = `900 ${fs}px CityLatin, CityJP, sans-serif`; k.textAlign = 'center'; k.textBaseline = 'middle'; k.fillText(text, c.width / 2, c.height / 2 + 4); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: !bg })); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); };
+  const lights = (y, z, w = 1.8) => { const a = bx(w / 2, 0.22, 0.4, '#ff2a2a', -w / 4, y, z, { emissive: '#ff2a2a', emissiveIntensity: 1.6 }); const b = bx(w / 2, 0.22, 0.4, '#2a5aff', w / 4, y, z, { emissive: '#2a5aff', emissiveIntensity: 1.6 }); g.userData.siren = [a, b]; };
+  if (model === 'firetruck') {
+    bx(2.5, 0.5, 8.4, '#26272c', 0, 0.75, 0); bx(2.6, 2.5, 2.4, '#d3221e', 0, 2.1, 2.9); bx(2.3, 1.0, 0.1, '#9fd4ff', 0, 2.6, 4.12, { metalness: 0.6, roughness: 0.2 }); bx(2.6, 2.2, 5.4, '#d3221e', 0, 2.05, -1.4); bx(2.62, 0.28, 5.4, '#f4f4f4', 0, 2.25, -1.4); bx(2.64, 0.5, 8.0, '#b01a16', 0, 1.0, 0.2);
+    for (const sx of [-1, 1]) bx(0.08, 1.2, 1.6, '#9fd4ff', sx * 1.31, 2.5, 2.9, { metalness: 0.6, roughness: 0.2 }); bx(0.5, 0.28, 6.2, '#cfd3d8', 0, 3.4, -1.2); for (let i = 0; i < 9; i++) bx(0.7, 0.06, 0.08, '#cfd3d8', 0, 3.45, -3.9 + i * 0.7); bx(1.4, 0.4, 0.4, '#b8bcc4', 0, 3.2, -4.2);
+    const noz = new THREE.Object3D(); noz.position.set(0, 3.2, 3.0); g.add(noz); g.userData.nozzle = noz; const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 0.9, 8), M('#b8bcc4')); barrel.rotation.x = Math.PI / 2 - 0.3; barrel.position.set(0, 3.2, 3.3); g.add(barrel);
+    for (const sx of [-1, 1]) { bx(0.06, 1.0, 1.2, '#3a3d44', sx * 1.32, 1.7, -2.6); bx(0.06, 1.0, 1.2, '#3a3d44', sx * 1.32, 1.7, -0.6); } decal('FIRE', 1.6, 0.5, null, '#ffffff', 0, 2.55, -4.12, Math.PI, 90); decal('119', 1.1, 0.5, null, '#ffffff', 1.34, 2.5, -1.4, Math.PI / 2, 100); decal('119', 1.1, 0.5, null, '#ffffff', -1.34, 2.5, -1.4, -Math.PI / 2, 100); lights(3.45, 3.4, 2.2);
+    for (const z of [3.2, -0.6, -2.8]) { wheel(-1.2, z); wheel(1.2, z); }
+  } else if (model === 'ambulance') {
+    bx(2.3, 0.5, 6.6, '#2a2b30', 0, 0.7, 0); bx(2.4, 2.2, 1.9, '#f4f4f2', 0, 1.9, 2.1); bx(2.1, 0.85, 0.1, '#9fd4ff', 0, 2.25, 3.08, { metalness: 0.6, roughness: 0.2 }); bx(2.4, 2.5, 4.4, '#f4f4f2', 0, 2.0, -1.3); bx(2.42, 0.32, 6.4, '#e03030', 0, 1.65, 0.0); bx(2.42, 0.12, 6.4, '#e03030', 0, 2.2, 0.0);
+    for (const sx of [-1, 1]) bx(0.07, 0.9, 1.0, '#9fd4ff', sx * 1.22, 2.3, 2.2, { metalness: 0.6, roughness: 0.2 }); decal('✚', 1.1, 1.1, null, '#e03030', 1.22, 2.7, -1.0, Math.PI / 2, 200); decal('✚', 1.1, 1.1, null, '#e03030', -1.22, 2.7, -1.0, -Math.PI / 2, 200); decal('救急', 1.4, 0.6, null, '#e03030', 0, 2.9, -3.52, Math.PI, 90); decal('AMBULANCE', 1.9, 0.35, null, '#e03030', 0, 2.25, 3.12, 0, 42);
+    lights(3.3, 0.6, 1.8); for (const z of [2.0, -2.0]) { wheel(-1.05, z, 0.5); wheel(1.05, z, 0.5); }
+  } else { // swatvan
+    bx(2.4, 0.5, 6.2, '#1b1c20', 0, 0.75, 0); bx(2.5, 2.5, 5.4, '#1f2128', 0, 2.1, -0.3); bx(2.4, 1.2, 1.8, '#23262e', 0, 1.95, 2.9); bx(2.1, 0.7, 0.1, '#6a8aa0', 0, 2.5, 3.82, { metalness: 0.5, roughness: 0.2 }); bx(2.6, 0.4, 0.5, '#101114', 0, 0.9, 3.5); bx(2.5, 0.12, 5.2, '#3a3e48', 0, 3.4, -0.3);
+    for (const sx of [-1, 1]) { bx(0.06, 0.5, 1.2, '#6a8aa0', sx * 1.26, 2.6, -0.4, { metalness: 0.5 }); bx(0.06, 0.5, 1.2, '#6a8aa0', sx * 1.26, 2.6, 1.4, { metalness: 0.5 }); } decal('SWAT', 1.6, 0.55, null, '#e8eaf0', 1.26, 2.0, -0.4, Math.PI / 2, 100); decal('SWAT', 1.6, 0.55, null, '#e8eaf0', -1.26, 2.0, -0.4, -Math.PI / 2, 100); decal('SWAT', 1.6, 0.5, null, '#e8eaf0', 0, 2.3, -3.02, Math.PI, 90);
+    lights(3.55, 0.2, 1.7); for (const z of [2.2, -2.0]) { wheel(-1.2, z, 0.6); wheel(1.2, z, 0.6); }
+  }
+  g.traverse((m) => { if (m.isMesh) m.castShadow = true; }); return g;
+}
