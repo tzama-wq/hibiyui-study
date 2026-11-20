@@ -5,6 +5,7 @@ import { makeCarModel, makeBikeModel, makeAirModel, makePerson, makeWeaponModel,
 import { makeVehicleModel } from './vehicle3d.js';
 import { makeFx } from './fx3d.js';
 import { createPost } from './post3d.js';
+import { loadCityAssets } from './assets3d.js';
 import { addBuildings } from './facade3d.js';
 import { skyMat, SEA_VS, SEA_FS, envTexture } from './world3d.js';
 
@@ -81,6 +82,7 @@ function iconSprite(THREE, text, color = '#ffd23f') {
 
 export async function startCity3D(o) {
   const THREE = await loadThree();
+  const A = await loadCityAssets(THREE).catch(() => null); const glbOn = !!(A && A.ok && A.has('casual'));
   if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
   document.querySelectorAll('.c3d').forEach((e) => e.remove());
   const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, weapons: o.weapons && o.weapons.length ? o.weapons : DEFAULT_WEAPONS, weapon: o.weapon || 'pistol', arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
@@ -231,11 +233,18 @@ export async function startCity3D(o) {
 
   // ---- ものたち ----
   let heldId = ''; let heldM = null;
-  const me = makePerson(THREE, { shirt: '#3a3a3e', jacket: true, jacketColor: '#1c1d21', pants: '#4a5a34', cargo: true, boots: true, shoe: '#4a3020', sole: '#1a1612', hair: '#2a1c14', hairStyle: 0, stubble: true, scale: 1.0 }); scene.add(me); const vmodels = new Map();
-  const mkVehModel = (v) => { let m; if (v.cat) { const it = catalogOf(v.cat) || catalogOf('sedan'); m = it.kind === 'bike' ? makeBikeModel(THREE, it.model) : isAir(it.kind) ? makeAirModel(THREE, it.model) : makeCarModel(THREE, it.model); } else m = makeVehicleModel(THREE, o.specs[v.kind]); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); vmodels.set(v.id, m); return m; };
+  const me = (glbOn && A.person('casual', { height: 1.82 })) || makePerson(THREE, { shirt: '#3a3a3e', jacket: true, jacketColor: '#1c1d21', pants: '#4a5a34', cargo: true, boots: true, shoe: '#4a3020', sole: '#1a1612', hair: '#2a1c14', hairStyle: 0, stubble: true, scale: 1.0 }); if (me.userData.glb) me.userData.handR = me.userData.hand; scene.add(me); const vmodels = new Map();
+  const glbMe = (dt) => { const u = me.userData; const sp = Math.abs(P.speed); const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.hand.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.hand.add(heldM); }
+    const moving = sp > 0.6; const ranged = !W.melee && W.id !== 'fist'; let an;
+    if (P.dead > 0) an = 'Death'; else if (P.chute) an = 'Idle'; else if (W.melee && S.swing > 0) an = 'Punch_Right'; else if (ranged && sim.input.gun && !moving) an = 'Idle_Gun_Shoot'; else if (moving) an = sp > 8 ? 'Run' : 'Walk'; else an = ranged ? 'Idle_Gun' : 'Idle';
+    u.play(an, 0.15, an === 'Death'); u.mixer.timeScale = moving ? Math.min(1.7, Math.max(0.7, sp / 6)) : 1; u.mixer.update(dt); };
+  const CARCOL = { sedan: '#3b6fd0', sports: '#d11f2e', super: '#c6e000' };
+  const glbCar = (model, color) => { if (!glbOn) return null; const g = A.car(model, color || CARCOL[model]); if (!g) return null; const o2 = new THREE.Group(); o2.add(g); if (model === 'police') { const ty = g.userData.topY; const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), new THREE.MeshBasicMaterial({ color: '#3a6dff' })); b.position.set(-0.28, ty + 0.05, 0); const r = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), new THREE.MeshBasicMaterial({ color: '#ff3a3a' })); r.position.set(0.28, ty + 0.05, 0); o2.add(b, r); o2.userData.siren = [b, r]; } return o2; };
+  const mkVehModel = (v) => { let m; if (v.cat) { const it = catalogOf(v.cat) || catalogOf('sedan'); m = it.kind === 'bike' ? makeBikeModel(THREE, it.model) : isAir(it.kind) ? makeAirModel(THREE, it.model) : (glbCar(it.model) || makeCarModel(THREE, it.model)); } else m = makeVehicleModel(THREE, o.specs[v.kind]); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); vmodels.set(v.id, m); return m; };
   for (const v of S.vehicles) mkVehModel(v);
   const npcs = new Map(); const trafficM = new Map(); const crookM = new Map(); const pickM = new Map();
-  const mkNpc = (id) => { const m = townsPerson(THREE, id); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); return m; };
+  const PAL_S = ['#c9473a', '#3a78c9', '#e0b12a', '#4aa86a', '#8a5ac9', '#e8e8ee', '#d8789a', '#2a8a9a', '#e07a3a', '#56606e']; const PAL_P = ['#2a3042', '#3a3a44', '#5a4a3a', '#2a4a6a', '#20242c', '#6a6a72', '#7a6a58'];
+  const mkNpc = (id) => { let m = null; if (glbOn) { const keys = ['man', 'womancasual', 'womandress', 'man']; const key = keys[id % 4]; const tint = key === 'womandress' ? { Dress: PAL_S[(id * 3) % 10] } : { Shirt: PAL_S[(id * 7) % 10], Pants: PAL_P[(id * 5) % 7] }; m = A.person(key, { height: 1.62 + ((id * 7) % 12) / 50, tint }); if (m) m.userData.play('Walk', 0); } if (!m) m = townsPerson(THREE, id); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); return m; };
   const mkMarker = (color, h = 70) => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, h, 14, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); b.position.y = h / 2; const r = new THREE.Mesh(new THREE.TorusGeometry(5, 0.35, 8, 28), new THREE.MeshBasicMaterial({ color })); r.rotation.x = Math.PI / 2; r.position.y = 0.6; g.add(b, r); g.userData.ring = r; return g; };
   const markers = []; const startMarkers = CITY_MISSIONS.map((m) => { const g = mkMarker('#ffd23f'); g.position.set(m.start.x, 0, m.start.z); const sp = iconSprite(THREE, m.icon); sp.scale.set(9, 9, 1); sp.position.y = 24; g.add(sp); scene.add(g); return { m, g }; });
   for (const [pt, ic, col] of [[GARAGE, '🏠', '#ff9f43'], [BOARD, '📋', '#e8d9a0'], [JOB, '💼', '#7fe7ff'], [SOCCER, '⚽', '#9fe29f'], ...STORES.map((st) => [st, st.icon, '#ffb35a'])]) { const g = mkMarker(col, 40); g.position.set(pt.x, 0, pt.z); const sp = iconSprite(THREE, ic, col); sp.scale.set(8, 8, 1); sp.position.y = 26; g.add(sp); scene.add(g); markers.push(g); }
@@ -277,7 +286,7 @@ export async function startCity3D(o) {
       <p>💼 <b>おしごと</b>: さんすう・こくごで おきゅうりょう</p>
       <p>🏁 <b>ガレージ</b>: のりものを かう・のる ・ 🏁⚡ボタンで ワープ</p>
       <p>⭐ ミッション(きいろい はしら)で チケット ゲット</p>
-      <p>🗺 ちず ・ 🎯 ついせき ・ 🚉 えき ・ 🌸 さくらなみき</p><p style="font-size:10px;opacity:.7">ちず: © OpenStreetMap contributors</p></div><button class="btn gold sh-x">わかった!</button></div>`; }); shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); try { localStorage.setItem('city-help', '1'); } catch { /* ok */ } } }; };
+      <p>🗺 ちず ・ 🎯 ついせき ・ 🚉 えき ・ 🌸 さくらなみき</p><p style="font-size:10px;opacity:.7">ちず: © OpenStreetMap contributors ・ 3Dモデル(ひと・くるま): Quaternius (CC0)</p></div><button class="btn gold sh-x">わかった!</button></div>`; }); shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); try { localStorage.setItem('city-help', '1'); } catch { /* ok */ } } }; };
   root.querySelector('.c3d-help').addEventListener('click', () => { if (!paused) showHelp(); });
   try { if (!localStorage.getItem('city-help')) setTimeout(() => { if (!dead && !paused) showHelp(); }, 1200); } catch { /* ok */ }
   root.querySelector('.c3d-cancel').addEventListener('click', () => sim.cancelMission());
@@ -414,7 +423,7 @@ export async function startCity3D(o) {
     function syncScene(dt) {
     const v = sim.vehicleOf(); const kind = v ? v.kind : 'foot';
     // じぶん
-    me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : 0, P.z); me.rotation.y = P.yaw; { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.handR.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.handR.add(heldM); } if (W.melee) { if (S.swing > 0) { u.armR.rotation.x = -2.3 + (1 - S.swing / 0.25) * 2.6; } else u.armR.rotation.x = -0.5 + (sw > 0 ? 0 : 0); } else { const long = ['ライフル', 'SMG', 'マシンガン', 'スナイパー', 'ショットガン'].includes(W.cat); if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = long ? -1.4 : -1.3; } else if (!W.expl || W.range > 100) u.armR.rotation.x = Math.min(u.armR.rotation.x, -0.55); } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; poseLimbs(u); }
+    me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : 0, P.z); me.rotation.y = P.yaw; if (me.userData.glb) glbMe(dt); else { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.handR.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.handR.add(heldM); } if (W.melee) { if (S.swing > 0) { u.armR.rotation.x = -2.3 + (1 - S.swing / 0.25) * 2.6; } else u.armR.rotation.x = -0.5 + (sw > 0 ? 0 : 0); } else { const long = ['ライフル', 'SMG', 'マシンガン', 'スナイパー', 'ショットガン'].includes(W.cat); if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = long ? -1.4 : -1.3; } else if (!W.expl || W.range > 100) u.armR.rotation.x = Math.min(u.armR.rotation.x, -0.55); } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; poseLimbs(u); }
     shield.visible = P.invuln > 0; shield.position.set(P.x, (v ? v.y : P.y) + (isAir(kind) ? 0 : 3), P.z); shield.scale.setScalar(kind === 'foot' ? 1 : isAir(kind) ? 3 : 4);
     // のりもの
     const vseen = new Set();
@@ -431,22 +440,23 @@ export async function startCity3D(o) {
     for (const [id, m] of vmodels) if (!vseen.has(id)) { scene.remove(m); vmodels.delete(id); }
     // ひと(ちかくだけ つくる)
     const people = [...S.walkers.map((w) => ({ ...w, kind: 'walk' })), ...S.civs.map((c) => ({ ...c, kind: 'civ' }))]; const seen = new Set();
-    for (const w of people) { const d = Math.hypot(w.x - P.x, w.z - P.z); if (d > 240) continue; seen.add(w.id); let m = npcs.get(w.id); if (!m) { if (npcs.size >= 18) continue; m = mkNpc(w.id); npcs.set(w.id, m); } m.position.set(w.x, 0, w.z); m.rotation.y = w.yaw; const moving = w.kind === 'walk' || w.state === 'carried'; const sw = Math.sin(tt * (w.scared > 0 ? 14 : 8) + w.id) * (moving ? 0.7 : 0); const u = m.userData; const need = w.kind === 'civ' && w.state === 'need'; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = need ? -2.7 + Math.sin(tt * 10) * 0.3 : -sw * 0.8; u.armR.rotation.x = need ? -2.7 - Math.sin(tt * 10) * 0.3 : sw * 0.8; poseLimbs(u); if (w.kind === 'civ') m.visible = w.state !== 'safe'; }
+    for (const w of people) { const d = Math.hypot(w.x - P.x, w.z - P.z); if (d > 240) continue; seen.add(w.id); let m = npcs.get(w.id); if (!m) { if (npcs.size >= 18) continue; m = mkNpc(w.id); npcs.set(w.id, m); } m.position.set(w.x, 0, w.z); m.rotation.y = w.yaw; const moving = w.kind === 'walk' || w.state === 'carried'; const sw = Math.sin(tt * (w.scared > 0 ? 14 : 8) + w.id) * (moving ? 0.7 : 0); const u = m.userData; const need = w.kind === 'civ' && w.state === 'need'; if (u.glb) { u.play(need ? 'Clapping' : moving ? (w.scared > 0 ? 'Run' : 'Walk') : 'Idle'); u.mixer.update(dt); } else { u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = need ? -2.7 + Math.sin(tt * 10) * 0.3 : -sw * 0.8; u.armR.rotation.x = need ? -2.7 - Math.sin(tt * 10) * 0.3 : sw * 0.8; poseLimbs(u); } if (w.kind === 'civ') m.visible = w.state !== 'safe'; }
     for (const [id, m] of npcs) if (!seen.has(id)) { scene.remove(m); npcs.delete(id); }
     // くるま(かざり)
-    for (const c of S.traffic) { let m = trafficM.get(c.id); if (!m) { m = makeCarModel(THREE, c.model || 'sedan', (c.model || 'sedan') === 'sedan' ? ['#4a90d9', '#d85a8a', '#5aa86a', '#8a8f9a', '#f2f2f2', '#6a4ad8', '#2a2e38', '#b8c0cc'][c.tone % 8] : undefined); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); trafficM.set(c.id, m); } m.position.set(c.x, 0, c.z); m.rotation.y = c.yaw; m.visible = Math.hypot(c.x - P.x, c.z - P.z) < 700; }
+    for (const c of S.traffic) { let m = trafficM.get(c.id); if (!m) { { const mdl = c.model || 'sedan'; const col = mdl === 'sedan' ? ['#4a90d9', '#d85a8a', '#5aa86a', '#8a8f9a', '#f2f2f2', '#6a4ad8', '#2a2e38', '#b8c0cc'][c.tone % 8] : undefined; m = glbCar(mdl, col) || makeCarModel(THREE, mdl, col); } m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); trafficM.set(c.id, m); } m.position.set(c.x, 0, c.z); m.rotation.y = c.yaw; m.visible = Math.hypot(c.x - P.x, c.z - P.z) < 700; }
     for (const [id, m] of trafficM) if (!S.traffic.some((c) => c.id === id)) { scene.remove(m); trafficM.delete(id); }
     // はんにん(してい手配はんは なまえと けんしょう金の ふだつき)
     const rseen = new Set();
     for (const c of S.crooks) {
       const d = Math.hypot(c.x - P.x, c.z - P.z); if (d > 320) continue; let e = crookM.get(c.id);
-      if (!e) { if (crookM.size >= 28) continue; const m = crookPerson(THREE, c.type, c.id); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); e = { m, label: null, cuff: null, lx: c.x, lz: c.z, sub: '' }; const cf = iconSprite(THREE, '🚔', '#27d8ff'); cf.scale.set(3.4, 3.4, 1); cf.visible = false; scene.add(cf); e.cuff = cf; crookM.set(c.id, e); }
+      if (!e) { if (crookM.size >= 28) continue; let m = null; if (glbOn) { const sw0 = c.type === 'gunman'; const key = sw0 ? 'swat' : 'man'; const tint = c.type === 'thug' ? { Shirt: '#262a33', Pants: '#2f3a2a' } : c.type === 'boss' ? { Shirt: '#8a1f2a', Pants: '#14161a' } : c.type === 'runner' ? { Shirt: '#c9843a', Pants: '#2a2e38' } : null; m = A.person(key, { height: c.type === 'boss' ? 1.95 : 1.82, tint }); if (m) { const wid = { thug: 'pistol', gunman: 'smg', boss: 'pump' }[c.type]; if (wid) { const wm = makeWeaponModel(THREE, wid); m.userData.hand.add(wm); m.userData.gun = wm; } m.userData.rig = sw0; } } if (!m) m = crookPerson(THREE, c.type, c.id); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); e = { m, label: null, cuff: null, lx: c.x, lz: c.z, sub: '' }; const cf = iconSprite(THREE, '🚔', '#27d8ff'); cf.scale.set(3.4, 3.4, 1); cf.visible = false; scene.add(cf); e.cuff = cf; crookM.set(c.id, e); }
       rseen.add(c.id); const m = e.m; const u = m.userData; const w = c.wid ? S.wanted.find((x) => x.id === c.wid) : null; const sub = c.wid ? `${'⭐'.repeat(w ? w.stars : 1)} 🪙${w ? w.bounty : 0}` : c.minor ? '🪙40' : ''; const nm = c.wid ? (w ? w.name : '') : c.minor ? 'ひったくり' : '';
       if (nm && (sub !== e.sub || !e.label)) { if (e.label) { scene.remove(e.label); e.label.material.map.dispose(); e.label.material.dispose(); } e.label = labelSprite(THREE, nm, sub, c.wid ? '#ff5a5a' : '#ffb35a', 300); scene.add(e.label); e.sub = sub; }
       const down = c.state === 'down'; const mv = Math.hypot(c.x - e.lx, c.z - e.lz) / Math.max(dt, 0.001); e.lx = c.x; e.lz = c.z; const sw = down ? 0 : Math.sin(tt * (mv > 4 ? 12 : 8) + c.ph) * Math.min(0.8, mv / 4);
-      m.position.set(c.x, down ? -0.42 : 0, c.z); m.rotation.y = c.yaw; u.legL.rotation.x = down ? 1.35 : sw; u.legR.rotation.x = down ? 1.35 : -sw;
+      if (u.glb) { m.position.set(c.x, 0, c.z); m.rotation.y = c.yaw; const aim = (c.alert || d < 80) && c.type !== 'runner'; const spd = mv; u.play(down ? 'Death' : spd > 4 ? 'Run' : spd > 0.8 ? 'Walk' : aim && u.rig ? 'Idle_Gun_Pointing' : 'Idle', 0.18, down); u.mixer.update(dt); }
+      else { m.position.set(c.x, down ? -0.42 : 0, c.z); m.rotation.y = c.yaw; u.legL.rotation.x = down ? 1.35 : sw; u.legR.rotation.x = down ? 1.35 : -sw;
       if (down) { u.armL.rotation.x = -2.9; u.armR.rotation.x = -2.9; } else { const aim = (c.alert || d < 80) && c.type !== 'runner'; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = aim ? -1.45 : u.gun ? -0.35 : sw * 0.8; }
-      poseLimbs(u);
+      poseLimbs(u); }
       if (e.label) { e.label.visible = d < 160 && P.dead <= 0; e.label.position.set(c.x, (c.type === 'boss' ? 3.9 : 3.5) + (down ? -0.6 : 0), c.z); }
       e.cuff.visible = down && d < 60; e.cuff.position.set(c.x, 3.2, c.z); e.cuff.scale.setScalar(3.4 + Math.sin(tt * 6) * 0.4);
     }

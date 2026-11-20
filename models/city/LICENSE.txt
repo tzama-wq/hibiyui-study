@@ -1,0 +1,4 @@
+These 3D models are by Quaternius, released under CC0 1.0 (public domain), obtained via Poly Pizza (https://poly.pizza).
+Man, Woman Casual, Woman in Dress, Casual Character, SWAT, Taxi, Car, SUV, Sports Car, Police Car, Pickup Truck, Truck.
+CC0: no attribution required, credited here out of courtesy. https://quaternius.com
+Loaders (vendor/loaders/GLTFLoader.js, vendor/utils/*.js) are from three.js r160 (MIT).
