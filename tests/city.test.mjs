@@ -183,4 +183,12 @@ for (const planeId of ['plane', 'hawk']) {
 {
   const sim = mk(); const S = sim.state; const P = S.player; const A = sim.ammoOf('pistol'); A.mag = 1; A.reserve = 3; tele(sim, GARAGE.x, GARAGE.z); run(sim, 0.5); const sp = ammoSpec(weaponOf('pistol')); assert.equal(A.reserve, sp.cap, 'じたくで よびが まんたん'); assert.equal(A.mag, sp.mag, 'じたくで マガジンも まんたん');
 }
+// ---- くるま・バイクに ぶつかると ダメージ、なんかいかで こわれる ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const car = S.vehicles.find((v) => v.id === 'sedan'); const c = S.traffic.find((x) => !x.hostile && !x.bike);
+  car.x = c.x; car.z = c.z; P.x = c.x + 3; P.z = c.z; sim.step(1 / 30); sim.interact(); assert.equal(sim.vehicleOf() && sim.vehicleOf().id, 'sedan'); const v = sim.vehicleOf();
+  let n = 0; for (let i = 0; i < 40 && P.mode === 'veh'; i++) { c.hitT = -99; c.dead = 0; c.hp = 1; c.hidden = false; v.x = c.x; v.z = c.z; v.speed = 12; P.invuln = 0; sim.step(1 / 30); n++; }
+  assert.equal(P.mode, 'foot', `${v.hitMax}かい ぶつかると こわれる`); assert.ok(n >= v.hitMax - 1 && n <= v.hitMax + 3, `ぶつかった かいすう ${n}`); assert.equal(v.hits, 0, 'こわれたら もとに もどる');
+  const bike = S.vehicles.find((x) => x.id === 'scooter'); assert.ok(bike.hitMax < v.hitMax, 'バイクは くるまより こわれやすい');
+}
 console.log('OK: city');
