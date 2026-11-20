@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
 
-const FSrun = (sim) => 12 + 70 * 0.012 + 0; const st = (v) => ({ SHO: v, PAS: v, SPD: v, DEF: v, STA: v });
+const FSrun = (sim) => 9.6 + 70 * 0.0096; const st = (v) => ({ SHO: v, PAS: v, SPD: v, DEF: v, STA: v });
 const ch = (id, rarity, pos) => ({ id, name: id, face: '', rarity, pos, stats: st(90) });
 const chars = [ch('f', 'legend', 'FW'), ch('m', 'legend', 'MF'), ch('d', 'legend', 'DF'), ch('g', 'super', 'GK'), ch('f2', 'rare', 'FW')];
 const veh = (kind, ks) => { const lo = autoLoadout(kind, chars); const parts = {}; for (const [s, id] of Object.entries(lo)) parts[s] = partOf(kind, s, chars.find((c) => c.id === id)); return buildVehicle({ vehicle: kind, name: 'P', kidStats: ks, parts }); };
@@ -244,5 +244,21 @@ for (const planeId of ['plane', 'hawk']) {
   h.x = P.x + 30; h.z = P.z; h.y = 24; P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; P.camFree = true; P.aimPitch = Math.atan2(24 - 1.6, 30); sim.input.gun = true; for (let i = 0; i < 40; i++) { h.x = P.x + 30; h.z = P.z; h.y = 24; P.camYaw = Math.PI / 2; P.aimPitch = Math.atan2(24 - 1.6, 30); P.wCd = 0; P.invuln = 5; sim.step(0.05); if (!S.helis.includes(h)) break; } sim.input.gun = false;
   assert.ok(h.hp < hp0 || !S.helis.includes(h), 'ヘリに あたる'); 
   const j = S.jets[0]; const coins0 = P.coins; for (let i = 0; i < 12 && S.jets.includes(j); i++) { j.hp = 1; j.x = P.x + 30; j.z = P.z; j.y = 24; P.camYaw = Math.PI / 2; P.aimPitch = Math.atan2(24 - 1.6, 30); P.wCd = 0; sim.input.gun = true; P.invuln = 5; sim.step(0.05); } sim.input.gun = false; assert.ok(!S.jets.includes(j), 'せんとうきを たおせる'); assert.ok(P.coins > coins0, 'おとすと コインが もらえる');
+}
+// ---- ばっきん・じかんで かいじょ したら けいさつは きえる / ロックオンが ぐるぐる まわらない ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; P.coins = 99999; sim.raise(3); for (let i = 0; i < 80; i++) { S.huntT = 0; sim.step(0.05); P.invuln = 5; } assert.ok(S.crooks.some((c) => c.hunter) && S.traffic.some((c) => c.cop), 'けいさつが いる');
+  assert.ok(sim.payFine().ok); assert.ok(!S.crooks.some((c) => c.hunter) && !S.traffic.some((c) => c.cop) && S.jets.length === 0 && S.helis.length === 0, 'ばっきんを はらったら けいさつは ぜんいん きえる'); for (let i = 0; i < 60; i++) sim.step(0.05); assert.ok(!S.crooks.some((c) => c.hunter), 'きえた あとも あらわれない');
+  const s2 = mk(); const Q = s2.state.player; s2.raise(5); for (let i = 0; i < 40; i++) { s2.state.huntT = 0; s2.step(0.05); Q.invuln = 5; } s2.input.aimLock = true; let maxTurn = 0; let prev = Q.camYaw; for (let i = 0; i < 120; i++) { for (const j of s2.state.jets) { const a = i * 0.9; j.x = Q.x + Math.sin(a) * 6; j.z = Q.z + Math.cos(a) * 6; j.y = 50; } Q.invuln = 5; s2.step(0.05); const d = Math.abs(Math.atan2(Math.sin(Q.camYaw - prev), Math.cos(Q.camYaw - prev))); if (d > maxTurn) maxTurn = d; prev = Q.camYaw; } assert.ok(maxTurn < 0.4, `ロックオンの かいてんは はやすぎない (${maxTurn.toFixed(2)})`);
+}
+// ---- くるま・バイクが ちゃんと はしっている(たいこうしゃで とまらない) ----
+{
+  const sim = mk(); const S = sim.state; for (let i = 0; i < 400; i++) sim.step(0.05); const p0 = new Map(S.traffic.map((c) => [c.id, [c.x, c.z]])); for (let i = 0; i < 200; i++) sim.step(0.05);
+  const moving = S.traffic.filter((c) => !c.dead && Math.hypot(c.x - p0.get(c.id)[0], c.z - p0.get(c.id)[1]) > 25).length; assert.ok(moving >= S.traffic.length * 0.6, `10びょうで 25m いじょう はしった くるま: ${moving}/${S.traffic.length}`);
+}
+// ---- オートAIMは とおすぎると きかない ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'sniper'; if (!S.wOwned.includes('sniper')) S.wOwned.push('sniper'); const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } });
+  P.x = c.x - 150; P.z = c.z; P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; sim.step(0.05); assert.ok(!S.player.target, 'スナイパーでも 150m さきには オートAIMしない'); P.x = c.x - 40; P.z = c.z; sim.step(0.05); assert.ok(S.player.target && S.player.target.id === c.id, '40mなら ロックできる');
 }
 console.log('OK: city');

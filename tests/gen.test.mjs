@@ -40,7 +40,7 @@ console.log(`OK: ${n} questions checked`);
 {
   for (const g of [1, 2, 3, 4]) assert.ok(byId[`g${g}_kanjidrill`], `g${g} 漢字トレーニング`);
   // にがてな 漢字は おおく でる(まちがえた 「雨」を 10かい みせる → 雨の しゅつだいが ふえる)
-  const u = byId.g2_kanjidrill; const count = (st) => { setKanjiStats(st); let n = 0; for (let i = 0; i < 3000; i++) if (makeQuestion(u).id.endsWith(':雨')) n++; return n; };
+  const u = byId.g2_kanjidrill; const count = (st) => { setKanjiStats(st); let n = 0; for (let i = 0; i < 20000; i++) if (makeQuestion(u).id.endsWith(':雨')) n++; return n; };
   const base = count({}); const weak = count({ 雨: { ok: 0, ng: 8, str: 0 } }); const mastered = count({ 雨: { ok: 10, ng: 0, str: 10 } });
   assert.ok(weak > base * 2.5, `にがてな 漢字は おおい (${base} → ${weak})`); assert.ok(mastered < base * 0.6, `おぼえた 漢字は すくない (${base} → ${mastered})`);
   setKanjiStats({}); const pr = kanjiProgress(2); assert.ok(pr.total >= 200 && pr.done === 0);
