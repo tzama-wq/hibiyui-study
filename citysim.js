@@ -5,7 +5,13 @@
 //   ざひょう: x=よこ, y=たかさ, z=おく。からだの むき yaw: まえ = (sin yaw, cos yaw)
 export const HALF = 640; export const GRID = 160; export const ROAD = 24;
 export const LINES = [-480, -320, -160, 0, 160, 320, 480];
-export const BAY = { x0: -160, x1: 160, z0: -640, z1: -490 }; // みなとの うみ(みなみがわ)
+export const BAY = { x0: -640, x1: 640, z0: -640, z1: -490 }; // かわ(みなみがわを ながれる おおきな かわ)
+export const RAIL_Z = -160; // でんしゃの こうかせん(ひがしにしに とおる)
+export const STATION = { x: 80, z: -160 }; // えき(こうかの うえ)
+export const SCHOOL = { x0: -470, x1: -330, z0: -140, z1: -20 }; // しょうがっこう
+export const SCHOOL2 = { x0: 330, x1: 470, z0: 330, z1: 470 }; // ちゅうがっこう
+export const STADIUM = { x: 240, z: 400 }; // おおきな こうえん(トラック・グラウンド)
+export const SHRINE = { x: -560, z: -240 }; // じんじゃ
 export const AIRFIELD = { x0: 330, x1: 630, z0: -70, z1: 70 }; // くうこう
 export const PLAZA = { x0: 0, x1: 160, z0: 0, z1: 160 }; // ほんぶの ひろば
 export const HQ = { x: 60, z: 70, r: 32 };
@@ -29,23 +35,39 @@ export const isAir = (k) => k === 'plane' || k === 'jet';
 // ---- まちの かたち(いつも おなじ) ------------------------------------------------------------
 function makeLayout() {
   const R = mulberry(11); const buildings = []; const trees = [];
-  const park = new Set(['1,5', '5,6', '0,2', '6,0']); const skip = new Set(['4,4', '3,0', '4,0', '6,3', '7,3', '6,4', '7,4']);
+  const park = new Set(['1,5', '5,6', '0,2', '6,0']); const skip = new Set(['4,4', '4,3', '6,3', '7,3', '6,4', '7,4', '1,3', '6,6']);
+  const shopCells = new Set(['3,3', '5,3', '3,2', '4,2', '5,2', '2,3']); const aptCells = new Set(['2,2', '2,4', '3,5', '4,5', '5,5', '5,4', '2,5', '3,1', '4,1']);
   for (let ix = 0; ix < 8; ix++) for (let iz = 0; iz < 8; iz++) {
-    const key = `${ix},${iz}`; if (skip.has(key)) continue;
+    const key = `${ix},${iz}`; if (iz === 0 || skip.has(key)) continue;
     const x0 = -640 + GRID * ix; const z0 = -640 + GRID * iz; const x1 = x0 + GRID; const z1 = z0 + GRID;
     const xa = x0 + (ix === 0 ? 18 : 20); const xb = x1 - (ix === 7 ? 18 : 20); const za = z0 + (iz === 0 ? 18 : 20); const zb = z1 - (iz === 7 ? 18 : 20);
-    if (park.has(key)) { for (let i = 0; i < 16; i++) trees.push({ x: lerp(xa + 6, xb - 6, R()), z: lerp(za + 6, zb - 6, R()), s: 0.8 + R() * 0.8 }); continue; }
-    const harbor = iz === 0 && (ix === 2 || ix === 5); const centerish = Math.abs(ix - 3.5) < 2.2 && Math.abs(iz - 3.5) < 2.2;
-    const w = (xb - xa - 10) / 2; const d = (zb - za - 10) / 2;
-    for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
-      if (R() < 0.1) { trees.push({ x: xa + a * (w + 10) + w / 2, z: za + b * (d + 10) + d / 2, s: 1 }); continue; }
-      const h = harbor ? 9 + R() * 8 : 14 + R() * 26 + (centerish ? R() * 80 : R() * 24);
-      const kind = harbor ? 'warehouse' : (centerish && h > 70 ? 'tower' : R() < 0.35 ? 'shop' : 'office');
-      buildings.push({ x0: xa + a * (w + 10), x1: xa + a * (w + 10) + w, z0: za + b * (d + 10), z1: za + b * (d + 10) + d, h: Math.round(h), tone: Math.floor(R() * 6), kind });
+    if (park.has(key)) { const stad = key === '5,6'; const n = stad ? 22 : 16; for (let i = 0; i < n; i++) { let tx = lerp(xa + 6, xb - 6, R()); let tz = lerp(za + 6, zb - 6, R()); if (stad) { const e = R() < 0.5; if (e) tx = R() < 0.5 ? xa + 6 + R() * 8 : xb - 6 - R() * 8; else tz = R() < 0.5 ? za + 6 + R() * 8 : zb - 6 - R() * 8; } trees.push({ x: tx, z: tz, s: 0.8 + R() * 0.8 }); } if (key === '0,2') buildings.push({ x0: SHRINE.x - 14, x1: SHRINE.x + 14, z0: SHRINE.z - 8, z1: SHRINE.z + 8, h: 8, tone: 3, kind: 'shrine' }); continue; }
+    if (iz === 1 && (ix === 2 || ix === 5)) { const w = (xb - xa - 10) / 2; const d = (zb - za - 10) / 2; for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) buildings.push({ x0: xa + a * (w + 10), x1: xa + a * (w + 10) + w, z0: za + b * (d + 10), z1: za + b * (d + 10) + d, h: Math.round(9 + R() * 8), tone: Math.floor(R() * 6), kind: 'warehouse' }); continue; }
+    if (shopCells.has(key) || aptCells.has(key)) {
+      const w = (xb - xa - 10) / 2; const d = (zb - za - 10) / 2; const shop = shopCells.has(key);
+      for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
+        if (R() < 0.06) { trees.push({ x: xa + a * (w + 10) + w / 2, z: za + b * (d + 10) + d / 2, s: 1 }); continue; }
+        const tall = (key === '3,2' || key === '5,2') && R() < 0.5; const h = shop ? (tall ? 38 + R() * 30 : 11 + R() * 10) : 20 + R() * 20;
+        buildings.push({ x0: xa + a * (w + 10), x1: xa + a * (w + 10) + w, z0: za + b * (d + 10), z1: za + b * (d + 10) + d, h: Math.round(h), tone: Math.floor(R() * 6), kind: shop ? (tall ? 'tower' : 'shop') : 'apt' });
+      }
+      continue;
+    }
+    // じゅうたくがい: ちいさな いえ(2かいだて)が ならぶ
+    const nx = 3; const nz = 3; const lw = (xb - xa) / nx; const ld = (zb - za) / nz;
+    for (let a = 0; a < nx; a++) for (let b = 0; b < nz; b++) {
+      const r = R(); const cx = xa + (a + 0.5) * lw; const cz = za + (b + 0.5) * ld;
+      if (r < 0.1) { trees.push({ x: cx, z: cz, s: 0.8 + R() * 0.5 }); continue; }
+      if (r < 0.2) { buildings.push({ x0: cx - lw * 0.42, x1: cx + lw * 0.42, z0: cz - ld * 0.4, z1: cz + ld * 0.4, h: Math.round(15 + R() * 8), tone: Math.floor(R() * 6), kind: 'apt' }); continue; }
+      const hw = lw * (0.28 + R() * 0.08); const hd = ld * (0.28 + R() * 0.08); buildings.push({ x0: cx - hw, x1: cx + hw, z0: cz - hd, z1: cz + hd, h: Math.round(6.5 + R() * 2.5), tone: Math.floor(R() * 6), kind: 'house', roof: Math.floor(R() * 5) });
     }
   }
+  // しょうがっこう(2つ)・えきの かいさつ・ほんぶ・くうこうの かくのうこ・こうかせんの はしら
+  const school = (r, name) => { buildings.push({ x0: r.x0 + 12, x1: r.x0 + 92, z0: r.z1 - 34, z1: r.z1 - 12, h: 15, tone: 8, kind: 'school', name }, { x0: r.x0 + 12, x1: r.x0 + 34, z0: r.z1 - 66, z1: r.z1 - 34, h: 15, tone: 8, kind: 'school', name }, { x0: r.x1 - 44, x1: r.x1 - 8, z0: r.z1 - 52, z1: r.z1 - 22, h: 11, tone: 7, kind: 'gym', name }); };
+  school(SCHOOL, 'elementary'); school(SCHOOL2, 'junior');
+  buildings.push({ x0: 54, x1: 106, z0: -140, z1: -112, h: 11, tone: 7, kind: 'station' }); // えきの かいさつぐち
   buildings.push({ x0: 100, x1: 150, z0: 110, z1: 150, h: 36, tone: 9, kind: 'hq' }); // ほんぶ
   buildings.push({ x0: 345, x1: 405, z0: 95, z1: 135, h: 16, tone: 8, kind: 'hangar' }, { x0: 400, x1: 460, z0: -135, z1: -95, h: 16, tone: 8, kind: 'hangar' }); // くうこうの かくのうこ
+  for (let px = -630; px <= 630; px += 40) { const x = px; if (nearLine(x) < 20 || (x > 30 && x < 130)) continue; buildings.push({ x0: x - 0.8, x1: x + 0.8, z0: RAIL_Z - 0.8, z1: RAIL_Z + 0.8, h: 9, tone: 0, kind: 'pillar' }); }
   return { buildings, trees };
 }
 export const LAYOUT = makeLayout();
@@ -160,7 +182,7 @@ export const CITY_MISSIONS = [
   { id: 'patrol', name: 'まちの パトロール', icon: '🚓', start: { x: 160, z: 160 }, brief: 'まちの 4かしょを のりもので まわろう。', reward: { bronze: 1, coins: 30 }, pts: 4, points: [{ x: 160, z: 320 }, { x: 320, z: 160 }, { x: 160, z: -160 }, { x: -160, z: 160 }] },
   { id: 'rescue', name: 'ひとじちを たすけろ', icon: '🆘', start: { x: -160, z: 160 }, brief: 'はんにんに おそわれている 3にんを みつけて ほんぶまで つれて いこう(ちかづいて ボタン)。', reward: { silver: 1, coins: 60 }, pts: 6, civs: [{ x: -320, z: 320 }, { x: -480, z: 160 }, { x: -320, z: 0 }], guards: 2 },
   { id: 'gang', name: 'ギャングを たいほしろ!', icon: '🚔', start: { x: -160, z: -160 }, brief: 'こうさてんに あつまった ギャングを ぜんいん たいほしよう!(たおれて ばんざいした はんにんに ちかづいて ボタン)', reward: { silver: 1, coins: 80 }, pts: 8, spot: { x: -320, z: -320 }, crooks: 5 },
-  { id: 'harbor', name: 'こうわん パトロール', icon: '⚓', start: { x: 0, z: -470 }, brief: 'ふねで うみの ブイを 3つ まわろう!(みなとの ふねに のってね)', reward: { bronze: 2, coins: 70 }, pts: 6, points: [{ x: 0, z: -820 }, { x: 760, z: -760 }, { x: 780, z: -300 }], water: true },
+  { id: 'harbor', name: 'こうわん パトロール', icon: '⚓', start: { x: 0, z: -470 }, brief: 'ふねで かわの ブイを 3つ まわろう!(かわの ふねに のってね)', reward: { bronze: 2, coins: 70 }, pts: 6, points: [{ x: -300, z: -560 }, { x: 150, z: -600 }, { x: 520, z: -555 }], water: true },
   { id: 'sky', name: 'そらの リング', icon: '💫', start: { x: 345, z: 40 }, brief: 'ひこうきで リングを 6つ くぐろう!(くうこうの ひこうきに のってね。はやい せんとうきは むずかしいよ)', reward: { gold: 1, coins: 120 }, pts: 10, rings: [{ x: 200, y: 90, z: 60 }, { x: 40, y: 120, z: 200 }, { x: -200, y: 140, z: 260 }, { x: -300, y: 110, z: -60 }, { x: -60, y: 90, z: -260 }, { x: 240, y: 70, z: -120 }] },
   { id: 'delivery', name: 'はやく おとどけ!', icon: '📦', start: { x: -320, z: 0 }, brief: 'にもつを うけとって、100びょうい ないに ほんぶへ とどけよう!', reward: { silver: 1, coins: 90 }, pts: 6, pickup: { x: -480, z: -320 }, time: 100 },
 ];
@@ -207,7 +229,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const TRAF = ['sedan', 'taxi', 'suv', 'sedan', 'truck', 'taxi', 'sports', 'suv'];
   for (let i = 0; i < 10; i++) { const l = [-480, -320, 320, 480, -160, 160][i % 6]; const vert = i % 2 === 0; if (vert && (l === -160 || l === 160)) continue; const lane = (i % 3 === 0 ? -1 : 1) * 6; S.traffic.push({ id: ++nid, vert, line: l + lane, pos: lerp(-560, 560, R2()), dir: lane > 0 ? 1 : -1, spd: 11 + R2() * 6, tone: i, model: TRAF[i % TRAF.length], x: 0, z: 0, yaw: 0, wait: 0 }); }
   const groundMove = (e, nx, nz, r, water) => {
-    const ok = (x, z) => (water ? isWater(x, z) : !isWater(x, z)); let moved = false;
+    const ok = (x, z) => (water ? inRect(BAY, x, z) : !isWater(x, z)); let moved = false;
     if (ok(nx, nz)) { e.x = nx; e.z = nz; moved = true; } else if (ok(nx, e.z)) { e.x = nx; moved = true; } else if (ok(e.x, nz)) { e.z = nz; moved = true; }
     if (!water) pushOut(e, r); return moved;
   };
