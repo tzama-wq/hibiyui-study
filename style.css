@@ -803,3 +803,6 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-jobbtn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 48px);right:calc(env(safe-area-inset-right,0px) + 104px);pointer-events:auto;z-index:3;background:rgba(42,122,224,.92);color:#fff;border:2px solid #fff;font-size:16px;width:40px;height:36px;cursor:pointer;padding:0}
 .c3d.foot .ab-wp{right:98px!important;bottom:96px!important;width:62px!important;height:62px!important;font-size:11px!important}.c3d.foot .ab-tg{right:98px!important;bottom:26px!important;width:62px!important;height:62px!important;font-size:10px!important}
 .c3d-hits{margin-top:3px;font-size:13px;font-weight:900;color:#fff;background:rgba(6,16,34,.6);padding:1px 8px}.c3d-hits.bad{background:rgba(180,30,30,.8);animation:rl .5s infinite alternate}.c3d-hits[hidden]{display:none}
+.c3d.foot .ab-wp{right:62px!important;bottom:134px!important;width:60px!important;height:60px!important}.c3d.foot .ab-tg{right:100px!important;bottom:60px!important;width:60px!important;height:60px!important}
+.c3d-stars{top:calc(env(safe-area-inset-top,0px) + 62px)!important;right:calc(env(safe-area-inset-right,0px) + 136px)!important}
+.c3d.air .ab-act{top:calc(env(safe-area-inset-top,0px) + 180px)!important}
