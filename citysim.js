@@ -6,8 +6,8 @@
 import * as CM from './citymap.js';
 import { SYMBOLS } from './symbols-data.js';
 import { normalizeHome, addFurn, rollFurn, furnOf } from './cityhome.js';
-import { JOBS, SWAT_LOAN, SYMPTOMS, JOB_PAY } from './cityjobs.js';
-export { JOBS, JOB_LIST, SYMPTOMS } from './cityjobs.js';
+import { JOBS, SWAT_LOAN, SYMPTOMS, JOB_PAY, JSDF } from './cityjobs.js';
+export { JOBS, JOB_LIST, SYMPTOMS, JSDF, defenseMission } from './cityjobs.js';
 export const { HALF, RIVER, riverDist, inRiver, riverZ, BRIDGES, BRIDGE_W, BRIDGE_E, RAILS, railDist, isWater, PLAZA, SOCCER, SOCCER_ZONE, HOME, AIRFIELD, roadSD, greens, pitches } = CM;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -91,6 +91,8 @@ function pushOut(p, r, ys = 0) {
 export const insideBuilding = (x, z, ys = 0) => nearB(x, z).some((b) => { if (ys > b.h) return false; if (x < b.x0 || x > b.x1 || z < b.z0 || z > b.z1) return false; const dx = x - b.cx; const dz = z - b.cz; return Math.abs(dx * b.c + dz * b.s) <= b.w / 2 && Math.abs(-dx * b.s + dz * b.c) <= b.d / 2; });
 { const jp = freeAround(CM.POI.school ? CM.POI.school.c[0] : SCHOOL.cx, CM.POI.school ? CM.POI.school.c[1] : SCHOOL.cz); JOB.x = jp.x; JOB.z = jp.z; }
 { const fo = CM.greens.filter((g) => g.kind === 'forest').map((g) => ({ g, q: CM.polyAABB(g.poly) })).sort((a, b) => (b.q.x1 - b.q.x0) * (b.q.z1 - b.q.z0) - (a.q.x1 - a.q.x0) * (a.q.z1 - a.q.z0))[0]; const cx = fo ? fo.q.cx : -666; const cz = fo ? fo.q.cz : 290; const p = freeAround(cx, cz); SECRET.x = p.x; SECRET.z = p.z; SECRET.arena = freeAround(cx + 70, cz + 40); }
+export const COMMANDER = { x: 0, z: 0 }; // じえいたいの ちょうかん(きちに いる)
+{ const q = freeAround(AIRFIELD.x0 + 34, AIRFIELD.z1 - 10); COMMANDER.x = q.x; COMMANDER.z = q.z; }
 // みちの ひろいあげ: ちずの みちの うえの ランダムな てん
 export const roadPoint = (R, minCls = 1) => { const rl = CM.roadsOf().filter((r) => r.cls >= minCls && r.pts.length >= 2); for (let t = 0; t < 40; t++) { const r = rl[Math.floor(R() * rl.length)]; const i = 1 + Math.floor(R() * (r.pts.length - 1)); const a = r.pts[i - 1]; const b = r.pts[i]; const u = R(); const x = lerp(a[0], b[0], u); const z = lerp(a[1], b[1], u); if (!CM.isWater(x, z) && Math.abs(x) < HALF - 20 && Math.abs(z) < HALF - 20) return { x, z, ang: Math.atan2(b[1] - a[1], b[0] - a[0]), r, i, u }; } return { x: HQ.x, z: HQ.z + 40, ang: 0 }; };
 
@@ -315,13 +317,13 @@ const AIR_SLOTS = [[AIRFIELD.x0 + 20, ACZ - 28], [AIRFIELD.x0 + 20, ACZ + 28], [
 const FIXED = { tank: { kind: 'tank', x: PLAZA.cx + 50, z: PLAZA.cz + 4, yaw: Math.PI / 2 }, ship: { kind: 'ship', x: DOCK.x, z: DOCK.z, yaw: Math.PI / 2 }, plane: { kind: 'plane', x: AIRFIELD.x0 + 24, z: ACZ, yaw: Math.PI / 2 } };
 const slotOf = (it, idx) => { if (it.kind === 'bike') { const s = BIKE_SLOTS[idx % BIKE_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; } if (isAir(it.kind)) { const s = AIR_SLOTS[idx % AIR_SLOTS.length]; return { x: s[0], z: s[1], yaw: Math.PI / 2 }; } const s = CAR_SLOTS[idx % CAR_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; };
 
-export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = DEFAULT_WEAPONS, weapon = 'pistol', rnd = mulberry(5), gentle = false, coins = 0, arrests = {}, ammo = {}, eqOwned = [], equip: eqWorn = {}, jobOk = 0, warps = [], job: jobId = 'none', jobXp = {}, home = null, phone = false }) {
+export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = DEFAULT_WEAPONS, weapon = 'pistol', rnd = mulberry(5), gentle = false, coins = 0, arrests = {}, ammo = {}, eqOwned = [], equip: eqWorn = {}, jobOk = 0, warps = [], job: jobId = 'none', jobXp = {}, home = null, phone = false, defLevel = 1 }) {
   const ks = stats; const FS = footStats(ks);
   const input = { turn: 0, climb: 0, moveX: 0, moveY: 0, autoAim: true, aimLock: false, gun: false, boost: false, aimX: 0, aimY: 0 };
   const S = {
     t: 0, ph: 'play', events: [], snd: [], msg: '', msgT: 0, banner: '', bannerT: 0,
     player: { mode: 'foot', x: SPAWN.x, y: 0, z: SPAWN.z, yaw: SPAWN.yaw, pitch: 0, roll: 0, speed: 0, hp: FS.hpMax, hpMax: FS.hpMax, boost: 100, aimRel: 0, aimPitch: 0.05, veh: null, invuln: 0, dead: 0, hurt: 0, coins, wCd: 0, buff: { dmg: 0, speed: 0 }, weapon: 'pistol', noAim: 0, camYaw: SPAWN.yaw, camFree: false, reload: 0, reloadId: null, bloom: 0, chute: false, carry: 0, kos: 0, target: null, missileCd: 0, lastHurt: -99 },
-    vehicles: [], civs: [], crooks: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, owned: [...new Set([...DEFAULT_OWNED, ...owned])], wOwned: [...new Set([...DEFAULT_WEAPONS, ...weapons])], arrests: { ...arrests }, tracked: null, swing: 0, job: JOBS[jobId] ? jobId : 'none', jobXp: { ...jobXp }, home: normalizeHome(home), hasPhone: !!phone, tasks: [], fires: [], patients: [], loaned: [], taskT: 8, fireT: 45, warps: (Array.isArray(warps) ? warps : []).slice(0, 3).map((w) => (w && Number.isFinite(w.x) && Number.isFinite(w.z) ? { x: w.x, z: w.z, name: String(w.name || '') } : null)), jobOk: jobOk | 0, heat: 0, lv: 0, heatT: 0, fine: 0, melee: 0, jets: [], helis: [], ammo: { ...ammo }, eqOwned: [...new Set(eqOwned.filter((id) => equipOf(id)))], equip: {},
+    vehicles: [], civs: [], crooks: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, owned: [...new Set([...DEFAULT_OWNED, ...owned])], wOwned: [...new Set([...DEFAULT_WEAPONS, ...weapons])], arrests: { ...arrests }, tracked: null, swing: 0, defLevel: Math.max(1, defLevel | 0), job: JOBS[jobId] ? jobId : 'none', jobXp: { ...jobXp }, home: normalizeHome(home), hasPhone: !!phone, tasks: [], fires: [], patients: [], loaned: [], taskT: 8, fireT: 45, warps: (Array.isArray(warps) ? warps : []).slice(0, 3).map((w) => (w && Number.isFinite(w.x) && Number.isFinite(w.z) ? { x: w.x, z: w.z, name: String(w.name || '') } : null)), jobOk: jobOk | 0, heat: 0, lv: 0, heatT: 0, fine: 0, melee: 0, jets: [], helis: [], ammo: { ...ammo }, eqOwned: [...new Set(eqOwned.filter((id) => equipOf(id)))], equip: {},
     wanted: [], stats: { coins: 0, arrests: 0, bounty: 0, missions: 0 },
   };
   const P = S.player; let nid = 100; P.weapon = weapon && S.wOwned.includes(weapon) ? weapon : 'pistol';
@@ -379,6 +381,8 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
       if (!S.tasks.some((t) => t.type === 'speed')) { const tc = S.traffic.find((c) => !c.hostile && !c.cop && !c.task && !(c.dead > 0) && !c.bike && hyp(c.x - P.x, c.z - P.z) > 70 && hyp(c.x - P.x, c.z - P.z) < 320); if (tc) { const id = ids(); tc.task = id; tc.speeding = true; tc.spd = 24; S.tasks.push({ id, type: 'speed', icon: '🚨', label: 'スピードいはんの くるま!', x: tc.x, z: tc.z, tid: tc.id, life: 170, prog: 0 }); msg('🚨 スピードいはん! パトカーで おいついて!', 3); snd('warn'); } }
     } else if (S.job === 'swat') {
       if (!S.tasks.some((t) => t.type === 'raid')) { const rp = farSpot(220, 460); if (rp) { const id = ids(); const types = ['thug', 'gunman', 'gunman', 'boss', 'thug']; for (let i = 0; i < 5; i++) { const c = spawnCrook(types[i], rp.x + Math.cos(i * 1.4) * 24, rp.z + Math.sin(i * 1.4) * 24, { wander: 36, hpMul: 1.25 }); c.task = id; } S.tasks.push({ id, type: 'raid', icon: '🏚️', label: 'ギャングの アジト(5にん)', x: rp.x, z: rp.z, life: 380 }); msg('🏚️ ギャングの アジトを はっけん! たいほしよう', 3.4); snd('warn'); } }
+    } else if (JSDF.includes(S.job)) {
+      if (!S.tasks.some((t) => t.type === 'cmd')) S.tasks.push({ id: ids(), type: 'cmd', icon: '🎖️', label: `ちょうかんの ところへ(ぼうえい Lv.${S.defLevel})`, x: COMMANDER.x, z: COMMANDER.z, life: 1e9 });
     } else if (S.job === 'ems') {
       if (S.patients.length < 2) { const rp = farSpot(130, 360); if (rp) { const id = ids(); const p = { id, x: rp.x + 2, z: rp.z, sym: Math.floor(rnd() * SYMPTOMS.length), state: 'need', life: 320, hosp: null }; S.patients.push(p); S.tasks.push({ id, type: 'patient', icon: SYMPTOMS[p.sym].icon, label: `かんじゃ「${SYMPTOMS[p.sym].say}」`, x: p.x, z: p.z, pid: id, life: 9999 }); msg('🚑 きゅうきゅう! かんじゃが いるよ。ちずを かくにん!', 3.4); snd('warn'); } }
     }
@@ -474,7 +478,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     for (const st of STORES) cand('store', st.id, st.x, st.z, 11, `${st.icon} ${st.name}(${st.sub})`);
     cand('soccer', 'soccer', SOCCER.x, SOCCER.z, 18, '⚽ サッカーじょうへ いく');
     cand('koban', 'koban', KOBAN.x, KOBAN.z, 12, S.lv >= 5 ? '🚓 こうばん(★5は ばっきん できない! にげきれ)' : S.lv > 0 ? `🚓 こうばん(ばっきん 🪙${S.fine} で 指名手配が きえる)` : '🚓 こうばん');
-    if (P.mode === 'foot') { cand('house', 'house', HOME.cx, HOME.z1 - 25, 10, '🏠 いえに はいる(へや・しょくぎょう)'); for (const p of S.patients) if (p.state === 'need') cand('patient', p.id, p.x, p.z, 6, '🚑 かんじゃを たすける'); if (S.job === 'police' || S.job === 'swat') for (const c of S.crooks) if (c.task && c.type === 'runner' && c.state !== 'down') cand('arrest', c.id, c.x, c.z, 3.6, '🚔 つかまえる!'); }
+    if (P.mode === 'foot') { cand('commander', 'commander', COMMANDER.x, COMMANDER.z, 7, JSDF.includes(S.job) ? `🎖️ ちょうかんに はなしかける(ぼうえい にんむ Lv.${S.defLevel})` : '🎖️ ちょうかん(じえいたいの ひと いがいは はなせない)'); cand('house', 'house', HOME.cx, HOME.z1 - 25, 10, '🏠 いえに はいる(へや・しょくぎょう)'); for (const p of S.patients) if (p.state === 'need') cand('patient', p.id, p.x, p.z, 6, '🚑 かんじゃを たすける'); if (S.job === 'police' || S.job === 'swat') for (const c of S.crooks) if (c.task && c.type === 'runner' && c.state !== 'down') cand('arrest', c.id, c.x, c.z, 3.6, '🚔 つかまえる!'); }
     cand('board', 'board', BOARD.x, BOARD.z, 11, '📋 指名手配ボードを みる');
     cand('garage', 'garage', GARAGE.x, GARAGE.z, 14, '🏠 じたく(ガレージ)');
     cand('job', 'job', JOB.x, JOB.z, 12, '📚 おべんきょう(綱島東小学校)'); if (CM.polyIn && CM.polyIn(SCHOOL_POLY, px, pz)) cand('job', 'job', px, pz, 9999, '📚 おべんきょう(がっこうに はいったよ)');
@@ -484,7 +488,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (!S.secretHint && !(S.done.secret > 0) && hyp(P.x - SECRET.x, P.z - SECRET.z) < 110) { const u = ultimateProgress(); if (u.have >= u.total) { S.secretHint = true; msg('🔔 ちかくに ふしぎな けはいが する…', 4); } }
     S.nearby = best;
   };
-  const canRide = (v) => { const it = catalogOf(v.id); if (it && it.job && S.job !== it.job) return false; return !specialOf(v.id) || S.owned.includes(v.id); };
+  const canRide = (v) => { const it = catalogOf(v.id); if (it && it.job && S.job !== it.job) return false; if (!specialOf(v.id)) return true; return S.owned.includes(v.id) || (v.id === 'tank' && S.job === 'jgsdf') || (v.id === 'plane' && S.job === 'jasdf'); };
   const enter = (v) => {
     if (!canRide(v)) { msg('🔒 まだ かっていないよ(トレッサで かおう)', 2.4); return; }
     P.mode = 'veh'; P.veh = v.id; v.occ = true; v.away = 0; P.aimRel = 0; P.aimPitch = 0.05; P.noAim = 0; P.boost = 100;
@@ -743,10 +747,10 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
       if (c.dead > 0) { c.dead -= dt; c.hidden = true; if (c.dead <= 0) { const cp = carPaths[Math.floor(rnd() * carPaths.length)]; if (cp) { c.path = cp; c.s = rnd() * cp.cum[cp.cum.length - 1]; c.dir = rnd() < 0.5 ? 1 : -1; c.off = cp.hw * 0.5 * c.dir; c.hp = c.hostile ? 2 : 1; c.hidden = false; S.placeOn(c, cp, c.off); } } continue; }
       const L = c.path.cum[c.path.cum.length - 1]; const ahead = S.pathAt(c.path, c.s + c.dir * 9); const px = ahead.x - Math.sin(ahead.ang) * c.off; const pz = ahead.z + Math.cos(ahead.ang) * c.off; let blocked = false; // じぶんの レーンの すこし さき(たいこうしゃと ぶつからない)
       if (!c.hostile && hyp(px - P.x, pz - P.z) < 7) blocked = true; for (const o of S.traffic) if (o !== c && !o.dead && hyp(px - o.x, pz - o.z) < 5) blocked = true; if (isWater(px, pz) || inRect(AIRFIELD, px, pz) || inRect(HOME, px, pz)) { c.dir *= -1; c.off = c.path.hw * 0.5 * c.dir; blocked = false; }
-      if (c.ghost > 0) { c.ghost -= dt; blocked = false; } c.wait = blocked ? Math.min(2, c.wait + dt) : 0; if (c.wait >= 2) c.ghost = 2.5; // 2びょう まって うごけない ときは すりぬけて すすむ(こうさてんの こうちゃく ぼうし)
+      if (c.ghost > 0) { c.ghost -= dt; blocked = false; } if (pv && !isAir(pv.kind) && pv.kind !== 'ship' && !c.hostile && !c.cop) { const fx0 = ahead.x - c.x; const fz0 = ahead.z - c.z; const fl = hyp(fx0, fz0) || 1; const rx = pv.x - c.x; const rz = pv.z - c.z; const al = (rx * fx0 + rz * fz0) / fl; const lt = Math.abs(rx * fz0 - rz * fx0) / fl; if (al > -2 && al < 14 && lt < 4.2) { blocked = true; c.ghost = 0; } } // じぶんの のりものは よける(ゴーストでも すりぬけない) c.wait = blocked ? Math.min(2, c.wait + dt) : 0; if (c.wait >= 2) c.ghost = 2.5; // 2びょう まって うごけない ときは すりぬけて すすむ(こうさてんの こうちゃく ぼうし)
        if (c.stun > 0) { c.stun -= dt; blocked = true; } const sp = c.spd * (c.hostile && hyp(c.x - P.x, c.z - P.z) < 90 ? 1.7 : 1); if (!blocked) c.s += c.dir * sp * dt; if (c.s > L) { c.s = L; c.dir = -1; c.off = c.path.hw * 0.5 * c.dir; } if (c.s < 0) { c.s = 0; c.dir = 1; c.off = c.path.hw * 0.5 * c.dir; } S.placeOn(c, c.path, c.off);
       // のりものが ぶつかる(いっぱんの くるま・バイク・指名手配はんの くるま)
-      if (pv && !isAir(pv.kind) && pv.kind !== 'ship' && P.dead <= 0 && hyp(c.x - pv.x, c.z - pv.z) < c.r + (pv.kind === 'tank' ? 6 : pv.kind === 'bike' ? 1.6 : 3.2) && S.t - (c.hitT || -9) > 1.1) {
+      if (pv && !isAir(pv.kind) && pv.kind !== 'ship' && P.dead <= 0 && (c.hostile || c.cop || Math.abs(pv.speed) > 1.5) && hyp(c.x - pv.x, c.z - pv.z) < c.r + (pv.kind === 'tank' ? 6 : pv.kind === 'bike' ? 1.6 : 3.2) && S.t - (c.hitT || -9) > 1.1) {
         c.hitT = S.t; const sp0 = Math.abs(pv.speed); const tank = pv.kind === 'tank'; const dmg = clamp(6 + sp0 * 0.6 + (c.hostile ? 9 : 0), 6, 70) * (tank ? 0.15 : 1);
         c.stun = 2.5; fx('spark', (c.x + pv.x) / 2, 1.5, (c.z + pv.z) / 2, 6); snd('bump'); const ox = pv.x - c.x; const oz = pv.z - c.z; const od = hyp(ox, oz) || 1; pv.x += (ox / od) * 2.2; pv.z += (oz / od) * 2.2; pv.speed *= tank ? 0.8 : -0.25;
         if (!tank) { pv.hits = (pv.hits || 0) + 1; hurtPlayer(dmg); if (pv.hits >= pv.hitMax - 1 && pv.hits < pv.hitMax && S.t - (pv.warnT || -9) > 2) { pv.warnT = S.t; msg('💥 こわれそう! もう すこしで ばくはつ!', 2.4); } if (pv.hits >= pv.hitMax && P.dead <= 0 && P.mode === 'veh') { P.invuln = 0; hurtPlayer(99999); } else msg(`💥 ぶつかった! (${pv.hits}/${pv.hitMax}かい で こわれる)`, 1.6); }
@@ -826,6 +830,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     else if (n.kind === 'secret') { const u = ultimateProgress(); if (S.done.secret > 0) { msg('「みごとだった…さいきょうの そうびを かうが いい」', 3.4); return true; } if (u.have < u.total) { msg(`「まだ はやい…そうび・のりもの・せんとうきを ぜんぶ そろえて きなさい」(${u.have}/${u.total})`, 4); return true; } if (S.mission) { msg('いまの ミッションを おえてから…', 2.4); return true; } msg('「よく ここまで たどりついた。さいきょうの しれんを うけるか?」', 3.2); return startMission('secret'); }
     else if (n.kind === 'arrest') { const c = S.crooks.find((x) => x.id === n.id); if (c && (c.state === 'down' || c.task)) { arrest(c); return true; } }
     else if (n.kind === 'house') { ev({ t: 'house' }); return true; }
+    else if (n.kind === 'commander') { if (JSDF.includes(S.job)) { msg('🎖️「よく きた! ぼうえい にんむだ。クリアするまで もどれんぞ!」', 3.2); ev({ t: 'defense', level: S.defLevel, branch: JOBS[S.job].branch, job: S.job }); } else msg('🎖️「じえいたいの しょくぎょうの ものだけだ。じたくで えらんで こい!」', 3.4); return true; }
     else if (n.kind === 'patient') { ev({ t: 'patient', id: n.id }); return true; }
     else if (n.kind === 'civ') { const c = S.civs.find((x) => x.id === n.id); if (c) { c.state = 'carried'; P.carry++; snd('coin'); msg('いっしょに じたくまで いこう!', 2); return true; } }
     else if (n.kind === 'pack') { const M = S.mission; if (M) { M.stage = 1; M.targets = [{ x: BASE.x, z: BASE.z }]; msg('📦 うけとった! じたくへ ダッシュ!', 2.4); snd('coin'); return true; } }

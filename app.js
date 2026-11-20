@@ -721,13 +721,13 @@ function topBar(k, p) {
   const r = rankOf(p.xp);
   return `<header class="topbar"><div class="tb-ava-wrap">${ringSvg('tb-ring', r.pct / 100)}<div class="tb-ava">${avaHtml(k)}</div></div>
     <div class="tb-name"><b>${k.name}</b><button class="rn" data-act="rename" data-id="${k.id}" aria-label="なまえを かえる">✏️</button><small>${r.name}</small></div>
-    <div class="gmode"><button class="${(p.gmode || 'soccer') === 'soccer' ? 'on' : ''}" data-act="gmode" data-v="soccer">⚽ サッカー</button><button class="${p.gmode === 'sky' ? 'on' : ''}" data-act="gmode" data-v="sky">🛩️ 地球防衛隊</button></div>
+    <div class="gmode"><button class="${(p.gmode || 'sky') === 'sky' ? 'on' : ''}" data-act="gmode" data-v="sky">🏙️ EastRopeIslandCity</button><button class="${p.gmode === 'soccer' ? 'on' : ''}" data-act="gmode" data-v="soccer">⚽ サッカー</button></div>
     <div class="tb-chips"><span class="chip gold">⚽ <b data-count="${p.goals}" data-key="goals">${p.goals}</b></span><span class="chip">XP <b data-count="${p.xp}" data-key="xp">${p.xp}</b></span></div>
     <button class="gear" data-act="mute" aria-label="おと">${quiet() ? '🔇' : '🔊'}</button>
     ${S.kidPins[k.id] || S.shared ? '<button class="gear" data-act="lock" aria-label="ロック">🔒</button>' : ''}<button class="gear" data-act="papa" aria-label="パパの へや">⚙${pendingAsks() > 0 && k.adult ? `<b class="gdot">${pendingAsks()}</b>` : ''}</button></header>`;
 }
 function navBar() {
-  const sky = (S.kids[kidId] || {}).gmode === 'sky';
+  const sky = ((S.kids[kidId] || {}).gmode || 'sky') === 'sky';
   const items = sky ? [['home', '🛩️', 'ミッション'], ['train', '🎯', 'れんしゅう'], ['gacha', '🎰', 'ガチャ'], ['team', '🛠', 'かくのう庫']] : [['home', '🏠', 'ホーム'], ['train', '🎯', 'れんしゅう'], ['gacha', '🎰', 'ガチャ'], ['team', '🤝', 'チーム']];
   return `<nav class="nav">${items.map(([t, i, l]) => `<button class="${tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}"><span>${i}</span><small>${l}</small></button>`).join('')}</nav>`;
 }
@@ -931,8 +931,8 @@ function vKid() {
   let body;
   if (tab === 'train') body = soccerSchoolCard(k, p) + (cfg().gentle ? '' : labCard(k, p)) + kukuCard(k, p) + shapeCard(k, p) + timeMachineCard(k, p) + practiceCard(k, p);
   else if (tab === 'gacha') body = gachaTab();
-  else if (tab === 'team') body = p.gmode === 'sky' ? hangarHtml(k, p) : teamTab();
-  else body = p.gmode === 'sky' ? skyHome(k, p) : homeTab(k, p);
+  else if (tab === 'team') body = (p.gmode || 'sky') === 'sky' ? hangarHtml(k, p) : teamTab();
+  else body = (p.gmode || 'sky') === 'sky' ? skyHome(k, p) : homeTab(k, p);
   $app.innerHTML = `${topBar(k, p)}<main>${body}</main>${navBar()}`;
 }
 

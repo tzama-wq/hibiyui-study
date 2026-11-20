@@ -46,7 +46,22 @@ export function createSfx(isQuiet = () => false) {
     spark: () => tone(1500, 0.05, { v: 0.02 }),
     win: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, { at: i * 0.12, v: 0.05 })); },
     lose: () => { [392, 330, 262].forEach((f, i) => tone(f, 0.25, { at: i * 0.18, type: 'triangle', v: 0.05 })); },
+    // シティ
+    click: () => tone(880, 0.04, { type: 'triangle', v: 0.03 }),
+    cash: () => { tone(1320, 0.06, { v: 0.035 }); tone(1760, 0.12, { at: 0.06, v: 0.035 }); },
+    door: () => { tone(200, 0.07, { to: 120, type: 'triangle', v: 0.05 }); noise(0.06, 0.05, { freq: 500, type: 'lowpass' }); },
+    siren: () => { tone(700, 0.28, { to: 960, type: 'sawtooth', v: 0.03 }); tone(960, 0.28, { at: 0.28, to: 700, type: 'sawtooth', v: 0.03 }); },
+    spray: () => noise(0.4, 0.05, { freq: 2600, type: 'highpass' }),
+    sparkle: () => { [1318, 1568, 2093].forEach((f, i) => tone(f, 0.1, { at: i * 0.05, v: 0.03 })); },
   };
+  // ---- シティの BGM(WebAudioで ライブで つくる。ファイルなし・けんりの しんぱい なし) ----
+  const THEMES = {
+    city: { bpm: 108, root: 261.63, wave: 'triangle', prog: [[0, 4, 7], [7, 11, 14], [9, 12, 16], [5, 9, 12]], bass: [1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 2, 0, 0, 0], arp: [0, -1, 1, -1, 2, -1, 1, -1, 0, -1, 1, -1, 2, 3, 2, -1], kick: [0, 8], snare: [], hat: [2, 6, 10, 14], lead: [0, null, 4, null, 7, null, 4, null, 9, null, 7, null, 4, null, 2, null, 5, null, 9, null, 12, null, 9, null, 7, null, 4, null, 2, null, 0, null] },
+    wanted: { bpm: 146, root: 220, wave: 'sawtooth', prog: [[0, 3, 7], [0, 3, 7], [-4, 0, 3], [-2, 2, 5]], bass: [1, 0, 1, 0, 2, 0, 1, 0, 1, 0, 1, 0, 2, 0, 2, 1], arp: [0, 1, 2, 1, 0, 1, 2, 3, 0, 1, 2, 1, 0, 1, 2, 1], kick: [0, 4, 8, 12], snare: [4, 12], hat: [0, 2, 4, 6, 8, 10, 12, 14], lead: null },
+    home: { bpm: 74, root: 261.63, wave: 'sine', prog: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], bass: [1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0], arp: [0, -1, -1, 1, -1, -1, 2, -1, -1, 3, -1, -1, 2, -1, 1, -1], kick: [], snare: [], hat: [], lead: null },
+    defense: { bpm: 128, root: 233.08, wave: 'square', prog: [[0, 3, 7], [-2, 2, 5], [-4, 0, 3], [-5, -1, 2]], bass: [1, 0, 1, 1, 0, 1, 0, 2, 1, 0, 1, 1, 0, 2, 2, 0], arp: [0, -1, 2, -1, 1, -1, 3, -1, 0, -1, 2, -1, 1, -1, 3, 2], kick: [0, 4, 8, 10, 12], snare: [4, 12], hat: [2, 6, 10, 14], lead: [0, null, null, 7, null, 5, null, 3, 0, null, null, 7, null, 10, null, 12] },
+  };
+  let theme = null;
   const MEL = [523, 0, 659, 0, 784, 659, 523, 0, 587, 0, 698, 0, 880, 698, 587, 0]; // ゆるい ドット ふう メロディ
   const BASS = [131, 131, 165, 165, 196, 196, 165, 165];
   return {
@@ -62,6 +77,21 @@ export function createSfx(isQuiet = () => false) {
         } catch { /* ignore */ }
       }, 190);
     },
-    bgmStop() { clearInterval(bgmTimer); bgmTimer = null; },
+    bgmStop() { clearInterval(bgmTimer); bgmTimer = null; theme = null; },
+    // シティの BGM: 'city' | 'wanted' | 'home' | 'defense' | null(とめる)
+    bgmTheme(name) {
+      if (theme === name) return; theme = name; clearInterval(bgmTimer); bgmTimer = null; const T = THEMES[name]; if (!T) return; let st = 0; const ms = 60000 / T.bpm / 4; const dur = ms / 1000;
+      bgmTimer = setInterval(() => {
+        if (isQuiet()) return;
+        try {
+          const bar = Math.floor(st / 16) % T.prog.length; const s = st % 16; const ch = T.prog[bar]; const f = (semi) => T.root * 2 ** (semi / 12);
+          const b = T.bass[s]; if (b) tone(f((b === 2 ? ch[2] : ch[0]) - 12), dur * 1.9, { type: 'triangle', v: 0.03 });
+          const a = T.arp[s]; if (a >= 0) tone(f(ch[a % 3] + (a >= 3 ? 12 : 0)), dur * 1.5, { type: T.wave, v: 0.011 });
+          if (T.kick.includes(s)) tone(130, 0.08, { to: 48, type: 'triangle', v: 0.05 }); if (T.snare.includes(s)) noise(0.08, 0.05, { freq: 1500 }); if (T.hat.includes(s)) noise(0.025, 0.018, { freq: 6500 });
+          if (T.lead) { const m = T.lead[st % T.lead.length]; if (m != null) tone(f(m + 12 + ch[0]), dur * 2.2, { type: 'square', v: 0.0085 }); }
+          st++;
+        } catch { /* ignore */ }
+      }, ms);
+    },
   };
 }

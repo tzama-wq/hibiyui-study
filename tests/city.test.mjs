@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as HM from '../cityhome.js';
-import { JOBS as JOBS_, SYMPTOMS as SYM_ } from '../citysim.js';
+import { JOBS as JOBS_, SYMPTOMS as SYM_, JSDF, COMMANDER, defenseMission } from '../citysim.js';
 import { EQUIP, weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, SECRET, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
 
@@ -352,5 +352,14 @@ for (const planeId of ['plane', 'hawk']) {
 { // スマホ
   const sim = mk(st(70), 3, { owned: [...DEFAULT_OWNED, 'sports'] }); const S = sim.state; const P = S.player; P.coins = 99999; assert.ok(!sim.callVehicle('sports').ok, 'スマホが ないと よべない'); assert.ok(sim.buy('phone').ok && S.hasPhone && !sim.buy('phone').ok, 'スマホを かう'); tele(sim, HQ.x, HQ.z);
   assert.ok(sim.callVehicle('sports').ok && sim.vehicleOf().id === 'sports' && Math.hypot(sim.vehicleOf().x - HQ.x, sim.vehicleOf().z - HQ.z) < 40, 'その場で よべる'); assert.ok(!sim.callVehicle('super').ok, 'もっていない のりものは よべない'); assert.ok(!sim.callVehicle('firetruck').ok, 'しょくぎょうが ちがうと よべない');
+}
+// ---- じえいたい(りく・うみ・そら)と ぼうえい にんむ ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; tele(sim, BASE.x, BASE.z); assert.ok(!sim.summon('tank').ok && !sim.summon('plane').ok, 'しょくぎょうなし: かわないと のれない');
+  assert.ok(sim.setJob('jgsdf').ok && sim.summon('tank').ok && sim.vehicleOf().id === 'tank', 'りくじえい: せんしゃに のれる'); tele(sim, BASE.x, BASE.z); assert.ok(sim.setJob('jasdf').ok); assert.ok(sim.summon('plane').ok && sim.vehicleOf().id === 'plane', 'くうじえい: せんとうきに のれる');
+  tele(sim, BASE.x, BASE.z); assert.ok(sim.setJob('jmsdf').ok && JSDF.includes(S.job)); for (let i = 0; i < 20 * 14; i++) { P.invuln = 5; sim.step(0.05); } assert.ok(S.tasks.some((t) => t.type === 'cmd'), 'ちょうかんの マーカー');
+  const s3 = mk(); tele(s3, BASE.x, BASE.z); assert.ok(s3.setJob('jmsdf').ok); tele(s3, COMMANDER.x, COMMANDER.z); s3.step(0.05); assert.equal(s3.state.nearby && s3.state.nearby.kind, 'commander'); s3.interact(); const evs = s3.takeEvents(); const d = evs.find((e) => e.t === 'defense'); assert.ok(d && d.branch === 'ship' && d.level === 1, 'ちょうかんに はなしかけると ぼうえい にんむへ');
+  const s2 = mk(); tele(s2, COMMANDER.x, COMMANDER.z); s2.step(0.05); s2.interact(); assert.ok(!s2.takeEvents().some((e) => e.t === 'defense'), 'じえいたい いがいは はじまらない');
+  let prevHp = 0; for (let L = 1; L <= 40; L++) { const m = defenseMission(L); assert.ok(m.waves.length >= 4 && m.hpMul >= prevHp && m.baseHp >= 280, `Lv.${L}`); prevHp = m.hpMul; assert.ok(m.waves.every((w) => w.n >= 1)); } assert.ok(defenseMission(10).waves.length > defenseMission(1).waves.length && defenseMission(5).boss && !defenseMission(6).boss && defenseMission(30).hpMul > 2.5, 'どんどん むずかしく');
 }
 console.log('OK: city');

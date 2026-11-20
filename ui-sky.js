@@ -7,6 +7,7 @@ import { startAir3D, startPreview, stopPreview } from './air3d.js';
 import { startCity3D } from './city3d.js';
 import { carStats, DEFAULT_OWNED, DEFAULT_WEAPONS } from './citysim.js';
 import { normalizeHome } from './cityhome.js';
+import { defenseMission, JOBS as CJOBS, JSDF } from './cityjobs.js';
 import { unitsOf, skillsUpTo, isCalcUnit, makeQuestion } from './gen.js';
 import { createSfx } from './sfx.js';
 
@@ -33,7 +34,7 @@ export const ensureSky = (p) => {
   const s = p.sky; s.cleared = s.cleared && !Array.isArray(s.cleared) ? s.cleared : {}; s.daily = s.daily || { date: '', n: 0 };
   if (!VEHICLES[s.vehicle]) s.vehicle = 'plane';
   s.loadout = s.loadout || {}; for (const v of VKEYS) s.loadout[v] = s.loadout[v] || {};
-  s.firsts = s.firsts || {}; s.colors = s.colors || {}; s.names = s.names || {}; s.city = s.city && typeof s.city === 'object' ? s.city : { coins: 0, done: {}, kos: 0, daily: { date: '', n: 0 } }; s.city.done = s.city.done || {}; s.city.owned = Array.isArray(s.city.owned) ? s.city.owned : []; s.city.arrests = s.city.arrests && typeof s.city.arrests === 'object' ? s.city.arrests : {}; s.city.weapons = Array.isArray(s.city.weapons) ? s.city.weapons : []; s.city.weapon = s.city.weapon || 'pistol'; s.city.ammo = s.city.ammo && typeof s.city.ammo === 'object' ? s.city.ammo : {}; s.city.jobOk = s.city.jobOk | 0; s.city.warps = Array.isArray(s.city.warps) ? s.city.warps.slice(0, 3) : []; s.city.job = typeof s.city.job === 'string' ? s.city.job : 'none'; s.city.jobXp = s.city.jobXp && typeof s.city.jobXp === 'object' ? s.city.jobXp : {}; s.city.home = normalizeHome(s.city.home); s.city.phone = !!s.city.phone; s.city.eqOwned = Array.isArray(s.city.eqOwned) ? s.city.eqOwned : []; s.city.equip = s.city.equip && typeof s.city.equip === 'object' ? s.city.equip : {}; s.city.jobs = s.city.jobs || { n: 0, pay: 0 }; s.city.daily = s.city.daily || { date: '', n: 0 };
+  s.firsts = s.firsts || {}; s.colors = s.colors || {}; s.names = s.names || {}; s.city = s.city && typeof s.city === 'object' ? s.city : { coins: 0, done: {}, kos: 0, daily: { date: '', n: 0 } }; s.city.done = s.city.done || {}; s.city.owned = Array.isArray(s.city.owned) ? s.city.owned : []; s.city.arrests = s.city.arrests && typeof s.city.arrests === 'object' ? s.city.arrests : {}; s.city.weapons = Array.isArray(s.city.weapons) ? s.city.weapons : []; s.city.weapon = s.city.weapon || 'pistol'; s.city.ammo = s.city.ammo && typeof s.city.ammo === 'object' ? s.city.ammo : {}; s.city.jobOk = s.city.jobOk | 0; s.city.warps = Array.isArray(s.city.warps) ? s.city.warps.slice(0, 3) : []; s.city.job = typeof s.city.job === 'string' ? s.city.job : 'none'; s.city.jobXp = s.city.jobXp && typeof s.city.jobXp === 'object' ? s.city.jobXp : {}; s.city.home = normalizeHome(s.city.home); s.city.phone = !!s.city.phone; s.city.defLevel = Math.max(1, s.city.defLevel | 0); s.city.defBest = s.city.defBest | 0; s.city.eqOwned = Array.isArray(s.city.eqOwned) ? s.city.eqOwned : []; s.city.equip = s.city.equip && typeof s.city.equip === 'object' ? s.city.equip : {}; s.city.jobs = s.city.jobs || { n: 0, pay: 0 }; s.city.daily = s.city.daily || { date: '', n: 0 };
   delete s.pilot; return s;
 };
 
@@ -67,19 +68,16 @@ export function skyHome(k, p) {
   const stars = (id) => { const s = sk.cleared[id] || 0; return s ? '★'.repeat(s) + '☆'.repeat(3 - s) : ''; };
   const unlocked = (i) => i === 0 || sk.cleared[MISSIONS[i - 1].id];
   const res = sk.last ? `<div class="skyres ${sk.last.win ? 'win' : 'lose'}"><b>${sk.last.win ? '🎖 クリア!' : 'ざんねん…'} ${esc(sk.last.name)}</b>${sk.last.win ? ` ${'★'.repeat(sk.last.stars)}` : ''}<div>${sk.last.rewardText ? `ごほうび: ${sk.last.rewardText}` : ''}</div><button class="btn small gray" data-act="skyclear">とじる</button></div>` : '';
-  return `<section class="panel sky-home"><h2 class="sec">EARTH DEFENSE <small>地球防衛隊</small></h2>
-    <div class="muted">ふめいの てきから にっぽんを まもる ゲーム。しゅじんこうは ${esc(k.name)}! サッカーの つよさを ひきつぐよ。ガチャの キャラは「そうび(ぶひん)」に なるよ。</div>${res}
+  const cty = sk.city || {}; const jobNow = CJOBS[cty.job] || CJOBS.none; const inJsdf = JSDF.includes(cty.job);
+  return `<section class="panel sky-home"><h2 class="sec">EastRopeIslandCity <small>イースト ロープ アイランド シティ</small></h2>
+    <div class="muted">しゅじんこうは ${esc(k.name)}! まちを じゆうに あるいて、のりものや しょくぎょうを たのしもう。サッカーの つよさも ひきつぐよ。</div>${res}
+    <div class="netcard city main"><b>🏙️ シティへ でかける</b><div class="muted">くるま・バイク・せんしゃ・ふね・ひこうき・せんとうきに のりおり! 指名手配の 凶悪犯を たいほ。じたくで しょくぎょう(けいさつ・SWAT・しょうぼう・きゅうきゅう・じえいたい)を えらんで、おへやも つくろう。ガレージで のりものを かおう。</div><div class="muted">${jobNow.icon} ${esc(jobNow.name)} ・ 🪙 ${cty.coins || 0} ・ ミッション クリア ${Object.values(cty.done || {}).reduce((a2, b2) => a2 + b2, 0)}かい ・ たいほ ${Object.values(cty.arrests || {}).reduce((a2, b2) => a2 + b2, 0)}にん</div><button class="btn gold" data-act="citygo">🏙️ シティへ でかける</button></div>
+    <div class="netcard def"><b>🎖️ 地球防衛隊 ぼうえい にんむ <em>Lv.${cty.defLevel || 1}</em></b><div class="muted">${inJsdf ? 'シティの きちに いる ちょうかんに はなしかけると すぐに ぼうえい にんむが はじまるよ。にんむは だんだん むずかしくなる! クリアするまで おわれないぞ。' : 'じえいたい(りく・うみ・そら)の しょくぎょうに なって、シティの きちの ちょうかんに はなしかけよう。にんむは おわりなく むずかしくなるよ。'}</div><div class="muted">さいこう きろく Lv.${cty.defBest || 0}</div></div>
     <h3 class="sec">MACHINE <small>のりものを えらぶ</small></h3>${vehicleTabs(sk)}
     <div class="sky-me"><b>${VEHICLES[sk.vehicle].icon} ${sk.names[sk.vehicle] ? esc(sk.names[sk.vehicle]) : `${esc(k.name)}の ${VEHICLES[sk.vehicle].name}`}</b> <em>パワー ${V.rating}</em>${bars(V)}
       <div class="muted">そうび ${eq}/5 ${eq < 5 ? '… かくのう庫で ぶひんを つけると もっと つよく なるよ' : ''}</div>
       <button class="btn small gray" data-act="tab" data-tab="team">🛠 かくのう庫で そうびする</button></div>
-    <div class="netcard city"><b>🏙️ シティ(じゆうに あそぶ)</b><div class="muted">まちを じゆうに あるいて、くるま・バイク・せんしゃ・ふね・ひこうき・せんとうきに のりおり! 指名手配の 凶悪犯を たいほして けんしょう金を ゲット! ガレージで のりものを かおう。ぶきや・おしごと(もんだいで おきゅうりょう)も あるよ。</div><div class="muted">🪙 ${(sk.city || {}).coins || 0} ・ ミッション クリア ${Object.values((sk.city || {}).done || {}).reduce((a, b) => a + b, 0)}かい ・ たいほ ${Object.values((sk.city || {}).arrests || {}).reduce((a, b) => a + b, 0)}にん ・ のりもの ${((sk.city || {}).owned || []).length + 3}しゅ</div><button class="btn gold" data-act="citygo">🏙️ シティへ でかける</button></div>
     <div class="netcard"><b>📡 ふたりで あそぶ</b><div class="muted">おなじ Wi-Fi の スマホ 2だいで、きょうりょく(いっしょに てきを たおす)か たいせん(のりもの どうしで たたかう)!</div><button class="btn gold" data-act="netsky">📡 つなぐ</button></div>
-    <h3 class="sec">MISSION <small>ミッション</small></h3>
-    <div class="muted">どの のりものでも クリアできるよ。ミッションごとに くう✈️・うみ🚢・りく🚜の てきが ちがうよ。あいしょうの いい のりものを さがそう!</div>
-    ${MISSIONS.map((m, i) => { const ok = unlocked(i); const first = !(sk.firsts[`${m.id}:${sk.vehicle}`]);
-      return `<div class="smission ${ok ? '' : 'lock'}"><div class="sm-ico">${ok ? m.icon : '🔒'}</div><div class="sm-body"><b>${i + 1}. ${esc(m.name)} <em>${stars(m.id)}</em></b><small>${esc(m.brief)}</small><span class="sm-hint">てき: ${mixIcons(m)}・ごほうび ${rewardText(m.reward)}${first ? ` + はじめて ${VEHICLES[sk.vehicle].icon} ${rewardText(m.first || {})}` : ''}</span></div>
-        <button class="btn gold" data-act="skygo" data-m="${m.id}" ${ok ? '' : 'disabled'}>🛫 しゅつげき</button></div>`; }).join('')}
     <div class="muted">そうさ: ひだりの スティック(みぎに たおせば みぎへ、うえに たおせば うえ・まえへ。ひこうき=むき・のぼる/くだる、ふね・せんしゃ=すすむ・まがる)。ほうげき・ミサイル(ロックして うつ)・ブースト・かいひ。ミサイルは オートロック! ひこうきの きかんほうは きしゅを てきに むけて ねらう。ふね・せんしゃの ほうげきは **みぎがわを ドラッグして ねらう**(「てきに むける」で ちかい てきに あわせてくれるよ)。</div></section>`;
 }
 
@@ -154,6 +152,32 @@ export function finishMission(mis, r, vehicle) {
   X.save(); X.render();
 }
 
+// ---- ぼうえい にんむ(シティから シームレスに いどう・クリアするまで おわれない・どんどん むずかしく なる) ----
+async function startDefense() {
+  if (STARTING) return false; STARTING = true;
+  try {
+    const k = X.kid(); const p = X.p(); const sk = ensureSky(p); const city = sk.city; const L = Math.max(1, city.defLevel | 0);
+    const job = CJOBS[city.job]; const vehicle = job && job.branch ? job.branch : 'plane'; const { V, spec } = specOf(k, p, vehicle); const mis = defenseMission(L);
+    X.toast(`🎖️ ぼうえい にんむ Lv.${L} しゅつげき!`); SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false)); SFX.bgmTheme('defense');
+    const map = { gun: 'gun', missile: 'missile', boom: 'boom', bigboom: 'bigboom', hit: 'hit', basehit: 'basehit', warn: 'warn', evade: 'evade', spark: 'spark', win: 'win', lose: 'lose' };
+    if (AG) { AG.destroy(); AG = null; } stopPreview();
+    try {
+      AG = await startAir3D({ vehicle: V, spec, mission: mis, gentle: !!(X.cfg && X.cfg().gentle), calm: !!(X.cfg && X.cfg().calm), onSfx: (n) => { if (SFX && map[n]) SFX.play(map[n]); },
+        onQuit: () => { AG = null; X.toast('🎖️ にんむ ちゅうは もどれないぞ! クリアするまで がんばれ!'); setTimeout(() => startDefense(), 700); },
+        onEnd: (r) => { AG = null; defenseEnd(mis, r); } });
+    } catch (e) { AG = null; X.toast('3Dを ひらけなかったよ…'); return false; }
+    return true;
+  } finally { STARTING = false; }
+}
+function defenseEnd(mis, r) {
+  const p = X.p(); const sk = ensureSky(p); const city = sk.city; const L = mis.level;
+  if (r && r.win) {
+    const { pts, shards, ...tk } = mis.reward; G.addTickets(p, tk); if (pts) { const SP = ['SHO', 'PAS', 'SPD', 'DEF', 'STA']; p.pts = { ...G.emptyStatMap(), ...(p.pts || {}) }; for (const st2 of SP) p.pts[st2] += pts; }
+    city.coins += 200 * L; p.xp += 20 + 3 * L; city.defLevel = L + 1; city.defBest = Math.max(city.defBest | 0, L); X.save(); X.fx.confetti(vw() / 2, vh() * 0.35, 140, 1.6); X.fx.beep('win'); X.toast(`🎖️ にんむ クリア! 🪙+${200 * L} → Lv.${L + 1}に ステップアップ!`);
+    setTimeout(() => startCity(), 1300);
+  } else { X.toast('ざんねん… もういちど ちょうせんだ!'); setTimeout(() => startDefense(), 1200); }
+}
+
 export function onSkyAct(a, el) {
   const p = X.p ? X.p() : null; if (!p) return false;
   const sk = ensureSky(p);
@@ -223,15 +247,15 @@ async function startCity() {
     const k = X.kid(); const p = X.p(); const sk = ensureSky(p); const ks = G.kidStats(p); const city = sk.city;
     const tank = specOf(k, p, 'tank'); const ship = specOf(k, p, 'ship'); const plane = specOf(k, p, 'plane');
     X.toast('🏙️ まちへ いくよ…'); SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false)); stopPreview();
-    const map = { gun: 'gun', missile: 'missile', boom: 'boom', bigboom: 'bigboom', hit: 'hit', warn: 'warn', win: 'win', lose: 'lose', coin: 'spark', gem: 'win', door: 'evade', bump: 'hit', mission: 'warn', down: 'spark' };
+    const map = { gun: 'gun', missile: 'missile', boom: 'boom', bigboom: 'bigboom', hit: 'hit', warn: 'warn', win: 'win', lose: 'lose', coin: 'cash', gem: 'sparkle', door: 'door', bump: 'hit', mission: 'warn', down: 'spark' };
     try {
-      AG = await startCity3D({ kidName: k.name, stats: ks, vehicles: { car: carStats(ks), tank: tank.V, ship: ship.V, plane: plane.V }, specs: { tank: tank.spec, ship: ship.spec, plane: plane.spec }, coins: city.coins, done: city.done, owned: city.owned, weapons: city.weapons, weapon: city.weapon, ammo: city.ammo, jobOk: city.jobOk, warps: city.warps, job: city.job, jobXp: city.jobXp, home: city.home, phone: city.phone, eqOwned: city.eqOwned, equip: city.equip, arrests: city.arrests, onSoccer: () => { AG = null; if (X.openSoccer) X.openSoccer(); else X.render(); }, getJobQuestion: (subj) => jobQuestion(k, subj), onJobDone: (r) => cityJob(r), calm: !!(X.cfg && X.cfg().calm), gentle: !!(X.cfg && X.cfg().gentle),
-        onSfx: (n) => { if (SFX && map[n]) SFX.play(map[n]); },
-        onSave: (r) => { city.coins = r.coins; city.done = { ...r.done }; if (r.owned) city.owned = r.owned.filter((id) => !DEFAULT_OWNED.includes(id)); if (r.arrests) city.arrests = { ...r.arrests }; if (r.weapons) city.weapons = r.weapons.filter((id) => !DEFAULT_WEAPONS.includes(id)); if (r.weapon) city.weapon = r.weapon; if (r.ammo) city.ammo = JSON.parse(JSON.stringify(r.ammo)); if (r.jobOk != null) city.jobOk = r.jobOk | 0; if (Array.isArray(r.warps)) city.warps = r.warps.map((w) => (w ? { x: w.x, z: w.z, name: w.name } : null)); if (typeof r.job === 'string') city.job = r.job; if (r.jobXp) city.jobXp = { ...r.jobXp }; if (r.home) city.home = JSON.parse(JSON.stringify(r.home)); city.phone = !!r.phone; if (r.eqOwned) city.eqOwned = [...r.eqOwned]; if (r.equip) city.equip = { ...r.equip }; X.save(); },
+      AG = await startCity3D({ kidName: k.name, stats: ks, vehicles: { car: carStats(ks), tank: tank.V, ship: ship.V, plane: plane.V }, specs: { tank: tank.spec, ship: ship.spec, plane: plane.spec }, coins: city.coins, done: city.done, owned: city.owned, weapons: city.weapons, weapon: city.weapon, ammo: city.ammo, jobOk: city.jobOk, warps: city.warps, defLevel: city.defLevel, onDefense: (d) => startDefense(d), job: city.job, jobXp: city.jobXp, home: city.home, phone: city.phone, eqOwned: city.eqOwned, equip: city.equip, arrests: city.arrests, onSoccer: () => { AG = null; if (X.openSoccer) X.openSoccer(); else X.render(); }, getJobQuestion: (subj) => jobQuestion(k, subj), onJobDone: (r) => cityJob(r), calm: !!(X.cfg && X.cfg().calm), gentle: !!(X.cfg && X.cfg().gentle),
+        onSfx: (n) => { if (!SFX) return; if (n.startsWith('bgm:')) SFX.bgmTheme(n.slice(4)); else if (map[n]) SFX.play(map[n]); },
+        onSave: (r) => { city.coins = r.coins; city.done = { ...r.done }; if (r.owned) city.owned = r.owned.filter((id) => !DEFAULT_OWNED.includes(id)); if (r.arrests) city.arrests = { ...r.arrests }; if (r.weapons) city.weapons = r.weapons.filter((id) => !DEFAULT_WEAPONS.includes(id)); if (r.weapon) city.weapon = r.weapon; if (r.ammo) city.ammo = JSON.parse(JSON.stringify(r.ammo)); if (r.jobOk != null) city.jobOk = r.jobOk | 0; if (Array.isArray(r.warps)) city.warps = r.warps.map((w) => (w ? { x: w.x, z: w.z, name: w.name } : null)); if (typeof r.job === 'string') city.job = r.job; if (r.jobXp) city.jobXp = { ...r.jobXp }; if (r.defLevel) city.defLevel = Math.max(city.defLevel | 0, r.defLevel | 0); if (r.home) city.home = JSON.parse(JSON.stringify(r.home)); city.phone = !!r.phone; if (r.eqOwned) city.eqOwned = [...r.eqOwned]; if (r.equip) city.equip = { ...r.equip }; X.save(); },
         onBounty: (e) => cityBounty(e),
         onReward: (e) => cityReward(e),
         onBuy: (id) => { const pp = X.p(); if (id === 'shard') G.addShards(pp, 5); else G.addTickets(pp, { [id]: 1 }); X.save(); X.toast(`🎁 ${id === 'shard' ? 'ダイヤの かけら ×5' : 'ガチャチケット ×1'} を かったよ!`); },
-        onQuit: () => { AG = null; X.render(); } });
+        onQuit: () => { AG = null; if (SFX) SFX.bgmStop(); X.render(); } });
     } catch (err) { AG = null; X.toast('3Dを ひらけなかったよ…'); return false; }
     return true;
   } finally { STARTING = false; }
