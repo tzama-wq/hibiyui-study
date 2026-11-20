@@ -45,7 +45,7 @@ function makeLayout() {
   const mk = (m, name, st) => add(mkB(m.cx, m.cz + m.d * 0.18, m.w - 34, m.d * 0.5, 0, 22, 'mall', { name }));
   mk(MALL_TRESA, 'tresa'); mk(MALL_APITA, 'apita');
   add(mkB(HOME.cx - 22, HOME.cz + 32, 46, 28, 0, 8, 'home')); // じたく
-  const ac = (AIRFIELD.x0 + AIRFIELD.x1) / 2; add(mkB(ac - 90, AIRFIELD.z1 + 22, 60, 36, 0, 16, 'hangar'), mkB(ac + 20, AIRFIELD.z1 + 22, 50, 36, 0, 16, 'hangar'));
+  const ac = (AIRFIELD.x0 + AIRFIELD.x1) / 2; add(mkB(ac - 90, AIRFIELD.z1 - 26, 60, 36, 0, 16, 'hangar'), mkB(ac + 20, AIRFIELD.z1 - 26, 50, 36, 0, 16, 'hangar'));
   add(mkB(SHRINE.x, SHRINE.z, 28, 16, 0, 8, 'shrine'));
   // こうかせんの はしら(せんろに そって 40mごと)
   for (const P of Object.values(RAILS)) for (let i = 1; i < P.length; i++) { const [ax, az] = P[i - 1]; const [bx, bz] = P[i]; const len = hyp(bx - ax, bz - az); const n = Math.floor(len / 40); for (let k = 1; k < n; k++) { const x = ax + ((bx - ax) * k) / n; const z = az + ((bz - az) * k) / n; if (Math.abs(x) > HALF - 8 || Math.abs(z) > HALF - 8 || CM.roadSD(x, z) < 5 || CM.inRiver(x, z) || inRect({ x0: AIRFIELD.x0 - 12, x1: AIRFIELD.x1 + 12, z0: AIRFIELD.z0 - 12, z1: AIRFIELD.z1 + 12 }, x, z) || inRect({ x0: PLAZA.x0 - 4, x1: PLAZA.x1 + 4, z0: PLAZA.z0 - 4, z1: PLAZA.z1 + 4 }, x, z)) continue; add(mkB(x, z, 1.6, 1.6, 0, 9, 'pillar', { rail: Math.atan2(bz - az, bx - ax) })); } }
@@ -155,18 +155,18 @@ export const CROOKS = {
   runner: { name: 'ひったくり', hp: 36, dmg: 0, speed: 8.5, range: 0, fire: 99 },
 };
 export const WANTED = [
-  { id: 'joe', name: 'コソドロ ジョー', crime: 'ぬすみ・ごうとう みすい', stars: 1, bounty: 100, type: 'thug', spot: pn(HQ.x + 360, HQ.z + 40), guards: 0 },
-  { id: 'momo', name: 'ひったくり モモ', crime: 'ひったくり れんぞく', stars: 1, bounty: 140, type: 'runner', spot: pn(HQ.x + 180, HQ.z + 330), guards: 0 },
-  { id: 'gonzo', name: 'ゴンゾー', crime: 'ぎんこう ごうとう', stars: 2, bounty: 320, type: 'gunman', spot: pn(HQ.x + 560, HQ.z + 280), guards: 2 },
-  { id: 'rex', name: 'レックス', crime: 'ほうせき どろぼう', stars: 2, bounty: 420, type: 'gunman', spot: pn(HQ.x + 120, -330, 1, 500), guards: 2 },
-  { id: 'viper', name: 'ヴァイパー', crime: 'ぶき ゆそう', stars: 3, bounty: 700, type: 'gunman', spot: pn(380, -420, 1, 500), guards: 3 },
-  { id: 'shadow', name: 'シャドウ', crime: 'みなとの みつゆ', stars: 3, bounty: 900, type: 'gunman', spot: pn(520, 120), guards: 3 },
-  { id: 'don', name: 'ドン・カルロ', crime: 'ギャングの ボス', stars: 4, bounty: 1500, type: 'boss', spot: pn(-560, -420, 1, 600), guards: 4 },
-  { id: 'king', name: 'キング・ガレオン', crime: 'おおきな しんじゅ ごうだつ', stars: 5, bounty: 3000, type: 'boss', spot: pn(40, 560), guards: 6 },
+  { id: 'joe', name: 'コソドロ ジョー', crime: 'ぬすみ・ごうとう みすい', stars: 1, bounty: 100, type: 'thug', spot: pn(HQ.x - 360, HQ.z + 40), guards: 0 },
+  { id: 'momo', name: 'ひったくり モモ', crime: 'ひったくり れんぞく', stars: 1, bounty: 140, type: 'runner', spot: pn(HQ.x - 180, HQ.z + 330), guards: 0 },
+  { id: 'gonzo', name: 'ゴンゾー', crime: 'ぎんこう ごうとう', stars: 2, bounty: 320, type: 'gunman', spot: pn(HQ.x - 560, HQ.z + 280), guards: 2 },
+  { id: 'rex', name: 'レックス', crime: 'ほうせき どろぼう', stars: 2, bounty: 420, type: 'gunman', spot: pn(HQ.x - 120, -330, 1, 500), guards: 2 },
+  { id: 'viper', name: 'ヴァイパー', crime: 'ぶき ゆそう', stars: 3, bounty: 700, type: 'gunman', spot: pn(-380, -420, 1, 500), guards: 3 },
+  { id: 'shadow', name: 'シャドウ', crime: 'みなとの みつゆ', stars: 3, bounty: 900, type: 'gunman', spot: pn(-520, 120), guards: 3 },
+  { id: 'don', name: 'ドン・カルロ', crime: 'ギャングの ボス', stars: 4, bounty: 1500, type: 'boss', spot: pn(560, -420, 1, 600), guards: 4 },
+  { id: 'king', name: 'キング・ガレオン', crime: 'おおきな しんじゅ ごうだつ', stars: 5, bounty: 3000, type: 'boss', spot: pn(-40, 560), guards: 6 },
 ];
 
 // ---- ミッション ---------------------------------------------------------------------------------
-const hubA = (ang, rad, c = 1) => pn(HQ.x + Math.cos(ang) * rad, HQ.z + Math.sin(ang) * rad, c, 300);
+const hubA = (ang, rad, c = 1) => pn(HQ.x - Math.cos(ang) * rad, HQ.z + Math.sin(ang) * rad, c, 300);
 const ACX = (AIRFIELD.x0 + AIRFIELD.x1) / 2; const ACZ = (AIRFIELD.z0 + AIRFIELD.z1) / 2;
 const DOCK_X = -150; const DOCK = { x: DOCK_X, z: riverZ(DOCK_X) };
 export const CITY_MISSIONS = [
@@ -174,7 +174,7 @@ export const CITY_MISSIONS = [
   { id: 'rescue', name: 'ひとじちを たすけろ', icon: '🆘', brief: 'はんにんに おそわれている 3にんを みつけて ほんぶまで つれて いこう(ちかづいて ボタン)。', reward: { silver: 1, coins: 60 }, pts: 6, start: hubA(2.6, 190), civs: [hubA(3.0, 260), hubA(2.2, 330), hubA(1.5, 300)], guards: 2 },
   { id: 'gang', name: 'ギャングを たいほしろ!', icon: '🚔', brief: 'こうさてんに あつまった ギャングを ぜんいん たいほしよう!(たおれて ばんざいした はんにんに ちかづいて ボタン)', reward: { silver: 1, coins: 80 }, pts: 8, start: hubA(0.2, 240), spot: hubA(0.1, 520), crooks: 5 },
   { id: 'harbor', name: 'こうわん パトロール', icon: '⚓', brief: 'ふねで かわの ブイを 3つ まわろう!(かわの ふねに のってね)', reward: { bronze: 2, coins: 70 }, pts: 6, start: (() => { const z = riverZ(DOCK_X) + RIVER.bank + 8; return pn(DOCK_X, z, 0, 160); })(), points: [{ x: -380, z: riverZ(-380) }, { x: -30, z: riverZ(-30) }, { x: 330, z: riverZ(330) }], water: true },
-  { id: 'sky', name: 'そらの リング', icon: '💫', brief: 'ひこうきで リングを 6つ くぐろう!(くうこうの ひこうきに のってね。はやい せんとうきは むずかしいよ)', reward: { gold: 1, coins: 120 }, pts: 10, start: { x: AIRFIELD.x0 + 16, z: ACZ + 36 }, rings: [{ x: ACX - 150, y: 90, z: ACZ + 40 }, { x: ACX - 330, y: 120, z: ACZ + 200 }, { x: ACX - 600, y: 140, z: ACZ + 240 }, { x: ACX - 700, y: 110, z: ACZ - 100 }, { x: ACX - 450, y: 90, z: ACZ - 300 }, { x: ACX - 150, y: 70, z: ACZ - 200 }] },
+  { id: 'sky', name: 'そらの リング', icon: '💫', brief: 'ひこうきで リングを 6つ くぐろう!(くうこうの ひこうきに のってね。はやい せんとうきは むずかしいよ)', reward: { gold: 1, coins: 120 }, pts: 10, start: { x: AIRFIELD.x0 + 16, z: ACZ + 36 }, rings: [{ x: ACX + 150, y: 90, z: ACZ + 40 }, { x: ACX + 330, y: 120, z: ACZ + 200 }, { x: ACX + 600, y: 140, z: ACZ + 240 }, { x: ACX + 700, y: 110, z: ACZ - 100 }, { x: ACX + 450, y: 90, z: ACZ - 300 }, { x: ACX + 150, y: 70, z: ACZ - 200 }] },
   { id: 'delivery', name: 'はやく おとどけ!', icon: '📦', brief: 'にもつを うけとって、100びょうい ないに ほんぶへ とどけよう!', reward: { silver: 1, coins: 90 }, pts: 6, start: hubA(-0.6, 260), pickup: hubA(0.5, 640), time: 100 },
 ];
 export const missionOf = (id) => CITY_MISSIONS.find((m) => m.id === id);
@@ -198,9 +198,9 @@ export const STORES = [
   { id: 'tresa', name: 'トレッサ', icon: '🛍️', sub: 'モール', x: MALL_TRESA.cx, z: MALL_TRESA.cz - 26, sells: { weapons: 'all', vehicles: 'all', items: ALLI } },
   { id: 'apita', name: 'アピタ', icon: '🏬', sub: 'ショッピングセンター', x: MALL_APITA.cx, z: MALL_APITA.cz - 24, sells: { weapons: 'all', items: ALLI } },
   { id: 'conbini', name: 'コンビニ', icon: '🏪', sub: 'おにぎり・かいふく', x: SHOP.x, z: SHOP.z, sells: { items: ['snack', 'heal', 'drink'] } },
-  { id: 'drug', name: 'ドラッグストア', icon: '💊', sub: 'かいふく・スニーカー', ...pn(HQ.x + 120, HQ.z + 70, 0, 200), sells: { items: ['heal', 'drink', 'sneak'] } },
-  { id: 'ramen', name: 'ラーメンや', icon: '🍜', sub: 'スタミナ ラーメン', ...pn(HQ.x - 90, HQ.z + 110, 0, 200), sells: { items: ['ramen', 'snack'] } },
-  { id: 'hobby', name: 'ホビーショップ', icon: '🎴', sub: 'ガチャチケット・かけら', ...pn(HQ.x + 70, HQ.z - 120, 0, 200), sells: { items: ['bronze', 'silver', 'gold', 'shard'] } },
+  { id: 'drug', name: 'ドラッグストア', icon: '💊', sub: 'かいふく・スニーカー', ...pn(HQ.x - 120, HQ.z + 70, 0, 200), sells: { items: ['heal', 'drink', 'sneak'] } },
+  { id: 'ramen', name: 'ラーメンや', icon: '🍜', sub: 'スタミナ ラーメン', ...pn(HQ.x + 90, HQ.z + 110, 0, 200), sells: { items: ['ramen', 'snack'] } },
+  { id: 'hobby', name: 'ホビーショップ', icon: '🎴', sub: 'ガチャチケット・かけら', ...pn(HQ.x - 70, HQ.z - 120, 0, 200), sells: { items: ['bronze', 'silver', 'gold', 'shard'] } },
   { id: 'military', name: 'ミリタリーショップ', icon: '🔫', sub: 'レアな ぶき', x: ARMS.x, z: ARMS.z, sells: { weapons: RARE_W } },
 ];
 export const storeOf = (id) => STORES.find((x) => x.id === id);
@@ -313,6 +313,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
 
   // ---- はんにん ----
   function spawnCrook(type, x, z, o = {}) {
+    if (insideBuilding(x, z, 0) || isWater(x, z)) { const f = freeAround(x, z); x = f.x; z = f.z; }
     const T = CROOKS[type]; const hp = Math.round(T.hp * (o.hpMul || 1));
     const c = { id: ++nid, type, x, z, yaw: rnd() * 6.28, hp, hpMax: hp, cd: 1 + rnd(), homeX: x, homeZ: z, wander: o.wander || 36, state: 'idle', t: 0, downT: 0, mission: !!o.mission, wid: o.wid || null, speed: T.speed, ph: rnd() * 6, alert: false, look: Math.floor(rnd() * 8), flee: 0 };
     S.crooks.push(c); return c;

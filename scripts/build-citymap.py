@@ -10,7 +10,7 @@ KM_LON = 111320.0 * math.cos(math.radians(LAT0))
 rnd = random.Random(7)
 
 def xz(lat, lon):
-    return ((lon - LON0) * KM_LON, (lat - LAT0) * KM_LAT)
+    return (-(lon - LON0) * KM_LON, (lat - LAT0) * KM_LAT)  # x は にしが プラス(3Dで まえ=きた を むいたとき みぎが ひがしに なる)
 
 def load(n):
     try:
@@ -158,8 +158,8 @@ def join(parts):
         res += w if not res else w[1:]
     return res
 rails2 = {}
-tk = join([pick(0, (-780, -674), (-602, -188)), pick(0, (-602, -188), (-602, 18)), pick(0, (-602, 18), (-602, 43)), pick(0, (-602, 43), (-450, 361)), pick(0, (-450, 361), (-387, 449)), pick(0, (-387, 449), (457, 1736))])
-sh = join([pick(1, (-399, -883), (-135, -429)), pick(1, (-135, -429), (118, -2)), pick(1, (118, -2), (946, 1458))])
+tk = join([pick(0, (780, -674), (602, -188)), pick(0, (602, -188), (602, 18)), pick(0, (602, 18), (602, 43)), pick(0, (602, 43), (450, 361)), pick(0, (450, 361), (387, 449)), pick(0, (387, 449), (-457, 1736))])
+sh = join([pick(1, (399, -883), (135, -429)), pick(1, (135, -429), (-118, -2)), pick(1, (-118, -2), (-946, 1458))])
 for key, ch in (('toyoko', tk), ('shin', sh)):
     ch = dp(ch, 3.0)
     rails2[key] = [round(v, 1) for q in ch for v in q]

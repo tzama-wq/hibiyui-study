@@ -89,14 +89,14 @@ export async function startCity3D(o) {
     <div class="a3d-hud">
       <div class="a3d-bars"><div class="ab hp"><span>HP</span><i><u></u></i></div><div class="ab boost"><span>ダッシュ</span><i><u></u></i></div><div class="ab ms"><span>ミサイル</span><b></b></div><div class="c3d-coin">🪙 <b>0</b></div></div>
       <div class="a3d-top c3d-mis" hidden><div class="a3d-name"></div><div class="a3d-obj"></div></div>
-      <div class="c3d-track" hidden></div><div class="c3d-stars"></div><button class="c3d-help" aria-label="やりかた">？</button><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
+      <div class="c3d-track" hidden></div><div class="c3d-pinhud" hidden></div><div class="c3d-stars"></div><button class="c3d-help" aria-label="やりかた">？</button><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
       <canvas class="c3d-map" width="150" height="150"></canvas>
       <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button><button class="c3d-bigmapbtn" aria-label="ちず">🗺</button><button class="c3d-ftbtn" aria-label="ガレージへ ワープ">🏁⚡</button><button class="c3d-wep" aria-label="ぶき"></button><button class="c3d-cancel" hidden>✖ ミッションを やめる</button>
     </div>
     <div class="c3d-vig"></div><div class="a3d-pad"><div class="a3d-stick"><div class="a3d-knob"></div></div>
       <div class="a3d-btns"><button class="ab-b ab-gun" data-b="gun">こうげき</button><button class="ab-b ab-ms" data-b="missile">ミサイル</button><button class="ab-b ab-boost" data-b="boost">ダッシュ</button><button class="ab-b ab-act" data-b="act" hidden></button><button class="ab-b ab-wp" data-b="weapon">🔁<br>ぶき</button><button class="ab-b ab-tg" data-b="target">ねらい<br>あわせ</button></div></div>
     <div class="a3d-rot p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
-    <div class="c3d-bigmap" hidden><canvas width="640" height="640"></canvas><button class="btn gray">とじる</button></div>
+    <div class="c3d-bigmap" hidden><div class="bm-hint">📍 ちずを タップで ピン(もくてきち)。🧭 じぶんは ▲</div><canvas width="640" height="640"></canvas><div class="bm-btns"><button class="btn gold bm-clear">📍 ピンを けす</button><button class="btn gray bm-close">とじる</button></div></div>
     <div class="c3d-shop" hidden></div>
     <div class="p3d-menu a3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn gray" data-m="quit">シティを でる</button></div></div>`;
   document.body.appendChild(root); const prevOv = document.body.style.overflow; document.body.style.overflow = 'hidden';
@@ -239,6 +239,8 @@ export async function startCity3D(o) {
   const mkMarker = (color, h = 70) => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, h, 14, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); b.position.y = h / 2; const r = new THREE.Mesh(new THREE.TorusGeometry(5, 0.35, 8, 28), new THREE.MeshBasicMaterial({ color })); r.rotation.x = Math.PI / 2; r.position.y = 0.6; g.add(b, r); g.userData.ring = r; return g; };
   const markers = []; const startMarkers = CITY_MISSIONS.map((m) => { const g = mkMarker('#ffd23f'); g.position.set(m.start.x, 0, m.start.z); const sp = iconSprite(THREE, m.icon); sp.scale.set(9, 9, 1); sp.position.y = 24; g.add(sp); scene.add(g); return { m, g }; });
   for (const [pt, ic, col] of [[GARAGE, '🏠', '#ff9f43'], [BOARD, '📋', '#e8d9a0'], [JOB, '💼', '#7fe7ff'], [SOCCER, '⚽', '#9fe29f'], ...STORES.map((st) => [st, st.icon, '#ffb35a'])]) { const g = mkMarker(col, 40); g.position.set(pt.x, 0, pt.z); const sp = iconSprite(THREE, ic, col); sp.scale.set(8, 8, 1); sp.position.y = 26; g.add(sp); scene.add(g); markers.push(g); }
+  let pin = null; const pinMarker = mkMarker('#ff4d6a', 140); pinMarker.visible = false; { const sp = iconSprite(THREE, '📍', '#ff4d6a'); sp.scale.set(10, 10, 1); sp.position.y = 34; pinMarker.add(sp); } scene.add(pinMarker);
+  const setPin = (x, z) => { pin = x == null ? null : { x, z }; pinMarker.visible = !!pin; if (pin) pinMarker.position.set(x, 0, z); };
   const targetMarker = mkMarker('#27d8ff', 110); targetMarker.visible = false; scene.add(targetMarker); const hqMarker = mkMarker('#7dffa0', 60); hqMarker.position.set(HQ.x, 0, HQ.z); hqMarker.scale.set(4.5, 1, 4.5); hqMarker.visible = false; scene.add(hqMarker);
   const ringM = new THREE.Mesh(new THREE.TorusGeometry(24, 2.2, 10, 36), new THREE.MeshBasicMaterial({ color: '#27d8ff', transparent: true, opacity: 0.9 })); ringM.visible = false; scene.add(ringM);
   const shield = new THREE.Mesh(new THREE.SphereGeometry(3, 12, 8), new THREE.MeshBasicMaterial({ color: '#7fe7ff', transparent: true, opacity: 0.3, depthWrite: false })); shield.visible = false; scene.add(shield);
@@ -281,7 +283,9 @@ export async function startCity3D(o) {
   root.querySelector('.c3d-cancel').addEventListener('click', () => sim.cancelMission());
   root.querySelector('.c3d-ftbtn').addEventListener('click', () => { if (paused) return; const r = sim.fastTravel(); if (!r.ok && r.why) { S.msg = r.why; S.msgT = 2; } });
   root.querySelector('.c3d-wep').addEventListener('click', () => { if (!paused) openWeapons(); });
-  const bigmap = root.querySelector('.c3d-bigmap'); root.querySelector('.c3d-bigmapbtn').addEventListener('click', () => { bigmap.hidden = !bigmap.hidden; }); bigmap.addEventListener('click', () => { bigmap.hidden = true; });
+  const bigmap = root.querySelector('.c3d-bigmap'); root.querySelector('.c3d-bigmapbtn').addEventListener('click', () => { bigmap.hidden = !bigmap.hidden; });
+  bigmap.querySelector('.bm-close').addEventListener('click', (e) => { e.stopPropagation(); bigmap.hidden = true; }); bigmap.querySelector('.bm-clear').addEventListener('click', (e) => { e.stopPropagation(); setPin(null); });
+  bigmap.querySelector('canvas').addEventListener('click', (e) => { e.stopPropagation(); const cvb = e.currentTarget; const r = cvb.getBoundingClientRect(); const u = (e.clientX - r.left) / r.width; const fy = (e.clientY - r.top) / r.height; const R0 = HALF + 40; const x = ((1 - u) - 0.5) * 2 * R0; const z = ((1 - fy) - 0.5) * 2 * R0; if (Math.abs(x) > HALF || Math.abs(z) > HALF) return; if (pin && Math.hypot(pin.x - x, pin.z - z) < 40) setPin(null); else { setPin(x, z); S.msg = '📍 ピンを たてたよ! ちずを とじて むかおう'; S.msgT = 2.5; } });
   const resize = () => { const w = root.clientWidth || innerWidth; const h = root.clientHeight || innerHeight; renderer.setSize(w, h, false); if (post) { const v = new THREE.Vector2(); renderer.getDrawingBufferSize(v); post.setSize(v.x, v.y); } camera.aspect = w / h; camera.fov = w / h < 1.5 ? 70 : 62; camera.updateProjectionMatrix(); portrait = h > w * 1.05; root.classList.toggle('portrait', portrait); };
   window.addEventListener('resize', resize); window.addEventListener('orientationchange', resize); resize();
   try { if (document.documentElement.requestFullscreen && !document.fullscreenElement && /Mobi|Android/i.test(navigator.userAgent)) document.documentElement.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {}); } catch { /* ok */ }
@@ -362,7 +366,7 @@ export async function startCity3D(o) {
   };
 
   // ---- HUD ----
-  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), hpw: q('.ab.hp'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), msw: q('.ab.ms'), coin: q('.c3d-coin b'), mis: q('.c3d-mis'), misN: q('.c3d-mis .a3d-name'), misO: q('.c3d-mis .a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), ret: q('.a3d-ret'), act: q('.ab-act'), gun: q('.ab-gun'), cancel: q('.c3d-cancel'), track: q('.c3d-track'), stars: q('.c3d-stars'), wep: q('.c3d-wep'), wpb: q('.ab-wp'), map: q('.c3d-map').getContext('2d'), big: bigmap.querySelector('canvas').getContext('2d') };
+  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), hpw: q('.ab.hp'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), msw: q('.ab.ms'), coin: q('.c3d-coin b'), mis: q('.c3d-mis'), misN: q('.c3d-mis .a3d-name'), misO: q('.c3d-mis .a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), ret: q('.a3d-ret'), act: q('.ab-act'), gun: q('.ab-gun'), cancel: q('.c3d-cancel'), track: q('.c3d-track'), pinhud: q('.c3d-pinhud'), stars: q('.c3d-stars'), wep: q('.c3d-wep'), wpb: q('.ab-wp'), map: q('.c3d-map').getContext('2d'), big: bigmap.querySelector('canvas').getContext('2d') };
     let lastBanner = ''; const v3 = new THREE.Vector3();
   const project = (x, y, z) => { v3.set(x, y, z).project(camera); return { x: (v3.x * 0.5 + 0.5) * root.clientWidth, y: (-v3.y * 0.5 + 0.5) * root.clientHeight, z: v3.z }; };
   const drawMap = (g, R, size, rot) => {
@@ -378,7 +382,11 @@ export async function startCity3D(o) {
     if (S.tracked) { const w = S.wanted.find((x) => x.id === S.tracked); if (w && w.alive) { g.strokeStyle = '#fff'; g.lineWidth = rr * 0.5; g.beginPath(); g.arc(w.x, w.z, rr * (2.2 + Math.sin(tt * 6) * 0.5), 0, 6.283); g.stroke(); } }
     dot(GARAGE.x, GARAGE.z, '#ff9f43', rr * 1.1, true); dot(BOARD.x, BOARD.z, '#e8d9a0', rr * 1.0, true); dot(JOB.x, JOB.z, '#7fe7ff', rr, true); dot(SOCCER.x, SOCCER.z, '#9fe29f', rr * 1.1, true); for (const st of STORES) dot(st.x, st.z, '#ffb35a', rr * (st.id === 'tresa' || st.id === 'apita' ? 1.6 : 0.95), true);
     for (const v of S.vehicles) if (!v.occ && !v.temp) dot(v.x, v.z, '#6ab0ff', rr * 0.9, true);
-    if (!rot) { g.fillStyle = '#ff0'; g.beginPath(); g.arc(P.x, P.z, 8, 0, 6.283); g.fill(); }
+    if (pin) { // ピン(ルートの ガイドせん つき)
+      const pr = rot ? R / 26 : 7; g.save(); g.setLineDash([pr * 2.4, pr * 1.6]); g.strokeStyle = 'rgba(255,90,110,.9)'; g.lineWidth = pr * 0.45; g.beginPath(); g.moveTo(P.x, P.z); g.lineTo(pin.x, pin.z); g.stroke(); g.setLineDash([]);
+      const dx = pin.x - P.x; const dz = pin.z - P.z; const dd = Math.hypot(dx, dz); let px = pin.x; let pz = pin.z; if (rot && dd > R * 0.82) { px = P.x + (dx / dd) * R * 0.82; pz = P.z + (dz / dd) * R * 0.82; }
+      g.fillStyle = '#ff4d6a'; g.strokeStyle = '#fff'; g.lineWidth = pr * 0.3; g.beginPath(); g.arc(px, pz, pr * 1.6, 0, 6.283); g.fill(); g.stroke(); g.fillStyle = '#fff'; g.beginPath(); g.arc(px, pz, pr * 0.6, 0, 6.283); g.fill(); g.restore(); }
+    if (!rot) { const ar = R / 34; const ang = Math.atan2(Math.cos(P.yaw), Math.sin(P.yaw)); g.save(); g.translate(P.x, P.z); g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = ar * 0.25; g.beginPath(); g.arc(0, 0, ar * (2.2 + Math.sin(tt * 4) * 0.4), 0, 6.283); g.stroke(); g.rotate(ang); g.fillStyle = '#ffe14a'; g.strokeStyle = '#222'; g.lineWidth = ar * 0.22; g.beginPath(); g.moveTo(ar * 1.7, 0); g.lineTo(-ar, ar * 1.05); g.lineTo(-ar * 0.45, 0); g.lineTo(-ar, -ar * 1.05); g.closePath(); g.fill(); g.stroke(); g.restore(); }
     g.restore();
     if (rot) { g.fillStyle = '#fff'; g.beginPath(); g.moveTo(size / 2, size / 2 - 9); g.lineTo(size / 2 - 7, size / 2 + 8); g.lineTo(size / 2 + 7, size / 2 + 8); g.closePath(); g.fill(); g.strokeStyle = '#27d8ff'; g.lineWidth = 3; g.beginPath(); g.arc(size / 2, size / 2, size / 2 - 2, 0, 6.283); g.stroke(); }
   };
@@ -396,6 +404,7 @@ export async function startCity3D(o) {
     { let st = 0; for (const c of S.crooks) { if (!c.wid || c.state === 'down') continue; const d = Math.hypot(c.x - P.x, c.z - P.z); if (c.alert || d < 70) { const w = S.wanted.find((x) => x.id === c.wid); if (w && w.stars > st) st = w.stars; } } hud.stars.textContent = st ? '⭐'.repeat(st) : ''; hud.stars.classList.toggle('on', !!st); }
     { const W = weaponOf(P.weapon) || {}; hud.wep.hidden = kind !== 'foot'; hud.wep.textContent = `${W.icon || ''} ${W.name || ''}`; hud.wpb.style.display = kind === 'foot' ? '' : 'none'; }
     hud.gun.textContent = kind === 'foot' ? (weaponOf(P.weapon) && weaponOf(P.weapon).melee ? 'なぐる' : 'うつ') : kind === 'car' || kind === 'bike' ? 'ビーム' : 'こうげき'; root.querySelector('.ab-tg').style.display = air ? 'none' : '';
+    if (pin) { const dd = Math.hypot(pin.x - P.x, pin.z - P.z); if (dd < 14) { setPin(null); S.msg = '🎉 もくてきちに ついたよ!'; S.msgT = 2.5; if (o.onSfx) o.onSfx('win'); } else { const ang = Math.atan2(pin.x - P.x, pin.z - P.z) - (P.yaw + 0); let dA = ang; while (dA > Math.PI) dA -= 2 * Math.PI; while (dA < -Math.PI) dA += 2 * Math.PI; const arrow = Math.abs(dA) < 0.35 ? '⬆' : dA > 0 ? (Math.abs(dA) > 2.4 ? '⬇' : '⬅') : (Math.abs(dA) > 2.4 ? '⬇' : '➡'); hud.pinhud.hidden = false; hud.pinhud.textContent = `📍 ${arrow} ${dd >= 1000 ? (dd / 1000).toFixed(1) + 'km' : Math.round(dd) + 'm'}`; } } else hud.pinhud.hidden = true;
     { const w = S.tracked ? S.wanted.find((x) => x.id === S.tracked) : null; hud.track.hidden = !w; if (w) hud.track.textContent = w.alive ? `🎯 ${w.name} 🪙${w.bounty} ・ ${Math.round(Math.hypot(w.x - P.x, w.z - P.z))}m` : `🎯 ${w.name}(いまは いないよ)`; }
     drawMap(hud.map, 240, 150, true); if (!bigmap.hidden) drawMap(hud.big, HALF + 40, 640, false);
   }

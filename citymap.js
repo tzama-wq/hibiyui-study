@@ -102,7 +102,7 @@ export const HOME = carve(findRect((sch[0] + pk3[0]) / 2 - 30, Math.min(sch[1], 
 export const AIRFIELD = (() => { let best = null; let bc = 1e18; for (let cx = -HALF + 190; cx <= HALF - 190; cx += 40) for (let cz = -HALF + 100; cz <= HALF - 100; cz += 40) { if (zones.some((q) => inRect({ x0: q.x0 - 190, x1: q.x1 + 190, z0: q.z0 - 100, z1: q.z1 + 100 }, cx, cz))) continue; const c = costOf(cx, cz, 300, 140) + hyp(cx - stn[0], cz - stn[1]) * 0.004; if (c < bc) { bc = c; best = rectAt(cx, cz, 300, 140); } } carve(best); return { x0: best.x0, x1: best.x1, z0: best.z0, z1: best.z1 }; })();
 // モール(トレッサ・アピタ)
 const mallR = (tx, tz, w, d) => carve(findRect(tx, tz, w, d, { maxR: 320, step: 20, pull: 0.01 }));
-export const MALL_TRESA = mallR(250, -420, 170, 90); export const MALL_APITA = mallR(-250, 520, 130, 80);
+export const MALL_TRESA = mallR(-250, -420, 170, 90); export const MALL_APITA = mallR(250, 520, 130, 80);
 indexRoads();
 
 // ---- いろいろな てん(みちに ぴったり) ------------------------------------------------------------------
