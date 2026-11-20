@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { EQUIP, weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
+import { EQUIP, weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, SECRET, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
 
 const FSrun = (sim) => 9.6 + 70 * 0.0096; const st = (v) => ({ SHO: v, PAS: v, SPD: v, DEF: v, STA: v });
@@ -140,7 +140,7 @@ for (const planeId of ['plane', 'hawk']) {
   // ワープ・のりものを ガレージで のる
   const s3 = mk(st(70), 3, { owned: VCAT.map((v) => v.id) }); const P3 = s3.state.player; P3.x = -300; P3.z = 300; assert.ok(s3.fastTravel().ok && Math.hypot(P3.x - GARAGE.x, P3.z - GARAGE.z) < 20, 'ガレージへ ワープ');
   const sp = s3.summon('hawk'); assert.ok(sp.ok && s3.vehicleOf() && s3.vehicleOf().id === 'hawk', 'ガレージから のる'); assert.equal(s3.summon('ship').ok, false);
-  const s4 = mk(); s4.state.player.coins = 30000; s4.state.arrests = { joe: 1, momo: 1, gonzo: 1 }; assert.ok(s4.buyVehicle('super').ok, 'たいほが ふえると レアを かえる');
+  const s4 = mk(st(70), 3, { jobOk: 0 }); s4.state.player.coins = 30000; s4.state.arrests = { joe: 1, momo: 1, gonzo: 1 }; assert.ok(!s4.buyVehicle('super').ok, 'おしごとの せいかいが たりないと かえない'); s4.addJobOk(30); assert.ok(s4.buyVehicle('super').ok, 'たいほ・おしごとが ふえると レアを かえる');
   const s5 = mk(); s5.addCoins(50); assert.equal(s5.state.player.coins, 50, 'おしごとの おきゅうりょう');
 }
 // ---- たては たてものを とおりぬけない ----
@@ -203,7 +203,7 @@ for (const planeId of ['plane', 'hawk']) {
   assert.ok(!sim.buyEquip('hmask').ok, 'レアは ミッション・たいほが ひつよう'); assert.ok(sim.buyEquip('hoodie').ok && P.hpMax === hp0 + 20, 'ふくで HPが ふえる'); assert.equal(S.equip.body, 'hoodie');
   assert.ok(sim.buyEquip('jersey').ok && S.equip.body === 'jersey' && P.hpMax === hp0 + 10, 'きがえると こうかが かわる'); assert.ok(sim.wear('jersey') && !S.equip.body && P.hpMax === hp0, 'ぬぐと もどる');
   const s2 = mk(); s2.state.player.coins = 100000; s2.buyEquip('sneaker'); assert.ok(s2.state.eq.spd > 0.05, 'くつで あしが はやい'); s2.buyEquip('cap'); assert.ok(s2.state.eq.aim > 0.09 && s2.state.eq.acc > 0.07, 'ぼうしで ねらい・ブレ');
-  const s3 = mk(); s3.state.player.coins = 1e6; s3.state.arrests = { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1 }; s3.state.done = { x: 6 }; assert.ok(s3.buyEquip('hmask').ok, 'かいほうされると レアが かえる');
+  const s3 = mk(); s3.state.player.coins = 1e6; s3.state.arrests = { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1 }; s3.state.done = { x: 6 }; assert.ok(!s3.buyEquip('hmask').ok, 'おしごとの せいかいも ひつよう'); s3.addJobOk(130); assert.ok(s3.buyEquip('hmask').ok, 'かいほうされると レアが かえる');
   const s4 = mk(st(70), 3, { eqOwned: ['sneaker', 'cap'], equip: { feet: 'sneaker', head: 'cap' } }); assert.ok(s4.state.eq.spd > 0 && s4.state.equip.head === 'cap', 'ほぞん・ふっかつ');
   const run1 = (e) => { const q = mk(st(70), 3, e); const Q = q.state.player; Q.x = 0; Q.z = 0; q.input.moveY = 1; q.input.moveX = 0; for (let i = 0; i < 40; i++) q.step(0.05); return Q.speed; };
   assert.ok(run1({ eqOwned: ['rocket'], equip: { feet: 'rocket' } }) > run1({}) * 1.2, 'くつで はやく はしる');
@@ -256,16 +256,24 @@ for (const planeId of ['plane', 'hawk']) {
   const sim = mk(); const S = sim.state; for (let i = 0; i < 400; i++) sim.step(0.05); const p0 = new Map(S.traffic.map((c) => [c.id, [c.x, c.z]])); for (let i = 0; i < 200; i++) sim.step(0.05);
   const moving = S.traffic.filter((c) => !c.dead && Math.hypot(c.x - p0.get(c.id)[0], c.z - p0.get(c.id)[1]) > 25).length; assert.ok(moving >= S.traffic.length * 0.6, `10びょうで 25m いじょう はしった くるま: ${moving}/${S.traffic.length}`);
 }
-// ---- オートAIMは とおすぎると きかない ----
+// ---- オートAIMは ぶきの しゃてい+5m まで ----
 {
-  const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'sniper'; if (!S.wOwned.includes('sniper')) S.wOwned.push('sniper'); const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } });
-  P.x = c.x - 150; P.z = c.z; P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; sim.step(0.05); assert.ok(!S.player.target, 'スナイパーでも 150m さきには オートAIMしない'); P.x = c.x - 40; P.z = c.z; sim.step(0.05); assert.ok(S.player.target && S.player.target.id === c.id, '40mなら ロックできる');
+  const mkT = (wid) => { const sim = mk(); const S = sim.state; const P = S.player; P.weapon = wid; if (!S.wOwned.includes(wid)) S.wOwned.push(wid); const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } }); return { sim, S, P, c }; };
+  const { sim, S, P, c } = mkT('pistol'); const R = weaponOf('pistol').range; P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2;
+  P.x = c.x - (R + 12); P.z = c.z; sim.step(0.05); assert.ok(!S.player.target, 'ハンドガンの しゃてい+5mを こえると オートAIMしない'); P.x = c.x - (R + 3); P.z = c.z; sim.step(0.05); assert.ok(S.player.target && S.player.target.id === c.id, 'しゃてい+5m いないなら ロックできる');
+  const t2 = mkT('sniper'); const R2 = weaponOf('sniper').range; assert.ok(R2 > R + 40, 'スナイパーは ながい'); t2.P.camYaw = Math.PI / 2; t2.P.yaw = Math.PI / 2; t2.P.x = t2.c.x - (R2 - 5); t2.P.z = t2.c.z; t2.sim.step(0.05); assert.ok(t2.S.player.target, 'スナイパーは とおくまで ロックできる(ぶきごとに ちがう)');
+}
+// ---- むずかしい ミッション・かくれキャラ ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const m = CITY_MISSIONS.find((x) => x.id === 'fortress'); const k = CITY_MISSIONS.find((x) => x.id === 'kingpin'); assert.ok(m && k, 'むずかしい ミッションが ある'); tele(sim, m.start.x, m.start.z); run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'mission'); sim.interact(); assert.ok(!S.mission, 'じょうけんが たりないと うけられない');
+  S.arrests = { joe: 1, momo: 1 }; S.done = { patrol: 2, gang: 2 }; run(sim, 0.1); sim.interact(); assert.ok(S.mission && S.mission.id === 'fortress' && S.crooks.filter((c) => c.mission).length === 12 && S.mission.timeLeft === 300, 'アジトを おそえ ミッション'); assert.ok(S.crooks.filter((c) => c.mission && c.type === 'boss').length >= 3, 'ボスが いる'); for (let i = 0; i < 20 * 301; i++) { P.invuln = 5; sim.step(0.05); if (!S.mission) break; } assert.ok(!S.mission && !S.done.fortress, 'じかんぎれで しっぱい');
 }
 // ---- ぜんぶ かうと さいきょうの そうびが かえる ----
 {
   const sim = mk(); const S = sim.state; const P = S.player; P.coins = 1e9; assert.ok(!sim.buyEquip('u_suit').ok, 'さいしょは かえない'); const u0 = sim.ultimateProgress(); assert.ok(u0.total > 30 && u0.have < u0.total);
-  S.arrests = Object.fromEntries(WANTED.map((w) => [w.id, 3])); S.done = { a: 10, b: 10, c: 10, d: 10, e: 10, f: 10 };
+  S.arrests = Object.fromEntries(WANTED.map((w) => [w.id, 3])); S.done = { a: 10, b: 10, c: 10, d: 10, e: 10, f: 10 }; sim.addJobOk(999);
   for (const e of EQUIP) if (!(e.need && e.need.all)) assert.ok(sim.buyEquip(e.id).ok, e.id); assert.ok(!sim.buyEquip('u_suit').ok, 'そうびだけでは まだ'); for (const it of VCAT) if (!S.owned.includes(it.id)) assert.ok(sim.buyVehicle(it.id).ok, it.id);
-  const u1 = sim.ultimateProgress(); assert.equal(u1.have, u1.total); assert.ok(sim.buyEquip('u_suit').ok && sim.buyEquip('u_boots').ok && sim.buyEquip('u_helm').ok, 'ぜんぶ かうと さいきょうが かえる'); assert.ok(S.eq.hp >= 220 && S.eq.def >= 0.6 && S.eq.spd >= 0.75 && S.eq.aim >= 1 && S.eq.acc >= 0.75, 'さいきょうの こうか');
+  const u1 = sim.ultimateProgress(); assert.equal(u1.have, u1.total); assert.ok(!sim.buyEquip('u_suit').ok, 'かくれキャラの しれんを クリアするまで かえない'); tele(sim, SECRET.x, SECRET.z); run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'secret', 'かくれキャラに はなしかけられる'); sim.interact(); assert.ok(S.mission && S.mission.id === 'secret' && S.crooks.filter((c) => c.mission).length === 8, 'かくしミッションが はじまる'); assert.ok(S.mission.timeLeft > 100); S.crooks = S.crooks.filter((c) => !c.mission); run(sim, 0.2); assert.ok(S.done.secret === 1 && !S.mission, 'かくしミッション クリア');
+  assert.ok(sim.buyEquip('u_suit').ok && sim.buyEquip('u_boots').ok && sim.buyEquip('u_helm').ok, 'ぜんぶ かって しれんを クリアすると さいきょうが かえる'); assert.ok(S.eq.hp >= 220 && S.eq.def >= 0.6 && S.eq.spd >= 0.75 && S.eq.aim >= 1 && S.eq.acc >= 0.75, 'さいきょうの こうか');
 }
 console.log('OK: city');
