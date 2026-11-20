@@ -106,7 +106,7 @@ export const VCAT = [
 ];
 export const catalogOf = (id) => VCAT.find((v) => v.id === id);
 // かいほうじょうけん: a=つかまえた 指名手配はんの にんずう / m=クリアした ミッションの かいすう
-export const needText = (n) => (n ? [n.m ? `ミッション ${n.m}かい クリア` : '', n.a ? `指名手配はん ${n.a}にん たいほ` : ''].filter(Boolean).join(' + ') : '');
+export const needText = (n) => (n ? [n.all ? 'そうび・のりもの・せんとうきを ぜんぶ かう' : '', n.m ? `ミッション ${n.m}かい クリア` : '', n.a ? `指名手配はん ${n.a}にん たいほ` : ''].filter(Boolean).join(' + ') : '');
 // ぶきカタログ(GTAの ぶきを まなんだ ラインナップ。たまは なくならない)。rate=1びょうに なんかい / expl=ばくはつ / g=おちる つよさ
 export const WEAPONS = [
   { id: 'fist', name: 'こぶし', icon: '👊', cat: '近接', price: 0, melee: true, dmg: 8, rate: 2.5, range: 2.6 },
@@ -250,6 +250,10 @@ export const EQUIP = [
   { id: 'headset', slot: 'head', name: 'ヘッドセット', icon: '🎧', price: 7000, aim: 0.3, acc: 0.22, need: { a: 1 } },
   { id: 'tactical', slot: 'head', name: 'タクティカルヘルメット', icon: '⛑️', price: 17000, aim: 0.42, acc: 0.3, need: { m: 3 } },
   { id: 'goggle', slot: 'head', name: 'スコープゴーグル', icon: '🥽', price: 42000, aim: 0.55, acc: 0.4, need: { a: 4, m: 4 } },
+  // ぜんぶ(そうび・のりもの・ひこうき)を かうと かえる 「さいきょう」
+  { id: 'u_suit', slot: 'body', name: '👑 ちきゅうぼうえい さいきょうスーツ', icon: '👑', price: 300000, hp: 220, def: 0.6, need: { all: true } },
+  { id: 'u_boots', slot: 'feet', name: '👑 さいきょう ブースター ブーツ', icon: '🌟', price: 300000, spd: 0.75, need: { all: true } },
+  { id: 'u_helm', slot: 'head', name: '👑 さいきょう スカウター ヘルメット', icon: '🌟', price: 300000, aim: 1.0, acc: 0.75, need: { all: true } },
   { id: 'hmask', slot: 'head', name: 'ヒーローマスク', icon: '🦸', price: 105000, aim: 0.7, acc: 0.52, need: { a: 8, m: 6 } },
 ];
 export const equipOf = (id) => EQUIP.find((e) => e.id === id);
@@ -306,7 +310,8 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const am = (id) => { const sp = ammoSpec(weaponOf(id)); if (!sp) return null; if (!S.ammo[id]) S.ammo[id] = { mag: sp.mag, reserve: Math.floor(sp.cap / 2) }; return S.ammo[id]; };
   const startReload = () => { const W = weaponOf(P.weapon); const sp = ammoSpec(W); if (!sp || P.reload > 0 || P.dead > 0) return false; const A = am(W.id); if (A.mag >= sp.mag || A.reserve <= 0) return false; P.reload = sp.reload; P.reloadId = W.id; snd('door'); return true; };
   const progress = () => ({ a: Object.values(S.arrests).filter((n) => n > 0).length, m: Object.values(S.done).reduce((q, n) => q + n, 0) });
-  const meets = (need) => { if (!need) return true; const pr = progress(); return pr.a >= (need.a || 0) && pr.m >= (need.m || 0); };
+  const ultimateProgress = () => { const eq = EQUIP.filter((e) => !(e.need && e.need.all)); const have = eq.filter((e) => S.eqOwned.includes(e.id)).length + VCAT.filter((it) => S.owned.includes(it.id)).length; return { have, total: eq.length + VCAT.length }; };
+  const meets = (need) => { if (!need) return true; if (need.all) { const u = ultimateProgress(); if (u.have < u.total) return false; } const pr = progress(); return pr.a >= (need.a || 0) && pr.m >= (need.m || 0); };
   const snd = (n) => { if (S.snd.length < 24) S.snd.push(n); };
   const fx = (kind, x, y, z, r = 8) => { if (S.effects.length < 60) S.effects.push({ kind, x, y, z, r, t: 0, life: kind === 'big' ? 1.2 : 0.7 }); };
   const msg = (t, d = 2.6) => { S.msg = t; S.msgT = d; };
@@ -724,7 +729,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     { const Wt = weaponOf(P.weapon) || {}; const vt = cur(); P.target = nearestCrook(vt ? (vt.kind === 'car' || vt.kind === 'bike' ? AUTOAIM_MAX_VEH : 600) : Math.min((Wt.range || 3) + 12, AUTOAIM_MAX), 6.3, P.yaw); } // あるいている ときは ぶきの しゃてい+12mの なかだけ ねらいが きく
   }
   return {
-    state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, buyEquip, wear, payFine, raise, gunHit, meleeHit, equip, cycleWeapon, reload: startReload, ammoOf: am, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
+    state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, buyEquip, wear, ultimateProgress, payFine, raise, gunHit, meleeHit, equip, cycleWeapon, reload: startReload, ammoOf: am, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
     takeEvents() { const e = S.events; S.events = []; return e; },
     aimAt(r) { if (!r) return; if (!cur()) { P.camYaw = Math.atan2(r.x - P.x, r.z - P.z); P.camFree = true; P.aimPitch = clamp(r.y != null ? Math.atan2(r.y - 1.6, hyp(r.x - P.x, r.z - P.z)) : Math.atan2(1.6 - 2.5, hyp(r.x - P.x, r.z - P.z)), -0.2, r.y != null ? 1.1 : 0.4); return; } P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(2 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
     look(dx, dy) { P.noAim = 0; const v = cur(); if (!v) { const am2 = 1 + S.eq.aim; P.camYaw -= dx * 0.0034 * am2; P.camFree = true; P.aimPitch = clamp(P.aimPitch - dy * 0.0024 * am2, -0.35, 1.1); } else if (!isAir(v.kind)) { P.aimRel = clamp(P.aimRel - dx * 0.0036, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch - dy * 0.0026, -0.2, 1.2); } },

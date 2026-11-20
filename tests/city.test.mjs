@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
+import { EQUIP, weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
 
 const FSrun = (sim) => 9.6 + 70 * 0.0096; const st = (v) => ({ SHO: v, PAS: v, SPD: v, DEF: v, STA: v });
@@ -260,5 +260,12 @@ for (const planeId of ['plane', 'hawk']) {
 {
   const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'sniper'; if (!S.wOwned.includes('sniper')) S.wOwned.push('sniper'); const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } });
   P.x = c.x - 150; P.z = c.z; P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; sim.step(0.05); assert.ok(!S.player.target, 'スナイパーでも 150m さきには オートAIMしない'); P.x = c.x - 40; P.z = c.z; sim.step(0.05); assert.ok(S.player.target && S.player.target.id === c.id, '40mなら ロックできる');
+}
+// ---- ぜんぶ かうと さいきょうの そうびが かえる ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; P.coins = 1e9; assert.ok(!sim.buyEquip('u_suit').ok, 'さいしょは かえない'); const u0 = sim.ultimateProgress(); assert.ok(u0.total > 30 && u0.have < u0.total);
+  S.arrests = Object.fromEntries(WANTED.map((w) => [w.id, 3])); S.done = { a: 10, b: 10, c: 10, d: 10, e: 10, f: 10 };
+  for (const e of EQUIP) if (!(e.need && e.need.all)) assert.ok(sim.buyEquip(e.id).ok, e.id); assert.ok(!sim.buyEquip('u_suit').ok, 'そうびだけでは まだ'); for (const it of VCAT) if (!S.owned.includes(it.id)) assert.ok(sim.buyVehicle(it.id).ok, it.id);
+  const u1 = sim.ultimateProgress(); assert.equal(u1.have, u1.total); assert.ok(sim.buyEquip('u_suit').ok && sim.buyEquip('u_boots').ok && sim.buyEquip('u_helm').ok, 'ぜんぶ かうと さいきょうが かえる'); assert.ok(S.eq.hp >= 220 && S.eq.def >= 0.6 && S.eq.spd >= 0.75 && S.eq.aim >= 1 && S.eq.acc >= 0.75, 'さいきょうの こうか');
 }
 console.log('OK: city');
