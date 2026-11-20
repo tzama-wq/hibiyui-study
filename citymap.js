@@ -69,6 +69,11 @@ blds = blds.filter((b) => riverDist(b.cx, b.cz) > RIVER.hw + 6 && railDist(b.cx,
 indexRoads();
 const onRoadB = (b) => { for (const [u, v] of [[0, 0], [0.8, 0.8], [-0.8, 0.8], [0.8, -0.8], [-0.8, -0.8], [0.95, 0], [-0.95, 0], [0, 0.95], [0, -0.95]]) { const lx = (u * b.w) / 2; const lz = (v * b.d) / 2; const x = b.cx + lx * b.c - lz * b.s; const z = b.cz + lx * b.s + lz * b.c; if (roadSD(x, z) < -0.2) return true; } return false; };
 blds = blds.filter((b) => !onRoadB(b)); // みちの うえに かかる たてものは けす
+{ // みちの ちゅうしんせんが とおる たてものも けす(4mごとに しらべる)
+  const BG = new Map(); const bk = (x, z) => Math.floor(x / 60) * 100003 + Math.floor(z / 60); blds.forEach((b) => { for (let gx = Math.floor(b.x0 / 60); gx <= Math.floor(b.x1 / 60); gx++) for (let gz = Math.floor(b.z0 / 60); gz <= Math.floor(b.z1 / 60); gz++) { const k = gx * 100003 + gz; if (!BG.has(k)) BG.set(k, []); BG.get(k).push(b); } });
+  const dead = new Set(); const hit = (x, z) => { const l = BG.get(bk(x, z)); if (!l) return; for (const b of l) { if (x < b.x0 || x > b.x1 || z < b.z0 || z > b.z1) continue; const dx = x - b.cx; const dz = z - b.cz; if (Math.abs(dx * b.c + dz * b.s) <= b.w / 2 + 0.5 && Math.abs(-dx * b.s + dz * b.c) <= b.d / 2 + 0.5) dead.add(b); } };
+  for (const r of roadList) { if (r.br) continue; for (let i = 1; i < r.pts.length; i++) { const a0 = r.pts[i - 1]; const b0 = r.pts[i]; const L = hyp(b0[0] - a0[0], b0[1] - a0[1]); const n = Math.max(1, Math.ceil(L / 4)); for (let k = 0; k <= n; k++) hit(a0[0] + ((b0[0] - a0[0]) * k) / n, a0[1] + ((b0[1] - a0[1]) * k) / n); } }
+  blds = blds.filter((b) => !dead.has(b)); }
 
 // ---- ばしょの けってい(ほんぶ・じたく・サッカー・くうこう・モール) ---------------------------------------
 const costOf = (cx, cz, w, d) => { // その ばしょの こんざつ ぐあい(たてもの・みち・かわ・てつどう)
@@ -97,7 +102,7 @@ export const SOCCER_ZONE = (() => { const x = 90; const z = riverZ(x) + RIVER.hw
 export const SOCCER = { x: SOCCER_ZONE.cx, z: SOCCER_ZONE.cz };
 // じたく(ガレージ): 綱島東小学校の ちかく
 const sch = POI.school ? POI.school.c : [17, 351]; const pk3 = POI.park3 ? POI.park3.c : [244, 381];
-export const HOME = carve(findRect((sch[0] + pk3[0]) / 2 - 30, Math.min(sch[1], pk3[1]) - 190, 120, 100, { maxR: 260, pull: 0.03 }));
+export const HOME = (() => { const pk = POI.park3 && POI.park3.poly ? polyAABB(POI.park3.poly) : null; if (!pk) return carve(findRect((sch[0] + pk3[0]) / 2, Math.min(sch[1], pk3[1]) - 120, 64, 84, { maxR: 260, pull: 0.03 })); const w = Math.max(60, pk.x1 - pk.x0); const d = Math.max(80, pk.z1 - pk.z0); return carve(rectAt(pk.cx, pk.cz, w, d)); })(); // じたくは 綱島東三丁目公園の なか
 // くうこう(いちばん すいている ひろい ばしょ)
 export const AIRFIELD = (() => { let best = null; let bc = 1e18; for (let cx = -HALF + 190; cx <= HALF - 190; cx += 40) for (let cz = -HALF + 100; cz <= HALF - 100; cz += 40) { if (zones.some((q) => inRect({ x0: q.x0 - 190, x1: q.x1 + 190, z0: q.z0 - 100, z1: q.z1 + 100 }, cx, cz))) continue; const c = costOf(cx, cz, 300, 140) + hyp(cx - stn[0], cz - stn[1]) * 0.004; if (c < bc) { bc = c; best = rectAt(cx, cz, 300, 140); } } carve(best); return { x0: best.x0, x1: best.x1, z0: best.z0, z1: best.z1 }; })();
 // モール(トレッサ・アピタ)

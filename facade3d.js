@@ -112,8 +112,10 @@ export function addBuildings(THREE, scene, buildings, o = {}) {
   };
   const plainBox = (b, w, h, d, lx, y, lz, c) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(lx, y, lz); place(g, b); colorize(g, c); push(plain, g); };
   const roofBox = (b, w, d, y, c) => { const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 12, uv.getY(i) * d / 12); g.translate(0, y, 0); place(g, b); colorize(g, c); push(rf, g); };
+  const glbInst = [];
   for (const b of buildings) {
     if (['house', 'pillar', 'shrine', 'home'].includes(b.kind)) continue;
+    if (o.glb) { const pk = o.glb.pick(b); if (pk) { const kit = o.glb.kit(pk); if (kit) { const sx = b.w / kit.size.x; const sz = b.d / kit.size.z; const sm = (sx + sz) / 2; const sy = Math.max(0.75 * sm, Math.min(1.8 * sm, b.h / kit.size.y)); glbInst.push({ b, kit, sx, sy, sz }); b.H = kit.size.y * sy; continue; } } }
     const w = b.w; const d = b.d; const tint = TINT[b.tone % TINT.length]; const k = b.kind;
     const style = k === 'tower' ? 'tower' : k === 'office' ? 'office' : k === 'apt' ? 'apt' : k === 'shop' ? 'tenant' : (k === 'school' || k === 'gym') ? 'school' : (k === 'hq' || k === 'station' || k === 'mall') ? 'office' : 'warehouse';
     const hasGround = ['tower', 'office', 'apt', 'shop', 'hq', 'station', 'mall'].includes(k) && b.h > 9 && w > 8 && d > 8;
@@ -129,6 +131,11 @@ export function addBuildings(THREE, scene, buildings, o = {}) {
     b.H = H;
   }
   const meshes = [];
+  { // たてものの 3Dモデル(CC0)を インスタンスで ならべる(160mごとの タイルに わけて、みえない ところは えがかない)
+    const tiles = new Map(); const m4 = new THREE.Matrix4(); const T = new THREE.Matrix4(); const Ry = new THREE.Matrix4(); const Sc = new THREE.Matrix4(); const C0 = new THREE.Matrix4();
+    for (const it of glbInst) { const k = `${Math.floor(it.b.cx / 160)},${Math.floor(it.b.cz / 160)}`; if (!tiles.has(k)) tiles.set(k, []); tiles.get(k).push(it); }
+    for (const list of tiles.values()) { const byKit = new Map(); for (const it of list) { if (!byKit.has(it.kit)) byKit.set(it.kit, []); byKit.get(it.kit).push(it); }
+      for (const [kit, items] of byKit) kit.parts.forEach((pt) => { const im = new THREE.InstancedMesh(pt.geo, pt.mat, items.length); items.forEach((it, i) => { T.makeTranslation(it.b.cx, 0, it.b.cz); Ry.makeRotationY(-(it.b.ang || 0) + (it.b.tone % 2 ? Math.PI : 0)); Sc.makeScale(it.sx, it.sy, it.sz); C0.makeTranslation(-kit.center.x, -kit.minY, -kit.center.z); m4.copy(T).multiply(Ry).multiply(Sc).multiply(C0).multiply(pt.m4); im.setMatrixAt(i, m4); }); im.castShadow = !!S; im.receiveShadow = !!S; im.frustumCulled = true; im.computeBoundingSphere && im.computeBoundingSphere(); scene.add(im); meshes.push(im); }); } }
   for (const [mat, list] of parts) {
     let nv = 0; let ni = 0; for (const g of list) { nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
     const pos = new Float32Array(nv * 3); const nor = new Float32Array(nv * 3); const uvA = new Float32Array(nv * 2); const colA = new Float32Array(nv * 3); const idx = new Uint32Array(ni); let vo = 0; let io = 0;

@@ -9,6 +9,8 @@ const veh = (kind, ks) => { const lo = autoLoadout(kind, chars); const parts = {
 const mk = (ks = st(70), seed = 3, extra = {}) => { let a = seed; const rnd = () => { a = (a * 1664525 + 1013904223) % 4294967296; return a / 4294967296; }; return createCity({ stats: ks, vehicles: { tank: veh('tank', ks), ship: veh('ship', ks), plane: veh('plane', ks) }, rnd, ...extra }); };
 const run = (sim, sec, f) => { for (let t = 0; t < sec; t += 1 / 30) { if (f) f(t); sim.step(1 / 30); } };
 const freeYaw = (x, z, L = 170) => { let best = 0; let bl = -1; for (let k = 0; k < 16; k++) { const y = (k / 16) * Math.PI * 2; let d = 0; for (; d < L; d += 4) { const px = x + Math.sin(y) * d; const pz = z + Math.cos(y) * d; if (isWater(px, pz) || insideBuilding(px, pz, 0)) break; } if (d > bl) { bl = d; best = y; } } return best; };
+const clearLine = (x0, z0, y0, x1, z1, y1) => { const L = Math.hypot(x1 - x0, z1 - z0, y1 - y0); for (let d = 2; d < L - 1; d += 1.5) { const t = d / L; if (insideBuilding(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, y0 + (y1 - y0) * t)) return false; } return true; };
+const hopLos = (sim, r) => { const P = sim.state.player; for (const rad of [10, 16, 24, 34]) for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; const x = r.x + Math.cos(a) * rad; const z = r.z + Math.sin(a) * rad; if (isWater(x, z) || insideBuilding(x, z, 0)) continue; if (!clearLine(x, z, 4, r.x, r.z, 1.6)) continue; const v = sim.vehicleOf(); if (v) { v.x = x; v.z = z; } P.x = x; P.z = z; return true; } return false; };
 const MS = (id) => CITY_MISSIONS.find((m) => m.id === id).start;
 const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; sim.step(1 / 30); };
 
@@ -93,7 +95,7 @@ const drive = (sim, tx, tz, { speed = 1 } = {}) => {
 {
   const sim = mk(st(100)); const S = sim.state; const P = S.player; tele(sim, MS('gang').x, MS('gang').z); sim.interact(); assert.equal(S.mission.id, 'gang'); const mc = () => S.crooks.filter((c) => c.mission); assert.equal(mc().length, 5);
   const tank = S.vehicles.find((v) => v.id === 'tank'); tank.x = MS('gang').x + 6; tank.z = MS('gang').z; tele(sim, MS('gang').x + 10, MS('gang').z); sim.interact(); assert.equal(sim.vehicleOf().kind, 'tank');
-  run(sim, 200, () => { P.hp = P.hpMax; const r = mc().filter((c) => c.state !== 'down').sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0]; if (!r) { sim.input.gun = false; return; } const d = Math.hypot(r.x - P.x, r.z - P.z); if (d > 60) drive(sim, r.x, r.z); else { let aa = Math.atan2(r.x - P.x, r.z - P.z) - P.yaw; while (aa > Math.PI) aa -= 2 * Math.PI; while (aa < -Math.PI) aa += 2 * Math.PI; sim.input.turn = Math.max(-1, Math.min(1, aa * 2.5)); sim.input.climb = 0; } sim.aimAt(r); sim.input.gun = d < 150; if (d < 250) sim.fireMissile(); });
+  run(sim, 200, () => { P.hp = P.hpMax; const r = mc().filter((c) => c.state !== 'down').sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0]; if (!r) { sim.input.gun = false; return; } const d = Math.hypot(r.x - P.x, r.z - P.z); if (d > 60 || !clearLine(P.x, P.z, 4, r.x, r.z, 1.6)) hopLos(sim, r); else { let aa = Math.atan2(r.x - P.x, r.z - P.z) - P.yaw; while (aa > Math.PI) aa -= 2 * Math.PI; while (aa < -Math.PI) aa += 2 * Math.PI; sim.input.turn = Math.max(-1, Math.min(1, aa * 2.5)); sim.input.climb = 0; } sim.aimAt(r); sim.input.gun = d < 150; if (d < 250) sim.fireMissile(); });
   sim.input.gun = false; assert.ok(mc().length > 0 && mc().every((c) => c.state === 'down'), `ぜんいん たおれた (のこり ${mc().filter((c) => c.state !== 'down').length})`);
   sim.interact();
   for (const c of mc().slice()) { tele(sim, c.x - 2, c.z); P.hp = P.hpMax; assert.equal(S.nearby.kind, 'arrest'); sim.interact(); }
@@ -140,5 +142,20 @@ for (const planeId of ['plane', 'hawk']) {
   const sp = s3.summon('hawk'); assert.ok(sp.ok && s3.vehicleOf() && s3.vehicleOf().id === 'hawk', 'ガレージから のる'); assert.equal(s3.summon('ship').ok, false);
   const s4 = mk(); s4.state.player.coins = 30000; s4.state.arrests = { joe: 1, momo: 1, gonzo: 1 }; assert.ok(s4.buyVehicle('super').ok, 'たいほが ふえると レアを かえる');
   const s5 = mk(); s5.addCoins(50); assert.equal(s5.state.player.coins, 50, 'おしごとの おきゅうりょう');
+}
+// ---- たては たてものを とおりぬけない ----
+{
+  const bb = LAYOUT.buildings.find((b) => b.kind === 'apt' && b.h > 14 && b.w > 14 && b.d > 10 && !b.ang); const sim = mk(); const S = sim.state; const P = S.player;
+  if (bb) { const c = S.crooks.find((x) => x.wid === 'joe'); c.x = bb.cx + bb.w / 2 + 9; c.z = bb.cz; c.state = 'idle'; c.hp = c.hpMax; P.x = bb.cx - bb.w / 2 - 9; P.z = bb.cz; P.weapon = 'pistol'; P.yaw = Math.PI / 2; sim.input.gun = true; const hp0 = c.hp;
+    run(sim, 3, () => { P.hp = P.hpMax; P.x = bb.cx - bb.w / 2 - 9; P.z = bb.cz; P.yaw = Math.PI / 2; P.camYaw = Math.PI / 2; c.x = bb.cx + bb.w / 2 + 9; c.z = bb.cz; }); sim.input.gun = false; assert.equal(c.hp, hp0, 'かべの むこうの てきには あたらない'); }
+}
+// ---- スマホふうの そうさ: カメラきじゅんの いどう・ねらいロックで よこいどう・スティックで ダッシュ ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const fy = freeYaw(P.x, P.z, 60); P.camYaw = fy; P.camFree = true; P.yaw = fy;
+  const x0 = P.x; const z0 = P.z; sim.input.moveY = 0.5; run(sim, 1.5); const dF = Math.hypot(P.x - x0, P.z - z0); sim.input.moveY = 0; run(sim, 0.5);
+  const spWalk = dF / 1.5; assert.ok(dF > 3, 'スティックを うえに たおすと カメラの むきに すすむ');
+  sim.input.moveY = 1; run(sim, 1.2); const spMax = P.speed; sim.input.moveY = 0; run(sim, 0.5); assert.ok(spMax > spWalk * 1.3, 'ふかく たおすと ダッシュ');
+  const cy2 = fy + Math.PI / 2; P.x = x0; P.z = z0; P.camYaw = cy2; P.yaw = cy2; sim.input.aimLock = true; sim.input.moveX = 1; sim.input.moveY = 0; run(sim, 0.8); const lateral = Math.abs(((P.x - x0) * Math.cos(cy2) - (P.z - z0) * Math.sin(cy2))); const along = Math.abs((P.x - x0) * Math.sin(cy2) + (P.z - z0) * Math.cos(cy2));
+  assert.ok(Math.abs(Math.atan2(Math.sin(P.yaw - P.camYaw), Math.cos(P.yaw - P.camYaw))) < 0.25, 'ねらい中は からだが カメラを むいたまま'); assert.ok(lateral > along, 'ねらい中の よこいどう(ストレイフ)'); sim.input.aimLock = false; sim.input.moveX = 0;
 }
 console.log('OK: city');

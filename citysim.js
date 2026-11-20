@@ -28,7 +28,7 @@ export const SCHOOL_POLY = CM.schoolPoly; export const PARK3_POLY = CM.parkPoly;
 export const HQ = { x: PLAZA.cx, z: PLAZA.cz, r: 30 };
 export const SPAWN = { x: PLAZA.cx + 22, z: PLAZA.cz - 38, yaw: 0 };
 export const BOARD = { x: PLAZA.cx + 48, z: PLAZA.cz - 36 }; // してい手配ボード
-export const GARAGE = { x: HOME.cx, z: HOME.cz - 14 }; // ガレージ(じたく)
+export const GARAGE = { x: HOME.cx, z: HOME.z0 + 38 }; // ガレージ(じたく)
 const freeAround = (x, z) => { for (let r = 0; r < 120; r += 4) for (let a = 0; a < 16; a++) { const t = (a / 16) * 6.283; const px = x + Math.cos(t) * r; const pz = z + Math.sin(t) * r; if (!CM.isWater(px, pz) && !insideBuilding(px, pz, 0)) return { x: Math.round(px), z: Math.round(pz) }; } return { x, z }; };
 export const JOB = { x: 0, z: 0 }; // おしごと(綱島東小学校)—あとで きめる
 export const ARMS = { x: PLAZA.cx - 56, z: PLAZA.cz + 32 };
@@ -44,7 +44,7 @@ function makeLayout() {
   add(mkB(HQ.x - 40, HQ.z + 52, 42, 22, 0, 11, 'station')); // 新綱島駅の しゅつにゅうぐち
   const mk = (m, name, st) => add(mkB(m.cx, m.cz + m.d * 0.18, m.w - 34, m.d * 0.5, 0, 22, 'mall', { name }));
   mk(MALL_TRESA, 'tresa'); mk(MALL_APITA, 'apita');
-  add(mkB(HOME.cx - 22, HOME.cz + 32, 46, 28, 0, 8, 'home')); // じたく
+  add(mkB(HOME.cx, HOME.z1 - 13, 24, 14, 0, 8, 'home')); // じたく
   const ac = (AIRFIELD.x0 + AIRFIELD.x1) / 2; add(mkB(ac - 90, AIRFIELD.z1 - 26, 60, 36, 0, 16, 'hangar'), mkB(ac + 20, AIRFIELD.z1 - 26, 50, 36, 0, 16, 'hangar'));
   add(mkB(SHRINE.x, SHRINE.z, 28, 16, 0, 8, 'shrine'));
   // こうかせんの はしら(せんろに そって 40mごと)
@@ -205,19 +205,19 @@ export const STORES = [
 ];
 export const storeOf = (id) => STORES.find((x) => x.id === id);
 // とめる ばしょ(ガレージの わく)
-const HX = HOME.cx; const HZ = HOME.cz;
-const CAR_SLOTS = [[HX - 42, HZ - 28], [HX - 22, HZ - 28], [HX - 2, HZ - 28], [HX + 18, HZ - 28], [HX - 42, HZ - 8], [HX - 22, HZ - 8], [HX - 2, HZ - 8], [HX + 18, HZ - 8]];
-const BIKE_SLOTS = [[HX + 38, HZ - 30], [HX + 48, HZ - 30], [HX + 38, HZ - 18], [HX + 48, HZ - 18], [HX + 38, HZ - 6], [HX + 48, HZ - 6]];
+const HX = HOME.cx; const HZ0 = HOME.z0;
+const CAR_SLOTS = [-18, -6, 6, 18].flatMap((dx) => [14, 30].map((dz) => [HX + dx, HZ0 + dz])).sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+const BIKE_SLOTS = [-15, -9, -3, 3, 9, 15].map((dx) => [HX + dx, HZ0 + 46]);
 const AIR_SLOTS = [[AIRFIELD.x0 + 20, ACZ - 28], [AIRFIELD.x0 + 20, ACZ + 28], [AIRFIELD.x0 + 20, ACZ - 56], [AIRFIELD.x0 + 20, ACZ + 56], [AIRFIELD.x0 + 58, ACZ - 42], [AIRFIELD.x0 + 58, ACZ + 42]];
 const FIXED = { tank: { kind: 'tank', x: PLAZA.cx + 50, z: PLAZA.cz + 4, yaw: Math.PI / 2 }, ship: { kind: 'ship', x: DOCK.x, z: DOCK.z, yaw: Math.PI / 2 }, plane: { kind: 'plane', x: AIRFIELD.x0 + 24, z: ACZ, yaw: Math.PI / 2 } };
 const slotOf = (it, idx) => { if (it.kind === 'bike') { const s = BIKE_SLOTS[idx % BIKE_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; } if (isAir(it.kind)) { const s = AIR_SLOTS[idx % AIR_SLOTS.length]; return { x: s[0], z: s[1], yaw: Math.PI / 2 }; } const s = CAR_SLOTS[idx % CAR_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; };
 
 export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = DEFAULT_WEAPONS, weapon = 'pistol', rnd = mulberry(5), gentle = false, coins = 0, arrests = {} }) {
   const ks = stats; const FS = footStats(ks);
-  const input = { turn: 0, climb: 0, gun: false, boost: false, aimX: 0, aimY: 0 };
+  const input = { turn: 0, climb: 0, moveX: 0, moveY: 0, aimLock: false, gun: false, boost: false, aimX: 0, aimY: 0 };
   const S = {
     t: 0, ph: 'play', events: [], snd: [], msg: '', msgT: 0, banner: '', bannerT: 0,
-    player: { mode: 'foot', x: SPAWN.x, y: 0, z: SPAWN.z, yaw: SPAWN.yaw, pitch: 0, roll: 0, speed: 0, hp: FS.hpMax, hpMax: FS.hpMax, boost: 100, aimRel: 0, aimPitch: 0.05, veh: null, invuln: 0, dead: 0, hurt: 0, coins, wCd: 0, buff: { dmg: 0, speed: 0 }, weapon: 'pistol', noAim: 0, chute: false, carry: 0, kos: 0, target: null, missileCd: 0, lastHurt: -99 },
+    player: { mode: 'foot', x: SPAWN.x, y: 0, z: SPAWN.z, yaw: SPAWN.yaw, pitch: 0, roll: 0, speed: 0, hp: FS.hpMax, hpMax: FS.hpMax, boost: 100, aimRel: 0, aimPitch: 0.05, veh: null, invuln: 0, dead: 0, hurt: 0, coins, wCd: 0, buff: { dmg: 0, speed: 0 }, weapon: 'pistol', noAim: 0, camYaw: SPAWN.yaw, camFree: false, chute: false, carry: 0, kos: 0, target: null, missileCd: 0, lastHurt: -99 },
     vehicles: [], civs: [], crooks: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, owned: [...new Set([...DEFAULT_OWNED, ...owned])], wOwned: [...new Set([...DEFAULT_WEAPONS, ...weapons])], arrests: { ...arrests }, tracked: null, swing: 0,
     wanted: [], stats: { coins: 0, arrests: 0, bounty: 0, missions: 0 },
   };
@@ -282,7 +282,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   };
   const leave = () => {
     const v = cur(); if (!v) return; v.occ = false; v.away = 0; const sd = v.yaw + Math.PI / 2; const air = isAir(v.kind);
-    P.mode = 'foot'; P.veh = null; P.x = v.x + Math.sin(sd) * (v.kind === 'ship' ? 18 : 6); P.z = v.z + Math.cos(sd) * (v.kind === 'ship' ? 18 : 6); P.y = air ? v.y : 0; P.yaw = v.yaw; P.speed = 0;
+    P.camFree = false; P.mode = 'foot'; P.veh = null; P.x = v.x + Math.sin(sd) * (v.kind === 'ship' ? 18 : 6); P.z = v.z + Math.cos(sd) * (v.kind === 'ship' ? 18 : 6); P.y = air ? v.y : 0; P.yaw = v.yaw; P.speed = 0;
     if (air && v.y > 12) { P.chute = true; msg('🪂 パラシュートで ゆっくり おりるよ'); v.x = v.home.x; v.z = v.home.z; v.y = 0; v.yaw = v.home.yaw; v.speed = 0; v.hp = v.hpMax; }
     else if (air) { v.speed = 0; }
     if (isWater(P.x, P.z) && v.kind === 'ship') {
@@ -356,29 +356,31 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const aimDir = () => {
     const v = cur(); const kind = v ? v.kind : 'foot';
     if (isAir(kind)) return { yaw: v.yaw, pitch: v.pitch, from: { x: v.x, y: v.y - 1, z: v.z } };
-    const ay = P.yaw + P.aimRel;
+    const ay = kind === 'foot' ? P.camYaw : P.yaw + P.aimRel;
     return { yaw: ay, pitch: P.aimPitch, from: { x: P.x, y: (kind === 'foot' ? 1.6 : kind === 'ship' ? 8 : kind === 'tank' ? 4 : 1.8) + P.y, z: P.z } };
   };
+  // たまは たてものを とおりぬけない(さいしょに あたる たてものまでの きょり)
+  const wallDist = (from, dv, maxD) => { for (let d = 2; d < maxD; d += 1.6) { const x = from.x + dv.x * d; const y = from.y + dv.y * d; const z = from.z + dv.z * d; if (y < 0) return d; if (insideBuilding(x, z, y)) return d; } return maxD + 1; };
   const rayCrook = (from, yaw, pitch, range) => {
-    const dv = dirOf(yaw, pitch); let best = null; let ba = 9;
+    const dv = dirOf(yaw, pitch); let best = null; let ba = 9; const wall = wallDist(from, dv, range);
     for (const r of S.crooks) {
-      if (r.state === 'down') continue; const vx = r.x - from.x; const vy = 1.6 - from.y; const vz = r.z - from.z; const dist = hyp(vx, vy, vz); if (dist > range) continue;
+      if (r.state === 'down') continue; const vx = r.x - from.x; const vy = 1.6 - from.y; const vz = r.z - from.z; const dist = hyp(vx, vy, vz); if (dist > range || dist > wall) continue;
       const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = ((r.type === 'boss' ? 3 : 2) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { ba = a; best = r; }
     }
-    return { best, dv };
+    return { best, dv, wall };
   };
   const fireFoot = () => {
-    const W = weaponOf(P.weapon) || weaponOf('fist'); if (P.wCd > 0) return; const sho = (1 + ks.SHO / 500) * (P.buff.dmg > 0 ? 1.4 : 1); const yaw0 = P.yaw;
-    if (!W.melee && P.noAim > 0.8) { const t = nearestCrook(W.range, 0.9, yaw0); if (t) { P.aimRel = clamp(angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0), -1.5, 1.5); P.aimPitch = clamp(Math.atan2(2.5 - 1.6, hyp(t.x - P.x, t.z - P.z)), -0.2, 0.4); } }
+    const W = weaponOf(P.weapon) || weaponOf('fist'); if (P.wCd > 0) return; const sho = (1 + ks.SHO / 500) * (P.buff.dmg > 0 ? 1.4 : 1); const yaw0 = P.camYaw;
+    if (!W.melee && P.noAim > 0.35) { const t = nearestCrook(W.range, 0.7, yaw0); if (t) { P.camYaw += angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0) * 0.45; P.aimPitch = clamp(Math.atan2(2.5 - 1.6, hyp(t.x - P.x, t.z - P.z)), -0.2, 0.4); } }
     P.wCd = 1 / W.rate; const d = aimDir();
     if (W.melee) { S.swing = 0.25; snd('hit'); const t = nearestCrook(W.range + 1.2, 1.2, d.yaw); if (t) { hitCrook(t, W.dmg * sho); fx('spark', t.x, 2, t.z, 4); } return; }
     if (W.expl) {
       const t = W.homing ? nearestCrook(W.range, 0.8, d.yaw) : null; const dv = dirOf(d.yaw, d.pitch + (W.lob || 0)); const sp = W.speed || 80;
       S.missiles.push({ x: d.from.x + dv.x * 1.5, y: d.from.y, z: d.from.z + dv.z * 1.5, vx: dv.x * sp, vy: dv.y * sp, vz: dv.z * sp, target: t ? t.id : null, t: 0, life: Math.max(1.2, W.range / sp + 1), dmg: W.dmg * sho, g: W.g || 0 }); snd(W.snd); return;
     }
-    const n = W.pellets || 1; let hit = null; let last = null;
-    for (let i = 0; i < n; i++) { const j = W.spread || 0; const r = rayCrook(d.from, d.yaw + (rnd() - 0.5) * 2 * j, d.pitch + (rnd() - 0.5) * 2 * j, W.range); last = r.dv; if (r.best) { hitCrook(r.best, W.dmg * sho); hit = r.best; } }
-    S.tracers.push({ from: d.from, to: hit ? { x: hit.x, y: 1.6, z: hit.z } : { x: d.from.x + last.x * 90, y: d.from.y + last.y * 90, z: d.from.z + last.z * 90 }, t: 0 }); snd(W.snd || 'gun');
+    const n = W.pellets || 1; let hit = null; let last = null; let lastWall = 999;
+    for (let i = 0; i < n; i++) { const j = W.spread || 0; const r = rayCrook(d.from, d.yaw + (rnd() - 0.5) * 2 * j, d.pitch + (rnd() - 0.5) * 2 * j, W.range); last = r.dv; lastWall = r.wall; if (r.best) { hitCrook(r.best, W.dmg * sho); hit = r.best; } }
+    const wl = Math.min(90, lastWall - 1); S.tracers.push({ from: d.from, to: hit ? { x: hit.x, y: 1.6, z: hit.z } : { x: d.from.x + last.x * wl, y: d.from.y + last.y * wl, z: d.from.z + last.z * wl }, t: 0 }); if (!hit && lastWall < 90) fx('spark', d.from.x + last.x * lastWall, Math.max(0.5, d.from.y + last.y * lastWall), d.from.z + last.z * lastWall, 3); snd(W.snd || 'gun');
   };
   const fireGun = (dt) => {
     if (!cur()) return fireFoot();
@@ -388,7 +390,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     const d = aimDir(); const dv = dirOf(d.yaw, d.pitch); let best = null; let ba = 9;
     for (const r of S.crooks) {
       if (r.state === 'down') continue; const ty = air ? Math.max(1.5, d.from.y - 0.25 * hyp(r.x - d.from.x, r.z - d.from.z)) : 1.6; const vx = r.x - d.from.x; const vy = ty - d.from.y; const vz = r.z - d.from.z; const dist = hyp(vx, vy, vz); if (dist > range) continue;
-      const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = (air ? 0.13 : (r.type === 'boss' ? 3 : 2) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { ba = a; best = r; }
+      const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = (air ? 0.13 : (r.type === 'boss' ? 3 : 2) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { const dd = { x: vx / (dist || 1), y: vy / (dist || 1), z: vz / (dist || 1) }; if (wallDist(d.from, dd, dist) > dist) { ba = a; best = r; } }
     }
     if (best) hitCrook(best, dps * dt * (kind === 'foot' ? 1 : 1.2));
     if (S.t % (kind === 'foot' ? 0.1 : 0.08) < dt) S.tracers.push({ from: d.from, to: best ? { x: best.x, y: 1.6, z: best.z } : { x: d.from.x + dv.x * 120, y: d.from.y + dv.y * 120, z: d.from.z + dv.z * 120 }, t: 0 });
@@ -408,8 +410,14 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (P.dead > 0) return;
     if (P.chute) { P.y = Math.max(0, P.y - 7 * dt); P.yaw += input.turn * 0.6 * dt; P.x += Math.sin(P.yaw) * input.climb * 6 * dt; P.z += Math.cos(P.yaw) * input.climb * 6 * dt; if (isWater(P.x, P.z)) { P.x = HQ.x; P.z = HQ.z - 40; } pushOut(P, 1.2); if (P.y <= 0.01) P.chute = false; return; }
     if (!v) {
-      const sp = (boost ? FS.run : FS.speed) * (P.buff.speed > 0 ? 1.3 : 1); const target = input.climb >= 0 ? input.climb * sp : input.climb * sp * 0.5; P.speed = lerp(P.speed, target, 1 - Math.exp(-9 * dt));
-      P.yaw += input.turn * FS.turn * dt; groundMove(P, P.x + Math.sin(P.yaw) * P.speed * dt, P.z + Math.cos(P.yaw) * P.speed * dt, 1.1, false); P.y = 0; P.boost = clamp(P.boost + (boost && input.climb > 0 ? -30 : 20) * dt, 0, 100); return;
+      const mx = input.moveX || 0; const my = input.moveY || 0; const mag = Math.min(1, Math.hypot(mx, my)); const dash = boost || mag >= 0.85; const sp = (dash ? FS.run : FS.speed) * (P.buff.speed > 0 ? 1.3 : 1); // スティックを ふかく たおすと ダッシュ
+      if (mag > 0.08) { // スマホ ふうの そうさ: スティックの むきに カメラを きじゅんに あるく
+        const cy = P.camYaw; let dx = Math.sin(cy) * my - Math.cos(cy) * mx; let dz = Math.cos(cy) * my + Math.sin(cy) * mx; const L = hyp(dx, dz) || 1; dx /= L; dz /= L;
+        P.speed = lerp(P.speed, (dash ? 1 : Math.min(1, mag / 0.8)) * sp, 1 - Math.exp(-10 * dt)); const lockd = input.gun || input.aimLock; const want = lockd ? P.camYaw : Math.atan2(dx, dz); P.yaw += clamp(angDiff(want, P.yaw), -14 * dt, 14 * dt); P.moveRel = angDiff(Math.atan2(dx, dz), P.yaw); P.moving = true;
+        groundMove(P, P.x + dx * P.speed * dt, P.z + dz * P.speed * dt, 1.1, false);
+      } else if (input.turn || input.climb) { const target = input.climb >= 0 ? input.climb * sp : input.climb * sp * 0.5; P.speed = lerp(P.speed, target, 1 - Math.exp(-9 * dt)); P.yaw += input.turn * FS.turn * dt; P.camFree = false; groundMove(P, P.x + Math.sin(P.yaw) * P.speed * dt, P.z + Math.cos(P.yaw) * P.speed * dt, 1.1, false); }
+      else { P.moving = false; P.speed = lerp(P.speed, 0, 1 - Math.exp(-12 * dt)); if (input.gun || input.aimLock) P.yaw += clamp(angDiff(P.camYaw, P.yaw), -14 * dt, 14 * dt); }
+      P.y = 0; P.boost = clamp(P.boost + (dash && mag > 0.1 ? -8 : 20) * dt, 0, 100); return;
     }
     const V = v.V; const k = v.kind;
     if (isAir(k)) {
@@ -552,7 +560,8 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (P.invuln > 0) P.invuln -= dt; if (P.hurt > 0) { P.hurt -= dt; P.lastHurt = S.t; } if (P.missileCd > 0) P.missileCd -= dt; if (P.wCd > 0) P.wCd -= dt; if (P.buff.dmg > 0) P.buff.dmg -= dt; if (P.buff.speed > 0) P.buff.speed -= dt; if (S.swing > 0) S.swing -= dt;
     if (P.dead > 0) { P.dead -= dt; if (P.dead <= 0) respawn(); stepCrooks(dt); return; }
     if (Math.abs(input.aimX) + Math.abs(input.aimY) > 0.05) P.noAim = 0; else P.noAim += dt;
-    const v0 = cur(); if (!v0 || !isAir(v0.kind)) { P.aimRel = clamp(P.aimRel + input.aimX * 1.7 * dt, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.2, 1.2); }
+    const v0 = cur(); if (!v0) { if (input.aimX) { P.camYaw += input.aimX * 1.9 * dt; P.camFree = true; } P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.35, 1.1); if (!P.camFree) P.camYaw = P.yaw; } else if (!isAir(v0.kind)) { P.aimRel = clamp(P.aimRel + input.aimX * 1.7 * dt, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.2, 1.2); }
+    if (input.aimLock && !cur() && P.dead <= 0) { const t = P.target; if (t) { const wy = Math.atan2(t.x - P.x, t.z - P.z); P.camYaw += angDiff(wy, P.camYaw) * Math.min(1, 12 * dt); P.aimPitch += (clamp(Math.atan2(1.6 - 2.5, hyp(t.x - P.x, t.z - P.z)), -0.2, 0.4) - P.aimPitch) * Math.min(1, 10 * dt); } P.camFree = true; }
     movePlayer(dt); setNear();
     if (input.gun) fireGun(dt);
     stepCrooks(dt); stepMissiles(dt); stepWorld(dt); stepMission(dt);
@@ -561,7 +570,8 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   return {
     state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, equip, cycleWeapon, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
     takeEvents() { const e = S.events; S.events = []; return e; },
-    aimAt(r) { if (!r) return; P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(2 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
+    aimAt(r) { if (!r) return; if (!cur()) { P.camYaw = Math.atan2(r.x - P.x, r.z - P.z); P.camFree = true; P.aimPitch = clamp(Math.atan2(1.6 - 2.5, hyp(r.x - P.x, r.z - P.z)), -0.2, 0.4); return; } P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(2 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
+    look(dx, dy) { P.noAim = 0; const v = cur(); if (!v) { P.camYaw -= dx * 0.0045; P.camFree = true; P.aimPitch = clamp(P.aimPitch - dy * 0.0032, -0.35, 1.1); } else if (!isAir(v.kind)) { P.aimRel = clamp(P.aimRel - dx * 0.0045, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch - dy * 0.0032, -0.2, 1.2); } },
     track(id) { S.tracked = S.tracked === id ? null : id; }, closeUi() { S.ui = null; }, refreshWanted,
   };
 }
