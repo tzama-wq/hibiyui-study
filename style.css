@@ -783,3 +783,12 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-track{position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);background:rgba(120,10,20,.8);color:#fff;border:2px solid #ff8a8a;font-size:12px;font-weight:900;padding:2px 10px;z-index:3;white-space:nowrap}.c3d-track[hidden]{display:none}
 .sh-grp{margin:8px 0 2px;text-align:left;color:#7fe7ff;font-weight:900;font-size:13px}.sh-item.own{border-color:#2fa86a;background:#143a30}.sh-item.trk{border-color:#ff5a5a;background:#3a1a24}.sh-item div{flex:1;min-width:0}
 .c3d .ab-act{width:max-content!important;max-width:46vw;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;text-align:center;writing-mode:horizontal-tb}
+.c3d-vig{position:absolute;inset:0;pointer-events:none;z-index:1;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(8,6,4,.5) 100%)}
+.c3d-vig::after{content:"";position:absolute;inset:0;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
+.c3d-ftbtn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 48px);right:calc(env(safe-area-inset-right,0px) + 56px);pointer-events:auto;z-index:3;background:rgba(255,159,67,.9);color:#fff;border:2px solid #fff;font-size:14px;font-weight:900;width:40px;height:36px;cursor:pointer;padding:0}
+.c3d-wep{position:absolute;top:calc(env(safe-area-inset-top,0px) + 92px);left:8px;pointer-events:auto;z-index:3;background:rgba(6,16,34,.78);color:#fff;border:2px solid #ffd23f;font:inherit;font-size:12px;font-weight:900;padding:3px 10px;cursor:pointer}.c3d-wep[hidden]{display:none}
+.c3d .ab-wp{background:#5a4ab8;font-size:12px;line-height:1.1}
+.c3d .c3d-coin{background:none;color:#a8e063;font-size:20px;font-style:italic;text-shadow:2px 2px 0 #000,-1px -1px 0 #000}
+.sh-item.lock{opacity:.55;border-color:#555}
+.jb-p{margin:6px 0;font-size:13px}.jb-big{font-size:24px;font-weight:900;color:#ffd23f;margin:8px 0}.jb-q{background:#fff;color:#111;padding:10px;margin:6px 0;text-align:left;font-size:16px;line-height:1.5}.jb-q svg{max-width:100%;height:auto}
+.jb-c b{font-size:16px}.jb-c.good{border-color:#2fa86a;background:#143a30}.jb-c.dim{opacity:.4}.jb-why{font-size:12px;color:#fff;text-align:left;margin:6px 0}.jb-r{min-height:40px}

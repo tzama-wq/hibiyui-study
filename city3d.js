@@ -1,6 +1,6 @@
 // 地球防衛隊「シティ」の 3Dがめん(three.js): じゆうに うごける まち。ルールは citysim.js。
 //   const g = await startCity3D({ kidName, stats, vehicles, specs, coins, done, calm, onSfx, onReward, onBuy, onQuit });
-import { createCity, LAYOUT, LINES, BAY, AIRFIELD, PLAZA, HQ, SHOP, SPAWN, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, CROOKS, DEFAULT_OWNED } from './citysim.js';
+import { createCity, LAYOUT, LINES, BAY, AIRFIELD, PLAZA, HQ, SHOP, SPAWN, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, ARMS, JOB, CROOKS, DEFAULT_OWNED, WEAPONS, DEFAULT_WEAPONS, weaponOf, needText } from './citysim.js';
 import { makeCarModel, makeBikeModel, makeAirModel, makePerson, townsPerson, crookPerson, labelSprite } from './citymodels3d.js';
 import { makeVehicleModel } from './vehicle3d.js';
 import { makeFx } from './fx3d.js';
@@ -18,18 +18,19 @@ function groundCanvas() {
   const S = 2048; const k = S / (MAPR * 2); const c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
   const X = (x) => (x + MAPR) * k; const Z = (z) => (z + MAPR) * k; const rect = (x0, z0, x1, z1) => g.fillRect(X(x0), Z(z0), (x1 - x0) * k, (z1 - z0) * k);
   g.fillStyle = '#e6d3a0'; rect(-652, -652, 652, 652); g.clearRect(X(BAY.x0 - 12), Z(BAY.z0 - 40), (BAY.x1 - BAY.x0 + 24) * k, (BAY.z1 - BAY.z0 + 52) * k);
-  g.fillStyle = '#5f9a4a'; rect(-640, -640, 640, 640);
+  g.fillStyle = '#566b48'; rect(-640, -640, 640, 640);
   for (let i = 0; i < 9000; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.05)' : 'rgba(0,50,0,.07)'; g.fillRect(Math.random() * S, Math.random() * S, 3, 2); }
   for (const l of LINES) { // みち(ほどう→アスファルト)
-    g.fillStyle = '#b9bcc4'; rect(l - 18, -640, l + 18, 640); rect(-640, l - 18, 640, l + 18);
+    g.fillStyle = '#8b8d90'; rect(l - 18, -640, l + 18, 640); rect(-640, l - 18, 640, l + 18);
   }
-  for (const l of LINES) { g.fillStyle = '#3f4552'; rect(l - 12, -640, l + 12, 640); rect(-640, l - 12, 640, l + 12); }
+  for (const l of LINES) { g.fillStyle = '#373c45'; rect(l - 12, -640, l + 12, 640); rect(-640, l - 12, 640, l + 12); }
+  for (let i = 0; i < 26000; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.045)' : 'rgba(0,0,0,.09)'; g.fillRect(Math.random() * S, Math.random() * S, 2 + Math.random() * 3, 2); }
   g.setLineDash([14 * k, 12 * k]); g.strokeStyle = '#f2c230'; g.lineWidth = 1.4 * k;
   for (const l of LINES) { g.beginPath(); g.moveTo(X(l), Z(-640)); g.lineTo(X(l), Z(640)); g.stroke(); g.beginPath(); g.moveTo(X(-640), Z(l)); g.lineTo(X(640), Z(l)); g.stroke(); }
   g.setLineDash([]);
   g.fillStyle = 'rgba(255,255,255,.8)'; for (const lx of LINES) for (const lz of LINES) for (let i = -9; i <= 9; i += 3) { rect(lx + i - 0.6, lz - 17, lx + i + 0.6, lz - 13); rect(lx + i - 0.6, lz + 13, lx + i + 0.6, lz + 17); rect(lx - 17, lz + i - 0.6, lx - 13, lz + i + 0.6); rect(lx + 13, lz + i - 0.6, lx + 17, lz + i + 0.6); }
   // ほんぶの ひろば
-  g.fillStyle = '#aab3c4'; rect(PLAZA.x0 + 12, PLAZA.z0 + 12, PLAZA.x1 - 12, PLAZA.z1 - 12); g.strokeStyle = '#fff'; g.lineWidth = 2 * k; g.beginPath(); g.arc(X(HQ.x), Z(HQ.z), HQ.r * k, 0, 6.283); g.stroke(); g.save(); g.translate(X(HQ.x), Z(HQ.z)); g.rotate(Math.PI); g.fillStyle = '#e0302a'; g.font = `bold ${26 * k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('HQ', 0, 0); g.restore();
+  g.fillStyle = '#767d88'; rect(PLAZA.x0 + 12, PLAZA.z0 + 12, PLAZA.x1 - 12, PLAZA.z1 - 12); g.strokeStyle = '#fff'; g.lineWidth = 2 * k; g.beginPath(); g.arc(X(HQ.x), Z(HQ.z), HQ.r * k, 0, 6.283); g.stroke(); g.save(); g.translate(X(HQ.x), Z(HQ.z)); g.rotate(Math.PI); g.fillStyle = '#e0302a'; g.font = `bold ${26 * k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('HQ', 0, 0); g.restore();
   // くうこう
   g.fillStyle = '#4a5160'; rect(AIRFIELD.x0, AIRFIELD.z0, AIRFIELD.x1, AIRFIELD.z1); g.fillStyle = '#fff'; for (let x = AIRFIELD.x0 + 20; x < AIRFIELD.x1 - 20; x += 36) rect(x, -1.2, x + 18, 1.2); for (let i = -3; i <= 3; i++) { rect(AIRFIELD.x0 + 4, i * 6 - 1.2, AIRFIELD.x0 + 16, i * 6 + 1.2); rect(AIRFIELD.x1 - 16, i * 6 - 1.2, AIRFIELD.x1 - 4, i * 6 + 1.2); }
   g.fillStyle = '#ffd23f'; rect(AIRFIELD.x0, AIRFIELD.z0, AIRFIELD.x1, AIRFIELD.z0 + 1.5); rect(AIRFIELD.x0, AIRFIELD.z1 - 1.5, AIRFIELD.x1, AIRFIELD.z1);
@@ -39,11 +40,16 @@ function groundCanvas() {
 }
 function windowTex(THREE, base, seed) {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = base; g.fillRect(0, 0, 128, 128);
+  const e = document.createElement('canvas'); e.width = e.height = 128; const ge = e.getContext('2d'); ge.fillStyle = '#000'; ge.fillRect(0, 0, 128, 128);
   let a = seed * 9973 + 7; const rnd = () => { a = (a * 1664525 + 1013904223) % 4294967296; return a / 4294967296; };
-  for (let y = 6; y < 128; y += 16) for (let x = 6; x < 128; x += 16) { g.fillStyle = rnd() < 0.18 ? '#ffe9a0' : '#35506f'; g.fillRect(x, y, 9, 10); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(x, y, 9, 2); }
-  g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(0, 0, 128, 3);
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  for (let i = 0; i < 700; i++) { g.fillStyle = rnd() < 0.5 ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.05)'; g.fillRect(rnd() * 128, rnd() * 128, 2, 2); }
+  for (let y = 6; y < 128; y += 16) for (let x = 6; x < 128; x += 16) { const lit = rnd() < 0.32; g.fillStyle = lit ? '#ffd98a' : '#26364c'; g.fillRect(x, y, 9, 10); g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(x, y, 9, 2); if (lit) { ge.fillStyle = rnd() < 0.2 ? '#9fd8ff' : '#ffc36a'; ge.fillRect(x, y, 9, 10); } }
+  const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, 'rgba(0,0,0,.1)'); gr.addColorStop(1, 'rgba(10,8,6,.28)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, 0, 128, 3);
+  const mk = (cv) => { const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+  const t = mk(c); t.userData.em = mk(e); return t;
 }
+const bmat = (THREE, tex, o = {}) => new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex.userData.em, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.8, metalness: 0.08, ...o });
 function iconSprite(THREE, text, color = '#ffd23f') {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = 'rgba(8,20,44,.75)'; g.beginPath(); g.arc(64, 64, 58, 0, 6.283); g.fill(); g.strokeStyle = color; g.lineWidth = 8; g.stroke(); g.font = '64px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 64, 70);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.renderOrder = 20; return s;
@@ -53,7 +59,7 @@ export async function startCity3D(o) {
   const THREE = await loadThree();
   if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
   document.querySelectorAll('.c3d').forEach((e) => e.remove());
-  const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
+  const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, weapons: o.weapons && o.weapons.length ? o.weapons : DEFAULT_WEAPONS, weapon: o.weapon || 'pistol', arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
   const root = document.createElement('div'); root.className = 'a3d c3d';
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
     <div class="a3d-hud">
@@ -61,10 +67,10 @@ export async function startCity3D(o) {
       <div class="a3d-top c3d-mis" hidden><div class="a3d-name"></div><div class="a3d-obj"></div></div>
       <div class="c3d-track" hidden></div><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
       <canvas class="c3d-map" width="150" height="150"></canvas>
-      <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button><button class="c3d-bigmapbtn" aria-label="ちず">🗺</button><button class="c3d-cancel" hidden>✖ ミッションを やめる</button>
+      <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button><button class="c3d-bigmapbtn" aria-label="ちず">🗺</button><button class="c3d-ftbtn" aria-label="ガレージへ ワープ">🏁⚡</button><button class="c3d-wep" aria-label="ぶき"></button><button class="c3d-cancel" hidden>✖ ミッションを やめる</button>
     </div>
-    <div class="a3d-pad"><div class="a3d-stick"><div class="a3d-knob"></div></div>
-      <div class="a3d-btns"><button class="ab-b ab-gun" data-b="gun">こうげき</button><button class="ab-b ab-ms" data-b="missile">ミサイル</button><button class="ab-b ab-boost" data-b="boost">ダッシュ</button><button class="ab-b ab-act" data-b="act" hidden></button><button class="ab-b ab-tg" data-b="target">ねらい<br>あわせ</button></div></div>
+    <div class="c3d-vig"></div><div class="a3d-pad"><div class="a3d-stick"><div class="a3d-knob"></div></div>
+      <div class="a3d-btns"><button class="ab-b ab-gun" data-b="gun">こうげき</button><button class="ab-b ab-ms" data-b="missile">ミサイル</button><button class="ab-b ab-boost" data-b="boost">ダッシュ</button><button class="ab-b ab-act" data-b="act" hidden></button><button class="ab-b ab-wp" data-b="weapon">🔁<br>ぶき</button><button class="ab-b ab-tg" data-b="target">ねらい<br>あわせ</button></div></div>
     <div class="a3d-rot p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
     <div class="c3d-bigmap" hidden><canvas width="640" height="640"></canvas><button class="btn gray">とじる</button></div>
     <div class="c3d-shop" hidden></div>
@@ -72,22 +78,22 @@ export async function startCity3D(o) {
   document.body.appendChild(root); const prevOv = document.body.style.overflow; document.body.style.overflow = 'hidden';
   const cv = root.querySelector('.a3d-cv'); const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
   const mobile = /Mobi|Android/i.test(navigator.userAgent); const shadowsOn = !o.calm;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, o.calm ? 1.25 : 1.75)); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, o.calm ? 1.25 : 1.75)); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08;
   if (shadowsOn) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
   const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.5, 9000);
-  const sunDir = new THREE.Vector3(-0.45, 0.62, -0.35).normalize(); const horizon = new THREE.Color('#cfe4f5'); scene.background = horizon; scene.fog = new THREE.Fog(horizon, 600, 5000);
-  try { scene.environment = envTexture(THREE, renderer); scene.environmentIntensity = 0.8; } catch { /* ok */ }
-  scene.add(new THREE.HemisphereLight(0xdfeeff, 0x4a7a55, 0.6)); const sun = new THREE.DirectionalLight(0xfff1d6, 2.2); scene.add(sun, sun.target);
+  const sunDir = new THREE.Vector3(-0.62, 0.2, -0.45).normalize(); const horizon = new THREE.Color('#8e8f86'); scene.background = horizon; scene.fog = new THREE.Fog(horizon, 120, 1500);
+  try { scene.environment = envTexture(THREE, renderer); scene.environmentIntensity = 0.35; } catch { /* ok */ }
+  scene.add(new THREE.HemisphereLight(0xb9bfc8, 0x3a3f36, 0.55)); const sun = new THREE.DirectionalLight(0xffb673, 1.9); scene.add(sun, sun.target);
   if (shadowsOn) { sun.castShadow = true; const m = mobile ? 1024 : 2048; sun.shadow.mapSize.set(m, m); const sc = sun.shadow.camera; sc.left = -140; sc.right = 140; sc.top = 140; sc.bottom = -140; sc.near = 20; sc.far = 700; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.5; }
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(8000, 24, 16), skyMat(THREE, sunDir)); sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(24000, 24000), new THREE.ShaderMaterial({ vertexShader: SEA_VS, fragmentShader: SEA_FS, uniforms: { time: { value: 0 }, sunDir: { value: sunDir }, fogColor: { value: horizon }, fogNear: { value: 600 }, fogFar: { value: 5000 }, isl: { value: new THREE.Vector2(0, 0) }, islR: { value: 700 } } }));
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(8000, 24, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { top: { value: new THREE.Color('#4f5a68') }, mid: { value: new THREE.Color('#8a8c86') }, low: { value: new THREE.Color('#b59a76') }, sun: { value: sunDir } }, vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }', fragmentShader: 'varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 low; uniform vec3 sun; void main(){ float h = clamp(vP.y,0.0,1.0); vec3 c = mix(low, mid, smoothstep(0.0,0.12,h)); c = mix(c, top, smoothstep(0.1,0.7,h)); float s = max(dot(vP, normalize(sun)),0.0); c += vec3(0.55,0.32,0.12) * pow(s, 6.0) * 0.6; gl_FragColor = vec4(c,1.0); }' })); sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(24000, 24000), new THREE.ShaderMaterial({ vertexShader: SEA_VS, fragmentShader: SEA_FS, uniforms: { time: { value: 0 }, sunDir: { value: sunDir }, fogColor: { value: horizon }, fogNear: { value: 120 }, fogFar: { value: 1500 }, isl: { value: new THREE.Vector2(0, 0) }, islR: { value: 700 } } }));
   sea.rotation.x = -Math.PI / 2; sea.position.y = -1.5; sea.frustumCulled = false; scene.add(sea);
   // まち
   const gc = groundCanvas(); const gtex = new THREE.CanvasTexture(gc); gtex.colorSpace = THREE.SRGBColorSpace; gtex.anisotropy = 8;
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAPR * 2, MAPR * 2), new THREE.MeshStandardMaterial({ map: gtex, transparent: true, alphaTest: 0.5, roughness: 0.95, metalness: 0 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-  const TONES = ['#c9cfdd', '#b7c4d6', '#d9c9b0', '#a8b9a0', '#cfa9a0', '#9fb0c8', '#d8d2c0', '#aab6c8', '#c4c9d0', '#e8eef7'];
-  const bmats = TONES.map((c, i) => new THREE.MeshStandardMaterial({ map: windowTex(THREE, c, i + 1), roughness: 0.7, metalness: 0.15 }));
-  const hangarMat = new THREE.MeshStandardMaterial({ color: '#8a96aa', roughness: 0.5, metalness: 0.4 }); const hqMat = new THREE.MeshStandardMaterial({ map: windowTex(THREE, '#e8eef7', 9), roughness: 0.5, metalness: 0.2 });
+  const TONES = ['#8f949f', '#7d8795', '#9a8f7e', '#778472', '#98807a', '#74808f', '#9a9588', '#7f8896', '#8a8f96', '#aeb5bf'];
+  const bmats = TONES.map((c, i) => bmat(THREE, windowTex(THREE, c, i + 1)));
+  const hangarMat = new THREE.MeshStandardMaterial({ color: '#8a96aa', roughness: 0.5, metalness: 0.4 }); const hqMat = bmat(THREE, windowTex(THREE, '#e8eef7', 9), { roughness: 0.5 });
   for (const b of LAYOUT.buildings) {
     const w = b.x1 - b.x0; const d = b.z1 - b.z0; const geo = new THREE.BoxGeometry(w, b.h, d); const uv = geo.attributes.uv;
     for (let i = 0; i < uv.count; i++) { const face = Math.floor(i / 4); const [su, sv] = face < 2 ? [d, b.h] : face < 4 ? [w, d] : [w, b.h]; uv.setXY(i, (uv.getX(i) * su) / 22, (uv.getY(i) * sv) / 22); }
@@ -97,6 +103,11 @@ export async function startCity3D(o) {
   { const hq = LAYOUT.buildings.find((b) => b.kind === 'hq'); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 30, 6), new THREE.MeshStandardMaterial({ color: '#fff' })); pole.position.set(hq.x0 + 6, hq.h + 15, hq.z0 + 6); scene.add(pole); const flag = new THREE.Mesh(new THREE.PlaneGeometry(12, 8), new THREE.MeshBasicMaterial({ color: '#fff', side: THREE.DoubleSide })); flag.position.set(hq.x0 + 12, hq.h + 26, hq.z0 + 6); scene.add(flag); const hi = new THREE.Mesh(new THREE.CircleGeometry(2.4, 18), new THREE.MeshBasicMaterial({ color: '#e0302a', side: THREE.DoubleSide })); hi.position.set(hq.x0 + 12, hq.h + 26, hq.z0 + 6.05); scene.add(hi); }
   // ショップ(おみせ)
   { const sh = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 5), new THREE.MeshStandardMaterial({ color: '#f1f4fa', roughness: 0.5 })); body.position.y = 2; const aw = new THREE.Mesh(new THREE.BoxGeometry(9, 0.5, 4), new THREE.MeshStandardMaterial({ color: '#e0302a' })); aw.position.set(0, 4.3, 2.4); aw.rotation.x = 0.25; sh.add(body, aw); const sp = iconSprite(THREE, '🏪'); sp.scale.set(10, 10, 1); sp.position.y = 12; sh.add(sp); sh.position.set(SHOP.x - 10, 0, SHOP.z); sh.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(sh); }
+  // ぶきや・おしごとセンター
+  { const mkShop = (x, z, wallC, signC, icon, label) => { const g = new THREE.Group(); const wall = new THREE.Mesh(new THREE.BoxGeometry(16, 9, 12), new THREE.MeshStandardMaterial({ color: wallC, roughness: 0.8 })); wall.position.y = 4.5; const band = new THREE.Mesh(new THREE.BoxGeometry(16.2, 2.4, 0.4), new THREE.MeshStandardMaterial({ color: signC, emissive: signC, emissiveIntensity: 0.5 })); band.position.set(0, 7.6, 6.1);
+      const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g2 = c.getContext('2d'); g2.fillStyle = '#fff'; g2.font = 'bold 36px sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(label, 128, 34); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const tx = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.5), new THREE.MeshBasicMaterial({ map: t, transparent: true })); tx.position.set(0, 7.6, 6.35);
+      const door = new THREE.Mesh(new THREE.BoxGeometry(3, 4.6, 0.3), new THREE.MeshStandardMaterial({ color: '#1b2430', emissive: '#ffcf80', emissiveIntensity: 0.4 })); door.position.set(0, 2.3, 6.05); g.add(wall, band, tx, door); g.position.set(x, 0, z); g.rotation.y = Math.PI; g.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(g); void icon; };
+    mkShop(12, 31, '#59606c', '#c0392b', '🔫', 'ぶきや AMMO'); mkShop(146, 62, '#6a7a96', '#2a7ae0', '💼', 'おしごと JOB'); }
   // ガレージ・ボード
   { const gr = new THREE.Group(); const wall = new THREE.MeshStandardMaterial({ color: '#d9dde6', roughness: 0.6 }); const dk = new THREE.MeshStandardMaterial({ color: '#2b303c', roughness: 0.7 });
     const back = new THREE.Mesh(new THREE.BoxGeometry(80, 9, 1), wall); back.position.set(0, 4.5, 8); const roof = new THREE.Mesh(new THREE.BoxGeometry(82, 0.8, 18), dk); roof.position.set(0, 9.4, -0.5); const sideL = new THREE.Mesh(new THREE.BoxGeometry(1, 9, 17), wall); sideL.position.set(-40, 4.5, 0); const sideR = sideL.clone(); sideR.position.x = 40;
@@ -125,10 +136,20 @@ export async function startCity3D(o) {
   // きのこ・き
   { const mk = (geo, mat, n) => { const m = new THREE.InstancedMesh(geo, mat, n); m.castShadow = shadowsOn; scene.add(m); return m; }; const n = LAYOUT.trees.length; const cone = mk(new THREE.ConeGeometry(4.5, 12, 7), new THREE.MeshStandardMaterial({ color: '#2f6a3a', roughness: 0.9 }), n); const trunk = mk(new THREE.CylinderGeometry(0.6, 0.8, 4, 5), new THREE.MeshStandardMaterial({ color: '#5a3f2a', roughness: 1 }), n); const dm = new THREE.Object3D();
     LAYOUT.trees.forEach((t, i) => { dm.position.set(t.x, 2 * t.s, t.z); dm.scale.setScalar(t.s); dm.updateMatrix(); trunk.setMatrixAt(i, dm.matrix); dm.position.y = 9 * t.s; dm.updateMatrix(); cone.setMatrixAt(i, dm.matrix); }); }
+  { const gc2 = document.createElement('canvas'); gc2.width = gc2.height = 64; const g2 = gc2.getContext('2d'); const gr = g2.createRadialGradient(32, 32, 1, 32, 32, 31); gr.addColorStop(0, 'rgba(255,214,140,1)'); gr.addColorStop(0.3, 'rgba(255,190,100,.45)'); gr.addColorStop(1, 'rgba(255,170,80,0)'); g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64);
+    const pts = []; for (const lx of LINES) for (const lz of LINES) for (const [dx, dz] of [[-16.1, -15], [14, 15]]) { const px = lx + dx; const pz = lz + dz; if (!isWater(px, pz) && !(px > AIRFIELD.x0 && px < AIRFIELD.x1 && pz > AIRFIELD.z0 - 20 && pz < AIRFIELD.z1 + 20)) pts.push(px, 9, pz); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const tx = new THREE.CanvasTexture(gc2); const pm = new THREE.Points(geo, new THREE.PointsMaterial({ map: tx, size: 26, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); pm.frustumCulled = false; scene.add(pm); }
   const clouds = new THREE.Group(); { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 4, 64, 64, 62); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); for (let i = 0; i < 22; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 0.8, depthWrite: false })); const s = 240 + (i * 53) % 260; sp.scale.set(s * 1.6, s * 0.8, 1); sp.position.set(Math.sin(i * 2.1) * 1800, 380 + (i * 41) % 260, Math.cos(i * 1.7) * 1800); clouds.add(sp); } scene.add(clouds); }
   const fx = makeFx(THREE, scene); const seenFx = new Map();
 
   // ---- ものたち ----
+  let heldId = ''; let heldM = null;
+  const weaponMesh = (W) => { const g = new THREE.Group(); const dk = new THREE.MeshStandardMaterial({ color: '#1c1d22', metalness: 0.8, roughness: 0.35 }); const wd = new THREE.MeshStandardMaterial({ color: '#6a4a2a', roughness: 0.8 }); const mt = new THREE.MeshStandardMaterial({ color: '#b8bec9', metalness: 0.9, roughness: 0.25 }); const bx = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
+    const id = W.id || 'fist'; if (id === 'fist') return g;
+    if (W.melee) { if (id === 'bat') bx(0.07, 0.9, 0.07, wd, 0, -0.35, 0.1); else if (id === 'knife' || id === 'machete') { bx(0.03, id === 'knife' ? 0.3 : 0.7, 0.07, mt, 0, -0.2, 0.1); bx(0.05, 0.12, 0.06, dk, 0, -0.02, 0.1); } else if (id === 'axe') { bx(0.06, 0.9, 0.06, wd, 0, -0.3, 0.1); bx(0.05, 0.3, 0.3, mt, 0, -0.65, 0.2); } else if (id === 'hammer') { bx(0.06, 0.6, 0.06, wd, 0, -0.2, 0.1); bx(0.12, 0.14, 0.28, dk, 0, -0.5, 0.1); } else { bx(0.05, 0.8, 0.05, mt, 0, -0.3, 0.1); } return g; }
+    const cat = W.cat; if (W.expl) { if (id === 'grenade' || id === 'molotov') { const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), id === 'grenade' ? new THREE.MeshStandardMaterial({ color: '#3a4a2a' }) : new THREE.MeshStandardMaterial({ color: '#8a5a2a' })); m.position.set(0, 0, 0.1); g.add(m); } else { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 1.0, 10), dk); t.rotation.x = Math.PI / 2; t.position.set(0, -0.1, 0.35); g.add(t); bx(0.08, 0.2, 0.08, dk, 0, -0.2, 0.1); } return g; }
+    if (cat === 'ハンドガン') { bx(0.06, 0.12, 0.3, dk, 0, -0.04, 0.16); bx(0.06, 0.2, 0.08, dk, 0, -0.14, 0.06); } else if (cat === 'SMG') { bx(0.07, 0.16, 0.5, dk, 0, -0.06, 0.25); bx(0.06, 0.26, 0.08, dk, 0, -0.2, 0.14); } else if (cat === 'ショットガン') { bx(0.07, 0.1, 0.85, dk, 0, -0.04, 0.4); bx(0.08, 0.12, 0.35, wd, 0, -0.06, 0.1); } else if (cat === 'スナイパー') { bx(0.07, 0.12, 1.1, dk, 0, -0.04, 0.5); bx(0.06, 0.08, 0.3, mt, 0, 0.06, 0.4); } else if (id === 'minigun') { for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 6), dk); b.rotation.x = Math.PI / 2; b.position.set(Math.cos(i * 2.1) * 0.06, -0.06 + Math.sin(i * 2.1) * 0.06, 0.45); g.add(b); } bx(0.14, 0.2, 0.3, dk, 0, -0.06, 0.1); } else if (id === 'railgun') { bx(0.1, 0.16, 1.0, new THREE.MeshStandardMaterial({ color: '#2a6aff', emissive: '#2a6aff', emissiveIntensity: 0.6 }), 0, -0.04, 0.45); } else { bx(0.07, 0.14, 0.9, dk, 0, -0.04, 0.42); bx(0.06, 0.2, 0.08, dk, 0, -0.2, 0.2); bx(0.07, 0.1, 0.25, wd, 0, -0.06, 0.02); }
+    return g; };
   const me = makePerson(THREE, { shirt: '#2d62d6', pants: '#1f2635', hair: '#1a1410', sleeve: false, vest: '#e8e8ee', scale: 1.0 }); scene.add(me); const vmodels = new Map();
   const mkVehModel = (v) => { let m; if (v.cat) { const it = catalogOf(v.cat) || catalogOf('sedan'); m = it.kind === 'bike' ? makeBikeModel(THREE, it.model) : isAir(it.kind) ? makeAirModel(THREE, it.model) : makeCarModel(THREE, it.model); } else m = makeVehicleModel(THREE, o.specs[v.kind]); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); vmodels.set(v.id, m); return m; };
   for (const v of S.vehicles) mkVehModel(v);
@@ -136,7 +157,7 @@ export async function startCity3D(o) {
   const mkNpc = (id) => { const m = townsPerson(THREE, id); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); return m; };
   const mkMarker = (color, h = 70) => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, h, 14, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); b.position.y = h / 2; const r = new THREE.Mesh(new THREE.TorusGeometry(5, 0.35, 8, 28), new THREE.MeshBasicMaterial({ color })); r.rotation.x = Math.PI / 2; r.position.y = 0.6; g.add(b, r); g.userData.ring = r; return g; };
   const markers = []; const startMarkers = CITY_MISSIONS.map((m) => { const g = mkMarker('#ffd23f'); g.position.set(m.start.x, 0, m.start.z); const sp = iconSprite(THREE, m.icon); sp.scale.set(9, 9, 1); sp.position.y = 24; g.add(sp); scene.add(g); return { m, g }; });
-  for (const [pt, ic, col] of [[GARAGE, '🏁', '#ff9f43'], [BOARD, '📋', '#e8d9a0']]) { const g = mkMarker(col, 40); g.position.set(pt.x, 0, pt.z); const sp = iconSprite(THREE, ic, col); sp.scale.set(8, 8, 1); sp.position.y = 26; g.add(sp); scene.add(g); markers.push(g); }
+  for (const [pt, ic, col] of [[GARAGE, '🏁', '#ff9f43'], [BOARD, '📋', '#e8d9a0'], [ARMS, '🔫', '#ff5a5a'], [JOB, '💼', '#7fe7ff']]) { const g = mkMarker(col, 40); g.position.set(pt.x, 0, pt.z); const sp = iconSprite(THREE, ic, col); sp.scale.set(8, 8, 1); sp.position.y = 26; g.add(sp); scene.add(g); markers.push(g); }
   const targetMarker = mkMarker('#27d8ff', 110); targetMarker.visible = false; scene.add(targetMarker); const hqMarker = mkMarker('#7dffa0', 60); hqMarker.position.set(HQ.x, 0, HQ.z); hqMarker.scale.set(4.5, 1, 4.5); hqMarker.visible = false; scene.add(hqMarker);
   const ringM = new THREE.Mesh(new THREE.TorusGeometry(24, 2.2, 10, 36), new THREE.MeshBasicMaterial({ color: '#27d8ff', transparent: true, opacity: 0.9 })); ringM.visible = false; scene.add(ringM);
   const shield = new THREE.Mesh(new THREE.SphereGeometry(3, 12, 8), new THREE.MeshBasicMaterial({ color: '#7fe7ff', transparent: true, opacity: 0.3, depthWrite: false })); shield.visible = false; scene.add(shield);
@@ -153,20 +174,22 @@ export async function startCity3D(o) {
   const endPtr = (e) => { if (e.pointerId === aid) { aid = null; setAim(0, 0); return; } if (e.pointerId !== sid) return; sid = null; setStick(0, 0); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = ''; };
   pad.addEventListener('pointerup', endPtr); pad.addEventListener('pointercancel', endPtr);
   const doAct = () => { const had = !!S.nearby; if (!sim.interact() && !had) return; };
-  const bp = (b) => { if (b === 'gun') sim.input.gun = true; else if (b === 'boost') sim.input.boost = true; else if (b === 'missile') sim.fireMissile(); else if (b === 'act') doAct(); else if (b === 'target') sim.aimAt(P.target || null); };
+  const bp = (b) => { if (b === 'gun') sim.input.gun = true; else if (b === 'boost') sim.input.boost = true; else if (b === 'weapon') { sim.cycleWeapon(1); saveNow(); } else if (b === 'missile') sim.fireMissile(); else if (b === 'act') doAct(); else if (b === 'target') sim.aimAt(P.target || null); };
   const br = (b) => { if (b === 'gun') sim.input.gun = false; else if (b === 'boost') sim.input.boost = false; };
   root.querySelectorAll('.ab-b').forEach((btn) => { const b = btn.dataset.b; btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch { /* ok */ } btn.classList.add('on'); bp(b); e.preventDefault(); }); const up = (e) => { btn.classList.remove('on'); br(b); e.preventDefault(); }; btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); });
-  const keys = new Set(); const akeys = { KeyI: [0, 1], KeyK: [0, -1], KeyJ: [-1, 0], KeyL: [1, 0] }; const aimKeys = new Set(); const kmap = { Space: 'gun', KeyF: 'missile', ShiftLeft: 'boost', KeyE: 'act', KeyT: 'target' };
+  const keys = new Set(); const akeys = { KeyI: [0, 1], KeyK: [0, -1], KeyJ: [-1, 0], KeyL: [1, 0] }; const aimKeys = new Set(); const kmap = { Space: 'gun', KeyF: 'missile', ShiftLeft: 'boost', KeyE: 'act', KeyT: 'target', KeyQ: 'weapon' };
   const recompute = () => { const x = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0); const y = (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0) - (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0); sim.input.turn = -x; sim.input.climb = y; };
   const recAim = () => { let x = 0; let y = 0; for (const c of aimKeys) { x += akeys[c][0]; y += akeys[c][1]; } sim.input.aimX = -x; sim.input.aimY = y; };
   const kd = (e) => { if (e.repeat) return; if (e.code === 'Escape' || e.code === 'KeyP') { setPause(!paused); return; } if (akeys[e.code]) { aimKeys.add(e.code); recAim(); return; } if (kmap[e.code]) { bp(kmap[e.code]); e.preventDefault(); return; } keys.add(e.code); recompute(); if (e.code.startsWith('Arrow')) e.preventDefault(); };
   const ku = (e) => { if (akeys[e.code]) { aimKeys.delete(e.code); recAim(); } if (kmap[e.code]) { br(kmap[e.code]); return; } keys.delete(e.code); recompute(); };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu'); const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const snap = () => ({ coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
+  const snap = () => ({ coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned, weapon: P.weapon, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
   menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   root.querySelector('.c3d-cancel').addEventListener('click', () => sim.cancelMission());
+  root.querySelector('.c3d-ftbtn').addEventListener('click', () => { if (paused) return; const r = sim.fastTravel(); if (!r.ok && r.why) { S.msg = r.why; S.msgT = 2; } });
+  root.querySelector('.c3d-wep').addEventListener('click', () => { if (!paused) openWeapons(); });
   const bigmap = root.querySelector('.c3d-bigmap'); root.querySelector('.c3d-bigmapbtn').addEventListener('click', () => { bigmap.hidden = !bigmap.hidden; }); bigmap.addEventListener('click', () => { bigmap.hidden = true; });
   const resize = () => { const w = root.clientWidth || innerWidth; const h = root.clientHeight || innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 1.5 ? 70 : 62; camera.updateProjectionMatrix(); portrait = h > w * 1.05; root.classList.toggle('portrait', portrait); };
   window.addEventListener('resize', resize); window.addEventListener('orientationchange', resize); resize();
@@ -181,13 +204,55 @@ export async function startCity3D(o) {
     shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b) return; const r = sim.buy(b.dataset.id); if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw('かったよ! ありがとう!'); } else draw(r.why || ''); };
   };
   const openGarage = () => {
-    const draw = (note = 'のりものを かうと ガレージに ならぶよ(くうこうの ひこうきは くうこうに)') => {
+    const draw = (note = 'もっている のりものは「のる」で ガレージから のれるよ。あたらしい のりものは コインで かおう') => {
       const groups = [['🚗 くるま', 'car'], ['🏍️ バイク', 'bike'], ['✈️ ひこうき・せんとうき', 'air']];
-      shopEl.innerHTML = `<div class="sh-box"><h3>🏁 ガレージ</h3><div class="sh-coin">🪙 ${P.coins}</div>${groups.map(([t, g]) => `<div class="sh-grp">${t}</div>${VCAT.filter((it) => (g === 'air' ? isAir(it.kind) : it.kind === g)).map((it) => { const own = S.owned.includes(it.id); const ok = own || P.coins >= it.price; return `<button class="sh-item ${own ? 'own' : ''}" data-id="${it.id}" ${own || !ok ? 'disabled' : ''}><span>${it.icon}</span><div><b>${esc(it.name)}</b><small>${esc(it.desc)}・スピード ${it.speed}${it.missiles ? `・🚀${it.missiles}` : ''}</small></div><em>${own ? '✔ もってる' : `🪙${it.price}`}</em></button>`; }).join('')}`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`;
+      const mine = [...S.vehicles.filter((v) => !v.temp && (v.kind === 'tank' || (v.cat === undefined && v.kind === 'plane'))).map((v) => ({ id: v.id, icon: v.kind === 'tank' ? '🚜' : '✈️', name: v.name || (v.kind === 'tank' ? 'せんしゃ' : 'ひこうき'), desc: 'ぼうえいたいの きたい' }))];
+      shopEl.innerHTML = `<div class="sh-box"><h3>🏁 ガレージ</h3><div class="sh-coin">🪙 ${P.coins}</div>${mine.length ? `<div class="sh-grp">🛡️ ぼうえいたいの きたい</div>${mine.map((m) => `<button class="sh-item own" data-ride="${m.id}"><span>${m.icon}</span><div><b>${esc(m.name)}</b><small>${esc(m.desc)}</small></div><em>▶ のる</em></button>`).join('')}` : ''}${groups.map(([t, g]) => `<div class="sh-grp">${t}</div>${VCAT.filter((it) => (g === 'air' ? isAir(it.kind) : it.kind === g)).map((it) => { const own = S.owned.includes(it.id); const lock = !own && !sim.meets(it.need); const ok = own || (!lock && P.coins >= it.price); const sub = lock ? `🔒 ${needText(it.need)}` : `${esc(it.desc)}・スピード ${it.speed}${it.missiles ? `・🚀${it.missiles}` : ''}`; return `<button class="sh-item ${own ? 'own' : ''} ${lock ? 'lock' : ''}" ${own ? `data-ride="${it.id}"` : `data-id="${it.id}"`} ${!own && !ok ? 'disabled' : ''}><span>${lock ? '🔒' : it.icon}</span><div><b>${esc(it.name)}</b><small>${sub}</small></div><em>${own ? '▶ のる' : `🪙${it.price}`}</em></button>`; }).join('')}`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`;
     };
     openModal(draw);
-    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b || b.disabled) return; const r = sim.buyVehicle(b.dataset.id); if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw('かったよ! ガレージに ならんだよ!'); } else draw(r.why || ''); };
+    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b || b.disabled) return;
+      if (b.dataset.ride) { const r = sim.summon(b.dataset.ride); if (r.ok) closeModal(); else draw(r.why || ''); return; }
+      const r = sim.buyVehicle(b.dataset.id); if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw('かったよ! ガレージに ならんだよ!'); } else draw(r.why || ''); };
   };
+  const openArms = () => {
+    const cats = [...new Set(WEAPONS.map((w) => w.cat))];
+    const draw = (note = 'かった ぶきは そうびできるよ。たまは なくならないよ') => {
+      shopEl.innerHTML = `<div class="sh-box"><h3>🔫 ぶきや</h3><div class="sh-coin">🪙 ${P.coins}</div>${cats.map((c) => `<div class="sh-grp">${c}</div>${WEAPONS.filter((w) => w.cat === c).map((w) => { const own = S.wOwned.includes(w.id); const lock = !own && !sim.meets(w.need); const ok = own || (!lock && P.coins >= w.price); const st = w.melee ? `ちかくの てき・ダメージ ${w.dmg}` : w.expl ? `ばくはつ ${w.dmg}${w.homing ? '・ホーミング' : ''}` : `ダメージ ${w.dmg}${w.pellets ? '×' + w.pellets : ''}・れんしゃ ${w.rate}`; return `<button class="sh-item ${own ? 'own' : ''} ${lock ? 'lock' : ''} ${P.weapon === w.id ? 'trk' : ''}" data-id="${w.id}" ${!ok ? 'disabled' : ''}><span>${lock ? '🔒' : w.icon}</span><div><b>${esc(w.name)}</b><small>${lock ? '🔒 ' + needText(w.need) : st}</small></div><em>${own ? (P.weapon === w.id ? '✔ そうび中' : 'そうび') : `🪙${w.price}`}</em></button>`; }).join('')}`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`;
+    };
+    openModal(draw);
+    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b || b.disabled) return; const id = b.dataset.id;
+      if (S.wOwned.includes(id)) { sim.equip(id); saveNow(); draw('そうびしたよ!'); return; }
+      const r = sim.buyWeapon(id); if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw('かって そうびしたよ!'); } else draw(r.why || ''); };
+  };
+  const openWeapons = () => {
+    const draw = () => { const mine = WEAPONS.filter((w) => S.wOwned.includes(w.id)); shopEl.innerHTML = `<div class="sh-box"><h3>🎒 ぶきリスト</h3>${mine.map((w) => `<button class="sh-item ${P.weapon === w.id ? 'trk' : ''}" data-id="${w.id}"><span>${w.icon}</span><div><b>${esc(w.name)}</b><small>${w.cat}</small></div><em>${P.weapon === w.id ? '✔' : ''}</em></button>`).join('')}<div class="sh-note">ぶきを タップで そうび。ぶきは ぶきやで かえるよ</div><button class="btn gray sh-x">とじる</button></div>`; };
+    openModal(draw);
+    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b) return; sim.equip(b.dataset.id); saveNow(); closeModal(); };
+  };
+  // ---- おしごと(もんだいに こたえて おきゅうりょう) ----
+  const openJob = () => {
+    const N = 5; const st = { n: 0, ok: 0, subj: 'mix', q: null };
+    const intro = () => { shopEl.innerHTML = `<div class="sh-box"><h3>💼 おしごとセンター</h3><div class="sh-coin">🪙 ${P.coins}</div><p class="jb-p">もんだいに こたえて おきゅうりょうを もらおう!<br>${N}もん・せいかい 1もんで 🪙20・ぜんぶ せいかいで +🪙40</p><button class="sh-item" data-s="算数"><span>🔢</span><div><b>さんすうの おしごと</b><small>けいさんや ずけい</small></div></button><button class="sh-item" data-s="国語"><span>📖</span><div><b>こくごの おしごと</b><small>かんじ・ことば</small></div></button><button class="sh-item" data-s="mix"><span>🎲</span><div><b>おまかせ</b><small>さんすう+こくご</small></div></button><button class="btn gray sh-x">とじる</button></div>`; };
+    const ask = () => {
+      const subj = st.subj === 'mix' ? (st.n % 2 ? '国語' : '算数') : st.subj; const q = o.getJobQuestion ? o.getJobQuestion(subj) : null;
+      if (!q) { shopEl.innerHTML = `<div class="sh-box"><h3>💼 おしごと</h3><p class="jb-p">いまは おしごとが ないみたい…</p><button class="btn gray sh-x">とじる</button></div>`; return; }
+      st.q = q; shopEl.innerHTML = `<div class="sh-box jb"><h3>💼 おしごと ${st.n + 1}/${N}</h3><div class="jb-q">${q.text}</div>${q.choices.map((c, i) => `<button class="sh-item jb-c" data-i="${i}"><b>${c.label}</b></button>`).join('')}<div class="sh-note jb-r"></div></div>`;
+    };
+    const done = () => {
+      const perfect = st.ok === N; const pay = st.ok * 20 + (perfect ? 40 : 0); if (pay) sim.addCoins(pay); if (o.onJobDone) o.onJobDone({ correct: st.ok, total: N, pay, perfect }); saveNow();
+      shopEl.innerHTML = `<div class="sh-box"><h3>💼 おつかれさま!</h3><div class="jb-big">${perfect ? '🌟 パーフェクト!' : st.ok >= 3 ? '👍 よくできました' : 'ざんねん…またね'}</div><p class="jb-p">せいかい ${st.ok}/${N}<br>おきゅうりょう 🪙+${pay}</p><div class="sh-coin">🪙 ${P.coins}</div><button class="sh-item" data-again="1"><span>🔁</span><div><b>もういちど はたらく</b></div></button><button class="btn gray sh-x">とじる</button></div>`;
+    };
+    openModal(intro);
+    shopEl.onclick = (e) => {
+      if (e.target.closest('.sh-x')) { closeModal(); return; }
+      const sb = e.target.closest('[data-s]'); if (sb) { st.subj = sb.dataset.s; st.n = 0; st.ok = 0; ask(); return; }
+      if (e.target.closest('[data-again]')) { intro(); return; }
+      const nx = e.target.closest('.jb-next'); if (nx) { st.n++; if (st.n >= N) done(); else ask(); return; }
+      const c = e.target.closest('.jb-c'); if (!c || c.dataset.done) return; const ch = st.q.choices[+c.dataset.i]; shopEl.querySelectorAll('.jb-c').forEach((x) => { x.dataset.done = '1'; const k = st.q.choices[+x.dataset.i]; x.classList.add(k.ok ? 'good' : 'dim'); });
+      if (ch.ok) { st.ok++; snd0('win'); } else snd0('lose'); const r = shopEl.querySelector('.jb-r'); r.innerHTML = `<b>${ch.ok ? '⭕ せいかい! 🪙+20' : '❌ ざんねん'}</b>${st.q.why ? `<div class="jb-why">${st.q.why}</div>` : ''}<button class="btn gold jb-next">${st.n + 1 >= N ? 'けっかを みる' : 'つぎへ ▶'}</button>`;
+    };
+  };
+  const snd0 = (n) => { if (o.onSfx) o.onSfx(n); };
   const openBoard = () => {
     const draw = (note = 'タップで ついせき(ちずに 🎯)。たおして ばんざいした はんにんに ちかづいて「たいほ」! はじめての たいほは チケットも もらえるよ') => {
       sim.refreshWanted();
@@ -198,11 +263,11 @@ export async function startCity3D(o) {
   };
   const handleEvent = (e) => {
     if (e.t === 'reward' && o.onReward) { o.onReward(e); saveNow(); } else if (e.t === 'bounty') { if (o.onBounty) o.onBounty(e); saveNow(); } else if (e.t === 'arrest') saveNow();
-    else if (e.t === 'buy' && o.onBuy) o.onBuy(e.id); else if (e.t === 'buyveh') { if (o.onBuyVeh) o.onBuyVeh(e.id); } else if (e.t === 'shop') openShop(); else if (e.t === 'garage') openGarage(); else if (e.t === 'board') openBoard();
+    else if (e.t === 'buy' && o.onBuy) o.onBuy(e.id); else if (e.t === 'buyveh') { if (o.onBuyVeh) o.onBuyVeh(e.id); } else if (e.t === 'shop') openShop(); else if (e.t === 'garage') openGarage(); else if (e.t === 'board') openBoard(); else if (e.t === 'arms') openArms(); else if (e.t === 'job') openJob(); else if (e.t === 'buywep' && o.onBuyWeapon) o.onBuyWeapon(e.id);
   };
 
   // ---- HUD ----
-  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), hpw: q('.ab.hp'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), msw: q('.ab.ms'), coin: q('.c3d-coin b'), mis: q('.c3d-mis'), misN: q('.c3d-mis .a3d-name'), misO: q('.c3d-mis .a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), ret: q('.a3d-ret'), act: q('.ab-act'), gun: q('.ab-gun'), cancel: q('.c3d-cancel'), track: q('.c3d-track'), map: q('.c3d-map').getContext('2d'), big: bigmap.querySelector('canvas').getContext('2d') };
+  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), hpw: q('.ab.hp'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), msw: q('.ab.ms'), coin: q('.c3d-coin b'), mis: q('.c3d-mis'), misN: q('.c3d-mis .a3d-name'), misO: q('.c3d-mis .a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), ret: q('.a3d-ret'), act: q('.ab-act'), gun: q('.ab-gun'), cancel: q('.c3d-cancel'), track: q('.c3d-track'), wep: q('.c3d-wep'), wpb: q('.ab-wp'), map: q('.c3d-map').getContext('2d'), big: bigmap.querySelector('canvas').getContext('2d') };
     let lastBanner = ''; const v3 = new THREE.Vector3();
   const project = (x, y, z) => { v3.set(x, y, z).project(camera); return { x: (v3.x * 0.5 + 0.5) * root.clientWidth, y: (-v3.y * 0.5 + 0.5) * root.clientHeight, z: v3.z }; };
   const drawMap = (g, R, size, rot) => {
@@ -216,7 +281,7 @@ export async function startCity3D(o) {
     for (const c of S.civs) if (c.state === 'need') dot(c.x, c.z, '#ff9ad0', rr);
     for (const c of S.crooks) { if (c.state === 'down') dot(c.x, c.z, '#27d8ff', rr * 1.1); else if (c.wid) dot(c.x, c.z, '#ff2a3a', rr * 1.5); else if (c.minor) dot(c.x, c.z, '#ff9f43', rr * 1.1); else dot(c.x, c.z, '#a83a46', rr * 0.8); }
     if (S.tracked) { const w = S.wanted.find((x) => x.id === S.tracked); if (w && w.alive) { g.strokeStyle = '#fff'; g.lineWidth = rr * 0.5; g.beginPath(); g.arc(w.x, w.z, rr * (2.2 + Math.sin(tt * 6) * 0.5), 0, 6.283); g.stroke(); } }
-    dot(GARAGE.x, GARAGE.z, '#ff9f43', rr * 1.1, true); dot(BOARD.x, BOARD.z, '#e8d9a0', rr * 1.0, true);
+    dot(GARAGE.x, GARAGE.z, '#ff9f43', rr * 1.1, true); dot(BOARD.x, BOARD.z, '#e8d9a0', rr * 1.0, true); dot(ARMS.x, ARMS.z, '#ff5a5a', rr, true); dot(JOB.x, JOB.z, '#7fe7ff', rr, true);
     for (const v of S.vehicles) if (!v.occ && !v.temp) dot(v.x, v.z, '#6ab0ff', rr * 0.9, true);
     dot(SHOP.x, SHOP.z, '#fff', rr * 0.9, true);
     if (!rot) { g.fillStyle = '#ff0'; g.beginPath(); g.arc(P.x, P.z, 8, 0, 6.283); g.fill(); }
@@ -234,7 +299,8 @@ export async function startCity3D(o) {
     hud.msg.textContent = S.msgT > 0 ? S.msg : ''; hud.warn.textContent = P.dead > 0 ? '😵 ふっかつちゅう…' : ''; root.classList.toggle('hurt', P.hurt > 0);
     // しょうじゅん
     const kind = v ? v.kind : 'foot'; const air = isAir(kind); const ay = air ? v.yaw : P.yaw + P.aimRel; const ap = air ? v.pitch : P.aimPitch; const o0 = air ? { x: v.x, y: v.y, z: v.z } : { x: P.x, y: 2, z: P.z }; const rp = project(o0.x + Math.sin(ay) * Math.cos(ap) * 200, o0.y + Math.sin(ap) * 200, o0.z + Math.cos(ay) * Math.cos(ap) * 200); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 && P.dead <= 0 ? '' : 'none'; hud.ret.classList.toggle('lock', !!P.target && air);
-    hud.gun.textContent = kind === 'foot' ? 'ブラスター' : kind === 'car' || kind === 'bike' ? 'ビーム' : 'こうげき'; root.querySelector('.ab-tg').style.display = air ? 'none' : '';
+    { const W = weaponOf(P.weapon) || {}; hud.wep.hidden = kind !== 'foot'; hud.wep.textContent = `${W.icon || ''} ${W.name || ''}`; hud.wpb.style.display = kind === 'foot' ? '' : 'none'; }
+    hud.gun.textContent = kind === 'foot' ? (weaponOf(P.weapon) && weaponOf(P.weapon).melee ? 'なぐる' : 'うつ') : kind === 'car' || kind === 'bike' ? 'ビーム' : 'こうげき'; root.querySelector('.ab-tg').style.display = air ? 'none' : '';
     { const w = S.tracked ? S.wanted.find((x) => x.id === S.tracked) : null; hud.track.hidden = !w; if (w) hud.track.textContent = w.alive ? `🎯 ${w.name} 🪙${w.bounty} ・ ${Math.round(Math.hypot(w.x - P.x, w.z - P.z))}m` : `🎯 ${w.name}(いまは いないよ)`; }
     drawMap(hud.map, 240, 150, true); if (!bigmap.hidden) drawMap(hud.big, 760, 640, false);
   }
@@ -243,7 +309,7 @@ export async function startCity3D(o) {
     function syncScene(dt) {
     const v = sim.vehicleOf(); const kind = v ? v.kind : 'foot';
     // じぶん
-    me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : 0, P.z); me.rotation.y = P.yaw; { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = -1.3; } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; }
+    me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : 0, P.z); me.rotation.y = P.yaw; { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.armR.remove(heldM); heldM = weaponMesh(W); heldM.position.set(0, -0.6, 0.03); u.armR.add(heldM); } if (W.melee) { if (S.swing > 0) { u.armR.rotation.x = -2.3 + (1 - S.swing / 0.25) * 2.6; } else u.armR.rotation.x = -0.5 + (sw > 0 ? 0 : 0); } else { const long = ['ライフル', 'SMG', 'マシンガン', 'スナイパー', 'ショットガン'].includes(W.cat); if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = long ? -1.4 : -1.3; } else if (!W.expl || W.range > 100) u.armR.rotation.x = Math.min(u.armR.rotation.x, -0.55); } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; }
     shield.visible = P.invuln > 0; shield.position.set(P.x, (v ? v.y : P.y) + (isAir(kind) ? 0 : 3), P.z); shield.scale.setScalar(kind === 'foot' ? 1 : isAir(kind) ? 3 : 4);
     // のりもの
     const vseen = new Set();
