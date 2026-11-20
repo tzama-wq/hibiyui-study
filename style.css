@@ -806,3 +806,6 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d.foot .ab-wp{right:62px!important;bottom:134px!important;width:60px!important;height:60px!important}.c3d.foot .ab-tg{right:100px!important;bottom:60px!important;width:60px!important;height:60px!important}
 .c3d-stars{top:calc(env(safe-area-inset-top,0px) + 62px)!important;right:calc(env(safe-area-inset-right,0px) + 136px)!important}
 .c3d.air .ab-act{top:calc(env(safe-area-inset-top,0px) + 180px)!important}
+.c3d-ftbtn{top:calc(env(safe-area-inset-top,0px) + 52px)!important;right:calc(env(safe-area-inset-right,0px) + 138px)!important}
+.c3d-jobbtn{top:calc(env(safe-area-inset-top,0px) + 98px)!important;right:calc(env(safe-area-inset-right,0px) + 138px)!important}
+.c3d-stars{top:calc(env(safe-area-inset-top,0px) + 56px)!important;right:calc(env(safe-area-inset-right,0px) + 186px)!important}

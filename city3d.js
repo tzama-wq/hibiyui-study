@@ -1,6 +1,6 @@
 // 地球防衛隊「シティ」の 3Dがめん(three.js): じゆうに うごける まち。ルールは citysim.js。
 //   const g = await startCity3D({ kidName, stats, vehicles, specs, coins, done, calm, onSfx, onReward, onBuy, onQuit });
-import { createCity, LAYOUT, HALF, RIVER, BRIDGES, riverZ, AIRFIELD, PLAZA, HQ, SPAWN, RAILS, STATION, STATION2, SCHOOL, SCHOOL_POLY, PARK3, PARK3_POLY, MALL_TRESA, MALL_APITA, SHRINE, SOCCER, SOCCER_ZONE, HOME, STORES, ITEMS, storeOf, railDist, roadsOf, roadSD, greens, pitches, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, JOB, CROOKS, DEFAULT_OWNED, WEAPONS, DEFAULT_WEAPONS, weaponOf, ammoSpec, needText } from './citysim.js';
+import { createCity, LAYOUT, HALF, RIVER, BRIDGES, riverZ, AIRFIELD, PLAZA, HQ, SPAWN, RAILS, STATION, STATION2, SCHOOL, SCHOOL_POLY, PARK3, PARK3_POLY, MALL_TRESA, MALL_APITA, SHRINE, SOCCER, SOCCER_ZONE, HOME, STORES, ITEMS, storeOf, railDist, roadsOf, roadSD, greens, pitches, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, JOB, CROOKS, DEFAULT_OWNED, WEAPONS, DEFAULT_WEAPONS, weaponOf, ammoSpec, needText, EQUIP, EQUIP_SLOTS, equipOf, equipDesc } from './citysim.js';
 import { makeCarModel, makeBikeModel, makeAirModel, makePerson, makeWeaponModel, poseLimbs, townsPerson, crookPerson, labelSprite } from './citymodels3d.js';
 import { makeVehicleModel } from './vehicle3d.js';
 import { makeFx } from './fx3d.js';
@@ -85,7 +85,7 @@ export async function startCity3D(o) {
   const A = await loadCityAssets(THREE).catch(() => null); const glbOn = !!(A && A.ok && A.has('casual'));
   if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
   document.querySelectorAll('.c3d').forEach((e) => e.remove());
-  const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, weapons: o.weapons && o.weapons.length ? o.weapons : DEFAULT_WEAPONS, weapon: o.weapon || 'pistol', ammo: o.ammo || {}, arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
+  const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, weapons: o.weapons && o.weapons.length ? o.weapons : DEFAULT_WEAPONS, weapon: o.weapon || 'pistol', ammo: o.ammo || {}, eqOwned: o.eqOwned || [], equip: o.equip || {}, arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
   const root = document.createElement('div'); root.className = 'a3d c3d';
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
     <div class="a3d-hud">
@@ -273,7 +273,7 @@ export async function startCity3D(o) {
   const ku = (e) => { if (akeys[e.code]) { aimKeys.delete(e.code); recAim(); } if (kmap[e.code]) { br(kmap[e.code]); return; } keys.delete(e.code); recompute(); };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu'); const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const snap = () => ({ coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned, weapon: P.weapon, ammo: S.ammo, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
+  const snap = () => ({ coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned, weapon: P.weapon, ammo: S.ammo, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
   menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   const showHelp = () => { openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>❓ シティの あそびかた</h3><div class="hp">
@@ -303,12 +303,15 @@ export async function startCity3D(o) {
   // おみせ(トレッサ・アピタ・ほかの おみせ)
   const wLine = (w) => { const own = S.wOwned.includes(w.id); const lock = !own && !sim.meets(w.need); const ok = own || (!lock && P.coins >= w.price); const st = w.melee ? `ちかくの てき・ダメージ ${w.dmg}` : w.expl ? `ばくはつ ${w.dmg}${w.homing ? '・ホーミング' : ''}・${(ammoSpec(w) || {}).mag || ''}はつ・しゃてい ${w.range}m` : `ダメージ ${w.dmg}${w.pellets ? '×' + w.pellets : ''}・れんしゃ ${w.rate}・${(ammoSpec(w) || {}).mag || ''}はつ・しゃてい ${w.range}m`; return `<button class="sh-item ${own ? 'own' : ''} ${lock ? 'lock' : ''} ${P.weapon === w.id ? 'trk' : ''}" data-k="w" data-id="${w.id}" ${!ok ? 'disabled' : ''}><span>${lock ? '🔒' : w.icon}</span><div><b>${esc(w.name)}</b><small>${lock ? '🔒 ' + needText(w.need) : st}</small></div><em>${own ? (P.weapon === w.id ? '✔ そうび中' : 'そうび') : `🪙${w.price}`}</em></button>`; };
   const vLine = (it) => { const own = S.owned.includes(it.id); const lock = !own && !sim.meets(it.need); const ok = own || (!lock && P.coins >= it.price); return `<button class="sh-item ${own ? 'own' : ''} ${lock ? 'lock' : ''}" data-k="v" data-id="${it.id}" ${own || !ok ? 'disabled' : ''}><span>${lock ? '🔒' : it.icon}</span><div><b>${esc(it.name)}</b><small>${lock ? '🔒 ' + needText(it.need) : `${esc(it.desc)}・スピード ${it.speed}${it.missiles ? `・🚀${it.missiles}` : ''}`}</small></div><em>${own ? '✔ もってる' : `🪙${it.price}`}</em></button>`; };
+  const eqLine = (e) => { const own = S.eqOwned.includes(e.id); const on = S.equip[e.slot] === e.id; const lock = !own && !sim.meets(e.need); const ok = own || (!lock && P.coins >= e.price); return `<button class="sh-item ${own ? 'own' : ''} ${lock ? 'lock' : ''} ${on ? 'trk' : ''}" data-k="e" data-id="${e.id}" ${!ok ? 'disabled' : ''}><span>${lock ? '🔒' : e.icon}</span><div><b>${esc(e.name)}</b><small>${lock ? '🔒 ' + needText(e.need) : equipDesc(e)}</small></div><em>${on ? '✔ きてる' : own ? 'きる' : `🪙${e.price}`}</em></button>`; };
+  const eqList = (own) => EQUIP_SLOTS.map(([sl, t]) => { const l = EQUIP.filter((e) => e.slot === sl && (!own || S.eqOwned.includes(e.id))); return l.length ? `<div class="sh-grp">${t}</div>${l.map(eqLine).join('')}` : ''; }).join('');
   const openStore = (id) => {
-    const st = storeOf(id); if (!st) return; const sl = st.sells; const tabs = []; if (sl.items) tabs.push(['i', '🛒 しなもの']); if (sl.weapons) tabs.push(['w', '🔫 ぶき']); if (sl.vehicles) tabs.push(['v', '🚗 のりもの・ひこうき']); let tab = tabs[0][0];
+    const st = storeOf(id); if (!st) return; const sl = st.sells; const tabs = []; if (sl.items) tabs.push(['i', '🛒 しなもの']); if (sl.weapons) tabs.push(['w', '🔫 ぶき']); if (sl.vehicles) tabs.push(['v', '🚗 のりもの・ひこうき']); if (sl.equip) tabs.push(['e', '👕 そうび']); let tab = tabs[0][0];
     const draw = (note = `${st.sub}。コインは ミッションや たいほ・おしごとで ふえるよ`) => {
       let body = '';
       if (tab === 'i') body = ITEMS.filter((it) => sl.items.includes(it.id)).map((it) => `<button class="sh-item" data-k="i" data-id="${it.id}" ${P.coins < it.cost ? 'disabled' : ''}><span>${it.icon}</span><div><b>${it.name}</b><small>${it.desc}</small></div><em>🪙${it.cost}</em></button>`).join('');
       else if (tab === 'w') { const list = WEAPONS.filter((w) => sl.weapons === 'all' ? true : sl.weapons.includes(w.id)); const cats = [...new Set(list.map((w) => w.cat))]; body = cats.map((c) => `<div class="sh-grp">${c}</div>${list.filter((w) => w.cat === c).map(wLine).join('')}`).join(''); }
+      else if (tab === 'e') body = eqList();
       else { const list = VCAT.filter((it) => sl.vehicles === 'all' ? true : sl.vehicles.includes(it.id)); body = [['🚗 くるま', 'car'], ['🏍️ バイク', 'bike'], ['✈️ ひこうき・せんとうき', 'air']].map(([t, g]) => `<div class="sh-grp">${t}</div>${list.filter((it) => (g === 'air' ? isAir(it.kind) : it.kind === g)).map(vLine).join('')}`).join(''); }
       shopEl.innerHTML = `<div class="sh-box"><h3>${st.icon} ${esc(st.name)}</h3><div class="sh-coin">🪙 ${P.coins}</div>${tabs.length > 1 ? `<div class="sh-tabs">${tabs.map(([k2, l]) => `<button class="chipb ${tab === k2 ? 'on' : ''}" data-tab="${k2}">${l}</button>`).join('')}</div>` : ''}${body}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`;
     };
@@ -316,8 +319,8 @@ export async function startCity3D(o) {
     shopEl.onclick = (e) => {
       if (e.target.closest('.sh-x')) { closeModal(); return; } const tb = e.target.closest('[data-tab]'); if (tb) { tab = tb.dataset.tab; draw(); return; }
       const b = e.target.closest('.sh-item'); if (!b || b.disabled) return; const k2 = b.dataset.k; const bid = b.dataset.id; let r;
-      if (k2 === 'w') { if (S.wOwned.includes(bid)) { sim.equip(bid); saveNow(); draw('そうびしたよ!'); return; } r = sim.buyWeapon(bid); } else if (k2 === 'v') r = sim.buyVehicle(bid); else r = sim.buy(bid);
-      if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw(k2 === 'v' ? 'かったよ! じたくの ガレージに ならんだよ!' : 'まいどあり!'); } else draw(r.why || '');
+      if (k2 === 'e') { if (S.eqOwned.includes(bid)) { sim.wear(bid); saveNow(); draw('きがえたよ!'); return; } r = sim.buyEquip(bid); } else if (k2 === 'w') { if (S.wOwned.includes(bid)) { sim.equip(bid); saveNow(); draw('そうびしたよ!'); return; } r = sim.buyWeapon(bid); } else if (k2 === 'v') r = sim.buyVehicle(bid); else r = sim.buy(bid);
+      if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw(k2 === 'v' ? 'かったよ! じたくの ガレージに ならんだよ!' : k2 === 'e' ? 'かって きたよ! (ちがう ふくは タップで きがえ)' : 'まいどあり!'); } else draw(r.why || '');
     };
   };
   // じたく(ガレージ): もっている のりものに のる
@@ -331,9 +334,9 @@ export async function startCity3D(o) {
     shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b || b.disabled) return; if (b.dataset.ride) { const r = sim.summon(b.dataset.ride); if (r.ok) closeModal(); else draw(r.why || ''); } };
   };
   const openWeapons = () => {
-    const draw = () => { const mine = WEAPONS.filter((w) => S.wOwned.includes(w.id)); shopEl.innerHTML = `<div class="sh-box"><h3>🎒 ぶきリスト</h3>${mine.map((w) => `<button class="sh-item ${P.weapon === w.id ? 'trk' : ''}" data-id="${w.id}"><span>${w.icon}</span><div><b>${esc(w.name)}</b><small>${w.cat}</small></div><em>${P.weapon === w.id ? '✔' : ''}</em></button>`).join('')}<div class="sh-note">ぶきを タップで そうび。ぶきは ぶきやで かえるよ</div><button class="btn gray sh-x">とじる</button></div>`; };
+    const draw = () => { const mine = WEAPONS.filter((w) => S.wOwned.includes(w.id)); shopEl.innerHTML = `<div class="sh-box"><h3>🎒 ぶきリスト</h3>${mine.map((w) => `<button class="sh-item ${P.weapon === w.id ? 'trk' : ''}" data-id="${w.id}"><span>${w.icon}</span><div><b>${esc(w.name)}</b><small>${w.cat}</small></div><em>${P.weapon === w.id ? '✔' : ''}</em></button>`).join('')}${S.eqOwned.length ? `<div class="sh-grp">👕 そうび(タップで きがえ)</div>${eqList(true)}` : ''}<div class="sh-note">ぶきを タップで そうび。ぶきは ぶきやで かえるよ・ふくや くつは「トレッサ」で かえるよ</div><button class="btn gray sh-x">とじる</button></div>`; };
     openModal(draw);
-    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b) return; sim.equip(b.dataset.id); saveNow(); closeModal(); };
+    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b) return; if (b.dataset.k === 'e') { sim.wear(b.dataset.id); saveNow(); draw(); return; } sim.equip(b.dataset.id); saveNow(); closeModal(); };
   };
   // ---- おしごと(もんだいに こたえて おきゅうりょう) ----
   const openJob = () => {

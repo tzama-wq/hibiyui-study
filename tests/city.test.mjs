@@ -191,4 +191,15 @@ for (const planeId of ['plane', 'hawk']) {
   assert.equal(P.mode, 'foot', `${v.hitMax}かい ぶつかると こわれる`); assert.ok(n >= v.hitMax - 1 && n <= v.hitMax + 3, `ぶつかった かいすう ${n}`); assert.equal(v.hits, 0, 'こわれたら もとに もどる');
   const bike = S.vehicles.find((x) => x.id === 'scooter'); assert.ok(bike.hitMax < v.hitMax, 'バイクは くるまより こわれやすい');
 }
+// ---- そうび(ふく・くつ・ぼうし) ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const hp0 = P.hpMax; P.coins = 500000;
+  assert.ok(!sim.buyEquip('hmask').ok, 'レアは ミッション・たいほが ひつよう'); assert.ok(sim.buyEquip('hoodie').ok && P.hpMax === hp0 + 20, 'ふくで HPが ふえる'); assert.equal(S.equip.body, 'hoodie');
+  assert.ok(sim.buyEquip('jersey').ok && S.equip.body === 'jersey' && P.hpMax === hp0 + 10, 'きがえると こうかが かわる'); assert.ok(sim.wear('jersey') && !S.equip.body && P.hpMax === hp0, 'ぬぐと もどる');
+  const s2 = mk(); s2.state.player.coins = 100000; s2.buyEquip('sneaker'); assert.ok(s2.state.eq.spd > 0.05, 'くつで あしが はやい'); s2.buyEquip('cap'); assert.ok(s2.state.eq.aim > 0.09 && s2.state.eq.acc > 0.07, 'ぼうしで ねらい・ブレ');
+  const s3 = mk(); s3.state.player.coins = 1e6; s3.state.arrests = { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1 }; s3.state.done = { x: 6 }; assert.ok(s3.buyEquip('hmask').ok, 'かいほうされると レアが かえる');
+  const s4 = mk(st(70), 3, { eqOwned: ['sneaker', 'cap'], equip: { feet: 'sneaker', head: 'cap' } }); assert.ok(s4.state.eq.spd > 0 && s4.state.equip.head === 'cap', 'ほぞん・ふっかつ');
+  const run1 = (e) => { const q = mk(st(70), 3, e); const Q = q.state.player; Q.x = 0; Q.z = 0; q.input.moveY = 1; q.input.moveX = 0; for (let i = 0; i < 40; i++) q.step(0.05); return Q.speed; };
+  assert.ok(run1({ eqOwned: ['rocket'], equip: { feet: 'rocket' } }) > run1({}) * 1.2, 'くつで はやく はしる');
+}
 console.log('OK: city');
