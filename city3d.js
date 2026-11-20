@@ -1,9 +1,8 @@
 // 地球防衛隊「シティ」の 3Dがめん(three.js): じゆうに うごける まち。ルールは citysim.js。
 //   const g = await startCity3D({ kidName, stats, vehicles, specs, coins, done, calm, onSfx, onReward, onBuy, onQuit });
-import { createCity, LAYOUT, LINES, BAY, AIRFIELD, PLAZA, HQ, SHOP, SPAWN, CITY_MISSIONS, SHOP as SHOPD, isWater } from './citysim.js';
+import { createCity, LAYOUT, LINES, BAY, AIRFIELD, PLAZA, HQ, SHOP, SPAWN, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, CROOKS, DEFAULT_OWNED } from './citysim.js';
+import { makeCarModel, makeBikeModel, makeAirModel, makePerson, townsPerson, crookPerson, labelSprite } from './citymodels3d.js';
 import { makeVehicleModel } from './vehicle3d.js';
-import { makePlayerModel } from './stadium3d.js';
-import { look } from './match.js';
 import { makeFx } from './fx3d.js';
 import { skyMat, SEA_VS, SEA_FS, envTexture } from './world3d.js';
 
@@ -50,40 +49,17 @@ function iconSprite(THREE, text, color = '#ffd23f') {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.renderOrder = 20; return s;
 }
 
-// ---- モデル ----------------------------------------------------------------------------------
-function makeCar(THREE, color, police = false) {
-  const g = new THREE.Group(); const mat = (c, m = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.5, roughness: 0.4, ...m });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.9, 4.8), mat(color)); body.position.y = 0.85; g.add(body);
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.35, 1.5), mat(color)); hood.position.set(0, 1.25, 1.5); hood.rotation.x = -0.1; g.add(hood);
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.85, 2.4), new THREE.MeshStandardMaterial({ color: '#27456e', metalness: 0.9, roughness: 0.08 })); cab.position.set(0, 1.6, -0.3); g.add(cab);
-  for (const [x, z] of [[-1.15, 1.5], [1.15, 1.5], [-1.15, -1.5], [1.15, -1.5]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.4, 14), mat('#1a1d24', { metalness: 0.2 })); w.rotation.z = Math.PI / 2; w.position.set(x, 0.5, z); g.add(w); }
-  for (const x of [-0.8, 0.8]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.1), new THREE.MeshBasicMaterial({ color: '#fff7c0' })); l.position.set(x, 0.95, 2.42); g.add(l); const t = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.1), new THREE.MeshBasicMaterial({ color: '#ff3a3a' })); t.position.set(x, 0.95, -2.42); g.add(t); }
-  if (police) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.4), new THREE.MeshBasicMaterial({ color: '#3a6dff' })); b.position.set(-0.3, 2.1, -0.3); g.add(b); const r = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.4), new THREE.MeshBasicMaterial({ color: '#ff3a3a' })); r.position.set(0.5, 2.1, -0.3); g.add(r); g.userData.siren = [b, r]; }
-  g.traverse((m) => { if (m.isMesh) m.castShadow = true; }); return g;
-}
-function makeRobot(THREE, big) {
-  const g = new THREE.Group(); const s = big ? 1.7 : 1; const mat = (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.6, roughness: 0.4 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 1.0), mat(big ? '#7a2a3a' : '#9a3a46')); body.position.y = 2.2; g.add(body);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.0), mat('#3a2a34')); head.position.y = 3.6; g.add(head);
-  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.1), new THREE.MeshBasicMaterial({ color: '#ff3a3a' })); eye.position.set(0, 3.65, 0.52); g.add(eye);
-  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 5), mat('#ccc')); ant.position.set(0.3, 4.4, 0); g.add(ant); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd23f' })); ball.position.set(0.3, 4.85, 0); g.add(ball);
-  g.userData.legs = []; for (const x of [-0.45, 0.45]) { const leg = new THREE.Group(); leg.position.set(x, 1.3, 0); const l = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.3, 0.5), mat('#2a2a34')); l.position.y = -0.55; leg.add(l); g.add(leg); g.userData.legs.push(leg); }
-  g.userData.arms = []; for (const x of [-1.05, 1.05]) { const arm = new THREE.Group(); arm.position.set(x, 2.9, 0); const a = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.4, 0.4), mat('#4a3a44')); a.position.y = -0.6; arm.add(a); g.add(arm); g.userData.arms.push(arm); }
-  const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.4, 8), mat('#222')); gun.rotation.x = Math.PI / 2; gun.position.set(0.9, 2.3, 0.8); g.add(gun);
-  g.scale.setScalar(s); g.traverse((m) => { if (m.isMesh) m.castShadow = true; }); return g;
-}
-
 export async function startCity3D(o) {
   const THREE = await loadThree();
   if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
   document.querySelectorAll('.c3d').forEach((e) => e.remove());
-  const sim = createCity({ stats: o.stats, vehicles: o.vehicles, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
+  const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
   const root = document.createElement('div'); root.className = 'a3d c3d';
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
     <div class="a3d-hud">
       <div class="a3d-bars"><div class="ab hp"><span>HP</span><i><u></u></i></div><div class="ab boost"><span>ダッシュ</span><i><u></u></i></div><div class="ab ms"><span>ミサイル</span><b></b></div><div class="c3d-coin">🪙 <b>0</b></div></div>
       <div class="a3d-top c3d-mis" hidden><div class="a3d-name"></div><div class="a3d-obj"></div></div>
-      <div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
+      <div class="c3d-track" hidden></div><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
       <canvas class="c3d-map" width="150" height="150"></canvas>
       <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button><button class="c3d-bigmapbtn" aria-label="ちず">🗺</button><button class="c3d-cancel" hidden>✖ ミッションを やめる</button>
     </div>
@@ -121,6 +97,31 @@ export async function startCity3D(o) {
   { const hq = LAYOUT.buildings.find((b) => b.kind === 'hq'); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 30, 6), new THREE.MeshStandardMaterial({ color: '#fff' })); pole.position.set(hq.x0 + 6, hq.h + 15, hq.z0 + 6); scene.add(pole); const flag = new THREE.Mesh(new THREE.PlaneGeometry(12, 8), new THREE.MeshBasicMaterial({ color: '#fff', side: THREE.DoubleSide })); flag.position.set(hq.x0 + 12, hq.h + 26, hq.z0 + 6); scene.add(flag); const hi = new THREE.Mesh(new THREE.CircleGeometry(2.4, 18), new THREE.MeshBasicMaterial({ color: '#e0302a', side: THREE.DoubleSide })); hi.position.set(hq.x0 + 12, hq.h + 26, hq.z0 + 6.05); scene.add(hi); }
   // ショップ(おみせ)
   { const sh = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 5), new THREE.MeshStandardMaterial({ color: '#f1f4fa', roughness: 0.5 })); body.position.y = 2; const aw = new THREE.Mesh(new THREE.BoxGeometry(9, 0.5, 4), new THREE.MeshStandardMaterial({ color: '#e0302a' })); aw.position.set(0, 4.3, 2.4); aw.rotation.x = 0.25; sh.add(body, aw); const sp = iconSprite(THREE, '🏪'); sp.scale.set(10, 10, 1); sp.position.y = 12; sh.add(sp); sh.position.set(SHOP.x - 10, 0, SHOP.z); sh.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(sh); }
+  // ガレージ・ボード
+  { const gr = new THREE.Group(); const wall = new THREE.MeshStandardMaterial({ color: '#d9dde6', roughness: 0.6 }); const dk = new THREE.MeshStandardMaterial({ color: '#2b303c', roughness: 0.7 });
+    const back = new THREE.Mesh(new THREE.BoxGeometry(80, 9, 1), wall); back.position.set(0, 4.5, 8); const roof = new THREE.Mesh(new THREE.BoxGeometry(82, 0.8, 18), dk); roof.position.set(0, 9.4, -0.5); const sideL = new THREE.Mesh(new THREE.BoxGeometry(1, 9, 17), wall); sideL.position.set(-40, 4.5, 0); const sideR = sideL.clone(); sideR.position.x = 40;
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(80, 1.2, 0.3), new THREE.MeshStandardMaterial({ color: '#ff9f43' })); stripe.position.set(0, 8.2, -8.6); gr.add(back, roof, sideL, sideR, stripe);
+    const sp = iconSprite(THREE, '🏁', '#ff9f43'); sp.scale.set(10, 10, 1); sp.position.set(0, 17, -4); gr.add(sp); gr.position.set(50, 0, 138); gr.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(gr); }
+  { const bd = new THREE.Group(); const wood = new THREE.MeshStandardMaterial({ color: '#7a5230', roughness: 0.9 }); const post = new THREE.Mesh(new THREE.BoxGeometry(0.6, 5, 0.6), wood); const board = new THREE.Mesh(new THREE.BoxGeometry(6.4, 3.6, 0.3), wood);
+    const c = document.createElement('canvas'); c.width = 256; c.height = 144; const g2 = c.getContext('2d'); g2.fillStyle = '#e8d9a0'; g2.fillRect(0, 0, 256, 144); g2.fillStyle = '#b3201a'; g2.font = 'bold 26px sans-serif'; g2.textAlign = 'center'; g2.fillText('WANTED', 128, 30); g2.fillStyle = '#3a2a1a'; g2.font = '44px sans-serif'; for (let i = 0; i < 4; i++) g2.fillText('☠', 40 + i * 58, 92); g2.font = 'bold 18px sans-serif'; g2.fillText('してい手配ボード', 128, 130);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const face = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.2), new THREE.MeshBasicMaterial({ map: t })); face.position.z = 0.17; board.position.y = 4.2; face.position.y = 4.2; const p2 = post.clone(); post.position.set(-2.4, 2.5, 0); p2.position.set(2.4, 2.5, 0); bd.add(post, p2, board, face);
+    const sp = iconSprite(THREE, '📋', '#e8d9a0'); sp.scale.set(5, 5, 1); sp.position.y = 9.5; bd.add(sp); bd.position.set(BOARD.x, 0, BOARD.z + 3); bd.rotation.y = Math.PI; bd.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(bd); }
+  // がいとう・しんごう・やねの きかい・おみせの かんばん
+  { const lampPos = []; const nL = LINES.length; for (let i = 0; i < nL; i++) for (let j = 0; j < nL; j++) { const x = LINES[i]; const z = LINES[j]; for (const [dx, dz] of [[-15, -15], [15, 15]]) { const px = x + dx; const pz = z + dz; if (!isWater(px, pz) && !(px > AIRFIELD.x0 && px < AIRFIELD.x1 && pz > AIRFIELD.z0 - 20 && pz < AIRFIELD.z1 + 20)) lampPos.push([px, pz]); } }
+    const mk = (geo, mat, n) => { const m = new THREE.InstancedMesh(geo, mat, n); m.castShadow = false; scene.add(m); return m; }; const n = lampPos.length;
+    const pole = mk(new THREE.CylinderGeometry(0.18, 0.22, 9, 6), new THREE.MeshStandardMaterial({ color: '#4a505c', metalness: 0.6, roughness: 0.5 }), n); const head = mk(new THREE.BoxGeometry(2.4, 0.3, 0.7), new THREE.MeshBasicMaterial({ color: '#fff3c0' }), n); const dm = new THREE.Object3D();
+    lampPos.forEach(([x, z], i) => { dm.position.set(x, 4.5, z); dm.rotation.set(0, 0, 0); dm.updateMatrix(); pole.setMatrixAt(i, dm.matrix); dm.position.set(x - 1.1, 9.1, z); dm.updateMatrix(); head.setMatrixAt(i, dm.matrix); });
+    const sig = []; for (const lx of LINES) for (const lz of LINES) { if (isWater(lx, lz) || (lx > AIRFIELD.x0 - 20 && lx < AIRFIELD.x1 && lz > AIRFIELD.z0 - 20 && lz < AIRFIELD.z1 + 20)) continue; sig.push([lx + 14, lz - 14, 0], [lx - 14, lz + 14, 1]); }
+    const ns = sig.length; const sp = mk(new THREE.CylinderGeometry(0.16, 0.2, 6, 6), new THREE.MeshStandardMaterial({ color: '#2e323a', metalness: 0.6 }), ns); const box = mk(new THREE.BoxGeometry(0.7, 2.0, 0.6), new THREE.MeshStandardMaterial({ color: '#1b1d22' }), ns); const lamp = mk(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff' }), ns * 3);
+    sig.forEach(([x, z, k], i) => { dm.position.set(x, 3, z); dm.updateMatrix(); sp.setMatrixAt(i, dm.matrix); dm.position.set(x, 6.4, z); dm.updateMatrix(); box.setMatrixAt(i, dm.matrix); ['#ff3a3a', '#ffd23f', '#4aff7a'].forEach((c0, j) => { dm.position.set(x, 6.95 - j * 0.6, z + (k ? -0.33 : 0.33)); dm.updateMatrix(); lamp.setMatrixAt(i * 3 + j, dm.matrix); lamp.setColorAt(i * 3 + j, new THREE.Color(j === (i % 2 ? 0 : 2) ? c0 : '#2a2a2a')); }); }); lamp.instanceColor.needsUpdate = true; }
+  { let a = 7; const rnd = () => { a = (a * 1664525 + 1013904223) % 4294967296; return a / 4294967296; }; const nB = LAYOUT.buildings.filter((b) => b.kind !== 'hangar' && b.kind !== 'hq'); const acG = new THREE.BoxGeometry(3, 1.8, 2.4); const acM = new THREE.MeshStandardMaterial({ color: '#b9c0cc', metalness: 0.5, roughness: 0.5 }); const tkG = new THREE.CylinderGeometry(1.4, 1.4, 3, 10); const tkM = new THREE.MeshStandardMaterial({ color: '#7a6a58', roughness: 0.9 });
+    const ac = new THREE.InstancedMesh(acG, acM, nB.length * 2); const tk = new THREE.InstancedMesh(tkG, tkM, nB.length); const dm = new THREE.Object3D(); let ia = 0; let it = 0;
+    for (const b of nB) { const w = b.x1 - b.x0; const d = b.z1 - b.z0; for (let k = 0; k < 2; k++) { dm.position.set(b.x0 + 4 + rnd() * (w - 8), b.h + 0.9, b.z0 + 4 + rnd() * (d - 8)); dm.rotation.y = rnd() * 3; dm.updateMatrix(); ac.setMatrixAt(ia++, dm.matrix); } if (b.h > 25 && rnd() < 0.6) { dm.position.set(b.x0 + 4 + rnd() * (w - 8), b.h + 1.5, b.z0 + 4 + rnd() * (d - 8)); dm.rotation.y = 0; dm.updateMatrix(); tk.setMatrixAt(it++, dm.matrix); } }
+    ac.count = ia; tk.count = it; ac.castShadow = shadowsOn; tk.castShadow = shadowsOn; scene.add(ac, tk);
+    const NAMES = ['ラーメン', 'ベーカリー', 'ドラッグ', 'ピザ', 'カフェ', 'ほんや', 'ゲーム', 'くつや', 'フルーツ', 'バーガー']; const COL = ['#e0302a', '#2a7ae0', '#2ea86a', '#e0a02a', '#8a4ad8', '#e05a8a'];
+    let si = 0; for (const b of LAYOUT.buildings) { if (b.kind !== 'shop') continue; const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g2 = c.getContext('2d'); const col = COL[si % COL.length]; g2.fillStyle = col; g2.fillRect(0, 0, 256, 64); g2.fillStyle = '#fff'; g2.font = 'bold 34px sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(NAMES[si % NAMES.length], 128, 34); si++;
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const w = Math.min(b.x1 - b.x0 - 4, 26); const sg = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 4), new THREE.MeshBasicMaterial({ map: t })); sg.position.set((b.x0 + b.x1) / 2, 5.4, b.z0 - 0.15); sg.rotation.y = Math.PI; scene.add(sg);
+      const aw = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, 3), new THREE.MeshStandardMaterial({ color: col, roughness: 0.8 })); aw.position.set((b.x0 + b.x1) / 2, 4.0, b.z0 - 1.5); aw.rotation.x = 0.2; scene.add(aw); } }
   // きのこ・き
   { const mk = (geo, mat, n) => { const m = new THREE.InstancedMesh(geo, mat, n); m.castShadow = shadowsOn; scene.add(m); return m; }; const n = LAYOUT.trees.length; const cone = mk(new THREE.ConeGeometry(4.5, 12, 7), new THREE.MeshStandardMaterial({ color: '#2f6a3a', roughness: 0.9 }), n); const trunk = mk(new THREE.CylinderGeometry(0.6, 0.8, 4, 5), new THREE.MeshStandardMaterial({ color: '#5a3f2a', roughness: 1 }), n); const dm = new THREE.Object3D();
     LAYOUT.trees.forEach((t, i) => { dm.position.set(t.x, 2 * t.s, t.z); dm.scale.setScalar(t.s); dm.updateMatrix(); trunk.setMatrixAt(i, dm.matrix); dm.position.y = 9 * t.s; dm.updateMatrix(); cone.setMatrixAt(i, dm.matrix); }); }
@@ -128,13 +129,14 @@ export async function startCity3D(o) {
   const fx = makeFx(THREE, scene); const seenFx = new Map();
 
   // ---- ものたち ----
-  const kidLook = look({ id: `self_${o.kidName}`, name: o.kidName, slot: 'FW', rarity: 'kid' }, 'a', o.kidName);
-  const me = makePlayerModel(THREE, kidLook, 10, 1.2); scene.add(me); const vmodels = new Map();
-  for (const v of S.vehicles) { const m = v.kind === 'car' ? makeCar(THREE, v.id === 'car1' ? '#e63946' : '#f2c230', v.id === 'car1') : makeVehicleModel(THREE, o.specs[v.kind]); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); vmodels.set(v.id, m); }
-  const npcs = new Map(); const trafficM = new Map(); const robotM = new Map(); const pickM = new Map();
-  const mkNpc = (id, i) => { const lk = look({ id: `npc${id}`, name: `n${i}`, slot: i % 3 === 0 ? 'GK' : 'MF', rarity: 'common' }, i % 2 ? 'a' : 'b', `T${i}`); const m = makePlayerModel(THREE, lk, (i % 20) + 1, 1.15); m.userData.shadow.visible = true; scene.add(m); return m; };
+  const me = makePerson(THREE, { shirt: '#2d62d6', pants: '#1f2635', hair: '#1a1410', sleeve: false, vest: '#e8e8ee', scale: 1.0 }); scene.add(me); const vmodels = new Map();
+  const mkVehModel = (v) => { let m; if (v.cat) { const it = catalogOf(v.cat) || catalogOf('sedan'); m = it.kind === 'bike' ? makeBikeModel(THREE, it.model) : isAir(it.kind) ? makeAirModel(THREE, it.model) : makeCarModel(THREE, it.model); } else m = makeVehicleModel(THREE, o.specs[v.kind]); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); vmodels.set(v.id, m); return m; };
+  for (const v of S.vehicles) mkVehModel(v);
+  const npcs = new Map(); const trafficM = new Map(); const crookM = new Map(); const pickM = new Map();
+  const mkNpc = (id) => { const m = townsPerson(THREE, id); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); return m; };
   const mkMarker = (color, h = 70) => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, h, 14, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); b.position.y = h / 2; const r = new THREE.Mesh(new THREE.TorusGeometry(5, 0.35, 8, 28), new THREE.MeshBasicMaterial({ color })); r.rotation.x = Math.PI / 2; r.position.y = 0.6; g.add(b, r); g.userData.ring = r; return g; };
-  const startMarkers = CITY_MISSIONS.map((m) => { const g = mkMarker('#ffd23f'); g.position.set(m.start.x, 0, m.start.z); const sp = iconSprite(THREE, m.icon); sp.scale.set(9, 9, 1); sp.position.y = 24; g.add(sp); scene.add(g); return { m, g }; });
+  const markers = []; const startMarkers = CITY_MISSIONS.map((m) => { const g = mkMarker('#ffd23f'); g.position.set(m.start.x, 0, m.start.z); const sp = iconSprite(THREE, m.icon); sp.scale.set(9, 9, 1); sp.position.y = 24; g.add(sp); scene.add(g); return { m, g }; });
+  for (const [pt, ic, col] of [[GARAGE, '🏁', '#ff9f43'], [BOARD, '📋', '#e8d9a0']]) { const g = mkMarker(col, 40); g.position.set(pt.x, 0, pt.z); const sp = iconSprite(THREE, ic, col); sp.scale.set(8, 8, 1); sp.position.y = 26; g.add(sp); scene.add(g); markers.push(g); }
   const targetMarker = mkMarker('#27d8ff', 110); targetMarker.visible = false; scene.add(targetMarker); const hqMarker = mkMarker('#7dffa0', 60); hqMarker.position.set(HQ.x, 0, HQ.z); hqMarker.scale.set(4.5, 1, 4.5); hqMarker.visible = false; scene.add(hqMarker);
   const ringM = new THREE.Mesh(new THREE.TorusGeometry(24, 2.2, 10, 36), new THREE.MeshBasicMaterial({ color: '#27d8ff', transparent: true, opacity: 0.9 })); ringM.visible = false; scene.add(ringM);
   const shield = new THREE.Mesh(new THREE.SphereGeometry(3, 12, 8), new THREE.MeshBasicMaterial({ color: '#7fe7ff', transparent: true, opacity: 0.3, depthWrite: false })); shield.visible = false; scene.add(shield);
@@ -146,7 +148,7 @@ export async function startCity3D(o) {
   const stick = root.querySelector('.a3d-stick'); const knob = root.querySelector('.a3d-knob'); const pad = root.querySelector('.a3d-pad'); let sid = null; let so = { x: 0, y: 0 }; const R = 56; let aid = null; let ao = { x: 0, y: 0 };
   const setStick = (dx, dy) => { const m = Math.hypot(dx, dy); const k = m > R ? R / m : 1; const x = dx * k; const y = dy * k; knob.style.transform = `translate(${x}px,${y}px)`; const vx = x / R; const vy = y / R; if (Math.hypot(vx, vy) < 0.1) { sim.input.turn = 0; sim.input.climb = 0; } else { sim.input.turn = -vx; sim.input.climb = -vy; } };
   const setAim = (dx, dy) => { const m = Math.hypot(dx, dy); const k = m > R ? R / m : 1; const vx = (dx * k) / R; const vy = (dy * k) / R; sim.input.aimX = Math.abs(vx) < 0.08 ? 0 : -vx; sim.input.aimY = Math.abs(vy) < 0.08 ? 0 : -vy; };
-  pad.addEventListener('pointerdown', (e) => { if (e.target.closest('.ab-b')) return; if (e.clientX > root.clientWidth * 0.5 && !(sim.vehicleOf() && sim.vehicleOf().kind === 'plane')) { if (aid !== null) return; aid = e.pointerId; ao = { x: e.clientX, y: e.clientY }; try { pad.setPointerCapture(e.pointerId); } catch { /* ok */ } e.preventDefault(); return; } if (sid !== null) return; sid = e.pointerId; try { pad.setPointerCapture(e.pointerId); } catch { /* ok */ } const r = stick.getBoundingClientRect(); so = { x: e.clientX, y: e.clientY }; stick.style.left = `${e.clientX - r.width / 2}px`; stick.style.bottom = 'auto'; stick.style.top = `${e.clientY - r.height / 2}px`; setStick(0, 0); e.preventDefault(); });
+  pad.addEventListener('pointerdown', (e) => { if (e.target.closest('.ab-b')) return; if (e.clientX > root.clientWidth * 0.5 && !(sim.vehicleOf() && isAir(sim.vehicleOf().kind))) { if (aid !== null) return; aid = e.pointerId; ao = { x: e.clientX, y: e.clientY }; try { pad.setPointerCapture(e.pointerId); } catch { /* ok */ } e.preventDefault(); return; } if (sid !== null) return; sid = e.pointerId; try { pad.setPointerCapture(e.pointerId); } catch { /* ok */ } const r = stick.getBoundingClientRect(); so = { x: e.clientX, y: e.clientY }; stick.style.left = `${e.clientX - r.width / 2}px`; stick.style.bottom = 'auto'; stick.style.top = `${e.clientY - r.height / 2}px`; setStick(0, 0); e.preventDefault(); });
   pad.addEventListener('pointermove', (e) => { if (e.pointerId === aid) { setAim(e.clientX - ao.x, e.clientY - ao.y); e.preventDefault(); return; } if (e.pointerId !== sid) return; setStick(e.clientX - so.x, e.clientY - so.y); e.preventDefault(); });
   const endPtr = (e) => { if (e.pointerId === aid) { aid = null; setAim(0, 0); return; } if (e.pointerId !== sid) return; sid = null; setStick(0, 0); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = ''; };
   pad.addEventListener('pointerup', endPtr); pad.addEventListener('pointercancel', endPtr);
@@ -161,29 +163,47 @@ export async function startCity3D(o) {
   const ku = (e) => { if (akeys[e.code]) { aimKeys.delete(e.code); recAim(); } if (kmap[e.code]) { br(kmap[e.code]); return; } keys.delete(e.code); recompute(); };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu'); const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const saveNow = () => { if (o.onSave) o.onSave({ coins: P.coins, done: S.done, stats: S.stats }); };
-  menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit({ coins: P.coins, done: S.done, stats: S.stats }); } });
+  const snap = () => ({ coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
+  menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   root.querySelector('.c3d-cancel').addEventListener('click', () => sim.cancelMission());
   const bigmap = root.querySelector('.c3d-bigmap'); root.querySelector('.c3d-bigmapbtn').addEventListener('click', () => { bigmap.hidden = !bigmap.hidden; }); bigmap.addEventListener('click', () => { bigmap.hidden = true; });
   const resize = () => { const w = root.clientWidth || innerWidth; const h = root.clientHeight || innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 1.5 ? 70 : 62; camera.updateProjectionMatrix(); portrait = h > w * 1.05; root.classList.toggle('portrait', portrait); };
   window.addEventListener('resize', resize); window.addEventListener('orientationchange', resize); resize();
   try { if (document.documentElement.requestFullscreen && !document.fullscreenElement && /Mobi|Android/i.test(navigator.userAgent)) document.documentElement.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {}); } catch { /* ok */ }
-  // ---- おみせ ----
+  // ---- おみせ・ガレージ・ボード ----
   const shopEl = root.querySelector('.c3d-shop');
+  const openModal = (draw) => { S.ui = 'modal'; setPause(false); paused = true; shopEl.hidden = false; draw(); };
+  const closeModal = () => { shopEl.hidden = true; S.ui = null; paused = false; sim.closeUi(); };
   const openShop = () => {
-    const draw = (note = '') => { shopEl.hidden = false; shopEl.innerHTML = `<div class="sh-box"><h3>🏪 おみせ</h3><div class="sh-coin">🪙 ${P.coins}</div>${SHOPD.items.map((it) => `<button class="sh-item" data-id="${it.id}" ${P.coins < it.cost ? 'disabled' : ''}><span>${it.icon}</span><b>${it.name}</b><small>${it.desc}</small><em>🪙${it.cost}</em></button>`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`; };
-    draw('コインは まちの ミッションや コインあつめで ふえるよ'); S.ui = 'shop'; setPause(false); paused = true;
-    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { shopEl.hidden = true; S.ui = null; paused = false; return; } const b = e.target.closest('.sh-item'); if (!b) return; const r = sim.buy(b.dataset.id); if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw('かったよ! ありがとう!'); } else draw(r.why || ''); };
+    const draw = (note = 'コインは まちの ミッションや コインあつめで ふえるよ') => { shopEl.innerHTML = `<div class="sh-box"><h3>🏪 おみせ</h3><div class="sh-coin">🪙 ${P.coins}</div>${SHOPD.items.map((it) => `<button class="sh-item" data-id="${it.id}" ${P.coins < it.cost ? 'disabled' : ''}><span>${it.icon}</span><div><b>${it.name}</b><small>${it.desc}</small></div><em>🪙${it.cost}</em></button>`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`; };
+    openModal(draw);
+    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b) return; const r = sim.buy(b.dataset.id); if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw('かったよ! ありがとう!'); } else draw(r.why || ''); };
+  };
+  const openGarage = () => {
+    const draw = (note = 'のりものを かうと ガレージに ならぶよ(くうこうの ひこうきは くうこうに)') => {
+      const groups = [['🚗 くるま', 'car'], ['🏍️ バイク', 'bike'], ['✈️ ひこうき・せんとうき', 'air']];
+      shopEl.innerHTML = `<div class="sh-box"><h3>🏁 ガレージ</h3><div class="sh-coin">🪙 ${P.coins}</div>${groups.map(([t, g]) => `<div class="sh-grp">${t}</div>${VCAT.filter((it) => (g === 'air' ? isAir(it.kind) : it.kind === g)).map((it) => { const own = S.owned.includes(it.id); const ok = own || P.coins >= it.price; return `<button class="sh-item ${own ? 'own' : ''}" data-id="${it.id}" ${own || !ok ? 'disabled' : ''}><span>${it.icon}</span><div><b>${esc(it.name)}</b><small>${esc(it.desc)}・スピード ${it.speed}${it.missiles ? `・🚀${it.missiles}` : ''}</small></div><em>${own ? '✔ もってる' : `🪙${it.price}`}</em></button>`; }).join('')}`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`;
+    };
+    openModal(draw);
+    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b || b.disabled) return; const r = sim.buyVehicle(b.dataset.id); if (r.ok) { for (const ev of sim.takeEvents()) handleEvent(ev); saveNow(); draw('かったよ! ガレージに ならんだよ!'); } else draw(r.why || ''); };
+  };
+  const openBoard = () => {
+    const draw = (note = 'タップで ついせき(ちずに 🎯)。たおして ばんざいした はんにんに ちかづいて「たいほ」! はじめての たいほは チケットも もらえるよ') => {
+      sim.refreshWanted();
+      shopEl.innerHTML = `<div class="sh-box"><h3>📋 してい手配ボード</h3><div class="sh-coin">🪙 ${P.coins}・つかまえた ${S.stats.arrests}にん</div>${S.wanted.map((w) => `<button class="sh-item bd ${S.tracked === w.id ? 'trk' : ''}" data-id="${w.id}"><span>${'⭐'.repeat(w.stars)}</span><div><b>${esc(w.name)}</b><small>${esc(w.crime)}${w.caught ? `・たいほ ${w.caught}かい` : ''}${w.alive ? '' : '・(いまは いないよ)'}</small></div><em>🪙${w.bounty}${S.tracked === w.id ? ' 🎯' : ''}</em></button>`).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">とじる</button></div>`;
+    };
+    openModal(draw);
+    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b) return; sim.track(b.dataset.id); draw(S.tracked ? 'ついせき ちゅう! ちずを みてね' : 'ついせきを やめたよ'); };
   };
   const handleEvent = (e) => {
-    if (e.t === 'reward' && o.onReward) { o.onReward(e); saveNow(); } else if (e.t === 'buy' && o.onBuy) o.onBuy(e.id); else if (e.t === 'shop') openShop();
+    if (e.t === 'reward' && o.onReward) { o.onReward(e); saveNow(); } else if (e.t === 'bounty') { if (o.onBounty) o.onBounty(e); saveNow(); } else if (e.t === 'arrest') saveNow();
+    else if (e.t === 'buy' && o.onBuy) o.onBuy(e.id); else if (e.t === 'buyveh') { if (o.onBuyVeh) o.onBuyVeh(e.id); } else if (e.t === 'shop') openShop(); else if (e.t === 'garage') openGarage(); else if (e.t === 'board') openBoard();
   };
 
   // ---- HUD ----
-  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), hpw: q('.ab.hp'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), msw: q('.ab.ms'), coin: q('.c3d-coin b'), mis: q('.c3d-mis'), misN: q('.c3d-mis .a3d-name'), misO: q('.c3d-mis .a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), ret: q('.a3d-ret'), act: q('.ab-act'), gun: q('.ab-gun'), cancel: q('.c3d-cancel'), map: q('.c3d-map').getContext('2d'), big: bigmap.querySelector('canvas').getContext('2d') };
-  const kindName = { foot: 'あるく', car: 'くるま', tank: 'せんしゃ', ship: 'ふね', plane: 'ひこうき' };
-  let lastBanner = ''; const v3 = new THREE.Vector3();
+  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), hpw: q('.ab.hp'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), msw: q('.ab.ms'), coin: q('.c3d-coin b'), mis: q('.c3d-mis'), misN: q('.c3d-mis .a3d-name'), misO: q('.c3d-mis .a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), ret: q('.a3d-ret'), act: q('.ab-act'), gun: q('.ab-gun'), cancel: q('.c3d-cancel'), track: q('.c3d-track'), map: q('.c3d-map').getContext('2d'), big: bigmap.querySelector('canvas').getContext('2d') };
+    let lastBanner = ''; const v3 = new THREE.Vector3();
   const project = (x, y, z) => { v3.set(x, y, z).project(camera); return { x: (v3.x * 0.5 + 0.5) * root.clientWidth, y: (-v3.y * 0.5 + 0.5) * root.clientHeight, z: v3.z }; };
   const drawMap = (g, R, size, rot) => {
     g.clearRect(0, 0, size, size); g.save(); g.translate(size / 2, size / 2); const sc = size / (2 * R); if (rot) g.rotate(P.yaw + Math.PI); g.scale(sc, sc); g.translate(rot ? -P.x : 0, rot ? -P.z : 0);
@@ -194,8 +214,10 @@ export async function startCity3D(o) {
     if (S.mission && S.mission.targets && S.mission.targets[S.mission.stage]) { const t = S.mission.targets[S.mission.stage]; dot(t.x, t.z, '#27d8ff', rr * 1.3); }
     if (S.mission && (S.mission.id === 'rescue' || (S.mission.id === 'delivery' && S.mission.stage === 1))) dot(HQ.x, HQ.z, '#7dffa0', rr * 1.3);
     for (const c of S.civs) if (c.state === 'need') dot(c.x, c.z, '#ff9ad0', rr);
-    for (const r of S.robots) dot(r.x, r.z, '#ff4d5e', rr);
-    for (const v of S.vehicles) if (!v.occ) dot(v.x, v.z, '#6ab0ff', rr * 0.9, true);
+    for (const c of S.crooks) { if (c.state === 'down') dot(c.x, c.z, '#27d8ff', rr * 1.1); else if (c.wid) dot(c.x, c.z, '#ff2a3a', rr * 1.5); else if (c.minor) dot(c.x, c.z, '#ff9f43', rr * 1.1); else dot(c.x, c.z, '#a83a46', rr * 0.8); }
+    if (S.tracked) { const w = S.wanted.find((x) => x.id === S.tracked); if (w && w.alive) { g.strokeStyle = '#fff'; g.lineWidth = rr * 0.5; g.beginPath(); g.arc(w.x, w.z, rr * (2.2 + Math.sin(tt * 6) * 0.5), 0, 6.283); g.stroke(); } }
+    dot(GARAGE.x, GARAGE.z, '#ff9f43', rr * 1.1, true); dot(BOARD.x, BOARD.z, '#e8d9a0', rr * 1.0, true);
+    for (const v of S.vehicles) if (!v.occ && !v.temp) dot(v.x, v.z, '#6ab0ff', rr * 0.9, true);
     dot(SHOP.x, SHOP.z, '#fff', rr * 0.9, true);
     if (!rot) { g.fillStyle = '#ff0'; g.beginPath(); g.arc(P.x, P.z, 8, 0, 6.283); g.fill(); }
     g.restore();
@@ -207,33 +229,55 @@ export async function startCity3D(o) {
     hud.coin.textContent = P.coins;
     const n = S.nearby; const showAct = !!n && n.kind !== 'exit' || (n && n.kind === 'exit'); hud.act.hidden = !showAct; if (showAct) { hud.act.textContent = n.label; hud.act.classList.toggle('exit', n.kind === 'exit'); }
     const M = S.mission; hud.mis.hidden = !M; hud.cancel.hidden = !M;
-    if (M) { hud.misN.textContent = `${M.icon} ${M.name}`; let t = `${M.got}/${M.total}`; if (M.id === 'delivery') t = M.stage === 0 ? '📦 にもつを うけとりに いこう' : `⏱ のこり ${Math.max(0, Math.ceil(M.timeLeft))}びょう → ほんぶへ!`; else if (M.id === 'rescue') t = `たすけた ${M.got}/${M.total}・いっしょに いる ${P.carry}にん → ほんぶへ`; else if (M.id === 'invasion') t = `のこり ${S.robots.filter((r) => r.mission).length}たい`; else if (M.id === 'harbor' && !(v && (v.kind === 'ship' || v.kind === 'plane'))) t += ' (ふねに のろう)'; else if (M.id === 'sky' && !(v && v.kind === 'plane')) t += ' (ひこうきに のろう)'; hud.misO.textContent = t; }
+    if (M) { hud.misN.textContent = `${M.icon} ${M.name}`; let t = `${M.got}/${M.total}`; if (M.id === 'delivery') t = M.stage === 0 ? '📦 にもつを うけとりに いこう' : `⏱ のこり ${Math.max(0, Math.ceil(M.timeLeft))}びょう → ほんぶへ!`; else if (M.id === 'rescue') t = `たすけた ${M.got}/${M.total}・いっしょに いる ${P.carry}にん → ほんぶへ`; else if (M.id === 'gang') t = `のこり ${S.crooks.filter((c) => c.mission).length}にん・たおれた はんにんを たいほ!`; else if (M.id === 'harbor' && !(v && (v.kind === 'ship' || isAir(v.kind)))) t += ' (ふねに のろう)'; else if (M.id === 'sky' && !(v && isAir(v.kind))) t += ' (ひこうきに のろう)'; hud.misO.textContent = t; }
     const b = S.bannerT > 0 ? S.banner : ''; if (b !== lastBanner) { lastBanner = b; hud.banner.textContent = b; hud.banner.classList.toggle('on', !!b); }
     hud.msg.textContent = S.msgT > 0 ? S.msg : ''; hud.warn.textContent = P.dead > 0 ? '😵 ふっかつちゅう…' : ''; root.classList.toggle('hurt', P.hurt > 0);
     // しょうじゅん
-    const kind = v ? v.kind : 'foot'; const ay = kind === 'plane' ? v.yaw : P.yaw + P.aimRel; const ap = kind === 'plane' ? v.pitch : P.aimPitch; const o0 = kind === 'plane' ? { x: v.x, y: v.y, z: v.z } : { x: P.x, y: 2, z: P.z }; const rp = project(o0.x + Math.sin(ay) * Math.cos(ap) * 200, o0.y + Math.sin(ap) * 200, o0.z + Math.cos(ay) * Math.cos(ap) * 200); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 && P.dead <= 0 ? '' : 'none'; hud.ret.classList.toggle('lock', !!P.target && kind === 'plane');
-    hud.gun.textContent = kind === 'foot' ? 'ブラスター' : kind === 'car' ? 'ビーム' : 'こうげき'; root.querySelector('.ab-tg').style.display = kind === 'plane' ? 'none' : '';
+    const kind = v ? v.kind : 'foot'; const air = isAir(kind); const ay = air ? v.yaw : P.yaw + P.aimRel; const ap = air ? v.pitch : P.aimPitch; const o0 = air ? { x: v.x, y: v.y, z: v.z } : { x: P.x, y: 2, z: P.z }; const rp = project(o0.x + Math.sin(ay) * Math.cos(ap) * 200, o0.y + Math.sin(ap) * 200, o0.z + Math.cos(ay) * Math.cos(ap) * 200); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 && P.dead <= 0 ? '' : 'none'; hud.ret.classList.toggle('lock', !!P.target && air);
+    hud.gun.textContent = kind === 'foot' ? 'ブラスター' : kind === 'car' || kind === 'bike' ? 'ビーム' : 'こうげき'; root.querySelector('.ab-tg').style.display = air ? 'none' : '';
+    { const w = S.tracked ? S.wanted.find((x) => x.id === S.tracked) : null; hud.track.hidden = !w; if (w) hud.track.textContent = w.alive ? `🎯 ${w.name} 🪙${w.bounty} ・ ${Math.round(Math.hypot(w.x - P.x, w.z - P.z))}m` : `🎯 ${w.name}(いまは いないよ)`; }
     drawMap(hud.map, 240, 150, true); if (!bigmap.hidden) drawMap(hud.big, 760, 640, false);
   }
   // ---- かく ----
   const cam = { x: 0, y: 0, z: 0, init: false }; let tt = 0; let raf = 0; let last = 0; let acc = 0; let trailT = 0; let lastEffN = 0;
-  const setYaw = (m, yaw) => { m.userData.inner.rotation.y = yaw - Math.PI / 2; };
-  function syncScene(dt) {
+    function syncScene(dt) {
     const v = sim.vehicleOf(); const kind = v ? v.kind : 'foot';
     // じぶん
-    me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : 0, P.z); setYaw(me, P.yaw); { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.z = sw; u.legR.rotation.z = -sw; u.armL.rotation.z = -sw * 0.8; u.armR.rotation.z = sw * 0.8; if (P.chute) { u.armL.rotation.z = u.armR.rotation.z = 2.7; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.12; }
-    shield.visible = P.invuln > 0; shield.position.set(P.x, (v ? v.y : P.y) + (kind === 'plane' ? 0 : 3), P.z); shield.scale.setScalar(kind === 'foot' ? 1 : kind === 'plane' ? 3 : 4);
+    me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : 0, P.z); me.rotation.y = P.yaw; { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = -1.3; } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; }
+    shield.visible = P.invuln > 0; shield.position.set(P.x, (v ? v.y : P.y) + (isAir(kind) ? 0 : 3), P.z); shield.scale.setScalar(kind === 'foot' ? 1 : isAir(kind) ? 3 : 4);
     // のりもの
-    for (const vv of S.vehicles) { const m = vmodels.get(vv.id); m.position.set(vv.x, vv.kind === 'ship' ? Math.sin(tt * 1.6 + vv.x) * 0.4 : vv.kind === 'plane' ? vv.y : 0, vv.z); m.rotation.order = 'YXZ'; if (vv.kind === 'plane') { m.rotation.set(-vv.pitch, vv.yaw, vv.roll); if (m.userData.flame) m.userData.flame.scale.set(1, 1, vv.occ && input_boost() ? 2.4 : 1); } else m.rotation.set(0, vv.yaw, vv.roll * 0.5); if (vv.occ && vv.id === P.veh) { const ty = P.yaw + P.aimRel - vv.yaw; if (m.userData.turrets) m.userData.turrets.forEach((t) => { t.rotation.y = ty; }); if (m.userData.turret) m.userData.turret.rotation.y = ty; } if (m.userData.radar) m.userData.radar.rotation.y = tt * 3; if (m.userData.siren) { const on = Math.floor(tt * 6) % 2 === 0; m.userData.siren[0].visible = on; m.userData.siren[1].visible = !on; } }
+    const vseen = new Set();
+    for (const vv of S.vehicles) {
+      vseen.add(vv.id); const m = vmodels.get(vv.id) || mkVehModel(vv); const air = isAir(vv.kind); const u = m.userData;
+      m.position.set(vv.x, vv.kind === 'ship' ? Math.sin(tt * 1.6 + vv.x) * 0.4 : air ? vv.y : 0, vv.z); m.rotation.order = 'YXZ';
+      if (air) { m.rotation.set(-vv.pitch, vv.yaw, vv.roll); const bo = vv.occ && input_boost(); if (u.flame) u.flame.scale.set(1, 1, bo ? 2.4 : 1); if (u.flames) u.flames.forEach((f) => f.scale.set(1, 1, vv.occ ? (bo ? 1.6 : 0.8 + Math.sin(tt * 40) * 0.1) : 0.01)); if (u.prop) u.prop.rotation.z += dt * (vv.occ ? 40 : 0); }
+      else m.rotation.set(0, vv.yaw, vv.roll * (vv.kind === 'bike' ? 1.3 : 0.5));
+      if (u.rider) u.rider.visible = !!vv.occ;
+      if (vv.occ && vv.id === P.veh) { const ty = P.yaw + P.aimRel - vv.yaw; if (u.turrets) u.turrets.forEach((t) => { t.rotation.y = ty; }); if (u.turret) u.turret.rotation.y = ty; }
+      if (u.radar) u.radar.rotation.y = tt * 3; if (u.siren) { const on = Math.floor(tt * 6) % 2 === 0; u.siren[0].visible = on; u.siren[1].visible = !on; }
+    }
+    for (const [id, m] of vmodels) if (!vseen.has(id)) { scene.remove(m); vmodels.delete(id); }
     // ひと(ちかくだけ つくる)
     const people = [...S.walkers.map((w) => ({ ...w, kind: 'walk' })), ...S.civs.map((c) => ({ ...c, kind: 'civ' }))]; const seen = new Set();
-    for (const w of people) { const d = Math.hypot(w.x - P.x, w.z - P.z); if (d > 240) continue; seen.add(w.id); let m = npcs.get(w.id); if (!m) { if (npcs.size >= 16) continue; m = mkNpc(w.id, w.id); npcs.set(w.id, m); } m.position.set(w.x, 0, w.z); setYaw(m, w.yaw); const sp = w.kind === 'walk' ? 1 : (w.state === 'carried' ? 1 : 0); const sw = Math.sin(tt * 9 + w.id) * sp * 0.8; const u = m.userData; u.legL.rotation.z = sw; u.legR.rotation.z = -sw; u.armL.rotation.z = w.kind === 'civ' && w.state === 'need' ? 2.6 + Math.sin(tt * 10) * 0.3 : -sw; u.armR.rotation.z = w.kind === 'civ' && w.state === 'need' ? 2.6 - Math.sin(tt * 10) * 0.3 : sw; if (w.kind === 'civ') m.visible = w.state !== 'safe'; }
+    for (const w of people) { const d = Math.hypot(w.x - P.x, w.z - P.z); if (d > 240) continue; seen.add(w.id); let m = npcs.get(w.id); if (!m) { if (npcs.size >= 18) continue; m = mkNpc(w.id); npcs.set(w.id, m); } m.position.set(w.x, 0, w.z); m.rotation.y = w.yaw; const moving = w.kind === 'walk' || w.state === 'carried'; const sw = Math.sin(tt * (w.scared > 0 ? 14 : 8) + w.id) * (moving ? 0.7 : 0); const u = m.userData; const need = w.kind === 'civ' && w.state === 'need'; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = need ? -2.7 + Math.sin(tt * 10) * 0.3 : -sw * 0.8; u.armR.rotation.x = need ? -2.7 - Math.sin(tt * 10) * 0.3 : sw * 0.8; if (w.kind === 'civ') m.visible = w.state !== 'safe'; }
     for (const [id, m] of npcs) if (!seen.has(id)) { scene.remove(m); npcs.delete(id); }
     // くるま(かざり)
-    for (const c of S.traffic) { let m = trafficM.get(c.id); if (!m) { m = makeCar(THREE, ['#4a90d9', '#e0a030', '#5aa86a', '#d85a8a', '#8a8f9a', '#f2f2f2', '#6a4ad8', '#d8d24a'][c.tone % 8]); scene.add(m); trafficM.set(c.id, m); } m.position.set(c.x, 0, c.z); m.rotation.y = c.yaw; m.visible = Math.hypot(c.x - P.x, c.z - P.z) < 700; }
-    // ロボット
-    const rseen = new Set(); for (const r of S.robots) { rseen.add(r.id); let m = robotM.get(r.id); if (!m) { m = makeRobot(THREE, r.type === 'big'); scene.add(m); robotM.set(r.id, m); } m.position.set(r.x, 0, r.z); m.rotation.y = r.yaw; const sw = Math.sin(tt * 8 + r.ph) * 0.7; m.userData.legs.forEach((l, i) => { l.rotation.x = i ? sw : -sw; }); m.userData.arms.forEach((a, i) => { a.rotation.x = i ? -sw : sw; }); }
-    for (const [id, m] of robotM) if (!rseen.has(id)) { scene.remove(m); robotM.delete(id); }
+    for (const c of S.traffic) { let m = trafficM.get(c.id); if (!m) { m = makeCarModel(THREE, c.model || 'sedan', (c.model || 'sedan') === 'sedan' ? ['#4a90d9', '#d85a8a', '#5aa86a', '#8a8f9a', '#f2f2f2', '#6a4ad8', '#2a2e38', '#b8c0cc'][c.tone % 8] : undefined); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); trafficM.set(c.id, m); } m.position.set(c.x, 0, c.z); m.rotation.y = c.yaw; m.visible = Math.hypot(c.x - P.x, c.z - P.z) < 700; }
+    for (const [id, m] of trafficM) if (!S.traffic.some((c) => c.id === id)) { scene.remove(m); trafficM.delete(id); }
+    // はんにん(してい手配はんは なまえと けんしょう金の ふだつき)
+    const rseen = new Set();
+    for (const c of S.crooks) {
+      const d = Math.hypot(c.x - P.x, c.z - P.z); if (d > 320) continue; let e = crookM.get(c.id);
+      if (!e) { if (crookM.size >= 28) continue; const m = crookPerson(THREE, c.type, c.id); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); e = { m, label: null, cuff: null, lx: c.x, lz: c.z, sub: '' }; const cf = iconSprite(THREE, '🚔', '#27d8ff'); cf.scale.set(3.4, 3.4, 1); cf.visible = false; scene.add(cf); e.cuff = cf; crookM.set(c.id, e); }
+      rseen.add(c.id); const m = e.m; const u = m.userData; const w = c.wid ? S.wanted.find((x) => x.id === c.wid) : null; const sub = c.wid ? `${'⭐'.repeat(w ? w.stars : 1)} 🪙${w ? w.bounty : 0}` : c.minor ? '🪙40' : ''; const nm = c.wid ? (w ? w.name : '') : c.minor ? 'ひったくり' : '';
+      if (nm && (sub !== e.sub || !e.label)) { if (e.label) { scene.remove(e.label); e.label.material.map.dispose(); e.label.material.dispose(); } e.label = labelSprite(THREE, nm, sub, c.wid ? '#ff5a5a' : '#ffb35a', 300); scene.add(e.label); e.sub = sub; }
+      const down = c.state === 'down'; const mv = Math.hypot(c.x - e.lx, c.z - e.lz) / Math.max(dt, 0.001); e.lx = c.x; e.lz = c.z; const sw = down ? 0 : Math.sin(tt * (mv > 4 ? 12 : 8) + c.ph) * Math.min(0.8, mv / 4);
+      m.position.set(c.x, down ? -0.42 : 0, c.z); m.rotation.y = c.yaw; u.legL.rotation.x = down ? 1.35 : sw; u.legR.rotation.x = down ? 1.35 : -sw;
+      if (down) { u.armL.rotation.x = -2.9; u.armR.rotation.x = -2.9; } else { const aim = (c.alert || d < 80) && c.type !== 'runner'; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = aim ? -1.45 : u.gun ? -0.35 : sw * 0.8; }
+      if (e.label) { e.label.visible = d < 160 && P.dead <= 0; e.label.position.set(c.x, (c.type === 'boss' ? 3.9 : 3.5) + (down ? -0.6 : 0), c.z); }
+      e.cuff.visible = down && d < 60; e.cuff.position.set(c.x, 3.2, c.z); e.cuff.scale.setScalar(3.4 + Math.sin(tt * 6) * 0.4);
+    }
+    for (const [id, e] of crookM) if (!rseen.has(id)) { scene.remove(e.m); if (e.label) scene.remove(e.label); scene.remove(e.cuff); crookM.delete(id); }
     // ひろいもの
     const pseen = new Set(); for (const p of S.pickups) { if (Math.hypot(p.x - P.x, p.z - P.z) > 300) continue; pseen.add(p.id); let m = pickM.get(p.id); if (!m) { m = p.kind === 'gem' ? new THREE.Mesh(new THREE.OctahedronGeometry(1.4), new THREE.MeshBasicMaterial({ color: '#7ff3ff' })) : new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.3, 16), new THREE.MeshBasicMaterial({ color: '#ffd23f' })); if (p.kind !== 'gem') m.rotation.x = Math.PI / 2; scene.add(m); pickM.set(p.id, m); } m.position.set(p.x, 1.8 + Math.sin(tt * 3 + p.id) * 0.3, p.z); m.rotation.y = tt * 3; }
     for (const [id, m] of pickM) if (!pseen.has(id)) { scene.remove(m); pickM.delete(id); }
@@ -247,12 +291,12 @@ export async function startCity3D(o) {
     for (const { m, g } of startMarkers) { g.visible = !S.mission; g.userData.ring.rotation.z = tt; void m; }
     const M = S.mission; targetMarker.visible = false; ringM.visible = false; hqMarker.visible = !!M && (M.id === 'rescue' || (M.id === 'delivery' && M.stage === 1));
     if (M && M.targets && M.targets[M.stage]) { const t = M.targets[M.stage]; if (M.id === 'sky') { ringM.visible = true; ringM.position.set(t.x, t.y, t.z); const a = Math.atan2(t.x - P.x, t.z - P.z); ringM.rotation.set(0, a, 0); } else { targetMarker.visible = true; targetMarker.position.set(t.x, M.id === 'harbor' ? -1 : 0, t.z); targetMarker.userData.ring.rotation.z = tt; } }
-    hqMarker.userData.ring.rotation.z = tt;
+    hqMarker.userData.ring.rotation.z = tt; for (const g of markers) g.userData.ring.rotation.z = tt;
     // カメラ
     const f = { x: Math.sin(P.yaw) * Math.cos(P.pitch || 0), y: Math.sin(P.pitch || 0), z: Math.cos(P.yaw) * Math.cos(P.pitch || 0) };
     let bx; let by; let bz; let lx; let ly; let lz; const k = 1 - Math.exp(-8 * dt);
-    if (kind === 'plane') { bx = P.x - f.x * 26; by = P.y - f.y * 26 + 7; bz = P.z - f.z * 26; lx = P.x + f.x * 90; ly = P.y + f.y * 90; lz = P.z + f.z * 90; }
-    else { const cy = kind === 'tank' || kind === 'ship' ? P.yaw + P.aimRel : P.yaw; const d = { foot: 8, car: 12, tank: 30, ship: 68 }[kind]; const h = { foot: 3.6, car: 5, tank: 15, ship: 30 }[kind]; bx = P.x - Math.sin(cy) * d; by = (P.chute ? P.y : 0) + h; bz = P.z - Math.cos(cy) * d; lx = P.x + Math.sin(cy) * 80; ly = (P.chute ? P.y : 0) + (kind === 'foot' ? 2 : 6) + (kind === 'tank' || kind === 'ship' ? Math.tan(P.aimPitch) * 80 : 0); lz = P.z + Math.cos(cy) * 80; }
+    if (isAir(kind)) { const dd = kind === 'jet' ? 30 : 26; bx = P.x - f.x * dd; by = P.y - f.y * dd + 7; bz = P.z - f.z * dd; lx = P.x + f.x * 90; ly = P.y + f.y * 90; lz = P.z + f.z * 90; }
+    else { const cy = kind === 'tank' || kind === 'ship' ? P.yaw + P.aimRel : P.yaw; const d = { foot: 8, car: 12, bike: 9, tank: 30, ship: 68 }[kind]; const h = { foot: 3.6, car: 5, bike: 4.2, tank: 15, ship: 30 }[kind]; bx = P.x - Math.sin(cy) * d; by = (P.chute ? P.y : 0) + h; bz = P.z - Math.cos(cy) * d; lx = P.x + Math.sin(cy) * 80; ly = (P.chute ? P.y : 0) + (kind === 'foot' ? 2 : 6) + (kind === 'tank' || kind === 'ship' ? Math.tan(P.aimPitch) * 80 : 0); lz = P.z + Math.cos(cy) * 80; }
     if (!cam.init) { cam.x = bx; cam.y = by; cam.z = bz; cam.init = true; } cam.x += (bx - cam.x) * k; cam.y += (by - cam.y) * k; cam.z += (bz - cam.z) * k;
     camera.position.set(cam.x, Math.max(2.2, cam.y), cam.z); camera.up.set(0, 1, 0); camera.lookAt(lx, ly, lz);
     sky.position.set(camera.position.x, 0, camera.position.z); sea.position.x = camera.position.x; sea.position.z = camera.position.z; sea.material.uniforms.time.value = tt;

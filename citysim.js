@@ -1,7 +1,7 @@
 // 地球防衛隊「シティ」: じゆうに うごける 街の ルールと うごき(画面には さわらない。node で テストできる)。
-//   あるいて・くるま・せんしゃ・ふね・ひこうきに のりおりして、ミッションや ひろいものを たのしむ。
-//   const sim = createCity({ stats, vehicles, rnd, gentle });  sim.input = { turn, climb, gun, boost, aimX, aimY };
-//   sim.interact()(のる/おりる/ミッション/おみせ) ・ sim.fireMissile() ・ sim.step(dt) ・ sim.takeEvents()
+//   あるいて・くるま・バイク・せんしゃ・ふね・ひこうき・せんとうきに のりおりして、してい手配はんを たいほして けんしょう金を もらう。
+//   const sim = createCity({ stats, vehicles, owned, rnd, gentle, coins, arrests });  sim.input = { turn, climb, gun, boost, aimX, aimY };
+//   sim.interact()(のる/おりる/ミッション/おみせ/たいほ) ・ sim.fireMissile() ・ sim.step(dt) ・ sim.takeEvents()
 //   ざひょう: x=よこ, y=たかさ, z=おく。からだの むき yaw: まえ = (sin yaw, cos yaw)
 export const HALF = 640; export const GRID = 160; export const ROAD = 24;
 export const LINES = [-480, -320, -160, 0, 160, 320, 480];
@@ -10,6 +10,8 @@ export const AIRFIELD = { x0: 330, x1: 630, z0: -70, z1: 70 }; // くうこう
 export const PLAZA = { x0: 0, x1: 160, z0: 0, z1: 160 }; // ほんぶの ひろば
 export const HQ = { x: 60, z: 70, r: 32 };
 export const SPAWN = { x: 30, z: 30, yaw: 0 };
+export const BOARD = { x: 72, z: 22 }; // してい手配ボード
+export const GARAGE = { x: 112, z: 84 }; // ガレージ
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const hyp = Math.hypot;
@@ -20,6 +22,7 @@ const inRect = (r, x, z) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
 export const isWater = (x, z) => Math.abs(x) > HALF || Math.abs(z) > HALF || inRect(BAY, x, z);
 const nearLine = (v) => { let b = 1e9; for (const l of LINES) b = Math.min(b, Math.abs(v - l)); return b; };
 export const isRoad = (x, z) => !isWater(x, z) && !inRect(AIRFIELD, x, z) && (nearLine(x) < ROAD / 2 || nearLine(z) < ROAD / 2);
+export const isAir = (k) => k === 'plane' || k === 'jet';
 
 // ---- まちの かたち(いつも おなじ) ------------------------------------------------------------
 function makeLayout() {
@@ -35,7 +38,8 @@ function makeLayout() {
     for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
       if (R() < 0.1) { trees.push({ x: xa + a * (w + 10) + w / 2, z: za + b * (d + 10) + d / 2, s: 1 }); continue; }
       const h = harbor ? 9 + R() * 8 : 14 + R() * 26 + (centerish ? R() * 80 : R() * 24);
-      buildings.push({ x0: xa + a * (w + 10), x1: xa + a * (w + 10) + w, z0: za + b * (d + 10), z1: za + b * (d + 10) + d, h: Math.round(h), tone: Math.floor(R() * 6), kind: harbor ? 'warehouse' : 'office' });
+      const kind = harbor ? 'warehouse' : (centerish && h > 70 ? 'tower' : R() < 0.35 ? 'shop' : 'office');
+      buildings.push({ x0: xa + a * (w + 10), x1: xa + a * (w + 10) + w, z0: za + b * (d + 10), z1: za + b * (d + 10) + d, h: Math.round(h), tone: Math.floor(R() * 6), kind });
     }
   }
   buildings.push({ x0: 100, x1: 150, z0: 110, z1: 150, h: 36, tone: 9, kind: 'hq' }); // ほんぶ
@@ -43,15 +47,13 @@ function makeLayout() {
   return { buildings, trees };
 }
 export const LAYOUT = makeLayout();
-// ばしょごとの ひきだし(あたりはんてい用)
 const CELL = new Map();
 for (const b of LAYOUT.buildings) { const i0 = Math.floor(b.x0 / 80); const i1 = Math.floor(b.x1 / 80); const j0 = Math.floor(b.z0 / 80); const j1 = Math.floor(b.z1 / 80); for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const k = `${i},${j}`; if (!CELL.has(k)) CELL.set(k, []); CELL.get(k).push(b); } }
 const nearB = (x, z) => { const i = Math.floor(x / 80); const j = Math.floor(z / 80); const out = []; for (let a = i - 1; a <= i + 1; a++) for (let c = j - 1; c <= j + 1; c++) { const l = CELL.get(`${a},${c}`); if (l) for (const b of l) if (!out.includes(b)) out.push(b); } return out; };
-// えんと はこ の あたり: おしだす。あたったら true
 function pushOut(p, r, ys = 0) {
   let hit = false;
   for (const b of nearB(p.x, p.z)) {
-    if (ys > b.h + 1) continue; // たかい ところを とぶ ものは あたらない
+    if (ys > b.h + 1) continue;
     const cx = clamp(p.x, b.x0, b.x1); const cz = clamp(p.z, b.z0, b.z1); const dx = p.x - cx; const dz = p.z - cz; const d = hyp(dx, dz);
     if (d < r) { hit = true; if (d > 0.001) { p.x = cx + (dx / d) * r; p.z = cz + (dz / d) * r; } else { const l = p.x - b.x0; const rr = b.x1 - p.x; const t = p.z - b.z0; const bt = b.z1 - p.z; const m = Math.min(l, rr, t, bt); if (m === l) p.x = b.x0 - r; else if (m === rr) p.x = b.x1 + r; else if (m === t) p.z = b.z0 - r; else p.z = b.z1 + r; } }
   }
@@ -59,17 +61,61 @@ function pushOut(p, r, ys = 0) {
 }
 export const insideBuilding = (x, z, ys = 0) => nearB(x, z).some((b) => ys <= b.h && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
 
-// ---- きたいの せいのう(しゅじんこうの つよさから) -----------------------------------------------
+// ---- あるく・のりものの せいのう ------------------------------------------------------------------
 export const footStats = (ks) => ({ vehicle: 'foot', speed: 7 + ks.SPD * 0.008, run: 12 + ks.SPD * 0.012, hpMax: Math.round(70 + ks.DEF * 0.7), gunDps: Math.round(18 + ks.SHO * 0.1), range: 75, turn: 2.4 });
-export const carStats = (ks) => ({ vehicle: 'car', speed: 26 + ks.SPD * 0.1, hpMax: Math.round(130 + ks.DEF * 1.2), gunDps: Math.round(22 + ks.SHO * 0.12), turn: 1.7, missiles: 0, missileDmg: 0, locks: 0, boostMax: 60 + Math.round(ks.STA * 0.4) });
+// のりものカタログ(model=3Dの かたち)。price=コイン。free=さいしょから もっている
+export const VCAT = [
+  { id: 'sedan', name: 'ふつうの くるま', icon: '🚗', kind: 'car', model: 'sedan', price: 0, free: true, speed: 30, turn: 1.7, hp: 130, gun: 20, desc: 'まちを はしる ふつうの くるま' },
+  { id: 'police', name: 'パトカー', icon: '🚓', kind: 'car', model: 'police', price: 0, free: true, speed: 34, turn: 1.8, hp: 170, gun: 26, desc: 'サイレンつき! ぼうえいたいの パトカー' },
+  { id: 'scooter', name: 'スクーター', icon: '🛵', kind: 'bike', model: 'scooter', price: 0, free: true, speed: 24, turn: 2.6, hp: 60, gun: 14, desc: 'ちいさくて こまわりが きく' },
+  { id: 'taxi', name: 'タクシー', icon: '🚕', kind: 'car', model: 'taxi', price: 200, speed: 30, turn: 1.7, hp: 130, gun: 16, desc: 'きいろい タクシー' },
+  { id: 'suv', name: 'SUV', icon: '🚙', kind: 'car', model: 'suv', price: 450, speed: 32, turn: 1.5, hp: 210, gun: 22, desc: 'がんじょうな 4WD' },
+  { id: 'bike', name: 'バイク', icon: '🏍️', kind: 'bike', model: 'bike', price: 350, speed: 44, turn: 2.6, hp: 70, gun: 18, desc: 'はやい ロードバイク' },
+  { id: 'pbike', name: '白バイ', icon: '🏍️', kind: 'bike', model: 'pbike', price: 520, speed: 42, turn: 2.7, hp: 95, gun: 24, desc: 'サイレンつきの けいさつの バイク' },
+  { id: 'truck', name: 'トラック', icon: '🚚', kind: 'car', model: 'truck', price: 650, speed: 24, turn: 1.2, hp: 340, gun: 18, desc: 'おおきくて とても じょうぶ' },
+  { id: 'sports', name: 'スポーツカー', icon: '🏎️', kind: 'car', model: 'sports', price: 800, speed: 44, turn: 2.0, hp: 125, gun: 22, desc: 'スピードが じまんの くるま' },
+  { id: 'racer', name: 'レーサーバイク', icon: '🏍️', kind: 'bike', model: 'racer', price: 1500, speed: 64, turn: 2.8, hp: 70, gun: 18, desc: 'ちょう はやい バイク' },
+  { id: 'cessna', name: 'プロペラ機', icon: '🛩️', kind: 'plane', model: 'cessna', price: 600, speed: 50, turn: 0.95, hp: 100, gun: 0, desc: 'ゆっくり そらを さんぽ' },
+  { id: 'super', name: 'スーパーカー', icon: '🏎️', kind: 'car', model: 'super', price: 2400, speed: 58, turn: 2.1, hp: 115, gun: 24, desc: 'とびきり はやい!' },
+  { id: 'trainer', name: 'れんしゅうき', icon: '✈️', kind: 'jet', model: 'trainer', price: 1500, speed: 92, turn: 1.1, hp: 130, gun: 24, missiles: 2, desc: 'ジェットの はじめの いっぽ' },
+  { id: 'bizjet', name: 'ビジネスジェット', icon: '🛫', kind: 'jet', model: 'bizjet', price: 2500, speed: 125, turn: 0.95, hp: 150, gun: 0, desc: 'そらを ゆうがに ひこう' },
+  { id: 'hawk', name: 'ホーク せんとうき', icon: '🛩️', kind: 'jet', model: 'fighter', price: 4500, speed: 138, turn: 1.1, hp: 170, gun: 42, missiles: 6, desc: 'ミサイルを つんだ せんとうき' },
+  { id: 'phantom', name: 'ファントム ステルス', icon: '✈️', kind: 'jet', model: 'stealth', price: 9000, speed: 165, turn: 1.15, hp: 210, gun: 56, missiles: 8, desc: 'さいしんの ステルス せんとうき' },
+];
+export const catalogOf = (id) => VCAT.find((v) => v.id === id);
+export const DEFAULT_OWNED = VCAT.filter((v) => v.free).map((v) => v.id);
+// カタログの のりものの せいのう(しゅじんこうの つよさで すこし のびる)
+export function catalogV(it, ks) {
+  const air = isAir(it.kind);
+  return { vehicle: it.kind, model: it.model, name: it.name, speed: it.speed + ks.SPD * (air ? 0.08 : 0.04), hpMax: Math.round(it.hp + ks.DEF * (air ? 0.8 : 1.0)), gunDps: it.gun ? Math.round(it.gun + ks.SHO * 0.1) : 0, turn: it.turn, missiles: it.missiles || 0, missileDmg: it.missiles ? Math.round(70 + ks.SHO * 0.3) : 0, locks: it.missiles ? 2 : 0, boostMax: 60 + Math.round(ks.STA * 0.4) };
+}
+export const carStats = (ks) => catalogV(catalogOf('sedan'), ks); // (むかしの なまえ)
+
+// ---- してい手配はん(けんしょう金つき) -------------------------------------------------------------
+export const CROOKS = {
+  thug: { name: 'チンピラ', hp: 50, dmg: 4, speed: 4.6, range: 55, fire: 1.7 },
+  gunman: { name: 'ごうとう', hp: 90, dmg: 6, speed: 5, range: 70, fire: 1.4 },
+  boss: { name: 'ボス', hp: 260, dmg: 9, speed: 4.2, range: 85, fire: 1.0 },
+  runner: { name: 'ひったくり', hp: 36, dmg: 0, speed: 8.5, range: 0, fire: 99 },
+};
+export const WANTED = [
+  { id: 'joe', name: 'コソドロ ジョー', crime: 'ぬすみ・ごうとう みすい', stars: 1, bounty: 100, type: 'thug', spot: { x: -320, z: 160 }, guards: 0 },
+  { id: 'momo', name: 'ひったくり モモ', crime: 'ひったくり れんぞく', stars: 1, bounty: 140, type: 'runner', spot: { x: 320, z: 320 }, guards: 0 },
+  { id: 'gonzo', name: 'ゴンゾー', crime: 'ぎんこう ごうとう', stars: 2, bounty: 320, type: 'gunman', spot: { x: -480, z: -160 }, guards: 2 },
+  { id: 'rex', name: 'レックス', crime: 'ほうせき どろぼう', stars: 2, bounty: 420, type: 'gunman', spot: { x: 320, z: -320 }, guards: 2 },
+  { id: 'viper', name: 'ヴァイパー', crime: 'ぶき ゆそう', stars: 3, bounty: 700, type: 'gunman', spot: { x: 480, z: 480 }, guards: 3 },
+  { id: 'shadow', name: 'シャドウ', crime: 'みなとの みつゆ', stars: 3, bounty: 900, type: 'gunman', spot: { x: 160, z: -480 }, guards: 3 },
+  { id: 'don', name: 'ドン・カルロ', crime: 'ギャングの ボス', stars: 4, bounty: 1500, type: 'boss', spot: { x: -480, z: 480 }, guards: 4 },
+  { id: 'king', name: 'キング・ガレオン', crime: 'おおきな しんじゅ ごうだつ', stars: 5, bounty: 3000, type: 'boss', spot: { x: 0, z: 480 }, guards: 6 },
+];
 
 // ---- ミッション ---------------------------------------------------------------------------------
 export const CITY_MISSIONS = [
-  { id: 'patrol', name: 'まちの パトロール', icon: '🚓', start: { x: 160, z: 160 }, brief: 'まちの 4かしょを くるまや のりもので まわろう。', reward: { bronze: 1, coins: 30 }, pts: 4, points: [{ x: 160, z: 320 }, { x: 320, z: 160 }, { x: 160, z: -160 }, { x: -160, z: 160 }] },
-  { id: 'rescue', name: 'しみんを たすけろ', icon: '🆘', start: { x: -160, z: 160 }, brief: 'ロボットに おいかけられている 3にんを みつけて ほんぶまで つれて いこう(ちかづいて ボタン)。', reward: { silver: 1, coins: 60 }, pts: 6, civs: [{ x: -320, z: 320 }, { x: -480, z: 160 }, { x: -320, z: 0 }], guards: 2 },
-  { id: 'invasion', name: 'ロボットを たおせ!', icon: '🤖', start: { x: -160, z: -160 }, brief: 'とおくの こうさてんに あらわれた ロボットを ぜんぶ たおそう!', reward: { silver: 1, coins: 80 }, pts: 8, spot: { x: -320, z: -320 }, robots: 6 },
+  { id: 'patrol', name: 'まちの パトロール', icon: '🚓', start: { x: 160, z: 160 }, brief: 'まちの 4かしょを のりもので まわろう。', reward: { bronze: 1, coins: 30 }, pts: 4, points: [{ x: 160, z: 320 }, { x: 320, z: 160 }, { x: 160, z: -160 }, { x: -160, z: 160 }] },
+  { id: 'rescue', name: 'ひとじちを たすけろ', icon: '🆘', start: { x: -160, z: 160 }, brief: 'はんにんに おそわれている 3にんを みつけて ほんぶまで つれて いこう(ちかづいて ボタン)。', reward: { silver: 1, coins: 60 }, pts: 6, civs: [{ x: -320, z: 320 }, { x: -480, z: 160 }, { x: -320, z: 0 }], guards: 2 },
+  { id: 'gang', name: 'ギャングを たいほしろ!', icon: '🚔', start: { x: -160, z: -160 }, brief: 'こうさてんに あつまった ギャングを ぜんいん たいほしよう!(たおれて ばんざいした はんにんに ちかづいて ボタン)', reward: { silver: 1, coins: 80 }, pts: 8, spot: { x: -320, z: -320 }, crooks: 5 },
   { id: 'harbor', name: 'こうわん パトロール', icon: '⚓', start: { x: 0, z: -470 }, brief: 'ふねで うみの ブイを 3つ まわろう!(みなとの ふねに のってね)', reward: { bronze: 2, coins: 70 }, pts: 6, points: [{ x: 0, z: -820 }, { x: 760, z: -760 }, { x: 780, z: -300 }], water: true },
-  { id: 'sky', name: 'そらの リング', icon: '💫', start: { x: 345, z: 40 }, brief: 'ひこうきで リングを 6つ くぐろう!(くうこうの ひこうきに のってね)', reward: { gold: 1, coins: 120 }, pts: 10, rings: [{ x: 200, y: 90, z: 60 }, { x: 40, y: 120, z: 200 }, { x: -200, y: 140, z: 260 }, { x: -300, y: 110, z: -60 }, { x: -60, y: 90, z: -260 }, { x: 240, y: 70, z: -120 }] },
+  { id: 'sky', name: 'そらの リング', icon: '💫', start: { x: 345, z: 40 }, brief: 'ひこうきで リングを 6つ くぐろう!(くうこうの ひこうきに のってね。はやい せんとうきは むずかしいよ)', reward: { gold: 1, coins: 120 }, pts: 10, rings: [{ x: 200, y: 90, z: 60 }, { x: 40, y: 120, z: 200 }, { x: -200, y: 140, z: 260 }, { x: -300, y: 110, z: -60 }, { x: -60, y: 90, z: -260 }, { x: 240, y: 70, z: -120 }] },
   { id: 'delivery', name: 'はやく おとどけ!', icon: '📦', start: { x: -320, z: 0 }, brief: 'にもつを うけとって、100びょうい ないに ほんぶへ とどけよう!', reward: { silver: 1, coins: 90 }, pts: 6, pickup: { x: -480, z: -320 }, time: 100 },
 ];
 export const missionOf = (id) => CITY_MISSIONS.find((m) => m.id === id);
@@ -80,19 +126,21 @@ export const SHOP = { x: 30, z: 62, items: [
   { id: 'gold', name: 'ゴールドチケット', icon: '🥇', cost: 220, desc: 'ガチャチケット' },
   { id: 'shard', name: 'ダイヤの かけら×5', icon: '💠', cost: 180, desc: 'ダイヤの かけら' },
 ] };
+// とめる ばしょ(ガレージの わく)
+const CAR_SLOTS = [[18, 122], [40, 122], [62, 122], [84, 122], [18, 138], [40, 138], [62, 138], [84, 138]];
+const BIKE_SLOTS = [[14, 104], [24, 104], [34, 104], [44, 104], [54, 104], [64, 104]];
+const AIR_SLOTS = [[350, -28], [350, 28], [350, -56], [350, 56], [388, -42], [388, 42]];
+const FIXED = { tank: { kind: 'tank', x: 108, z: 36, yaw: Math.PI / 2 }, ship: { kind: 'ship', x: 0, z: -540, yaw: Math.PI }, plane: { kind: 'plane', x: 350, z: 0, yaw: Math.PI / 2 } };
+const slotOf = (it, idx) => { if (it.kind === 'bike') { const s = BIKE_SLOTS[idx % BIKE_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; } if (isAir(it.kind)) { const s = AIR_SLOTS[idx % AIR_SLOTS.length]; return { x: s[0], z: s[1], yaw: Math.PI / 2 }; } const s = CAR_SLOTS[idx % CAR_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; };
 
-const VEH_HOME = {
-  car1: { kind: 'car', x: 30, z: 120, yaw: 0 }, car2: { kind: 'car', x: 70, z: 120, yaw: 0 }, tank: { kind: 'tank', x: 108, z: 36, yaw: Math.PI / 2 },
-  ship: { kind: 'ship', x: 0, z: -540, yaw: Math.PI }, plane: { kind: 'plane', x: 350, z: 0, yaw: Math.PI / 2 },
-};
-
-export function createCity({ stats, vehicles, rnd = mulberry(5), gentle = false, coins = 0 }) {
+export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, rnd = mulberry(5), gentle = false, coins = 0, arrests = {} }) {
   const ks = stats; const FS = footStats(ks);
   const input = { turn: 0, climb: 0, gun: false, boost: false, aimX: 0, aimY: 0 };
   const S = {
     t: 0, ph: 'play', events: [], snd: [], msg: '', msgT: 0, banner: '', bannerT: 0,
-    player: { mode: 'foot', x: SPAWN.x, y: 0, z: SPAWN.z, yaw: SPAWN.yaw, pitch: 0, roll: 0, speed: 0, hp: FS.hpMax, hpMax: FS.hpMax, boost: 100, aimRel: 0, aimPitch: 0.05, veh: null, invuln: 0, dead: 0, hurt: 0, coins, fireCd: 0, noAim: 0, chute: false, carry: 0, kos: 0, target: null, lockId: 0, missileCd: 0 },
-    vehicles: [], civs: [], robots: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, stats: { coins: 0, kos: 0, missions: 0 },
+    player: { mode: 'foot', x: SPAWN.x, y: 0, z: SPAWN.z, yaw: SPAWN.yaw, pitch: 0, roll: 0, speed: 0, hp: FS.hpMax, hpMax: FS.hpMax, boost: 100, aimRel: 0, aimPitch: 0.05, veh: null, invuln: 0, dead: 0, hurt: 0, coins, noAim: 0, chute: false, carry: 0, kos: 0, target: null, missileCd: 0, lastHurt: -99 },
+    vehicles: [], civs: [], crooks: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, owned: [...new Set([...DEFAULT_OWNED, ...owned])], arrests: { ...arrests }, tracked: null,
+    wanted: [], stats: { coins: 0, arrests: 0, bounty: 0, missions: 0 },
   };
   const P = S.player; let nid = 100;
   const snd = (n) => { if (S.snd.length < 24) S.snd.push(n); };
@@ -101,50 +149,52 @@ export function createCity({ stats, vehicles, rnd = mulberry(5), gentle = false,
   const banner = (t, d = 2.4) => { S.banner = t; S.bannerT = d; };
   const ev = (e) => S.events.push(e);
   // のりもの(ならべる)
-  const mkVeh = (id, home) => { const V = vehicles[home.kind]; return { id, kind: home.kind, V, x: home.x, y: 0, z: home.z, yaw: home.yaw, pitch: 0, roll: 0, speed: 0, hp: V.hpMax, hpMax: V.hpMax, home: { ...home }, occ: false, away: 0, boost: V.boostMax || 100 }; };
-  for (const [id, h] of Object.entries(VEH_HOME)) if (vehicles[h.kind]) S.vehicles.push(mkVeh(id, h));
-  // ひろいもの(コイン・ほうせき)
+  const mkVeh = (id, kind, V, home, extra = {}) => ({ id, kind, model: V.model || kind, name: V.name || kind, V, x: home.x, y: 0, z: home.z, yaw: home.yaw, pitch: 0, roll: 0, speed: 0, hp: V.hpMax, hpMax: V.hpMax, home: { ...home }, occ: false, away: 0, boost: V.boostMax || 100, ...extra });
+  const parkOwned = () => { const idx = { car: 0, bike: 0, air: 0 }; for (const id of S.owned) { const it = catalogOf(id); if (!it || S.vehicles.some((v) => v.id === id)) continue; const grp = it.kind === 'bike' ? 'bike' : isAir(it.kind) ? 'air' : 'car'; const home = slotOf(it, idx[grp]++); S.vehicles.push(mkVeh(id, it.kind, catalogV(it, ks), { ...home, kind: it.kind }, { cat: id })); } };
+  for (const [id, h] of Object.entries(FIXED)) if (vehicles[h.kind]) S.vehicles.push(mkVeh(id, h.kind, vehicles[h.kind], h));
+  parkOwned();
   const R2 = mulberry(77);
   for (let i = 0; i < 46; i++) { const l = LINES[Math.floor(R2() * LINES.length)]; const along = lerp(-600, 600, R2()); const vert = R2() < 0.5; const x = vert ? l : along; const z = vert ? along : l; if (!isRoad(x, z) || inRect(PLAZA, x, z)) continue; S.pickups.push({ id: ++nid, x, z, kind: i % 9 === 0 ? 'gem' : 'coin', v: i % 9 === 0 ? 15 : 3 }); }
-  // まちの ひとと くるま(かざり)
-  for (let i = 0; i < 16; i++) { const l = LINES[Math.floor(R2() * LINES.length)]; const vert = R2() < 0.5; const a = lerp(-560, 560, R2()); const off = (R2() < 0.5 ? -1 : 1) * 15; const x = vert ? l + off : a; const z = vert ? a : l + off; if (!isWater(x, z) && !inRect(AIRFIELD, x, z) && !insideBuilding(x, z) && !inRect(PLAZA, x, z)) S.walkers.push({ id: ++nid, x, z, yaw: vert ? 0 : Math.PI / 2, vert, line: l + off, dir: R2() < 0.5 ? 1 : -1, spd: 1.4 + R2(), look: i }); }
-  for (let i = 0; i < 8; i++) { const l = [-480, -320, 320, 480, -160, 160][i % 6]; const vert = i % 2 === 0; if (vert && (l === -160 || l === 160)) continue; const lane = (i % 3 === 0 ? -1 : 1) * 6; S.traffic.push({ id: ++nid, vert, line: l + lane, pos: lerp(-560, 560, R2()), dir: lane > 0 ? 1 : -1, spd: 12 + R2() * 6, tone: i, x: 0, z: 0, yaw: 0, wait: 0 }); }
-
-  // ---- まわりの ぶつかり ----
-  const groundMove = (e, nx, nz, r, water) => { // water=true: うみ だけ / false: りく だけ
-    const ok = (x, z) => (water ? isWater(x, z) : !isWater(x, z));
-    let moved = false;
+  for (let i = 0; i < 18; i++) { const l = LINES[Math.floor(R2() * LINES.length)]; const vert = R2() < 0.5; const a = lerp(-560, 560, R2()); const off = (R2() < 0.5 ? -1 : 1) * 15; const x = vert ? l + off : a; const z = vert ? a : l + off; if (!isWater(x, z) && !inRect(AIRFIELD, x, z) && !insideBuilding(x, z) && !inRect(PLAZA, x, z)) S.walkers.push({ id: ++nid, x, z, yaw: vert ? 0 : Math.PI / 2, vert, line: l + off, dir: R2() < 0.5 ? 1 : -1, spd: 1.4 + R2(), look: i }); }
+  const TRAF = ['sedan', 'taxi', 'suv', 'sedan', 'truck', 'taxi', 'sports', 'suv'];
+  for (let i = 0; i < 10; i++) { const l = [-480, -320, 320, 480, -160, 160][i % 6]; const vert = i % 2 === 0; if (vert && (l === -160 || l === 160)) continue; const lane = (i % 3 === 0 ? -1 : 1) * 6; S.traffic.push({ id: ++nid, vert, line: l + lane, pos: lerp(-560, 560, R2()), dir: lane > 0 ? 1 : -1, spd: 11 + R2() * 6, tone: i, model: TRAF[i % TRAF.length], x: 0, z: 0, yaw: 0, wait: 0 }); }
+  const groundMove = (e, nx, nz, r, water) => {
+    const ok = (x, z) => (water ? isWater(x, z) : !isWater(x, z)); let moved = false;
     if (ok(nx, nz)) { e.x = nx; e.z = nz; moved = true; } else if (ok(nx, e.z)) { e.x = nx; moved = true; } else if (ok(e.x, nz)) { e.z = nz; moved = true; }
     if (!water) pushOut(e, r); return moved;
   };
-  const dmgEntity = (hurt) => { /* ダメージの うけて */ void hurt; };
-  void dmgEntity;
-
-  // ---- いま のってる のりもの ----
   const cur = () => (P.veh ? S.vehicles.find((v) => v.id === P.veh) : null);
+  const VNAME = { car: '🚗', bike: '🏍️', tank: '🚜', ship: '🚢', plane: '✈️', jet: '🛩️' };
+
+  // ---- ちかくの ものと ボタン ----
   const setNear = () => {
     let best = null; let bd = 1e9; const px = P.x; const pz = P.z;
     const cand = (kind, id, x, z, r, label, extra = {}) => { const d = hyp(px - x, pz - z); if (d < r && d < bd) { bd = d; best = { kind, id, label, d, ...extra }; } };
     if (P.mode === 'foot') {
-      for (const v of S.vehicles) if (!v.occ) cand('veh', v.id, v.x, v.z, v.kind === 'ship' ? 26 : 12, `${{ car: '🚗 くるま', tank: '🚜 せんしゃ', ship: '🚢 ふね', plane: '✈️ ひこうき' }[v.kind]}に のる`);
-      for (const c of S.civs) if (c.state === 'need') cand('civ', c.id, c.x, c.z, 9, '🆘 しみんを たすける');
-    } else cand('exit', 'exit', px, pz, 999, P.veh && cur() && cur().kind === 'plane' && P.y > 12 ? '🪂 パラシュートで おりる' : '🚪 おりる');
+      for (const c of S.crooks) if (c.state === 'down') cand('arrest', c.id, c.x, c.z, 6, `🚔 たいほする${c.wid ? `(けんしょう金 ${bountyOf(c)})` : ''}`);
+      for (const v of S.vehicles) if (!v.occ) cand('veh', v.id, v.x, v.z, v.kind === 'ship' ? 26 : 12, `${VNAME[v.kind] || '🚗'} ${v.name || ''}に のる`);
+      for (const t of S.traffic) cand('tcar', t.id, t.x, t.z, 7, '🚓 くるまを かりる(おまわりさん)');
+      for (const c of S.civs) if (c.state === 'need') cand('civ', c.id, c.x, c.z, 9, '🆘 ひとを たすける');
+    } else cand('exit', 'exit', px, pz, 999, cur() && isAir(cur().kind) && P.y > 12 ? '🪂 パラシュートで おりる' : '🚪 おりる');
     cand('shop', 'shop', SHOP.x, SHOP.z, 10, '🏪 おみせを みる');
+    cand('board', 'board', BOARD.x, BOARD.z, 11, '📋 してい手配ボードを みる');
+    cand('garage', 'garage', GARAGE.x, GARAGE.z, 14, '🏁 ガレージ(のりものを かう)');
     if (!S.mission) for (const m of CITY_MISSIONS) cand('mission', m.id, m.start.x, m.start.z, 14, `${m.icon} ミッション「${m.name}」`);
     if (S.mission && S.mission.id === 'delivery' && S.mission.stage === 0) cand('pack', 'pack', S.mission.pk.x, S.mission.pk.z, 14, '📦 にもつを うけとる');
     S.nearby = best;
   };
   const enter = (v) => {
-    P.mode = 'veh'; P.veh = v.id; v.occ = true; v.away = 0; P.hp = Math.min(P.hp, P.hpMax); P.aimRel = 0; P.aimPitch = 0.05; P.noAim = 0;
-    if (v.kind === 'plane') { v.y = 60; v.speed = v.V.speed; v.pitch = 0; v.yaw = v.home.yaw; msg('✈️ ひこうきに のったよ! リングを めざせ!'); }
+    P.mode = 'veh'; P.veh = v.id; v.occ = true; v.away = 0; P.aimRel = 0; P.aimPitch = 0.05; P.noAim = 0; P.boost = 100;
+    if (isAir(v.kind)) { v.y = 60; v.speed = v.V.speed; v.pitch = 0; v.yaw = v.home.yaw; msg(`${VNAME[v.kind]} ${v.name}に のったよ! そらへ!`); }
+    else msg(`${VNAME[v.kind] || ''} ${v.name}に のったよ`);
     P.x = v.x; P.z = v.z; P.y = v.y; P.yaw = v.yaw; snd('door');
   };
   const leave = () => {
-    const v = cur(); if (!v) return; v.occ = false; v.away = 0; const sd = v.yaw + Math.PI / 2;
-    P.mode = 'foot'; P.veh = null; P.x = v.x + Math.sin(sd) * (v.kind === 'ship' ? 18 : 6); P.z = v.z + Math.cos(sd) * (v.kind === 'ship' ? 18 : 6); P.y = v.kind === 'plane' ? v.y : 0; P.yaw = v.yaw; P.speed = 0;
-    if (v.kind === 'plane' && v.y > 12) { P.chute = true; msg('🪂 パラシュートで ゆっくり おりるよ'); const d = hyp(v.x - v.home.x, v.z - v.home.z); void d; v.x = v.home.x; v.z = v.home.z; v.y = 0; v.yaw = v.home.yaw; v.speed = 0; v.hp = v.hpMax; }
-    else if (v.kind === 'plane') { v.speed = 0; }
-    if (isWater(P.x, P.z) && v.kind === 'ship') { // みずの うえに おりない(ちかくの りくへ)
+    const v = cur(); if (!v) return; v.occ = false; v.away = 0; const sd = v.yaw + Math.PI / 2; const air = isAir(v.kind);
+    P.mode = 'foot'; P.veh = null; P.x = v.x + Math.sin(sd) * (v.kind === 'ship' ? 18 : 6); P.z = v.z + Math.cos(sd) * (v.kind === 'ship' ? 18 : 6); P.y = air ? v.y : 0; P.yaw = v.yaw; P.speed = 0;
+    if (air && v.y > 12) { P.chute = true; msg('🪂 パラシュートで ゆっくり おりるよ'); v.x = v.home.x; v.z = v.home.z; v.y = 0; v.yaw = v.home.yaw; v.speed = 0; v.hp = v.hpMax; }
+    else if (air) { v.speed = 0; }
+    if (isWater(P.x, P.z) && v.kind === 'ship') {
       let ok = false; for (let r = 18; r < 120 && !ok; r += 6) for (let a = 0; a < 16 && !ok; a++) { const x = v.x + Math.cos(a * 0.39) * r; const z = v.z + Math.sin(a * 0.39) * r; if (!isWater(x, z) && !insideBuilding(x, z)) { P.x = x; P.z = z; ok = true; } }
       if (!ok) { P.x = v.home.x + 30; P.z = v.home.z + 40; }
     }
@@ -154,13 +204,11 @@ export function createCity({ stats, vehicles, rnd = mulberry(5), gentle = false,
   // ---- ミッション ----
   const startMission = (id) => {
     const m = missionOf(id); if (!m || S.mission) return false;
-    const M = { id, stage: 0, t: 0, name: m.name, icon: m.icon, total: 0, got: 0 };
-    S.mission = M; // さきに おく(ロボットに ミッションの めじるしを つけるため)
-    if (id === 'patrol') { M.total = m.points.length; M.targets = m.points.map((p) => ({ ...p })); }
-    else if (id === 'harbor') { M.total = m.points.length; M.targets = m.points.map((p) => ({ ...p })); }
+    const M = { id, stage: 0, t: 0, name: m.name, icon: m.icon, total: 0, got: 0 }; S.mission = M;
+    if (id === 'patrol' || id === 'harbor') { M.total = m.points.length; M.targets = m.points.map((p) => ({ ...p })); }
     else if (id === 'sky') { M.total = m.rings.length; M.targets = m.rings.map((p) => ({ ...p })); }
-    else if (id === 'rescue') { M.total = m.civs.length; for (const c of m.civs) S.civs.push({ id: ++nid, x: c.x, z: c.z, yaw: 0, state: 'need', fear: 0, home: { ...c } }); for (let i = 0; i < m.guards; i++) spawnRobot(m.civs[i % m.civs.length].x + 18, m.civs[i % m.civs.length].z + 14, 'bot', 28); }
-    else if (id === 'invasion') { M.total = m.robots; for (let i = 0; i < m.robots; i++) spawnRobot(m.spot.x + Math.cos(i * 1.1) * 36, m.spot.z + Math.sin(i * 1.1) * 36, i % 5 === 4 ? 'big' : 'bot', 60); M.kosAt = P.kos; M.targets = [{ x: m.spot.x, z: m.spot.z }]; }
+    else if (id === 'rescue') { M.total = m.civs.length; for (const c of m.civs) S.civs.push({ id: ++nid, x: c.x, z: c.z, yaw: 0, state: 'need', fear: 0, home: { ...c } }); for (let i = 0; i < m.guards; i++) spawnCrook('thug', m.civs[i % m.civs.length].x + 18, m.civs[i % m.civs.length].z + 14, { wander: 28 }); }
+    else if (id === 'gang') { M.total = m.crooks; for (let i = 0; i < m.crooks; i++) spawnCrook(['thug', 'gunman', 'thug', 'gunman', 'boss'][i % 5], m.spot.x + Math.cos(i * 1.3) * 34, m.spot.z + Math.sin(i * 1.3) * 34, { wander: 50, mission: true }); M.targets = [{ x: m.spot.x, z: m.spot.z }]; }
     else if (id === 'delivery') { M.total = 2; M.pk = { ...m.pickup }; M.timeLeft = m.time; M.targets = [{ x: m.pickup.x, z: m.pickup.z }]; }
     banner(`${m.icon} ${m.name}`); msg(m.brief, 5); snd('mission'); return true;
   };
@@ -168,63 +216,75 @@ export function createCity({ stats, vehicles, rnd = mulberry(5), gentle = false,
     const M = S.mission; if (!M) return; const m = missionOf(M.id);
     if (ok) { S.done[M.id] = (S.done[M.id] || 0) + 1; S.stats.missions++; const r = { ...m.reward }; const coins = r.coins || 0; delete r.coins; P.coins += coins; S.stats.coins += coins; ev({ t: 'reward', id: M.id, name: m.name, reward: r, pts: m.pts || 0, coins, first: S.done[M.id] === 1 }); banner('✅ ミッション クリア!', 3); msg(`ごほうび: コイン +${coins}${Object.keys(r).length ? ' + チケット' : ''}`, 4); snd('win'); fx('big', P.x, P.y + 4, P.z, 10); }
     else { banner('ミッション しっぱい…', 2.6); msg(why || 'もういちど ちょうせんしよう', 3.5); snd('lose'); }
-    // のこりの ロボット・しみんを かたづける
-    S.civs = S.civs.filter((c) => c.state === 'safe' ? false : false); S.mission = null; P.carry = 0;
-    if (M.id === 'invasion') S.robots = S.robots.filter((r) => !r.mission);
+    S.civs = []; S.mission = null; P.carry = 0; S.crooks = S.crooks.filter((c) => !c.mission);
   };
-  const cancelMission = () => { if (S.mission) { const M = S.mission; S.civs = []; if (M.id === 'invasion') S.robots = S.robots.filter((r) => !r.mission); S.mission = null; P.carry = 0; msg('ミッションを やめたよ'); } };
+  const cancelMission = () => { if (S.mission) { S.civs = []; S.crooks = S.crooks.filter((c) => !c.mission); S.mission = null; P.carry = 0; msg('ミッションを やめたよ'); } };
 
-  // ---- ロボット ----
-  function spawnRobot(x, z, type = 'bot', home = 0) {
-    const big = type === 'big'; const r = { id: ++nid, type, x, z, yaw: rnd() * 6.28, hp: big ? 150 : 46, hpMax: big ? 150 : 46, cd: 1 + rnd(), homeX: x, homeZ: z, wander: home || 40, state: 'idle', t: 0, mission: !!S.mission && true, speed: big ? 3.2 : 4.4, ph: rnd() * 6 };
-    S.robots.push(r); return r;
+  // ---- はんにん ----
+  function spawnCrook(type, x, z, o = {}) {
+    const T = CROOKS[type]; const hp = Math.round(T.hp * (o.hpMul || 1));
+    const c = { id: ++nid, type, x, z, yaw: rnd() * 6.28, hp, hpMax: hp, cd: 1 + rnd(), homeX: x, homeZ: z, wander: o.wander || 36, state: 'idle', t: 0, downT: 0, mission: !!o.mission, wid: o.wid || null, speed: T.speed, ph: rnd() * 6, alert: false, look: Math.floor(rnd() * 8), flee: 0 };
+    S.crooks.push(c); return c;
   }
-  const koRobot = (r) => {
-    S.robots = S.robots.filter((x) => x !== r); P.kos++; S.stats.kos++; fx('boom', r.x, 3, r.z, r.type === 'big' ? 12 : 8); snd('boom');
-    S.pickups.push({ id: ++nid, x: r.x + (rnd() - 0.5) * 3, z: r.z + (rnd() - 0.5) * 3, kind: 'coin', v: r.type === 'big' ? 6 : 3 });
-    ev({ t: 'ko', type: r.type });
+  const bountyOf = (c) => { if (c.wid) { const w = WANTED.find((x) => x.id === c.wid); const n = S.arrests[c.wid] || 0; return Math.round(w.bounty * (n === 0 ? 1 : 0.5)); } return c.minor ? 40 : 0; };
+  const spawnWanted = (w) => {
+    spawnCrook(w.type, w.spot.x, w.spot.z, { wid: w.id, wander: 30, hpMul: 1 });
+    for (let i = 0; i < w.guards; i++) { const a = (i / w.guards) * 6.28; spawnCrook(w.stars >= 4 && i < 2 ? 'gunman' : 'thug', w.spot.x + Math.cos(a) * 22, w.spot.z + Math.sin(a) * 22, { wander: 30, hpMul: 1, guardOf: w.id }); }
+  };
+  const respawnAt = {}; for (const w of WANTED) spawnWanted(w);
+  const refreshWanted = () => { S.wanted = WANTED.map((w) => { const c = S.crooks.find((x) => x.wid === w.id); return { id: w.id, name: w.name, crime: w.crime, stars: w.stars, bounty: Math.round(w.bounty * ((S.arrests[w.id] || 0) === 0 ? 1 : 0.5)), alive: !!c, x: c ? c.x : null, z: c ? c.z : null, caught: S.arrests[w.id] || 0, state: c ? c.state : 'gone' }; }); };
+  refreshWanted();
+  const downCrook = (c) => { c.state = 'down'; c.downT = 0; c.hp = Math.max(1, Math.round(c.hpMax * 0.2)); snd('down'); fx('spark', c.x, 3, c.z, 5); };
+  const hitCrook = (c, dmg) => { if (c.state === 'down') return; c.hp -= dmg; c.alert = true; if (c.hp <= c.hpMax * 0.22) downCrook(c); };
+  const arrest = (c) => {
+    S.crooks = S.crooks.filter((x) => x !== c); P.kos++; S.stats.arrests++; snd('win'); fx('spark', c.x, 3, c.z, 6);
+    const coins = bountyOf(c); P.coins += coins; S.stats.coins += coins; S.stats.bounty += coins;
+    if (c.wid) { const w = WANTED.find((x) => x.id === c.wid); const first = (S.arrests[c.wid] || 0) === 0; S.arrests[c.wid] = (S.arrests[c.wid] || 0) + 1; respawnAt[c.wid] = S.t + 120; const tk = {}; if (first) { if (w.stars >= 5) tk.gold = 2; else if (w.stars >= 4) tk.gold = 1; else if (w.stars >= 3) tk.silver = 1; else if (w.stars >= 2) tk.bronze = 1; }
+      ev({ t: 'bounty', id: c.wid, name: w.name, stars: w.stars, coins, tickets: tk, first }); banner(`🚔 ${w.name} を たいほ!`, 3.2); msg(`けんしょう金 🪙+${coins}${Object.keys(tk).length ? ' + チケット' : ''}`, 4); }
+    else { ev({ t: 'arrest', coins }); msg(coins ? `たいほ! 🪙+${coins}` : 'たいほ!', 2.2); }
+    refreshWanted();
   };
   const hurtPlayer = (d) => {
     if (P.invuln > 0 || P.dead > 0) return; const dd = d * (gentle ? 0.6 : 1); snd('hit'); P.hurt = 0.35;
     const v = cur();
-    if (v) { v.hp -= dd; if (v.hp <= 0) { v.hp = 0; fx('big', v.x, v.y + 3, v.z, 14); snd('bigboom'); msg('のりものが こわれた! ほんぶで なおすよ', 3); const wasPlane = v.kind === 'plane'; leave(); P.invuln = 2; v.x = v.home.x; v.z = v.home.z; v.y = 0; v.yaw = v.home.yaw; v.speed = 0; v.hp = v.hpMax; if (wasPlane) P.chute = false; } }
+    if (v) { v.hp -= dd; if (v.hp <= 0) { v.hp = 0; fx('big', v.x, v.y + 3, v.z, 14); snd('bigboom'); msg('のりものが こわれた! ほんぶで なおすよ', 3); const wasAir = isAir(v.kind); leave(); P.invuln = 2; if (v.temp) { S.vehicles = S.vehicles.filter((x) => x !== v); } else { v.x = v.home.x; v.z = v.home.z; v.y = 0; v.yaw = v.home.yaw; v.speed = 0; v.hp = v.hpMax; } if (wasAir) P.chute = false; } }
     else { P.hp -= dd; if (P.hp <= 0) { P.hp = 0; knockout(); } }
   };
   const knockout = () => {
     P.dead = 2.8; const lose = Math.min(P.coins, Math.max(0, Math.round(P.coins * 0.1))); P.coins -= lose; fx('boom', P.x, 3, P.z, 10); snd('lose');
-    banner('😵 ノックアウト! ほんぶで ふっかつ', 3); msg(lose ? `コインを ${lose}こ おとしたよ` : 'だいじょうぶ! もういちど!', 3);
+    banner('😵 ノックアウト! びょういんで ふっかつ', 3); msg(lose ? `コインを ${lose}こ おとしたよ` : 'だいじょうぶ! もういちど!', 3);
     if (P.veh) { const v = cur(); if (v) { v.occ = false; } P.veh = null; P.mode = 'foot'; }
   };
   const respawn = () => { P.dead = 0; P.hp = P.hpMax; P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.yaw = 0; P.speed = 0; P.mode = 'foot'; P.invuln = 3; P.chute = false; P.carry = 0; for (const c of S.civs) if (c.state === 'carried') { c.state = 'need'; c.x = c.home.x; c.z = c.home.z; } };
 
   // ---- ねらい ----
-  const nearestRobot = (maxD, cone, yaw) => {
-    let best = null; let bd = maxD; for (const r of S.robots) { const d = hyp(r.x - P.x, r.z - P.z); if (d > bd) continue; const a = Math.abs(angDiff(Math.atan2(r.x - P.x, r.z - P.z), yaw)); if (a > cone) continue; bd = d; best = r; } return best;
+  const nearestCrook = (maxD, cone, yaw) => {
+    let best = null; let bd = maxD; for (const r of S.crooks) { if (r.state === 'down') continue; const d = hyp(r.x - P.x, r.z - P.z); if (d > bd) continue; const a = Math.abs(angDiff(Math.atan2(r.x - P.x, r.z - P.z), yaw)); if (a > cone) continue; bd = d; best = r; } return best;
   };
-  const aimDir = () => { // いま うつ ほうこう(せかいの ざひょう)
+  const aimDir = () => {
     const v = cur(); const kind = v ? v.kind : 'foot';
-    if (kind === 'plane') return { yaw: v.yaw, pitch: v.pitch, from: { x: v.x, y: v.y - 1, z: v.z } };
+    if (isAir(kind)) return { yaw: v.yaw, pitch: v.pitch, from: { x: v.x, y: v.y - 1, z: v.z } };
     const ay = P.yaw + P.aimRel;
-    return { yaw: ay, pitch: P.aimPitch, from: { x: P.x, y: (kind === 'foot' ? 1.6 : kind === 'ship' ? 8 : 4) + P.y, z: P.z } };
+    return { yaw: ay, pitch: P.aimPitch, from: { x: P.x, y: (kind === 'foot' ? 1.6 : kind === 'ship' ? 8 : kind === 'tank' ? 4 : 1.8) + P.y, z: P.z } };
   };
   const fireGun = (dt) => {
-    const v = cur(); const kind = v ? v.kind : 'foot'; const dps = v ? v.V.gunDps : FS.gunDps; const range = kind === 'plane' ? 650 : kind === 'ship' ? 800 : kind === 'tank' ? 600 : kind === 'car' ? 140 : FS.range;
-    // おてがる: あるく・くるまは ちかい ロボットに ねらいを あわせる(たまに じぶんで うごかすと そちらが ゆうせん)
-    if ((kind === 'foot' || kind === 'car') && P.noAim > 0.8) { const t = nearestRobot(range, 0.9, v ? v.yaw : P.yaw); if (t) { P.aimRel = clamp(angDiff(Math.atan2(t.x - P.x, t.z - P.z), v ? v.yaw : P.yaw), -1.5, 1.5); P.aimPitch = clamp(Math.atan2(2.5 - (kind === 'foot' ? 1.6 : 4), Math.hypot(t.x - P.x, t.z - P.z)), -0.2, 0.4); } }
+    const v = cur(); const kind = v ? v.kind : 'foot'; const dps = v ? v.V.gunDps : FS.gunDps; if (!dps) { if (S.t - (P.nogunT || -9) > 3) { P.nogunT = S.t; msg('この のりものには ぶきが ないよ'); } return; }
+    const air = isAir(kind); const range = air ? 650 : kind === 'ship' ? 800 : kind === 'tank' ? 600 : kind === 'car' || kind === 'bike' ? 140 : FS.range;
+    if ((kind === 'foot' || kind === 'car' || kind === 'bike') && P.noAim > 0.8) { const yaw0 = v ? v.yaw : P.yaw; const t = nearestCrook(range, 0.9, yaw0); if (t) { P.aimRel = clamp(angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0), -1.5, 1.5); P.aimPitch = clamp(Math.atan2(2.5 - (kind === 'foot' ? 1.6 : 2), Math.hypot(t.x - P.x, t.z - P.z)), -0.2, 0.4); } }
     const d = aimDir(); const dv = dirOf(d.yaw, d.pitch); let best = null; let ba = 9;
-    for (const r of S.robots) {
-      const ty = kind === 'plane' ? Math.max(3, d.from.y - 0.25 * hyp(r.x - d.from.x, r.z - d.from.z)) : 3; const vx = r.x - d.from.x; const vy = ty - d.from.y; const vz = r.z - d.from.z; const dist = hyp(vx, vy, vz); if (dist > range) continue;
-      const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = (kind === 'plane' ? 0.13 : (r.type === 'big' ? 5 : 3) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { ba = a; best = r; }
+    for (const r of S.crooks) {
+      if (r.state === 'down') continue; const ty = air ? Math.max(1.5, d.from.y - 0.25 * hyp(r.x - d.from.x, r.z - d.from.z)) : 1.6; const vx = r.x - d.from.x; const vy = ty - d.from.y; const vz = r.z - d.from.z; const dist = hyp(vx, vy, vz); if (dist > range) continue;
+      const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = (air ? 0.13 : (r.type === 'boss' ? 3 : 2) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { ba = a; best = r; }
     }
-    if (best) { best.hp -= dps * dt * (kind === 'foot' ? 1 : 1.2); best.alert = true; if (best.hp <= 0) koRobot(best); }
-    if (S.t % (kind === 'foot' ? 0.1 : 0.08) < dt) S.tracers.push({ from: d.from, to: best ? { x: best.x, y: 3, z: best.z } : { x: d.from.x + dv.x * 120, y: d.from.y + dv.y * 120, z: d.from.z + dv.z * 120 }, t: 0 });
+    if (best) hitCrook(best, dps * dt * (kind === 'foot' ? 1 : 1.2));
+    if (S.t % (kind === 'foot' ? 0.1 : 0.08) < dt) S.tracers.push({ from: d.from, to: best ? { x: best.x, y: 1.6, z: best.z } : { x: d.from.x + dv.x * 120, y: d.from.y + dv.y * 120, z: d.from.z + dv.z * 120 }, t: 0 });
     if (S.t % 0.2 < dt) snd(kind === 'tank' || kind === 'ship' ? 'boom' : 'gun');
   };
   const fireMissile = () => {
     const v = cur(); if (!v || !v.V.missiles || P.missileCd > 0 || P.dead > 0) return false; if ((v.mis == null ? v.V.missiles : v.mis) <= 0) { msg('ミサイルは ふえるのを まってね'); return false; }
-    const range = v.kind === 'plane' ? 800 : 500; const t = nearestRobot(range, v.kind === 'plane' ? 0.7 : 3.2, v.kind === 'plane' ? v.yaw : v.yaw + P.aimRel);
-    if (!t) { msg('ロックできる てきが いないよ'); return false; }
-    v.mis = (v.mis == null ? v.V.missiles : v.mis) - 1; P.missileCd = 0.5; const d = dirOf(v.kind === 'plane' ? v.yaw : v.yaw + P.aimRel, 0.5);
+    const air = isAir(v.kind); const range = air ? 800 : 500; const t = nearestCrook(range, air ? 0.7 : 3.2, air ? v.yaw : v.yaw + P.aimRel);
+    if (!t) { msg('ロックできる はんにんが いないよ'); return false; }
+    v.mis = (v.mis == null ? v.V.missiles : v.mis) - 1; P.missileCd = 0.5; const d = dirOf(air ? v.yaw : v.yaw + P.aimRel, 0.5);
     S.missiles.push({ x: v.x + d.x * 8, y: v.y + 6, z: v.z + d.z * 8, vx: d.x * 120, vy: 0.5 * 120, vz: d.z * 120, target: t.id, t: 0, life: 7, dmg: v.V.missileDmg }); snd('missile'); return true;
   };
 
@@ -232,109 +292,111 @@ export function createCity({ stats, vehicles, rnd = mulberry(5), gentle = false,
   function movePlayer(dt) {
     const v = cur(); const boost = input.boost;
     if (P.dead > 0) return;
-    if (P.chute) { P.y = Math.max(0, P.y - 7 * dt); P.yaw += input.turn * 0.6 * dt; P.x += Math.sin(P.yaw) * input.climb * 6 * dt; P.z += Math.cos(P.yaw) * input.climb * 6 * dt; if (isWater(P.x, P.z)) { /* うみに おちても だいじょうぶ(ちかくの りくへ) */ P.x = HQ.x; P.z = HQ.z - 40; } pushOut(P, 1.2); if (P.y <= 0.01) { P.chute = false; } return; }
-    if (!v) { // あるく
+    if (P.chute) { P.y = Math.max(0, P.y - 7 * dt); P.yaw += input.turn * 0.6 * dt; P.x += Math.sin(P.yaw) * input.climb * 6 * dt; P.z += Math.cos(P.yaw) * input.climb * 6 * dt; if (isWater(P.x, P.z)) { P.x = HQ.x; P.z = HQ.z - 40; } pushOut(P, 1.2); if (P.y <= 0.01) P.chute = false; return; }
+    if (!v) {
       const sp = boost ? FS.run : FS.speed; const target = input.climb >= 0 ? input.climb * sp : input.climb * sp * 0.5; P.speed = lerp(P.speed, target, 1 - Math.exp(-9 * dt));
       P.yaw += input.turn * FS.turn * dt; groundMove(P, P.x + Math.sin(P.yaw) * P.speed * dt, P.z + Math.cos(P.yaw) * P.speed * dt, 1.1, false); P.y = 0; P.boost = clamp(P.boost + (boost && input.climb > 0 ? -30 : 20) * dt, 0, 100); return;
     }
     const V = v.V; const k = v.kind;
-    if (k === 'plane') {
+    if (isAir(k)) {
       const bo = boost && P.boost > 1; P.boost = clamp(P.boost + (bo ? -22 : 10) * dt, 0, 100);
-      const sp = V.speed * (bo ? 1.65 : 1) * (input.climb < -0.4 ? 1.12 : input.climb > 0.4 ? 0.92 : 1); v.speed = lerp(v.speed, sp, 1 - Math.exp(-2.4 * dt));
+      const sp = V.speed * (bo ? 1.55 : 1) * (input.climb < -0.4 ? 1.12 : input.climb > 0.4 ? 0.92 : 1); v.speed = lerp(v.speed, sp, 1 - Math.exp(-2.4 * dt));
       v.yaw += input.turn * V.turn * dt; v.pitch = clamp(v.pitch + input.climb * 0.95 * dt, -0.95, 0.95); if (Math.abs(input.climb) < 0.12) v.pitch *= Math.exp(-0.9 * dt); v.roll = lerp(v.roll, -input.turn * 0.95, 1 - Math.exp(-5 * dt));
       const f = dirOf(v.yaw, v.pitch); v.x += f.x * v.speed * dt; v.y += f.y * v.speed * dt; v.z += f.z * v.speed * dt;
       if (v.y < 6) { v.y = 6; v.pitch = Math.max(v.pitch, 0.25); if (S.t - (v.crashT || -9) > 1.2) { v.crashT = S.t; hurtPlayer(14); msg('⚠ ちめんに ちかいよ! のぼって!', 1.6); } }
       if (insideBuilding(v.x, v.z, v.y)) { const b = nearB(v.x, v.z).find((bb) => v.y <= bb.h && v.x >= bb.x0 && v.x <= bb.x1 && v.z >= bb.z0 && v.z <= bb.z1); if (b) { v.y = b.h + 8; v.pitch = 0.3; if (S.t - (v.crashT || -9) > 1.2) { v.crashT = S.t; hurtPlayer(20); msg('💥 たてものに ぶつかった!', 1.6); fx('boom', v.x, v.y, v.z, 10); } } }
-      v.y = Math.min(v.y, 700); const r = hyp(v.x, v.z); if (r > 1600) { v.yaw += clamp(angDiff(Math.atan2(-v.x, -v.z), v.yaw), -1.6 * dt, 1.6 * dt) * 3; }
+      v.y = Math.min(v.y, 800); if (hyp(v.x, v.z) > 1800) v.yaw += clamp(angDiff(Math.atan2(-v.x, -v.z), v.yaw), -1.6 * dt, 1.6 * dt) * 3;
       P.x = v.x; P.y = v.y; P.z = v.z; P.yaw = v.yaw; P.pitch = v.pitch; return;
     }
-    // ちじょう・うみ
     const bo = boost && P.boost > 1; P.boost = clamp(P.boost + (bo ? -26 : 12) * dt, 0, 100);
-    const max = V.speed * (bo ? 1.55 : 1); const want = input.climb >= 0 ? input.climb * max : input.climb * max * 0.4;
-    v.speed = lerp(v.speed, want, 1 - Math.exp(-(k === 'car' ? 2.4 : k === 'tank' ? 3.2 : 1.1) * dt));
+    const max = V.speed * (bo ? 1.5 : 1); const want = input.climb >= 0 ? input.climb * max : input.climb * max * 0.4;
+    v.speed = lerp(v.speed, want, 1 - Math.exp(-(k === 'car' ? 2.4 : k === 'bike' ? 3.0 : k === 'tank' ? 3.2 : 1.1) * dt));
     v.yaw += input.turn * V.turn * dt * (0.35 + Math.min(1, Math.abs(v.speed) / (V.speed * 0.45)) * 0.65) * (v.speed < -0.5 ? -1 : 1);
-    const nx = v.x + Math.sin(v.yaw) * v.speed * dt; const nz = v.z + Math.cos(v.yaw) * v.speed * dt; const rad = k === 'car' ? 3.2 : k === 'tank' ? 6.5 : 14;
+    const nx = v.x + Math.sin(v.yaw) * v.speed * dt; const nz = v.z + Math.cos(v.yaw) * v.speed * dt; const rad = k === 'car' ? 3.2 : k === 'bike' ? 1.6 : k === 'tank' ? 6.5 : 14;
     const ox = v.x; const oz = v.z; const moved = groundMove(v, nx, nz, rad, k === 'ship');
     if (k === 'ship') { for (const b of nearB(v.x, v.z)) { const cx = clamp(v.x, b.x0, b.x1); const cz = clamp(v.z, b.z0, b.z1); if (hyp(v.x - cx, v.z - cz) < rad) { v.x = ox; v.z = oz; v.speed *= 0.2; } } v.x = clamp(v.x, -1700, 1700); v.z = clamp(v.z, -1700, 1700); }
-    if (!moved || hyp(v.x - nx, v.z - nz) > 0.6) { if (Math.abs(v.speed) > 8 && S.t - (v.bumpT || -9) > 0.7) { v.bumpT = S.t; snd('bump'); if (k === 'car') hurtPlayer(Math.min(10, Math.abs(v.speed) * 0.25)); } v.speed *= 0.5; }
-    // ぶつかって ロボットを はじく
-    if (Math.abs(v.speed) > 9) for (const r of S.robots.slice()) if (hyp(r.x - v.x, r.z - v.z) < rad + 2) { r.hp -= (k === 'tank' ? 80 : 40); fx('spark', r.x, 2, r.z, 5); if (r.hp <= 0) koRobot(r); else { r.x += Math.sin(v.yaw) * 6; r.z += Math.cos(v.yaw) * 6; } }
-    v.roll = lerp(v.roll, -input.turn * 0.1, 1 - Math.exp(-4 * dt)); P.x = v.x; P.z = v.z; P.y = k === 'ship' ? 0 : 0; P.yaw = v.yaw; P.speed = v.speed;
+    if (!moved || hyp(v.x - nx, v.z - nz) > 0.6) { if (Math.abs(v.speed) > 8 && S.t - (v.bumpT || -9) > 0.7) { v.bumpT = S.t; snd('bump'); if (k === 'car' || k === 'bike') hurtPlayer(Math.min(12, Math.abs(v.speed) * (k === 'bike' ? 0.35 : 0.22))); } v.speed *= 0.5; }
+    // はんにんに ぶつかっても たおれる だけ(けがは しない)
+    if (Math.abs(v.speed) > 9) for (const r of S.crooks.slice()) if (r.state !== 'down' && hyp(r.x - v.x, r.z - v.z) < rad + 1.5) { hitCrook(r, k === 'tank' ? 90 : 45); fx('spark', r.x, 2, r.z, 5); r.x += Math.sin(v.yaw) * 4; r.z += Math.cos(v.yaw) * 4; }
+    v.roll = lerp(v.roll, -input.turn * (k === 'bike' ? 0.5 : 0.1) * Math.min(1, Math.abs(v.speed) / 15), 1 - Math.exp(-4 * dt)); P.x = v.x; P.z = v.z; P.y = 0; P.yaw = v.yaw; P.speed = v.speed;
   }
-  function stepRobots(dt) {
-    for (const r of S.robots) {
-      r.t += dt; const dp = hyp(r.x - P.x, r.z - P.z); const target = P.dead > 0 ? null : (dp < 85 || r.alert ? P : null);
-      let civ = null; if (!target) for (const c of S.civs) if (c.state === 'need' && hyp(c.x - r.x, c.z - r.z) < 50) civ = c;
-      const goal = target || civ;
-      if (goal) { const gx = goal.x; const gz = goal.z; const d = hyp(gx - r.x, gz - r.z); const want = Math.atan2(gx - r.x, gz - r.z); r.yaw += clamp(angDiff(want, r.yaw), -3 * dt, 3 * dt); if (d > 22) { groundMove(r, r.x + Math.sin(r.yaw) * r.speed * dt, r.z + Math.sin(0) * 0 + Math.cos(r.yaw) * r.speed * dt, 1.6, false); } r.cd -= dt;
-        if (r.cd <= 0 && d < 70) { r.cd = (r.type === 'big' ? 1.1 : 1.6) + rnd() * 0.5; const sx = (rnd() - 0.5) * 0.14; const vx = Math.sin(r.yaw + sx); const vz = Math.cos(r.yaw + sx); const ty = target ? (P.mode === 'veh' ? (cur() && cur().kind === 'plane' ? P.y : 3) : 1.4) : 1.4; const dy = (ty - 3) / Math.max(10, d); S.bullets.push({ x: r.x, y: 3, z: r.z, vx: vx * 62, vy: dy * 62, vz: vz * 62, t: 0, dmg: r.type === 'big' ? 9 : 5, civ: !target }); snd('rshot'); } }
-      else { const home = hyp(r.homeX - r.x, r.homeZ - r.z); if (r.t % 4 < dt || home > r.wander) { r.goal = { x: r.homeX + (rnd() - 0.5) * r.wander, z: r.homeZ + (rnd() - 0.5) * r.wander }; } if (r.goal) { const want = Math.atan2(r.goal.x - r.x, r.goal.z - r.z); r.yaw += clamp(angDiff(want, r.yaw), -2 * dt, 2 * dt); if (hyp(r.goal.x - r.x, r.goal.z - r.z) > 3) groundMove(r, r.x + Math.sin(r.yaw) * r.speed * 0.5 * dt, r.z + Math.cos(r.yaw) * r.speed * 0.5 * dt, 1.6, false); } }
+  function stepCrooks(dt) {
+    for (const r of S.crooks) {
+      r.t += dt; const T = CROOKS[r.type];
+      if (r.state === 'down') { r.downT += dt; if (r.downT > 26) { r.state = 'flee'; r.flee = 18; r.hp = Math.round(r.hpMax * 0.55); } continue; }
+      if (r.state === 'flee') { r.flee -= dt; const away = Math.atan2(r.x - P.x, r.z - P.z); r.yaw += clamp(angDiff(away, r.yaw), -3 * dt, 3 * dt); groundMove(r, r.x + Math.sin(r.yaw) * T.speed * 1.4 * dt, r.z + Math.cos(r.yaw) * T.speed * 1.4 * dt, 1.4, false); if (r.flee <= 0) { r.state = 'idle'; r.alert = true; } continue; }
+      const dp = hyp(r.x - P.x, r.z - P.z); const hunt = P.dead <= 0 && (dp < 80 || r.alert);
+      if (r.type === 'runner') { // ひったくりは にげる
+        if (dp < 110) { const away = Math.atan2(r.x - P.x, r.z - P.z); r.yaw += clamp(angDiff(away, r.yaw), -3.2 * dt, 3.2 * dt); groundMove(r, r.x + Math.sin(r.yaw) * T.speed * dt, r.z + Math.cos(r.yaw) * T.speed * dt, 1.4, false); } else { r.yaw += (rnd() - 0.5) * dt; groundMove(r, r.x + Math.sin(r.yaw) * 2 * dt, r.z + Math.cos(r.yaw) * 2 * dt, 1.4, false); }
+        continue;
+      }
+      if (hunt) {
+        const want = Math.atan2(P.x - r.x, P.z - r.z); r.yaw += clamp(angDiff(want, r.yaw), -3 * dt, 3 * dt); if (dp > 22) groundMove(r, r.x + Math.sin(r.yaw) * r.speed * dt, r.z + Math.cos(r.yaw) * r.speed * dt, 1.4, false); r.cd -= dt;
+        if (r.cd <= 0 && dp < T.range) { r.cd = T.fire + rnd() * 0.5; const sx = (rnd() - 0.5) * 0.14; const vx = Math.sin(r.yaw + sx); const vz = Math.cos(r.yaw + sx); const vcur = cur(); const ty = vcur && isAir(vcur.kind) ? P.y : 1.4; const dy = (ty - 1.6) / Math.max(10, dp); S.bullets.push({ x: r.x, y: 1.6, z: r.z, vx: vx * 62, vy: dy * 62, vz: vz * 62, t: 0, dmg: T.dmg }); snd('cshot'); }
+      } else { const home = hyp(r.homeX - r.x, r.homeZ - r.z); if (r.t % 4 < dt || home > r.wander) r.goal = { x: r.homeX + (rnd() - 0.5) * r.wander, z: r.homeZ + (rnd() - 0.5) * r.wander }; if (r.goal) { const want = Math.atan2(r.goal.x - r.x, r.goal.z - r.z); r.yaw += clamp(angDiff(want, r.yaw), -2 * dt, 2 * dt); if (hyp(r.goal.x - r.x, r.goal.z - r.z) > 3) groundMove(r, r.x + Math.sin(r.yaw) * r.speed * 0.4 * dt, r.z + Math.cos(r.yaw) * r.speed * 0.4 * dt, 1.4, false); } }
     }
     for (const b of S.bullets) {
       b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
       if (insideBuilding(b.x, b.z, b.y)) { b.t = 99; continue; }
-      if (P.dead <= 0 && !b.civ) { const v = cur(); const py = v ? (v.kind === 'plane' ? P.y : 3) : 1.4; const rad = v ? (v.kind === 'ship' ? 14 : v.kind === 'tank' ? 7 : v.kind === 'plane' ? 8 : 4) : 1.6; if (hyp(b.x - P.x, b.z - P.z) < rad && Math.abs(b.y - py) < rad + 2) { hurtPlayer(b.dmg); b.t = 99; fx('spark', b.x, b.y, b.z, 4); } }
-      if (b.civ) for (const c of S.civs) if (c.state === 'need' && hyp(b.x - c.x, b.z - c.z) < 1.8) { c.fear = 1; b.t = 99; }
+      if (P.dead <= 0) { const v = cur(); const py = v ? (isAir(v.kind) ? P.y : 1.8) : 1.2; const rad = v ? (v.kind === 'ship' ? 14 : v.kind === 'tank' ? 7 : isAir(v.kind) ? 8 : v.kind === 'bike' ? 2.2 : 3.2) : 1.4; if (hyp(b.x - P.x, b.z - P.z) < rad && Math.abs(b.y - py) < rad + 2) { hurtPlayer(b.dmg); b.t = 99; fx('spark', b.x, b.y, b.z, 3); } }
     }
     S.bullets = S.bullets.filter((b) => b.t < 3.5);
   }
   function stepMissiles(dt) {
     for (const m of S.missiles) {
-      m.t += dt; const tg = S.robots.find((r) => r.id === m.target);
-      if (tg) { const vx = tg.x - m.x; const vy = 3 - m.y; const vz = tg.z - m.z; const d = hyp(vx, vy, vz) || 1; const k = clamp(4.2 * dt, 0, 1); const cur0 = hyp(m.vx, m.vy, m.vz) || 1; m.vx += ((vx / d) * cur0 - m.vx) * k; m.vy += ((vy / d) * cur0 - m.vy) * k; m.vz += ((vz / d) * cur0 - m.vz) * k; }
+      m.t += dt; const tg = S.crooks.find((r) => r.id === m.target);
+      if (tg) { const vx = tg.x - m.x; const vy = 1.6 - m.y; const vz = tg.z - m.z; const d = hyp(vx, vy, vz) || 1; const k = clamp(4.2 * dt, 0, 1); const c0 = hyp(m.vx, m.vy, m.vz) || 1; m.vx += ((vx / d) * c0 - m.vx) * k; m.vy += ((vy / d) * c0 - m.vy) * k; m.vz += ((vz / d) * c0 - m.vz) * k; }
       m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
-      const hit = S.robots.find((r) => hyp(r.x - m.x, r.z - m.z) < 7 && Math.abs(m.y - 3) < 9);
-      if (hit || m.y < 0.5) { m.t = 99; fx('boom', m.x, Math.max(1, m.y), m.z, 14); snd('boom'); for (const r of S.robots.slice()) { const d = hyp(r.x - m.x, r.z - m.z); if (d < 16) { r.hp -= m.dmg * (d < 7 ? 1 : 0.4); r.alert = true; if (r.hp <= 0) koRobot(r); } } }
+      const hit = S.crooks.find((r) => r.state !== 'down' && hyp(r.x - m.x, r.z - m.z) < 6 && Math.abs(m.y - 1.6) < 9);
+      if (hit || m.y < 0.5) { m.t = 99; fx('boom', m.x, Math.max(1, m.y), m.z, 12); snd('boom'); for (const r of S.crooks.slice()) { const d = hyp(r.x - m.x, r.z - m.z); if (d < 14) hitCrook(r, m.dmg * (d < 6 ? 1 : 0.4)); } }
       if (insideBuilding(m.x, m.z, m.y)) { m.t = 99; fx('boom', m.x, m.y, m.z, 10); }
     }
     S.missiles = S.missiles.filter((m) => m.t < m.life);
   }
   function stepWorld(dt) {
-    // ひろいもの
     for (const p of S.pickups.slice()) if (hyp(p.x - P.x, p.z - P.z) < (P.mode === 'veh' ? 7 : 3) && (P.y < 12 || P.mode === 'foot')) { S.pickups = S.pickups.filter((x) => x !== p); if (p.kind === 'gem') { ev({ t: 'gem', v: 1 }); snd('gem'); msg('💎 ほうせきを みつけた!', 2); P.coins += p.v; S.stats.coins += p.v; } else { P.coins += p.v; S.stats.coins += p.v; snd('coin'); } }
-    // かざりの ひと・くるま
-    for (const w of S.walkers) { const a = w.vert ? 'z' : 'x'; w[a] += w.dir * w.spd * dt; if (Math.abs(w[a]) > 600) w.dir *= -1; if (w.vert) { w.x = w.line; } else { w.z = w.line; } w.yaw = w.vert ? (w.dir > 0 ? 0 : Math.PI) : (w.dir > 0 ? Math.PI / 2 : -Math.PI / 2); if (isWater(w.x, w.z)) w.dir *= -1; }
+    for (const w of S.walkers) { const a = w.vert ? 'z' : 'x'; w[a] += w.dir * w.spd * dt * (w.scared > 0 ? 3 : 1); if (w.scared > 0) w.scared -= dt; if (Math.abs(w[a]) > 600) w.dir *= -1; if (w.vert) w.x = w.line; else w.z = w.line; w.yaw = w.vert ? (w.dir > 0 ? 0 : Math.PI) : (w.dir > 0 ? Math.PI / 2 : -Math.PI / 2); if (isWater(w.x, w.z)) w.dir *= -1; }
     for (const c of S.traffic) {
       const ahead = c.pos + c.dir * 8; const px = c.vert ? c.line : ahead; const pz = c.vert ? ahead : c.line; let blocked = false;
       if (hyp(px - P.x, pz - P.z) < 7) blocked = true; for (const o of S.traffic) if (o !== c && hyp(px - o.x, pz - o.z) < 6) blocked = true; if (isWater(px, pz) || inRect(AIRFIELD, px, pz)) { c.dir *= -1; blocked = false; }
       c.wait = blocked ? Math.min(2, c.wait + dt) : 0; if (!blocked) c.pos += c.dir * c.spd * dt; if (Math.abs(c.pos) > 600) c.dir *= -1; c.x = c.vert ? c.line : c.pos; c.z = c.vert ? c.pos : c.line; c.yaw = c.vert ? (c.dir > 0 ? 0 : Math.PI) : (c.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
     }
-    // しみん(ミッション)
     for (const c of S.civs) {
-      if (c.state === 'need') { c.fear = Math.max(0, c.fear - dt); }
+      if (c.state === 'need') c.fear = Math.max(0, c.fear - dt);
       else if (c.state === 'carried') { const d = hyp(c.x - P.x, c.z - P.z); const want = Math.atan2(P.x - c.x, P.z - c.z); c.yaw = want; if (d > 5 && P.mode === 'foot') { const s = Math.min(d - 4, 9 * dt + d * dt * 1.5); c.x += Math.sin(want) * s; c.z += Math.cos(want) * s; } else if (P.mode === 'veh') { c.x = P.x; c.z = P.z; } if (isWater(c.x, c.z)) { c.x = P.x; c.z = P.z; } }
     }
-    // ちかくの ロボットを ふやす(たまに「しんりゃく!」)
-    if (!S.mission && S.t > 25 && S.robots.length < 3 && Math.floor(S.t) % 90 === 0 && S.t - (S.lastRaid || -999) > 60) { S.lastRaid = S.t; const a = rnd() * 6.28; for (let i = 0; i < 3; i++) spawnRobot(P.x + Math.cos(a) * 140 + i * 6, P.z + Math.sin(a) * 140, 'bot', 30); const bad = S.robots.filter((r) => isWater(r.x, r.z) || insideBuilding(r.x, r.z)); S.robots = S.robots.filter((r) => !bad.includes(r)); if (S.robots.length) { banner('⚠ ロボットが あらわれた!', 2.4); snd('warn'); } }
-    // ほおって おいた のりものは ほんぶへ
-    for (const v of S.vehicles) { if (v.occ) continue; const d = hyp(v.x - P.x, v.z - P.z); if (d > 120 && hyp(v.x - v.home.x, v.z - v.home.z) > 3) { v.away += dt; if (v.away > 30) { v.x = v.home.x; v.z = v.home.z; v.y = 0; v.yaw = v.home.yaw; v.speed = 0; v.away = 0; } } else v.away = 0; v.speed *= Math.exp(-2 * dt); if (!v.occ && v.kind === 'plane') { v.y = 0; } if (v.kind === 'plane' && !v.occ) { v.x = v.home.x; v.z = v.home.z; } }
-    if (P.mode === 'foot' && hyp(P.x - HQ.x, P.z - HQ.z) < HQ.r && P.hp < P.hpMax) { P.hp = Math.min(P.hpMax, P.hp + 14 * dt); } // ほんぶで ゆっくり かいふく
+    // しめいてはいはん が つかまったら あとで また あらわれる
+    for (const w of WANTED) if (respawnAt[w.id] && S.t >= respawnAt[w.id] && !S.crooks.some((c) => c.wid === w.id)) { delete respawnAt[w.id]; spawnWanted(w); refreshWanted(); }
+    if (Math.floor(S.t * 2) % 2 === 0 && S.t - (S.rwT || -9) > 0.9) { S.rwT = S.t; refreshWanted(); }
+    // ときどき「ひったくりが にげてる!」
+    if (!S.mission && S.t > 20 && S.t - (S.lastRaid || -999) > 75 && !S.crooks.some((c) => c.minor)) { S.lastRaid = S.t; for (let tr = 0; tr < 12; tr++) { const a = rnd() * 6.28; const x = P.x + Math.cos(a) * 130; const z = P.z + Math.sin(a) * 130; if (isRoad(x, z) && !insideBuilding(x, z)) { const c = spawnCrook('runner', x, z, { wander: 40 }); c.minor = true; banner('⚠ ひったくりが にげてる! つかまえて!', 2.6); snd('warn'); break; } } }
+    for (const c of S.crooks.slice()) if (c.minor && hyp(c.x - P.x, c.z - P.z) > 420) S.crooks = S.crooks.filter((x) => x !== c);
+    for (const v of S.vehicles.slice()) { if (v.occ) continue; const d = hyp(v.x - P.x, v.z - P.z); if (v.temp) { v.idle = (v.idle || 0) + dt; if (v.idle > 40) { S.vehicles = S.vehicles.filter((x) => x !== v); continue; } } else if (d > 120 && hyp(v.x - v.home.x, v.z - v.home.z) > 3) { v.away += dt; if (v.away > 30) { v.x = v.home.x; v.z = v.home.z; v.y = 0; v.yaw = v.home.yaw; v.speed = 0; v.away = 0; } } else v.away = 0; v.speed *= Math.exp(-2 * dt); if (isAir(v.kind) && !v.occ) { v.y = 0; if (!v.temp) { v.x = v.home.x; v.z = v.home.z; } } }
+    if (P.mode === 'foot' && hyp(P.x - HQ.x, P.z - HQ.z) < HQ.r && P.hp < P.hpMax) P.hp = Math.min(P.hpMax, P.hp + 14 * dt);
     else if (P.mode === 'foot' && S.t - P.lastHurt > 6) P.hp = Math.min(P.hpMax, P.hp + 3 * dt);
     const v = cur(); if (v && v.V.missiles && (v.mis == null ? v.V.missiles : v.mis) < v.V.missiles) { v.misT = (v.misT || 0) + dt; if (v.misT > 6) { v.misT = 0; v.mis = (v.mis == null ? v.V.missiles : v.mis) + 1; } }
   }
   function stepMission(dt) {
-    const M = S.mission; if (!M) return; M.t += dt; const m = missionOf(M.id); const v = cur(); const px = P.x; const pz = P.z;
-    const reach = (t, r) => hyp(t.x - px, t.z - pz) < r;
+    const M = S.mission; if (!M) return; M.t += dt; const v = cur(); const px = P.x; const pz = P.z; const reach = (t, r) => hyp(t.x - px, t.z - pz) < r;
     if (M.id === 'patrol') { const t = M.targets[M.stage]; if (t && reach(t, 18)) { M.stage++; M.got++; snd('coin'); msg(`${M.got}/${M.total} チェックポイント!`, 1.6); if (M.stage >= M.total) endMission(true); } }
-    else if (M.id === 'harbor') { const t = M.targets[M.stage]; if (t && reach(t, 26)) { M.stage++; M.got++; snd('coin'); msg(`${M.got}/${M.total} ブイを まわった!`, 1.6); if (M.stage >= M.total) endMission(true); } else if (!v || (v.kind !== 'ship' && v.kind !== 'plane')) { if (M.t > 3 && M.stage === 0 && !M.warned) { M.warned = true; msg('⚓ ふねに のって うみへ!(みなとの ふね)', 3); } } }
-    else if (M.id === 'sky') { const t = M.targets[M.stage]; if (t && v && v.kind === 'plane' && hyp(t.x - v.x, t.z - v.z) < 28 && Math.abs(t.y - v.y) < 30) { M.stage++; M.got++; snd('coin'); fx('spark', t.x, t.y, t.z, 8); msg(`${M.got}/${M.total} リング!`, 1.4); if (M.stage >= M.total) endMission(true); } }
+    else if (M.id === 'harbor') { const t = M.targets[M.stage]; if (t && reach(t, 26)) { M.stage++; M.got++; snd('coin'); msg(`${M.got}/${M.total} ブイを まわった!`, 1.6); if (M.stage >= M.total) endMission(true); } else if (!v || (v.kind !== 'ship' && !isAir(v.kind))) { if (M.t > 3 && M.stage === 0 && !M.warned) { M.warned = true; msg('⚓ ふねに のって うみへ!(みなとの ふね)', 3); } } }
+    else if (M.id === 'sky') { const t = M.targets[M.stage]; if (t && v && isAir(v.kind) && hyp(t.x - v.x, t.z - v.z) < 28 + 0.8 * Math.max(0, v.V.speed - 80) && Math.abs(t.y - v.y) < 34) { M.stage++; M.got++; snd('coin'); fx('spark', t.x, t.y, t.z, 8); msg(`${M.got}/${M.total} リング!`, 1.4); if (M.stage >= M.total) endMission(true); } }
     else if (M.id === 'rescue') {
       for (const c of S.civs) if (c.state === 'carried' && hyp(c.x - HQ.x, c.z - HQ.z) < HQ.r && hyp(px - HQ.x, pz - HQ.z) < HQ.r + 6) { c.state = 'safe'; M.got++; P.carry = Math.max(0, P.carry - 1); snd('coin'); msg(`${M.got}/${M.total} にん たすけた!`, 1.8); }
       S.civs = S.civs.filter((c) => c.state !== 'safe'); if (M.got >= M.total) endMission(true);
-    } else if (M.id === 'invasion') { if (!S.robots.some((r) => r.mission)) endMission(true); }
-    else if (M.id === 'delivery') {
-      if (M.stage === 0 && false) void 0;
-      if (M.stage === 1) { M.timeLeft -= dt; if (hyp(px - HQ.x, pz - HQ.z) < HQ.r) { endMission(true); return; } if (M.timeLeft <= 0) endMission(false, 'じかんぎれ! もういちど ちょうせん'); }
-    }
-    void m;
+    } else if (M.id === 'gang') { M.got = M.total - S.crooks.filter((c) => c.mission).length; if (!S.crooks.some((c) => c.mission)) endMission(true); }
+    else if (M.id === 'delivery') { if (M.stage === 1) { M.timeLeft -= dt; if (hyp(px - HQ.x, pz - HQ.z) < HQ.r) { endMission(true); return; } if (M.timeLeft <= 0) endMission(false, 'じかんぎれ! もういちど ちょうせん'); } }
   }
-  // ---- こうどう ----
   function interact() {
     if (P.dead > 0) return false; const n = S.nearby; if (!n) return false;
     if (n.kind === 'veh') { const v = S.vehicles.find((x) => x.id === n.id); if (v && !v.occ) { enter(v); return true; } }
+    else if (n.kind === 'tcar') { const t = S.traffic.find((x) => x.id === n.id); if (t) { const it = catalogOf(t.model) || catalogOf('sedan'); const v = mkVeh(`tmp${++nid}`, it.kind, catalogV(it, ks), { x: t.x, z: t.z, yaw: t.yaw }, { temp: true, cat: it.id }); S.vehicles.push(v); S.traffic = S.traffic.filter((x) => x !== t); S.walkers.push({ id: ++nid, x: t.x + 3, z: t.z, yaw: t.yaw + 1.6, vert: t.vert, line: t.vert ? t.line + 4 : t.line, dir: 1, spd: 2.5, scared: 6, look: nid }); enter(v); msg('おまわりさん! くるまを おかりします!', 2.5); return true; } }
     else if (n.kind === 'exit') { leave(); return true; }
     else if (n.kind === 'shop') { S.ui = 'shop'; ev({ t: 'shop' }); return true; }
-    else if (n.kind === 'mission') { return startMission(n.id); }
+    else if (n.kind === 'board') { refreshWanted(); S.ui = 'board'; ev({ t: 'board' }); return true; }
+    else if (n.kind === 'garage') { S.ui = 'garage'; ev({ t: 'garage' }); return true; }
+    else if (n.kind === 'mission') return startMission(n.id);
+    else if (n.kind === 'arrest') { const c = S.crooks.find((x) => x.id === n.id); if (c && c.state === 'down') { arrest(c); return true; } }
     else if (n.kind === 'civ') { const c = S.civs.find((x) => x.id === n.id); if (c) { c.state = 'carried'; P.carry++; snd('coin'); msg('いっしょに ほんぶまで いこう!', 2); return true; } }
     else if (n.kind === 'pack') { const M = S.mission; if (M) { M.stage = 1; M.targets = [{ x: HQ.x, z: HQ.z }]; msg('📦 うけとった! ほんぶへ ダッシュ!', 2.4); snd('coin'); return true; } }
     return false;
@@ -344,25 +406,27 @@ export function createCity({ stats, vehicles, rnd = mulberry(5), gentle = false,
     if (id === 'heal') { if (P.hp >= P.hpMax) return { ok: false, why: 'もう げんきだよ' }; P.coins -= it.cost; P.hp = P.hpMax; return { ok: true }; }
     P.coins -= it.cost; ev({ t: 'buy', id }); return { ok: true };
   }
+  function buyVehicle(id) {
+    const it = catalogOf(id); if (!it) return { ok: false, why: 'ない' }; if (S.owned.includes(id)) return { ok: false, why: 'もう もってるよ' }; if (P.coins < it.price) return { ok: false, why: 'コインが たりないよ' };
+    P.coins -= it.price; S.owned.push(id); parkOwned(); ev({ t: 'buyveh', id }); snd('win'); return { ok: true };
+  }
   function step(dtIn) {
     const dt = Math.min(dtIn, 1 / 20); S.t += dt; if (S.msgT > 0) S.msgT -= dt; if (S.bannerT > 0) S.bannerT -= dt;
     for (let i = S.effects.length - 1; i >= 0; i--) { S.effects[i].t += dt; if (S.effects[i].t > S.effects[i].life) S.effects.splice(i, 1); }
     S.tracers = S.tracers.filter((tr) => { tr.t += dt; return tr.t < 0.1; });
     if (P.invuln > 0) P.invuln -= dt; if (P.hurt > 0) { P.hurt -= dt; P.lastHurt = S.t; } if (P.missileCd > 0) P.missileCd -= dt;
-    if (P.dead > 0) { P.dead -= dt; if (P.dead <= 0) respawn(); stepRobots(dt); return; }
+    if (P.dead > 0) { P.dead -= dt; if (P.dead <= 0) respawn(); stepCrooks(dt); return; }
     if (Math.abs(input.aimX) + Math.abs(input.aimY) > 0.05) P.noAim = 0; else P.noAim += dt;
-    const v0 = cur(); if (!v0 || v0.kind === 'tank' || v0.kind === 'ship' || v0.kind === 'car' || !v0) { P.aimRel = clamp(P.aimRel + input.aimX * 1.7 * dt, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.2, 1.2); }
+    const v0 = cur(); if (!v0 || !isAir(v0.kind)) { P.aimRel = clamp(P.aimRel + input.aimX * 1.7 * dt, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.2, 1.2); }
     movePlayer(dt); setNear();
-    const v = cur(); const canFire = !(v && v.kind === 'plane' && false); if (input.gun && canFire) fireGun(dt);
-    stepRobots(dt); stepMissiles(dt); stepWorld(dt); stepMission(dt);
-    S.player.target = nearestRobot(600, 6.3, P.yaw);
-    if (v && v.kind === 'plane' && P.y < 7) { /* ちかい */ }
+    if (input.gun) fireGun(dt);
+    stepCrooks(dt); stepMissiles(dt); stepWorld(dt); stepMission(dt);
+    P.target = nearestCrook(600, 6.3, P.yaw);
   }
-  S.player.lastHurt = -99;
   return {
-    state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, vehicleOf: cur, footStats: FS,
+    state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, vehicleOf: cur, footStats: FS,
     takeEvents() { const e = S.events; S.events = []; return e; },
-    aimAt(r) { if (!r) return; P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(3 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
-    closeUi() { S.ui = null; },
+    aimAt(r) { if (!r) return; P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(2 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
+    track(id) { S.tracked = S.tracked === id ? null : id; }, closeUi() { S.ui = null; }, refreshWanted,
   };
 }
