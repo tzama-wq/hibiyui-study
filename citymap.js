@@ -125,3 +125,31 @@ export const pitches = MAP.pitches.map((f) => pairs(f));
 export const schoolPoly = POI.school ? POI.school.poly : null; export const parkPoly = POI.park3 ? POI.park3.poly : null;
 export const stationA = { x: stn[0], z: stn[1] }; export const stationB = { x: stn2[0], z: stn2[1] };
 export const shrinePts = (POI.shrines || []).filter((p) => Math.abs(p[0]) < HALF - 30 && Math.abs(p[1]) < HALF - 30);
+
+// ---- スカスカな ばしょの うめあわせ(みちぞいに たてものを ふやす・けっていてき) ------------------------------
+{
+  const rnd = mulberry(77); const CELL = 30; const gk = (x, z) => Math.floor(x / CELL) * 100003 + Math.floor(z / CELL); const grid = new Map();
+  const add = (b) => { for (let gx = Math.floor(b.x0 / CELL); gx <= Math.floor(b.x1 / CELL); gx++) for (let gz = Math.floor(b.z0 / CELL); gz <= Math.floor(b.z1 / CELL); gz++) { const k = gx * 100003 + gz; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(b); } };
+  blds.forEach(add);
+  const cellN = (x, z) => { const l = grid.get(gk(x, z)); return l ? new Set(l).size : 0; };
+  const dens = (x, z) => { let n = 0; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) n += cellN(x + i * CELL, z + j * CELL); return n; };
+  const overlap = (b) => { for (let gx = Math.floor((b.x0 - 2) / CELL); gx <= Math.floor((b.x1 + 2) / CELL); gx++) for (let gz = Math.floor((b.z0 - 2) / CELL); gz <= Math.floor((b.z1 + 2) / CELL); gz++) { const l = grid.get(gx * 100003 + gz); if (l) for (const o of l) if (o.x1 + 1.5 > b.x0 && o.x0 - 1.5 < b.x1 && o.z1 + 1.5 > b.z0 && o.z0 - 1.5 < b.z1) return true; } return false; };
+  const blocked = (x, z) => isWater(x, z) || riverDist(x, z) < RIVER.hw + 8 || railDist(x, z) < 10 || roadSD(x, z) < 1.6 || zones.some((q) => inRect({ x0: q.x0 - 6, x1: q.x1 + 6, z0: q.z0 - 6, z1: q.z1 + 6 }, x, z)) || inRect(AIRFIELD, x, z) || greens.some((g) => polyIn(g.poly, x, z)) || pitches.some((p) => polyIn(p, x, z)) || (schoolPoly && polyIn(schoolPoly, x, z)) || (parkPoly && polyIn(parkPoly, x, z));
+  const TH = 16; let added = 0;
+  for (const rd of roadList) {
+    if (rd.br) continue;
+    for (let i = 1; i < rd.pts.length; i++) {
+      const a = rd.pts[i - 1]; const b = rd.pts[i]; const L = hyp(b[0] - a[0], b[1] - a[1]); if (L < 1) continue; const ux = (b[0] - a[0]) / L; const uz = (b[1] - a[1]) / L; const ang = Math.atan2(uz, ux);
+      for (let s = 6 + rnd() * 6; s < L - 4; s += 11 + rnd() * 8) {
+        for (const side of [-1, 1]) {
+          const px = a[0] + ux * s; const pz = a[1] + uz * s; if (Math.abs(px) > HALF - 12 || Math.abs(pz) > HALF - 12) continue; if (dens(px, pz) >= TH) continue;
+          const r = rnd(); const big = rd.cls >= 3; const kind = r < (big ? 0.55 : 0.84) ? 'house' : r < (big ? 0.8 : 0.94) ? 'apt' : 'shop';
+          const w = kind === 'house' ? 8.5 + rnd() * 3.5 : kind === 'apt' ? 18 + rnd() * 10 : 18 + rnd() * 8; const d = kind === 'house' ? 7.5 + rnd() * 3 : kind === 'apt' ? 12 + rnd() * 6 : 12 + rnd() * 5; const h = kind === 'house' ? 6 + rnd() * 3 : kind === 'apt' ? 14 + rnd() * 10 : 9 + rnd() * 5;
+          const off = rd.hw + 2.6 + d / 2; const cx = px - uz * off * side; const cz = pz + ux * off * side; const nb = mkB(cx, cz, w, d, ang, h, kind);
+          let bad = blocked(cx, cz) || overlap(nb); for (const [u, v] of [[0.95, 0.95], [-0.95, 0.95], [0.95, -0.95], [-0.95, -0.95]]) { if (bad) break; const lx = (u * w) / 2; const lz = (v * d) / 2; if (blocked(cx + lx * nb.c - lz * nb.s, cz + lx * nb.s + lz * nb.c)) bad = true; }
+          if (bad) continue; blds.push(nb); add(nb); added++;
+        }
+      }
+    }
+  }
+}
