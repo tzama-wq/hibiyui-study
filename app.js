@@ -1633,6 +1633,7 @@ document.addEventListener('change', (e) => {
 
 skyInit({
   kid: () => kidOf(), p: () => S.kids[kidId], cfg: () => cfg(), quiet: () => quiet(), render: () => render(), toast, save, today: todayStr,
+  openSoccer: () => { const pp = S.kids[kidId]; pp.gmode = 'soccer'; tab = 'team'; view = 'kid'; toTop = true; save(); render(); },
   fx: { confetti, beep, vibrate, floaty },
 });
 gameInit({
