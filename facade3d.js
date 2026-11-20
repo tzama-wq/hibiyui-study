@@ -104,28 +104,28 @@ export function addBuildings(THREE, scene, buildings, o = {}) {
   const colorize = (geo, c) => { col.set(c); const n = geo.attributes.position.count; const a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = col.r; a[i * 3 + 1] = col.g; a[i * 3 + 2] = col.b; } geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); };
   const TINT = ['#ffffff', '#f4efe4', '#e8eef6', '#f2e8e0', '#e6f0e6', '#eadfd0'];
   // はこ(がいへき):UVは かいの かずと ベイの かずに ぴったり あわせる
-  const wallBox = (mat, w, hgt, d, cx, cy, cz, tint, vTiles, vOff, ground) => {
-    const geo = new THREE.BoxGeometry(w, hgt, d); const uv = geo.attributes.uv; const bw = Math.max(1, Math.round(w / BAY)); const bd = Math.max(1, Math.round(d / BAY)); const uOff = Math.floor(rnd() * TILE) / TILE;
+  const place = (geo, b) => { geo.rotateY(-(b.ang || 0)); geo.translate(b.cx, 0, b.cz); };
+  const wallBox = (mat, b, hgt, cy, tint, vTiles, vOff) => {
+    const w = b.w; const d = b.d; const geo = new THREE.BoxGeometry(w, hgt, d); const uv = geo.attributes.uv; const bw = Math.max(1, Math.round(w / BAY)); const bd = Math.max(1, Math.round(d / BAY)); const uOff = Math.floor(rnd() * TILE) / TILE;
     for (let i = 0; i < uv.count; i++) { const face = Math.floor(i / 4); const u = uv.getX(i); const v = uv.getY(i); if (face < 2) uv.setXY(i, uOff + u * bd / TILE, vOff + v * vTiles); else if (face >= 4) uv.setXY(i, uOff + u * bw / TILE, vOff + v * vTiles); else uv.setXY(i, 0, 0); }
-    geo.translate(cx, cy, cz); colorize(geo, tint); void ground; push(mat, geo);
+    geo.translate(0, cy, 0); place(geo, b); colorize(geo, tint); push(mat, geo);
   };
-  const plainBox = (w, h, d, x, y, z, c) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); colorize(g, c); push(plain, g); };
-  const roofBox = (w, d, x, y, z, c) => { const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 12, uv.getY(i) * d / 12); g.translate(x, y, z); colorize(g, c); push(rf, g); };
+  const plainBox = (b, w, h, d, lx, y, lz, c) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(lx, y, lz); place(g, b); colorize(g, c); push(plain, g); };
+  const roofBox = (b, w, d, y, c) => { const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 12, uv.getY(i) * d / 12); g.translate(0, y, 0); place(g, b); colorize(g, c); push(rf, g); };
   for (const b of buildings) {
     if (['house', 'pillar', 'shrine', 'home'].includes(b.kind)) continue;
-    const w = b.x1 - b.x0; const d = b.z1 - b.z0; const cx = (b.x0 + b.x1) / 2; const cz = (b.z0 + b.z1) / 2; const tint = TINT[b.tone % TINT.length]; const k = b.kind;
+    const w = b.w; const d = b.d; const tint = TINT[b.tone % TINT.length]; const k = b.kind;
     const style = k === 'tower' ? 'tower' : k === 'office' ? 'office' : k === 'apt' ? 'apt' : k === 'shop' ? 'tenant' : (k === 'school' || k === 'gym') ? 'school' : (k === 'hq' || k === 'station' || k === 'mall') ? 'office' : 'warehouse';
-    const hasGround = ['tower', 'office', 'apt', 'shop', 'hq', 'station', 'mall'].includes(k) && b.h > 9;
+    const hasGround = ['tower', 'office', 'apt', 'shop', 'hq', 'station', 'mall'].includes(k) && b.h > 9 && w > 8 && d > 8;
     const hb = hasGround ? 4.6 : 0; const nUp = Math.max(1, Math.round((b.h - hb) / FLOOR)); const hUp = nUp * FLOOR; const H = hb + hUp;
-    if (hasGround) { const gk = k === 'shop' ? (rnd() < 0.18 ? 'conbini' : 'shop') : (k === 'apt' ? 'garage' : 'lobby'); const arr = gd[gk]; wallBox(arr[Math.floor(rnd() * arr.length)], w, hb, d, cx, hb / 2, cz, tint, 1 / (hb / 5) * 1, 0, true); }
-    const vTiles = nUp / TILE; const vOff = Math.floor(rnd() * TILE) / TILE; wallBox(up[style], w, hUp, d, cx, hb + hUp / 2, cz, tint, vTiles, vOff);
-    // やねの ふちと パラペット・コーニス
-    roofBox(w, d, cx, H + 0.02, cz, '#ffffff');
-    plainBox(w + 0.7, 0.5, d + 0.7, cx, H - 0.1, cz, '#bdbab2');
-    const pc = '#a9a69e'; plainBox(w, 0.9, 0.3, cx, H + 0.45, b.z0 + 0.15, pc); plainBox(w, 0.9, 0.3, cx, H + 0.45, b.z1 - 0.15, pc); plainBox(0.3, 0.9, d, b.x0 + 0.15, H + 0.45, cz, pc); plainBox(0.3, 0.9, d, b.x1 - 0.15, H + 0.45, cz, pc);
-    if (hasGround) plainBox(w + 0.6, 0.35, d + 0.6, cx, hb + 0.1, cz, '#9c9a94'); // 1かいと うえの さかい(ひさし)
-    if (k === 'tower' || k === 'office' || k === 'hq') { plainBox(Math.min(8, w * 0.4), 4.5, Math.min(8, d * 0.4), cx, H + 2.25, cz, '#8a8d92'); }
-    if (k === 'apt') plainBox(5, H + 1.5, 5, b.x1 - 3, (H + 1.5) / 2, b.z0 + 3, '#d4d0c6');
+    if (hasGround) { const gk = k === 'shop' ? (rnd() < 0.18 ? 'conbini' : 'shop') : (k === 'apt' ? 'garage' : 'lobby'); const arr = gd[gk]; wallBox(arr[Math.floor(rnd() * arr.length)], b, hb, hb / 2, tint, 1 / (hb / 5), 0); }
+    const vTiles = nUp / TILE; const vOff = Math.floor(rnd() * TILE) / TILE; wallBox(up[style], b, hUp, hb + hUp / 2, tint, vTiles, vOff);
+    roofBox(b, w, d, H + 0.02, '#ffffff');
+    plainBox(b, w + 0.7, 0.5, d + 0.7, 0, H - 0.1, 0, '#bdbab2');
+    const pc = '#a9a69e'; plainBox(b, w, 0.9, 0.3, 0, H + 0.45, -d / 2 + 0.15, pc); plainBox(b, w, 0.9, 0.3, 0, H + 0.45, d / 2 - 0.15, pc); plainBox(b, 0.3, 0.9, d, -w / 2 + 0.15, H + 0.45, 0, pc); plainBox(b, 0.3, 0.9, d, w / 2 - 0.15, H + 0.45, 0, pc);
+    if (hasGround) plainBox(b, w + 0.6, 0.35, d + 0.6, 0, hb + 0.1, 0, '#9c9a94');
+    if ((k === 'tower' || k === 'office' || k === 'hq') && w > 10 && d > 10) plainBox(b, Math.min(8, w * 0.4), 4.5, Math.min(8, d * 0.4), 0, H + 2.25, 0, '#8a8d92');
+    if (k === 'apt' && w > 9 && d > 9) plainBox(b, 5, H + 1.5, 5, w / 2 - 3, (H + 1.5) / 2, -d / 2 + 3, '#d4d0c6');
     b.H = H;
   }
   const meshes = [];
