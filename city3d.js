@@ -360,6 +360,12 @@ export async function startCity3D(o) {
   try { if (document.documentElement.requestFullscreen && !document.fullscreenElement && /Mobi|Android/i.test(navigator.userAgent)) document.documentElement.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {}); } catch { /* ok */ }
   // ---- おみせ・ガレージ・ボード ----
   const shopEl = root.querySelector('.c3d-shop');
+  // モーダルを 「みだし(ぐるぐる しない)・リスト(スクロール)・フッター(とじる)」に そろえる + ・の あとで かいぎょう できるように
+  { const tidy = () => { const box = shopEl.firstElementChild; if (!box || box.dataset.tidy) return; box.dataset.tidy = '1'; const head = []; const mid = []; const foot = []; let inList = false;
+      for (const k of [...box.children]) { const cl = k.classList; if (!inList && (k.tagName === 'H3' || cl.contains('sh-coin') || cl.contains('sh-tabs') || cl.contains('sh-note'))) head.push(k); else if (cl.contains('sh-x') || (inList && cl.contains('sh-note'))) foot.push(k); else { inList = true; mid.push(k); } }
+      const list = document.createElement('div'); list.className = 'sh-list'; mid.forEach((k) => list.appendChild(k)); const h3 = head.find((k) => k.tagName === 'H3'); const coin = head.find((k) => k.classList.contains('sh-coin')); let top = head; if (h3 && coin) { const hd = document.createElement('div'); hd.className = 'sh-head'; hd.append(h3, coin); top = [hd, ...head.filter((k) => k !== h3 && k !== coin)]; } box.append(...top, list, ...foot);
+      box.querySelectorAll('.sh-item small').forEach((sm) => { if (!sm.children.length) sm.innerHTML = sm.innerHTML.replace(/・/g, '・<wbr>'); }); };
+    new MutationObserver(tidy).observe(shopEl, { childList: true }); }
   const openModal = (draw) => { S.ui = 'modal'; setPause(false); paused = true; shopEl.hidden = false; draw(); };
   const closeModal = () => { shopEl.hidden = true; S.ui = null; paused = false; sim.closeUi(); };
   // おみせ(トレッサ・アピタ・ほかの おみせ)
@@ -401,7 +407,7 @@ export async function startCity3D(o) {
     shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('.sh-item'); if (!b) return; if (b.dataset.k === 'e') { sim.wear(b.dataset.id); saveNow(); draw(); return; } sim.equip(b.dataset.id); saveNow(); closeModal(); };
   };
   // ---- ハンバーガーメニュー(ワープ・おしごと・そうび・ぶき・ちず・やりかた) ----
-  const eqSummary = () => { const q = S.eq || {}; return `HP ${Math.round(P.hpMax)}・ダメージ -${Math.round((q.def || 0) * 100)}%・あし +${Math.round((q.spd || 0) * 100)}%・ねらい +${Math.round((q.aim || 0) * 100)}%・ブレ -${Math.round((q.acc || 0) * 100)}%`; };
+  const eqSummary = () => { const q = S.eq || {}; const p = [`HP ${Math.round(P.hpMax)}`]; if (q.def) p.push(`ぼうぎょ -${Math.round(q.def * 100)}%`); if (q.spd) p.push(`あし +${Math.round(q.spd * 100)}%`); if (q.aim) p.push(`ねらい +${Math.round(q.aim * 100)}%`); if (q.acc) p.push(`ブレ -${Math.round(q.acc * 100)}%`); return p.join('・'); };
   const openEquip = (slotView) => {
     const dispEq = (e) => (e ? `${e.icon} ${esc(e.name)}` : 'なし');
     const draw = () => {
@@ -436,7 +442,7 @@ export async function startCity3D(o) {
   };
   const openMenu = () => {
     const lv = S.lv || 0;
-    const draw = () => { const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`; shopEl.innerHTML = `<div class="sh-box"><h3>☰ メニュー</h3><div class="sh-coin">🪙 ${P.coins}${lv ? `・🚨 ${'★'.repeat(lv)} ばっきん 🪙${S.fine}` : ''}</div>${it('equip', '👕', 'そうび(ふく・くつ・ぼうし)', EQUIP_SLOTS.map(([k]) => { const e = equipOf(S.equip[k]); return e ? e.icon : '➖'; }).join(' ') + '・' + eqSummary())}${it('weapons', '🎒', 'ぶき', 'もっている ぶきを かえる')}${it('job', '💼', 'おしごと', 'もんだいに こたえて コインを かせぐ')}${it('warp', '🏁', 'ファストトラベル', 'じたく・トレッサ・こうばん・とうろく(3かしょ)')}${it('map', '🗺', 'ちず', 'ピンを さして めざす')}${it('help', '❓', 'あそびかた', 'そうさの せつめい')}<button class="btn gray sh-x">とじる</button></div>`; };
+    const draw = () => { const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`; shopEl.innerHTML = `<div class="sh-box menu"><h3>☰ メニュー</h3><div class="sh-coin">🪙 ${P.coins}${lv ? `・🚨 ${'★'.repeat(lv)} ばっきん 🪙${S.fine}` : ''}</div>${it('equip', '👕', 'そうび', EQUIP_SLOTS.map(([k]) => { const e = equipOf(S.equip[k]); return e ? e.icon : '➖'; }).join(' ') + '・' + eqSummary())}${it('weapons', '🎒', 'ぶき', 'もっている ぶきを かえる')}${it('job', '💼', 'おしごと', 'もんだいに こたえて コインを かせぐ')}${it('warp', '🏁', 'ファストトラベル', 'じたく・トレッサ・こうばん・とうろく(3かしょ)')}${it('map', '🗺', 'ちず', 'ピンを さして めざす')}${it('help', '❓', 'あそびかた', 'そうさの せつめい')}<button class="btn gray sh-x">とじる</button></div>`; };
     openModal(draw);
     shopEl.onclick = (e) => {
       if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;

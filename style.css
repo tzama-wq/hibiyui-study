@@ -834,3 +834,34 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d .c3d-coin,.c3d .c3d-coin b{white-space:nowrap}.c3d-coin b{font-size:1.02em}
 .c3d .c3d-wep{font-size:11px;white-space:nowrap;letter-spacing:0}
 .c3d .a3d-act,.c3d .a3d-msg,.c3d .a3d-banner{letter-spacing:0}
+
+/* ================= UI かいぜん(モーダル・ぶんしょう・HUD) ================= */
+.c3d,.c3d-shop,.c3d-bigmap{line-break:strict;word-break:keep-all;overflow-wrap:anywhere}
+.sh-box h3,.sh-note,.jb-p,.a3d-banner,.a3d-msg,.c3d-pinhud,.c3d-track,.a3d-name,.a3d-obj{text-wrap:balance}
+.jb-q,.jb-why,.sh-item small,.c3d-help-body p{text-wrap:pretty}
+.c3d-shop{padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));backdrop-filter:blur(3px)}
+.c3d-shop .sh-box{display:flex;flex-direction:column;overflow:hidden;width:min(560px,100%);max-width:560px;max-height:100%;border-radius:16px;border:2px solid rgba(255,210,63,.92);background:linear-gradient(180deg,#112248,#091430);box-shadow:0 10px 40px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.1) inset;padding:10px 12px}
+.sh-box>h3{margin:0;font-size:18px;line-height:1.25;flex:none}.sh-box>.sh-coin{font-size:15px;margin:2px 0 6px;flex:none;line-height:1.3}
+.sh-box>.sh-tabs{flex:none;margin:2px 0 6px}.sh-box>.sh-note{flex:none;margin:6px 2px 0;font-size:11px;opacity:.88;line-height:1.45}
+.sh-list{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:2px 3px 4px;scrollbar-width:thin;scrollbar-color:#3a5aa0 transparent}
+.sh-box>.sh-x{flex:none;margin-top:8px;width:100%;border-radius:12px}
+.sh-item{border-radius:12px;border-width:1.5px;padding:7px 10px;margin:5px 0;transition:transform .08s,background .12s,border-color .12s}
+.sh-item:not(:disabled):active{transform:scale(.985);background:#1d3568}
+.sh-item>span:first-child{flex:none;width:36px;height:36px;display:grid;place-items:center;font-size:22px;line-height:1;background:rgba(255,255,255,.08);border-radius:10px}
+.sh-item b{display:block;font-size:14px;line-height:1.3}.sh-item small{display:block;font-size:11px;line-height:1.4;opacity:.82;margin-top:1px}
+.sh-item em{flex:none;font-style:normal;white-space:nowrap;font-size:13px}
+.sh-grp{margin:10px 0 3px;font-size:12px;letter-spacing:.04em;opacity:.95}
+.sh-tabs .chipb{border-radius:10px;white-space:nowrap;font-size:12px;padding:5px 9px}
+.a3d-msg,.a3d-banner{max-width:min(90vw,600px);margin-inline:auto}.a3d-banner{line-height:1.2}
+@media (min-width:560px){.sh-box.menu .sh-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start}.sh-box.menu .sh-item{margin:0}}
+@media (max-height:460px){.sh-box>h3{font-size:15px}.sh-box>.sh-coin{font-size:13px;margin:0 0 4px}.sh-item{padding:5px 8px;margin:4px 0}.sh-item>span:first-child{width:30px;height:30px;font-size:18px}.sh-item b{font-size:13px}.sh-item small{font-size:10.5px}.sh-box>.sh-x{margin-top:5px;padding:5px}}
+/* HUD */
+.c3d .a3d-bars{border-radius:12px;border:1px solid rgba(255,255,255,.2);background:linear-gradient(180deg,rgba(8,16,38,.8),rgba(8,16,38,.55));box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.c3d .c3d-wep{border-radius:10px;border-width:1.5px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.c3d .a3d-pausebtn,.c3d .c3d-bigmapbtn,.c3d .c3d-menubtn,.c3d .c3d-help{border-radius:11px;border-width:1.5px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.c3d .ab-b{box-shadow:0 3px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.28)}
+.c3d .a3d-act{border-radius:14px;box-shadow:0 4px 14px rgba(0,0,0,.45);text-wrap:balance;max-width:min(78vw,420px)}
+.sh-box>.sh-x{text-align:center;display:block;font-weight:900}
+.sh-head{flex:none;display:flex;gap:4px 12px;align-items:baseline;justify-content:center;flex-wrap:wrap;margin-bottom:4px}.sh-head>h3,.sh-head>.sh-coin{margin:0!important}
+.sh-box>.sh-note{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+@media (max-height:360px){.c3d-shop .sh-box{padding:7px 10px;border-radius:12px}.sh-box>h3{font-size:14px}.sh-box>.sh-coin{font-size:12px}.sh-box>.sh-tabs{margin:0 0 4px;gap:4px}.sh-tabs .chipb{padding:3px 7px;font-size:11px}.sh-item{padding:4px 8px;margin:3px 0}.sh-box>.sh-note{font-size:10px;margin-top:3px;-webkit-line-clamp:2}.sh-box>.sh-x{margin-top:4px;padding:4px 0}.sh-grp{margin:6px 0 2px;font-size:11px}}
