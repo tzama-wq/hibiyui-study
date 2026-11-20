@@ -202,15 +202,23 @@ for (const planeId of ['plane', 'hawk']) {
   const run1 = (e) => { const q = mk(st(70), 3, e); const Q = q.state.player; Q.x = 0; Q.z = 0; q.input.moveY = 1; q.input.moveX = 0; for (let i = 0; i < 40; i++) q.step(0.05); return Q.speed; };
   assert.ok(run1({ eqOwned: ['rocket'], equip: { feet: 'rocket' } }) > run1({}) * 1.2, 'くつで はやく はしる');
 }
-// ---- てはい(指名手配) ----
+// ---- 指名手配 ----
 {
   const sim = mk(); const S = sim.state; const P = S.player; P.coins = 5000; assert.equal(S.lv, 0);
-  const w = S.walkers.find((x) => x.path) || S.walkers[0]; sim.crime(8); assert.equal(S.lv, 0, 'ちいさな はんざいでは まだ ★0'); sim.crime(30); assert.ok(S.lv >= 1 && S.heatT > 100 && S.fine > 0, '★が つく・じかん・ばっきん');
-  sim.crime(200); assert.equal(S.lv, 5); assert.ok(S.fine > 2000 && S.heatT >= 600, '★が おおきいほど ばっきん・じかんが ふえる');
-  run(sim, 6); assert.ok(S.crooks.some((c) => c.hunter === 'cop') && S.crooks.some((c) => c.hunter === 'bounty'), 'おまわりさん・賞金かせぎが あらわれる'); assert.ok(S.traffic.some((c) => c.cop), 'パトカーも でる');
-  const before = P.coins; const f = S.fine; P.x = 0; P.z = 0; const kb = sim.payFine(); assert.ok(kb.ok && P.coins === before - f && S.lv === 0, 'ばっきんで かいじょ'); run(sim, 4); assert.ok(!S.crooks.some((c) => c.hunter && !c.gone && c.state !== 'down') || true);
-  sim.crime(60); const s2 = S.lv; assert.ok(s2 >= 2); P.coins = 1000; sim.state.player.hp = 1; sim.state.player.invuln = 0; sim.state.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); run(sim, 0.2); assert.equal(P.coins, 500, 'てはいちゅうに たおされると おかねが はんぶん'); assert.equal(S.lv, 0, 'たおされると てはいは きえる');
-  const s3 = mk(); const P3 = s3.state.player; const w3 = s3.state.walkers.find((x) => !x.idle && x.path); w3.x = P3.x + 8; w3.z = P3.z; P3.camYaw = Math.PI / 2; P3.yaw = Math.PI / 2; P3.weapon = 'pistol'; s3.state.walkers.forEach((x) => { if (x !== w3) { x.x = 9999; x.z = 9999; } }); s3.input.gun = true; for (let i = 0; i < 40; i++) { w3.x = P3.x + 8; w3.z = P3.z; P3.wCd = 0; P3.camYaw = Math.PI / 2; s3.step(0.05); } s3.input.gun = false; assert.ok(s3.state.lv >= 1, 'いっぱんの ひとを うつと てはい');
+  sim.meleeHit(); sim.meleeHit(); assert.equal(S.lv, 0, 'なぐるのは 3かいで ★1'); sim.meleeHit(); assert.equal(S.lv, 1, '3かい なぐると ★1');
+  sim.gunHit(); assert.equal(S.lv, 3, 'うつと 1かいで ★3'); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 4, 'そのあと うつたびに ★+1'); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 5); S.starT = -9; sim.gunHit(); assert.equal(S.lv, 5, '★5が さいだい');
+  assert.ok(S.heatT >= 900, '★が たかいほど じかんが ながい');
+  for (let i = 0; i < 700; i++) { sim.step(0.05); P.hp = P.hpMax; } assert.equal(S.lv, 5, '★5は すぐには きえない');
+  const cops = S.crooks.filter((c) => c.hunter).length + S.traffic.filter((c) => c.cop).length + S.jets.length; assert.ok(cops >= 16 && cops <= 24, `★5は 20にん ぐらい (${cops})`); assert.ok(S.jets.length >= 3 && S.traffic.some((c) => c.cop) && S.crooks.some((c) => c.hunter === 'cop'), 'せんとうき・パトカー・あるく けいさつ');
+  const kb = sim.payFine(); assert.ok(!kb.ok && S.lv === 5, '★5は ばっきんで けせない'); assert.ok(!sim.fastTravel().ok, '★5は ワープ できない');
+  P.coins = 1000; P.hp = 1; P.invuln = 0; S.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); sim.step(0.1); assert.equal(P.coins, 500, 'たおされると おかねが はんぶん'); assert.equal(S.lv, 0, 'たおされると かいじょ'); assert.equal(S.jets.length, 0);
+  { const e = mk(); e.raise(5); e.state.heatT = 0.5; e.state.player.invuln = 99; for (let i = 0; i < 40; i++) e.step(0.05); assert.equal(e.state.lv, 0, '★5でも ながく にげきれば おわる'); }
+  const s2 = mk(); const P2 = s2.state.player; P2.coins = 5000; s2.gunHit(); assert.equal(s2.state.lv, 3); const f = s2.state.fine; assert.ok(f > 0 && s2.state.heatT > 100); const b0 = P2.coins; const ok2 = s2.payFine(); assert.ok(ok2.ok && P2.coins === b0 - f && s2.state.lv === 0, '★3までは ばっきんで かいじょ');
+  const s3 = mk(); const P3 = s3.state.player; const w3 = s3.state.walkers.find((x) => !x.idle && x.path); w3.x = P3.x + 8; w3.z = P3.z; P3.camYaw = Math.PI / 2; P3.yaw = Math.PI / 2; P3.weapon = 'pistol'; s3.state.walkers.forEach((x) => { if (x !== w3) { x.x = 9999; x.z = 9999; } }); s3.input.gun = true; for (let i = 0; i < 6; i++) { w3.x = P3.x + 8; w3.z = P3.z; P3.wCd = 0; P3.camYaw = Math.PI / 2; s3.step(0.05); if (s3.state.lv >= 3) break; } s3.input.gun = false; assert.ok(s3.state.lv >= 3, 'いっぱんの ひとを うつと ★3');
+}
+// ---- くるまが はしっている ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; assert.ok(S.traffic.length >= 36, 'くるまが おおい'); for (let i = 0; i < 80; i++) sim.step(0.05); const near = S.traffic.filter((c) => Math.hypot(c.x - P.x, c.z - P.z) < 300).length; assert.ok(near >= 4, `ちかくに くるまが はしっている (${near})`);
 }
 // ---- ダッシュメーター ----
 {
