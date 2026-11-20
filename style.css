@@ -820,11 +820,14 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .sh-item[data-no]{opacity:.62}
 .wdel{font-size:11px;background:#7a1f1f;color:#fff;border-radius:8px;padding:3px 8px}
 
-/* ---- シティの フォント(GTAふうの あつい ゴシック: Dela Gothic One・OFL) ---- */
-@font-face{font-family:'CityFont';src:url('fonts/city-font.woff2') format('woff2');font-display:swap}
-.c3d,.c3d *,.c3d-shop,.c3d-shop *,.c3d-bigmap,.c3d-bigmap *{font-family:'CityFont','Hiragino Maru Gothic ProN','BIZ UDPGothic','Yu Gothic',system-ui,sans-serif!important;letter-spacing:.02em}
-.c3d .c3d-coin b,.c3d .ab.hp span,.c3d .ab.boost span{letter-spacing:.06em}
-.c3d-coin b{font-size:1.12em}
+/* ---- シティの フォント(GTA VIふうの ふとい ジオメトリックな ゴシック: Montserrat Black + Zen Kaku Gothic New Black・どちらも OFL) ---- */
+@font-face{font-family:'CityLatin';src:url('fonts/city-latin.woff2') format('woff2');font-weight:900;font-display:swap}
+@font-face{font-family:'CityJP';src:url('fonts/city-jp.woff2') format('woff2');font-weight:900;font-display:swap}
+.c3d,.c3d *,.c3d-shop,.c3d-shop *,.c3d-bigmap,.c3d-bigmap *{font-family:'CityLatin','CityJP','Hiragino Maru Gothic ProN','BIZ UDPGothic','Yu Gothic',system-ui,sans-serif!important;font-weight:900;letter-spacing:.01em}
+/* ネオン(ゆうやけ)グラデーションの すうじ・みだし */
+.c3d .c3d-coin b,.c3d .sh-coin,.c3d .sh-box h3,.c3d .a3d-banner{background:linear-gradient(90deg,#ffb23c,#ff4fa3 70%,#b44cff);-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent;text-shadow:none!important;filter:drop-shadow(0 1px 1px rgba(0,0,0,.7))}.c3d .c3d-coin b{display:inline-block}
+.c3d-coin b{font-size:1.08em}
+
 .c3d .ab span{white-space:nowrap;font-size:10px;letter-spacing:0}
 .c3d .ab-b{line-height:1.1;letter-spacing:0;white-space:nowrap}.c3d .ab-wp,.c3d .ab-tg{font-size:10px!important}.c3d .ab-gun{font-size:20px!important}
 .c3d .ab-auto{font-size:8px!important;white-space:normal}.c3d .ab-auto b{font-size:11px}
