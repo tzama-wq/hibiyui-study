@@ -170,7 +170,16 @@ function fin(THREE, pts, thick, mat) { // よこから みた たてがた(x=ま
 }
 const flameOf = (THREE, r, len) => { const f = new THREE.Mesh(new THREE.ConeGeometry(r, len, 10, 1, true), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); f.rotation.x = -Math.PI / 2; f.position.z = -len / 2; return f; };
 
+const AIR_SPAN = { cessna: [5.6, -4.6], trainer: [5.4, -5.8], bizjet: [6.6, -7.4], fighter: [5.0, -7.0], stealth: [6.4, -5.0] };
 export function makeAirModel(THREE, model = 'trainer') {
+  const g = makeAirBase(THREE, model); const [sp, tz] = AIR_SPAN[model] || [5, -5];
+  const mk = (c, x, z) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, 0.05, z); return m; };
+  const r = mk('#ff2a2a', -sp, 0.3); const gr = mk('#2aff5a', sp, 0.3); const st = mk('#ffffff', 0, tz + 0.4); st.position.y = 1.2; g.add(r, gr, st); g.userData.nav = { strobe: st, red: r, green: gr };
+  if (model === 'fighter') { for (const x of [-1, 1]) for (const dx of [2.3, 3.4]) { const ms = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.6, 8), new THREE.MeshStandardMaterial({ color: '#e8e8ee', metalness: 0.5, roughness: 0.4 })); ms.rotation.x = Math.PI / 2; ms.position.set(x * dx, -0.35, -0.4); const nose = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 8), new THREE.MeshStandardMaterial({ color: '#cc3a2a' })); nose.rotation.x = Math.PI / 2; nose.position.set(x * dx, -0.35, 1.05); g.add(ms, nose); } }
+  if (model === 'trainer' || model === 'fighter') for (const x of [-1, 1]) { const px = x * (model === 'trainer' ? 3.2 : 3.0); const rd = new THREE.Mesh(new THREE.CircleGeometry(0.5, 16), new THREE.MeshBasicMaterial({ color: '#d12a2a', side: THREE.DoubleSide })); rd.rotation.x = -Math.PI / 2; rd.position.set(px, 0.12, -0.6); const wh = new THREE.Mesh(new THREE.CircleGeometry(0.28, 16), new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide })); wh.rotation.x = -Math.PI / 2; wh.position.set(px, 0.13, -0.6); g.add(rd, wh); }
+  return g;
+}
+function makeAirBase(THREE, model) {
   const g = new THREE.Group(); const gl = new THREE.MeshStandardMaterial({ color: '#27456e', metalness: 0.9, roughness: 0.05, transparent: true, opacity: 0.92 });
   const flames = [];
   const engine = (x, y, z, r, len) => { const f = flameOf(THREE, r, len); const h = new THREE.Group(); h.position.set(x, y, z); h.add(f); g.add(h); flames.push(h); return h; };

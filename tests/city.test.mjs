@@ -16,7 +16,7 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
   for (const p of [SPAWN, HQ, SHOP, BOARD, GARAGE, ...CITY_MISSIONS.map((m) => m.start), ...WANTED.map((w) => w.spot)]) assert.ok(!isWater(p.x, p.z) && !insideBuilding(p.x, p.z, 0), `りくの うえ・たてものの そと (${p.x},${p.z})`);
   for (const m of CITY_MISSIONS) for (const p of [...(m.points || []), ...(m.civs || []), ...(m.pickup ? [m.pickup] : [])]) { if (m.water) assert.ok(isWater(p.x, p.z), `${m.id}: うみの うえ`); else assert.ok(!isWater(p.x, p.z) && !insideBuilding(p.x, p.z, 0), `${m.id}: たてものの そと (${p.x},${p.z})`); }
   for (const l of LINES) for (let v = -620; v <= 620; v += 20) for (const [x, z] of [[l, v], [v, l]]) if (isRoad(x, z)) assert.ok(!insideBuilding(x, z, 0), `みちに たてものが ない (${x},${z})`);
-  assert.ok(isWater(0, -600) && !isWater(0, -400) && isWater(900, 0), 'みなとの うみ・まちの そと');
+  assert.ok(isWater(-160, -470) && !isWater(-160, -300) && isWater(900, 0) && !isWater(-320, -430) && !isWater(320, -404) && isWater(-100, -450), 'かわ・はし・まちの そと');
   assert.equal(WANTED.length, 8); assert.ok(WANTED.every((w, i) => i === 0 || w.bounty >= WANTED[i - 1].bounty), 'つよい ほど けんしょう金が おおい');
   assert.ok(VCAT.length >= 16 && VCAT.some((v) => v.kind === 'bike') && VCAT.some((v) => v.kind === 'jet') && VCAT.some((v) => v.kind === 'plane') && VCAT.filter((v) => v.kind === 'car').length >= 6, 'のりものが いろいろ');
   const sim = mk(st(70), 3, { owned: VCAT.map((v) => v.id) });
@@ -27,7 +27,7 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
 {
   const sim = mk(); const S = sim.state; const P = S.player;
   sim.input.climb = 1; run(sim, 2); assert.ok(Math.hypot(P.x - SPAWN.x, P.z - SPAWN.z) > 6, 'あるける'); sim.input.climb = 0;
-  P.x = 0; P.z = -470; P.yaw = Math.PI; sim.input.climb = 1; run(sim, 6); assert.ok(!isWater(P.x, P.z), 'あるいて うみに はいれない'); sim.input.climb = 0;
+  P.x = 0; P.z = -375; P.yaw = Math.PI; sim.input.climb = 1; run(sim, 6); assert.ok(!isWater(P.x, P.z), 'あるいて うみに はいれない'); sim.input.climb = 0;
   const c1 = S.vehicles.find((v) => v.id === 'sedan'); c1.x = 0; c1.z = 100; P.x = 4; P.z = 100; P.yaw = 0; run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'veh'); assert.ok(sim.interact()); assert.equal(P.mode, 'veh');
   sim.input.climb = 1; run(sim, 3); assert.ok(sim.vehicleOf().speed > 10, 'くるまが はしる'); sim.input.climb = 0; run(sim, 3);
   assert.ok(sim.interact() && P.mode === 'foot', 'おりる');
@@ -93,7 +93,7 @@ const drive = (sim, tx, tz, { speed = 1 } = {}) => { const P = sim.state.player;
   run(sim, 0.2); assert.ok(!S.mission && S.done.gang === 1, 'ギャングを ぜんいん たいほして クリア');
 }
 {
-  const sim = mk(); const S = sim.state; tele(sim, 0, -480); sim.interact(); assert.equal(S.mission.id, 'harbor');
+  const sim = mk(); const S = sim.state; tele(sim, -160, -395); sim.interact(); assert.equal(S.mission.id, 'harbor');
   const ship = S.vehicles.find((v) => v.id === 'ship'); tele(sim, ship.x, ship.z + 5); assert.ok(sim.interact()); assert.equal(sim.vehicleOf().kind, 'ship');
   run(sim, 400, () => { const t = S.mission && S.mission.targets[S.mission.stage]; if (!t) return; drive(sim, t.x, t.z); }); assert.ok(S.done.harbor === 1, 'ふねで ブイを まわって クリア');
 }

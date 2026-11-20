@@ -792,3 +792,6 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .sh-item.lock{opacity:.55;border-color:#555}
 .jb-p{margin:6px 0;font-size:13px}.jb-big{font-size:24px;font-weight:900;color:#ffd23f;margin:8px 0}.jb-q{background:#fff;color:#111;padding:10px;margin:6px 0;text-align:left;font-size:16px;line-height:1.5}.jb-q svg{max-width:100%;height:auto}
 .jb-c b{font-size:16px}.jb-c.good{border-color:#2fa86a;background:#143a30}.jb-c.dim{opacity:.4}.jb-why{font-size:12px;color:#fff;text-align:left;margin:6px 0}.jb-r{min-height:40px}
+.c3d-stars{position:absolute;top:calc(env(safe-area-inset-top,0px) + 100px);right:calc(env(safe-area-inset-right,0px) + 10px);font-size:22px;text-shadow:0 0 6px #000,1px 1px 0 #000;opacity:0;transition:opacity .3s;pointer-events:none;z-index:3}.c3d-stars.on{opacity:1;animation:cstar 1s infinite alternate}@keyframes cstar{to{filter:brightness(1.6)}}
+.c3d-help{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);right:calc(env(safe-area-inset-right,0px) + 104px);pointer-events:auto;z-index:3;background:rgba(6,16,34,.78);color:#fff;border:2px solid #fff;font-size:16px;font-weight:900;width:36px;height:36px;cursor:pointer;padding:0}
+.hp{text-align:left;font-size:13px;line-height:1.5}.hp p{margin:5px 0}

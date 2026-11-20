@@ -1,6 +1,6 @@
 // 地球防衛隊「シティ」の 3Dがめん(three.js): じゆうに うごける まち。ルールは citysim.js。
 //   const g = await startCity3D({ kidName, stats, vehicles, specs, coins, done, calm, onSfx, onReward, onBuy, onQuit });
-import { createCity, LAYOUT, LINES, BAY, AIRFIELD, PLAZA, HQ, SHOP, SPAWN, RAIL_Z, STATION, SCHOOL, SCHOOL2, STADIUM, SHRINE, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, ARMS, JOB, CROOKS, DEFAULT_OWNED, WEAPONS, DEFAULT_WEAPONS, weaponOf, needText } from './citysim.js';
+import { createCity, LAYOUT, LINES, RIVER, BRIDGES, riverZ, AIRFIELD, PLAZA, HQ, SHOP, SPAWN, RAIL_Z, STATION, SCHOOL, SCHOOL2, STADIUM, SHRINE, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, ARMS, JOB, CROOKS, DEFAULT_OWNED, WEAPONS, DEFAULT_WEAPONS, weaponOf, needText } from './citysim.js';
 import { makeCarModel, makeBikeModel, makeAirModel, makePerson, makeWeaponModel, poseLimbs, townsPerson, crookPerson, labelSprite } from './citymodels3d.js';
 import { makeVehicleModel } from './vehicle3d.js';
 import { makeFx } from './fx3d.js';
@@ -17,10 +17,11 @@ const MAPR = 680; // マップの はんぶんの おおきさ(m)
 function groundCanvas() {
   const S = 2048; const k = S / (MAPR * 2); const c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
   const X = (x) => (x + MAPR) * k; const Z = (z) => (z + MAPR) * k; const rect = (x0, z0, x1, z1) => g.fillRect(X(x0), Z(z0), (x1 - x0) * k, (z1 - z0) * k);
-  g.fillStyle = '#e6d3a0'; rect(-652, -652, 652, 652); g.clearRect(X(BAY.x0 - 12), Z(BAY.z0 - 40), (BAY.x1 - BAY.x0 + 24) * k, (BAY.z1 - BAY.z0 + 52) * k);
+  g.fillStyle = '#e6d3a0'; rect(-652, -652, 652, 652);
   g.fillStyle = '#6c6f68'; rect(-640, -640, 640, 640);
   for (const [ix, iz] of [[1, 5], [5, 6], [0, 2]]) { g.fillStyle = '#4f6a45'; rect(-640 + 160 * ix + 8, -640 + 160 * iz + 8, -640 + 160 * ix + 152, -640 + 160 * iz + 152); }
-  g.fillStyle = '#5d7a4c'; rect(-640, -500, 640, -488); g.fillStyle = '#b8b09a'; rect(-640, -492, 640, -488); // かわぞいの どて
+  const riverPath = (w) => { g.beginPath(); RIVER.pts.forEach(([x, z], i) => (i ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z)))); g.lineWidth = w * k; g.lineJoin = 'round'; g.lineCap = 'round'; g.stroke(); };
+  g.strokeStyle = '#5d7a4c'; riverPath(RIVER.hw * 2 + 46); g.strokeStyle = '#a9a28c'; riverPath(RIVER.hw * 2 + 8); // かわぞいの どて
   for (const r of [SCHOOL, SCHOOL2]) { g.fillStyle = '#c9a878'; rect(r.x0 + 6, r.z0 + 6, r.x1 - 6, r.z0 + 80); g.strokeStyle = '#fff'; g.lineWidth = 0.8 * k; g.beginPath(); g.ellipse(X((r.x0 + r.x1) / 2), Z(r.z0 + 43), 52 * k, 28 * k, 0, 0, 6.283); g.stroke(); g.fillStyle = '#7b7f86'; rect(r.x0 + 6, r.z1 - 14, r.x1 - 6, r.z1 - 8); g.strokeStyle = '#3a4a3a'; g.lineWidth = 1.2 * k; g.strokeRect(X(r.x0 + 4), Z(r.z0 + 4), (r.x1 - r.x0 - 8) * k, (r.z1 - r.z0 - 8) * k); }
   { const cx = STADIUM.x; const cz = STADIUM.z; g.fillStyle = '#4f9a48'; rect(cx - 60, cz - 36, cx + 60, cz + 36); g.fillStyle = '#b5523a'; g.beginPath(); g.ellipse(X(cx), Z(cz), 74 * k, 46 * k, 0, 0, 6.283); g.fill(); g.fillStyle = '#4f9a48'; g.beginPath(); g.ellipse(X(cx), Z(cz), 58 * k, 30 * k, 0, 0, 6.283); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 0.7 * k; g.strokeRect(X(cx - 42), Z(cz - 24), 84 * k, 48 * k); g.beginPath(); g.moveTo(X(cx), Z(cz - 24)); g.lineTo(X(cx), Z(cz + 24)); g.stroke(); g.beginPath(); g.arc(X(cx), Z(cz), 7 * k, 0, 6.283); g.stroke(); }
   g.fillStyle = '#9a9ea6'; rect(PLAZA.x0 + 2, -160 + 14, PLAZA.x1 - 2, -14); g.fillStyle = '#b4655a'; for (let i = 0; i < 6; i++) rect(30 + i * 20, -135, 40 + i * 20, -115); // えきまえひろば
@@ -40,7 +41,7 @@ function groundCanvas() {
   g.fillStyle = '#4a5160'; rect(AIRFIELD.x0, AIRFIELD.z0, AIRFIELD.x1, AIRFIELD.z1); g.fillStyle = '#fff'; for (let x = AIRFIELD.x0 + 20; x < AIRFIELD.x1 - 20; x += 36) rect(x, -1.2, x + 18, 1.2); for (let i = -3; i <= 3; i++) { rect(AIRFIELD.x0 + 4, i * 6 - 1.2, AIRFIELD.x0 + 16, i * 6 + 1.2); rect(AIRFIELD.x1 - 16, i * 6 - 1.2, AIRFIELD.x1 - 4, i * 6 + 1.2); }
   g.fillStyle = '#ffd23f'; rect(AIRFIELD.x0, AIRFIELD.z0, AIRFIELD.x1, AIRFIELD.z0 + 1.5); rect(AIRFIELD.x0, AIRFIELD.z1 - 1.5, AIRFIELD.x1, AIRFIELD.z1);
   // みなとの うみ(きりぬき)
-  g.clearRect(X(BAY.x0), Z(BAY.z0 - 40), (BAY.x1 - BAY.x0) * k, (BAY.z1 - BAY.z0 + 40) * k);
+  g.save(); g.globalCompositeOperation = 'destination-out'; g.strokeStyle = '#000'; riverPath(RIVER.hw * 2); g.restore();
   return c;
 }
 function windowTex(THREE, base, seed) {
@@ -70,7 +71,7 @@ export async function startCity3D(o) {
     <div class="a3d-hud">
       <div class="a3d-bars"><div class="ab hp"><span>HP</span><i><u></u></i></div><div class="ab boost"><span>ダッシュ</span><i><u></u></i></div><div class="ab ms"><span>ミサイル</span><b></b></div><div class="c3d-coin">🪙 <b>0</b></div></div>
       <div class="a3d-top c3d-mis" hidden><div class="a3d-name"></div><div class="a3d-obj"></div></div>
-      <div class="c3d-track" hidden></div><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
+      <div class="c3d-track" hidden></div><div class="c3d-stars"></div><button class="c3d-help" aria-label="やりかた">？</button><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
       <canvas class="c3d-map" width="150" height="150"></canvas>
       <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button><button class="c3d-bigmapbtn" aria-label="ちず">🗺</button><button class="c3d-ftbtn" aria-label="ガレージへ ワープ">🏁⚡</button><button class="c3d-wep" aria-label="ぶき"></button><button class="c3d-cancel" hidden>✖ ミッションを やめる</button>
     </div>
@@ -93,10 +94,10 @@ export async function startCity3D(o) {
   const sky = new THREE.Mesh(new THREE.SphereGeometry(8000, 24, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { top: { value: new THREE.Color('#4f5a68') }, mid: { value: new THREE.Color('#8a8c86') }, low: { value: new THREE.Color('#b59a76') }, sun: { value: sunDir } }, vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }', fragmentShader: 'varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 low; uniform vec3 sun; void main(){ float h = clamp(vP.y,0.0,1.0); vec3 c = mix(low, mid, smoothstep(0.0,0.12,h)); c = mix(c, top, smoothstep(0.1,0.7,h)); float s = max(dot(vP, normalize(sun)),0.0); c += vec3(0.55,0.32,0.12) * pow(s, 6.0) * 0.6; gl_FragColor = vec4(c,1.0); }' })); sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(24000, 24000), new THREE.ShaderMaterial({ vertexShader: SEA_VS, fragmentShader: SEA_FS, uniforms: { time: { value: 0 }, sunDir: { value: sunDir }, fogColor: { value: horizon }, fogNear: { value: 120 }, fogFar: { value: 1500 }, isl: { value: new THREE.Vector2(0, 0) }, islR: { value: 700 } } }));
   sea.rotation.x = -Math.PI / 2; sea.position.y = -1.5; sea.frustumCulled = false; scene.add(sea);
-  { const sh = new THREE.Shape(); sh.moveTo(-7000, -7000); sh.lineTo(7000, -7000); sh.lineTo(7000, 7000); sh.lineTo(-7000, 7000); sh.closePath(); const hole = new THREE.Path(); hole.moveTo(-6900, -665); hole.lineTo(-6900, -489); hole.lineTo(6900, -489); hole.lineTo(6900, -665); hole.closePath(); sh.holes.push(hole);
+  { const sh = new THREE.Shape(); sh.moveTo(-7000, -7000); sh.lineTo(7000, -7000); sh.lineTo(7000, 7000); sh.lineTo(-7000, 7000); sh.closePath(); const hole = new THREE.Path(); [[-6900, -400], [-652, -400], [-652, -652], [652, -652], [652, -350], [6900, -350], [6900, -246], [652, -246], [652, 652], [-652, 652], [-652, -260], [-6900, -260]].forEach(([x, z], i) => (i ? hole.lineTo(x, z) : hole.moveTo(x, z))); hole.closePath(); sh.holes.push(hole);
     const land = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshStandardMaterial({ color: '#5a6350', roughness: 1 })); land.rotation.x = -Math.PI / 2; land.position.y = -0.4; land.receiveShadow = false; scene.add(land);
     let a = 31; const rnd = () => { a = (a * 1664525 + 1013904223) % 4294967296; return a / 4294967296; }; const N = 900; const hm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9 }), N); const dm = new THREE.Object3D(); let n = 0; const cols = ['#c9c3b0', '#b9bec6', '#d6cdb8', '#a8afba', '#cbb8a6'];
-    while (n < N) { const x = (rnd() - 0.5) * 5200; const z = (rnd() - 0.5) * 5200; if (Math.abs(x) < 720 && Math.abs(z) < 720) continue; if (z < -480 && z > -700) continue; const h = 8 + rnd() * (rnd() < 0.15 ? 60 : 14); dm.position.set(x, h / 2 - 0.4, z); dm.scale.set(12 + rnd() * 20, h, 12 + rnd() * 20); dm.updateMatrix(); hm.setMatrixAt(n, dm.matrix); hm.setColorAt(n, new THREE.Color(cols[Math.floor(rnd() * cols.length)])); n++; }
+    while (n < N) { const x = (rnd() - 0.5) * 5200; const z = (rnd() - 0.5) * 5200; if (Math.abs(x) < 720 && Math.abs(z) < 720) continue; if (z > -440 && z < -210) continue; const h = 8 + rnd() * (rnd() < 0.15 ? 60 : 14); dm.position.set(x, h / 2 - 0.4, z); dm.scale.set(12 + rnd() * 20, h, 12 + rnd() * 20); dm.updateMatrix(); hm.setMatrixAt(n, dm.matrix); hm.setColorAt(n, new THREE.Color(cols[Math.floor(rnd() * cols.length)])); n++; }
     hm.instanceColor.needsUpdate = true; scene.add(hm); }
   // まち
   const gc = groundCanvas(); const gtex = new THREE.CanvasTexture(gc); gtex.colorSpace = THREE.SRGBColorSpace; gtex.anisotropy = 8;
@@ -119,6 +120,12 @@ export async function startCity3D(o) {
       const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g2 = c.getContext('2d'); g2.fillStyle = '#fff'; g2.font = 'bold 36px sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(label, 128, 34); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const tx = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.5), new THREE.MeshBasicMaterial({ map: t, transparent: true })); tx.position.set(0, 7.6, 6.35);
       const door = new THREE.Mesh(new THREE.BoxGeometry(3, 4.6, 0.3), new THREE.MeshStandardMaterial({ color: '#1b2430', emissive: '#ffcf80', emissiveIntensity: 0.4 })); door.position.set(0, 2.3, 6.05); g.add(wall, band, tx, door); g.position.set(x, 0, z); g.rotation.y = Math.PI; g.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(g); void icon; };
     mkShop(12, 31, '#59606c', '#c0392b', '🔫', 'ぶきや AMMO'); mkShop(146, 62, '#6a7a96', '#2a7ae0', '💼', 'おしごと JOB'); }
+  // こうてい(とけい・こくばん・ポール・ゴール)
+  for (const r of [SCHOOL, SCHOOL2]) { const cx = (r.x0 + r.x1) / 2; const zf = r.z1 - 34; const c = document.createElement('canvas'); c.width = c.height = 128; const g2 = c.getContext('2d'); g2.fillStyle = '#fff'; g2.beginPath(); g2.arc(64, 64, 60, 0, 6.283); g2.fill(); g2.strokeStyle = '#222'; g2.lineWidth = 6; g2.stroke(); g2.lineWidth = 7; g2.beginPath(); g2.moveTo(64, 64); g2.lineTo(64, 24); g2.stroke(); g2.beginPath(); g2.moveTo(64, 64); g2.lineTo(92, 78); g2.stroke(); const ct = new THREE.CanvasTexture(c); ct.colorSpace = THREE.SRGBColorSpace;
+    const ck = new THREE.Mesh(new THREE.CircleGeometry(2.4, 24), new THREE.MeshBasicMaterial({ map: ct })); ck.position.set(r.x0 + 52, 12.2, zf - 0.1); ck.rotation.y = Math.PI; scene.add(ck);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 12, 6), new THREE.MeshStandardMaterial({ color: '#ddd', metalness: 0.5 })); pole.position.set(cx + 6, 6, r.z0 + 20); scene.add(pole); const fl = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.8), new THREE.MeshBasicMaterial({ color: '#fff', side: THREE.DoubleSide })); fl.position.set(cx + 7.4, 11, r.z0 + 20); scene.add(fl); const dot2 = new THREE.Mesh(new THREE.CircleGeometry(0.5, 14), new THREE.MeshBasicMaterial({ color: '#d12a2a', side: THREE.DoubleSide })); dot2.position.set(cx + 7.4, 11, r.z0 + 20.02); scene.add(dot2);
+    for (const gz of [r.z0 + 20, r.z0 + 66]) { const gp = new THREE.Group(); const wm = new THREE.MeshStandardMaterial({ color: '#f4f4f4' }); for (const x of [-3.6, 3.6]) { const po = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.4, 6), wm); po.position.set(x, 1.2, 0); gp.add(po); } const bar = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.12, 0.12), wm); bar.position.y = 2.4; gp.add(bar); gp.position.set(cx - 38, 0, gz); gp.rotation.y = Math.PI / 2; scene.add(gp); const g3 = gp.clone(); g3.position.x = cx + 38; scene.add(g3); }
+    const bd = new THREE.Mesh(new THREE.BoxGeometry(18, 1.0, 0.6), new THREE.MeshStandardMaterial({ color: '#2a6a4a' })); bd.position.set(r.x0 + 52, 14.8, zf - 0.3); scene.add(bd); }
   // ガレージ・ボード
   { const gr = new THREE.Group(); const wall = new THREE.MeshStandardMaterial({ color: '#d9dde6', roughness: 0.6 }); const dk = new THREE.MeshStandardMaterial({ color: '#2b303c', roughness: 0.7 });
     const back = new THREE.Mesh(new THREE.BoxGeometry(80, 9, 1), wall); back.position.set(0, 4.5, 8); const roof = new THREE.Mesh(new THREE.BoxGeometry(82, 0.8, 18), dk); roof.position.set(0, 9.4, -0.5); const sideL = new THREE.Mesh(new THREE.BoxGeometry(1, 9, 17), wall); sideL.position.set(-40, 4.5, 0); const sideR = sideL.clone(); sideR.position.x = 40;
@@ -178,8 +185,12 @@ export async function startCity3D(o) {
   { const red = new THREE.MeshStandardMaterial({ color: '#c8281e', roughness: 0.6 }); const to = new THREE.Group(); for (const x of [-4, 4]) { const pl = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 11, 10), red); pl.position.set(x, 5.5, 0); to.add(pl); } const b1 = new THREE.Mesh(new THREE.BoxGeometry(13.5, 0.9, 1.2), red); b1.position.y = 10.6; const b2 = new THREE.Mesh(new THREE.BoxGeometry(11, 0.6, 0.8), red); b2.position.y = 8.4; const b0 = new THREE.Mesh(new THREE.BoxGeometry(15, 0.4, 1.6), new THREE.MeshStandardMaterial({ color: '#222' })); b0.position.y = 11.3; to.add(b1, b2, b0); to.position.set(SHRINE.x, 0, SHRINE.z + 36); scene.add(to);
     const sh = LAYOUT.buildings.find((b) => b.kind === 'shrine'); const rf = new THREE.Mesh(new THREE.ConeGeometry(24, 7, 4), new THREE.MeshStandardMaterial({ color: '#3a4a50', roughness: 0.8 })); rf.rotation.y = Math.PI / 4; rf.scale.set(1, 1, 0.62); rf.position.set((sh.x0 + sh.x1) / 2, sh.h + 3, (sh.z0 + sh.z1) / 2); scene.add(rf);
     const path = new THREE.Mesh(new THREE.PlaneGeometry(6, 28), new THREE.MeshStandardMaterial({ color: '#9a958a', roughness: 1 })); path.rotation.x = -Math.PI / 2; path.position.set(SHRINE.x, 0.06, SHRINE.z + 22); scene.add(path); }
-  { const pts = []; for (let x = -620; x <= 620; x += 15) { if (LINES.some((l) => Math.abs(x - l) < 20)) continue; pts.push(x); } const n = pts.length; const tr = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.4, 0.55, 5, 6), new THREE.MeshStandardMaterial({ color: '#4a3a2e', roughness: 1 }), n); const cr = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(5.2, 1), new THREE.MeshStandardMaterial({ color: '#f3b6c8', roughness: 0.9, emissive: '#f3b6c8', emissiveIntensity: 0.12 }), n); const dm = new THREE.Object3D();
-    pts.forEach((x, i) => { dm.position.set(x, 2.5, -462); dm.scale.setScalar(1); dm.updateMatrix(); tr.setMatrixAt(i, dm.matrix); dm.position.set(x, 7.5, -462); dm.scale.set(1, 0.8, 1); dm.updateMatrix(); cr.setMatrixAt(i, dm.matrix); }); tr.castShadow = shadowsOn; scene.add(tr, cr); }
+  { const pts = []; for (let x = -620; x <= 620; x += 14) { if (LINES.some((l) => Math.abs(x - l) < 20)) continue; const z = riverZ(x) + RIVER.hw + 9; if (isWater(x, z) || LAYOUT.buildings.some((b) => x > b.x0 - 4 && x < b.x1 + 4 && z > b.z0 - 4 && z < b.z1 + 4)) continue; pts.push([x, z]); } const n = pts.length; const tr = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.4, 0.55, 5, 6), new THREE.MeshStandardMaterial({ color: '#4a3a2e', roughness: 1 }), n); const cr = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(5.2, 1), new THREE.MeshStandardMaterial({ color: '#f3b6c8', roughness: 0.9, emissive: '#f3b6c8', emissiveIntensity: 0.12 }), n); const dm = new THREE.Object3D();
+    pts.forEach(([x, z], i) => { dm.position.set(x, 2.5, z); dm.scale.setScalar(1); dm.updateMatrix(); tr.setMatrixAt(i, dm.matrix); dm.position.set(x, 7.5, z); dm.scale.set(1, 0.8, 1); dm.updateMatrix(); cr.setMatrixAt(i, dm.matrix); }); tr.castShadow = shadowsOn; scene.add(tr, cr); }
+  // はし
+  for (const bx of BRIDGES) { const zc = riverZ(bx); const len = RIVER.hw * 2 + 40; const deck = new THREE.Mesh(new THREE.BoxGeometry(26, 0.8, len), new THREE.MeshStandardMaterial({ color: '#3a3e46', roughness: 0.9 })); deck.position.set(bx, -0.36, zc); deck.receiveShadow = shadowsOn; scene.add(deck);
+    for (const sx of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.3, len), new THREE.MeshStandardMaterial({ color: '#b8bcc6', metalness: 0.5, roughness: 0.5 })); rail.position.set(bx + sx * 12.6, 0.6, zc); scene.add(rail); for (let k2 = -4; k2 <= 4; k2++) { const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 7, 6), new THREE.MeshStandardMaterial({ color: '#4a505c' })); lp.position.set(bx + sx * 12.6, 3.5, zc + k2 * (len / 9)); scene.add(lp); } }
+    for (const dz of [-0.46, 0.46]) { const pier = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 4), new THREE.MeshStandardMaterial({ color: '#8a8d92' })); pier.position.set(bx, -2.2, zc + dz * RIVER.hw * 0.6); scene.add(pier); } }
   { const poles = []; const wires = []; const dk = new THREE.MeshStandardMaterial({ color: '#5a5750', roughness: 1 });
     for (const l of LINES) { if (l === RAIL_Z) continue; for (let t = -600; t <= 600; t += 36) { for (const [x, z] of [[l + 16, t], [t, l + 16]]) { if (isWater(x, z) || (x > AIRFIELD.x0 - 10 && x < AIRFIELD.x1 && z > AIRFIELD.z0 - 10 && z < AIRFIELD.z1 + 10) || (x > PLAZA.x0 && x < PLAZA.x1 && z > PLAZA.z0 && z < PLAZA.z1) || Math.abs(z - RAIL_Z) < 18 && Math.abs(x - STATION.x) < 80) continue; if (LINES.some((q) => Math.abs((x === l + 16 ? z : x) - q) < 18)) continue; poles.push([x, z, x === l + 16 ? 0 : 1]); } } }
     const n = poles.length; const pm = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.28, 11, 6), dk, n); const ar = new THREE.InstancedMesh(new THREE.BoxGeometry(3.2, 0.2, 0.2), dk, n); const dm = new THREE.Object3D();
@@ -237,6 +248,16 @@ export async function startCity3D(o) {
   const snap = () => ({ coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned, weapon: P.weapon, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
   menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
+  const showHelp = () => { openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>❓ シティの あそびかた</h3><div class="hp">
+      <p>🕹️ ひだり: うごく ・ みぎ: ねらう ・ ボタンで うつ・のる・おりる</p>
+      <p>📋 <b>ボード</b>: してい手配はんを みる→たおして「たいほ」→ <b>けんしょう金</b></p>
+      <p>🔫 <b>ぶきや</b>: ぶきを かう ・ 🔁ボタン/Qキーで きりかえ</p>
+      <p>💼 <b>おしごと</b>: さんすう・こくごで おきゅうりょう</p>
+      <p>🏁 <b>ガレージ</b>: のりものを かう・のる ・ 🏁⚡ボタンで ワープ</p>
+      <p>⭐ ミッション(きいろい はしら)で チケット ゲット</p>
+      <p>🗺 ちず ・ 🎯 ついせき ・ 🚉 えき ・ 🌸 さくらなみき</p></div><button class="btn gold sh-x">わかった!</button></div>`; }); shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); try { localStorage.setItem('city-help', '1'); } catch { /* ok */ } } }; };
+  root.querySelector('.c3d-help').addEventListener('click', () => { if (!paused) showHelp(); });
+  try { if (!localStorage.getItem('city-help')) setTimeout(() => { if (!dead && !paused) showHelp(); }, 1200); } catch { /* ok */ }
   root.querySelector('.c3d-cancel').addEventListener('click', () => sim.cancelMission());
   root.querySelector('.c3d-ftbtn').addEventListener('click', () => { if (paused) return; const r = sim.fastTravel(); if (!r.ok && r.why) { S.msg = r.why; S.msgT = 2; } });
   root.querySelector('.c3d-wep').addEventListener('click', () => { if (!paused) openWeapons(); });
@@ -317,7 +338,7 @@ export async function startCity3D(o) {
   };
 
   // ---- HUD ----
-  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), hpw: q('.ab.hp'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), msw: q('.ab.ms'), coin: q('.c3d-coin b'), mis: q('.c3d-mis'), misN: q('.c3d-mis .a3d-name'), misO: q('.c3d-mis .a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), ret: q('.a3d-ret'), act: q('.ab-act'), gun: q('.ab-gun'), cancel: q('.c3d-cancel'), track: q('.c3d-track'), wep: q('.c3d-wep'), wpb: q('.ab-wp'), map: q('.c3d-map').getContext('2d'), big: bigmap.querySelector('canvas').getContext('2d') };
+  const q = (s) => root.querySelector(s); const hud = { hp: q('.ab.hp u'), hpw: q('.ab.hp'), boost: q('.ab.boost u'), ms: q('.ab.ms b'), msw: q('.ab.ms'), coin: q('.c3d-coin b'), mis: q('.c3d-mis'), misN: q('.c3d-mis .a3d-name'), misO: q('.c3d-mis .a3d-obj'), banner: q('.a3d-banner'), msg: q('.a3d-msg'), warn: q('.a3d-warn'), ret: q('.a3d-ret'), act: q('.ab-act'), gun: q('.ab-gun'), cancel: q('.c3d-cancel'), track: q('.c3d-track'), stars: q('.c3d-stars'), wep: q('.c3d-wep'), wpb: q('.ab-wp'), map: q('.c3d-map').getContext('2d'), big: bigmap.querySelector('canvas').getContext('2d') };
     let lastBanner = ''; const v3 = new THREE.Vector3();
   const project = (x, y, z) => { v3.set(x, y, z).project(camera); return { x: (v3.x * 0.5 + 0.5) * root.clientWidth, y: (-v3.y * 0.5 + 0.5) * root.clientHeight, z: v3.z }; };
   const drawMap = (g, R, size, rot) => {
@@ -349,6 +370,7 @@ export async function startCity3D(o) {
     hud.msg.textContent = S.msgT > 0 ? S.msg : ''; hud.warn.textContent = P.dead > 0 ? '😵 ふっかつちゅう…' : ''; root.classList.toggle('hurt', P.hurt > 0);
     // しょうじゅん
     const kind = v ? v.kind : 'foot'; const air = isAir(kind); const ay = air ? v.yaw : P.yaw + P.aimRel; const ap = air ? v.pitch : P.aimPitch; const o0 = air ? { x: v.x, y: v.y, z: v.z } : { x: P.x, y: 2, z: P.z }; const rp = project(o0.x + Math.sin(ay) * Math.cos(ap) * 200, o0.y + Math.sin(ap) * 200, o0.z + Math.cos(ay) * Math.cos(ap) * 200); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 && P.dead <= 0 ? '' : 'none'; hud.ret.classList.toggle('lock', !!P.target && air);
+    { let st = 0; for (const c of S.crooks) { if (!c.wid || c.state === 'down') continue; const d = Math.hypot(c.x - P.x, c.z - P.z); if (c.alert || d < 70) { const w = S.wanted.find((x) => x.id === c.wid); if (w && w.stars > st) st = w.stars; } } hud.stars.textContent = st ? '⭐'.repeat(st) : ''; hud.stars.classList.toggle('on', !!st); }
     { const W = weaponOf(P.weapon) || {}; hud.wep.hidden = kind !== 'foot'; hud.wep.textContent = `${W.icon || ''} ${W.name || ''}`; hud.wpb.style.display = kind === 'foot' ? '' : 'none'; }
     hud.gun.textContent = kind === 'foot' ? (weaponOf(P.weapon) && weaponOf(P.weapon).melee ? 'なぐる' : 'うつ') : kind === 'car' || kind === 'bike' ? 'ビーム' : 'こうげき'; root.querySelector('.ab-tg').style.display = air ? 'none' : '';
     { const w = S.tracked ? S.wanted.find((x) => x.id === S.tracked) : null; hud.track.hidden = !w; if (w) hud.track.textContent = w.alive ? `🎯 ${w.name} 🪙${w.bounty} ・ ${Math.round(Math.hypot(w.x - P.x, w.z - P.z))}m` : `🎯 ${w.name}(いまは いないよ)`; }
@@ -368,6 +390,7 @@ export async function startCity3D(o) {
       m.position.set(vv.x, vv.kind === 'ship' ? Math.sin(tt * 1.6 + vv.x) * 0.4 : air ? vv.y : 0, vv.z); m.rotation.order = 'YXZ';
       if (air) { m.rotation.set(-vv.pitch, vv.yaw, vv.roll); const bo = vv.occ && input_boost(); if (u.flame) u.flame.scale.set(1, 1, bo ? 2.4 : 1); if (u.flames) u.flames.forEach((f) => f.scale.set(1, 1, vv.occ ? (bo ? 1.6 : 0.8 + Math.sin(tt * 40) * 0.1) : 0.01)); if (u.prop) u.prop.rotation.z += dt * (vv.occ ? 40 : 0); }
       else m.rotation.set(0, vv.yaw, vv.roll * (vv.kind === 'bike' ? 1.3 : 0.5));
+      if (u.nav) { u.nav.strobe.visible = Math.floor(tt * 1.6) % 2 === 0; }
       if (u.rider) u.rider.visible = !!vv.occ;
       if (vv.occ && vv.id === P.veh) { const ty = P.yaw + P.aimRel - vv.yaw; if (u.turrets) u.turrets.forEach((t) => { t.rotation.y = ty; }); if (u.turret) u.turret.rotation.y = ty; }
       if (u.radar) u.radar.rotation.y = tt * 3; if (u.siren) { const on = Math.floor(tt * 6) % 2 === 0; u.siren[0].visible = on; u.siren[1].visible = !on; }
