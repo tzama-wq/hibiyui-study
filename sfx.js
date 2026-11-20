@@ -61,7 +61,10 @@ export function createSfx(isQuiet = () => false) {
     home: { bpm: 74, root: 261.63, wave: 'sine', prog: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], bass: [1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0], arp: [0, -1, -1, 1, -1, -1, 2, -1, -1, 3, -1, -1, 2, -1, 1, -1], kick: [], snare: [], hat: [], lead: null },
     defense: { bpm: 128, root: 233.08, wave: 'square', prog: [[0, 3, 7], [-2, 2, 5], [-4, 0, 3], [-5, -1, 2]], bass: [1, 0, 1, 1, 0, 1, 0, 2, 1, 0, 1, 1, 0, 2, 2, 0], arp: [0, -1, 2, -1, 1, -1, 3, -1, 0, -1, 2, -1, 1, -1, 3, 2], kick: [0, 4, 8, 10, 12], snare: [4, 12], hat: [2, 6, 10, 14], lead: [0, null, null, 7, null, 5, null, 3, 0, null, null, 7, null, 10, null, 12] },
   };
-  let theme = null;
+  let theme = null; let fileEl = null; let fileTimer = null;
+  // フリー素材(CC0)の BGM ファイル(audio/LICENSE.txt)。ないテーマは じさくの シンセで なる
+  const FILES = { city: './audio/04_glass_maze.ogg', home: './audio/05_moss_garden.ogg' };
+  const stopFile = () => { clearInterval(fileTimer); fileTimer = null; if (fileEl) { try { fileEl.pause(); } catch { /* ignore */ } fileEl = null; } };
   const MEL = [523, 0, 659, 0, 784, 659, 523, 0, 587, 0, 698, 0, 880, 698, 587, 0]; // ゆるい ドット ふう メロディ
   const BASS = [131, 131, 165, 165, 196, 196, 165, 165];
   return {
@@ -77,10 +80,11 @@ export function createSfx(isQuiet = () => false) {
         } catch { /* ignore */ }
       }, 190);
     },
-    bgmStop() { clearInterval(bgmTimer); bgmTimer = null; theme = null; },
+    bgmStop() { clearInterval(bgmTimer); bgmTimer = null; theme = null; stopFile(); },
     // シティの BGM: 'city' | 'wanted' | 'home' | 'defense' | null(とめる)
     bgmTheme(name) {
-      if (theme === name) return; theme = name; clearInterval(bgmTimer); bgmTimer = null; const T = THEMES[name]; if (!T) return; let st = 0; const ms = 60000 / T.bpm / 4; const dur = ms / 1000;
+      if (theme === name) return; theme = name; clearInterval(bgmTimer); bgmTimer = null; stopFile(); const T = THEMES[name]; if (!T) return;
+      if (FILES[name]) { try { const el = new Audio(FILES[name]); el.loop = true; el.volume = 0.4; fileEl = el; fileTimer = setInterval(() => { if (isQuiet()) el.pause(); else if (el.paused) el.play().catch(() => {}); }, 700); el.play().catch(() => {}); return; } catch { fileEl = null; } } let st = 0; const ms = 60000 / T.bpm / 4; const dur = ms / 1000;
       bgmTimer = setInterval(() => {
         if (isQuiet()) return;
         try {

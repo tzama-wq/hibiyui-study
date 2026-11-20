@@ -523,3 +523,4 @@ IFAB の Laws of the Game(11〜17じょう)と、コーチング しりょうを
 - BGM・こうかおん: ファイルの そざいは つかわず、`sfx.js` の WebAudio で その場で つくる(けんり もんだい なし)。BGMは 4きょく(`city` まち / `wanted` 手配中 / `home` じたく・ショップ / `defense` ぼうえい にんむ)で、じょうたいに あわせて じどうで きりかわる。こうかおんは click・cash・door・siren・spray・sparkle を ついか。「しずかモード」では なる。
 - メモ: 外部の フリー素材(OpenGameArt など)は 自動ダウンロードが ブロックされたため、BGMは じさくに した。CC0の 曲を `audio/` に おけば さしかえ できる。
 - 🚗 じぶんの のりものを いっぱんの くるまが よける: とまっている とき ぶつかって ばくはつ→手配 には ならない。くるまは まえに じぶんが いたら ブレーキ(ゴースト すりぬけも しない)。じぶんから つっこむ ときの しょうとつは そのまま。
+- 🎵 フリー素材の BGM: 「Tiny Puzzle BGM Loops Vol.1」(yema7582・CC0)から `audio/04_glass_maze.ogg`(まちの ひる)と `audio/05_moss_garden.ogg`(じたく・ショップ)を つかう。ライセンスは `audio/LICENSE.txt`。てはい中と ぼうえい にんむは じさくの シンセBGM。
