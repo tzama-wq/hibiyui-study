@@ -4,7 +4,7 @@
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import * as SkeletonUtils from './vendor/utils/SkeletonUtils.js';
 const BASE = './models/city/';
-const FILES = ['man', 'swat', 'womancasual', 'womandress', 'casual', 'taxi', 'sedan', 'suv', 'sports', 'police', 'pickup', 'truck', 'bk_a', 'bk_b', 'bk_c', 'bk_d', 'kn_large1', 'kn_large2', 'kn_large3', 'kn_large4', 'kn_large5', 'kn_small', 'kn_sky1', 'kn_sky2'];
+const FILES = ['man', 'swat', 'womancasual', 'womandress', 'casual', 'taxi', 'sedan', 'suv', 'sports', 'police', 'pickup', 'truck', 'bk_a', 'bk_b', 'bk_c', 'bk_d', 'kn_large1', 'kn_large2', 'kn_large3', 'kn_large4', 'kn_large5', 'kn_small', 'kn_sky1', 'kn_sky2', 'nt_pine', 'nt_tree2', 'nt_tree3', 'nt_tree4', 'nt_bush1', 'nt_bushf', 'nt_hedge'];
 const CAR_FILE = { sedan: 'sedan', police: 'police', taxi: 'taxi', suv: 'suv', truck: 'truck', sports: 'sports', super: 'sports' };
 const CAR_LEN = { sedan: 4.6, police: 4.8, taxi: 4.6, suv: 4.8, truck: 6.8, sports: 4.4, super: 4.5 };
 const BODY_MAT = /^(white|blue|yellow|red|green|black_?body|body|paint|atlas)$/i;

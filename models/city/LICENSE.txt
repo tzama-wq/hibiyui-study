@@ -3,3 +3,4 @@ Man, Woman Casual, Woman in Dress, Casual Character, SWAT, Taxi, Car, SUV, Sport
 CC0: no attribution required, credited here out of courtesy. https://quaternius.com
 Loaders (vendor/loaders/GLTFLoader.js, vendor/utils/*.js) are from three.js r160 (MIT).
 Buildings: Kay Lousberg "Building" (bk_*) and Kenney "Large/Small Building", "Skyscraper" (kn_*), CC0 1.0 via Poly Pizza (https://poly.pizza).
+Trees/Bushes (nt_*): Quaternius "Pine", "Tree" x3, "Bush", "Bush with Flowers", "Hedge", CC0 1.0 via Poly Pizza (https://poly.pizza).

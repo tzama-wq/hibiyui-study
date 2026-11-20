@@ -5,13 +5,19 @@
 import { TERRAIN } from './terrain-data.js';
 import { AIRFIELD, HOME, PLAZA, MALL_TRESA, MALL_APITA, SOCCER_ZONE, RIVER, riverDist, isWater } from './citymap.js';
 
-export const EXAG = 1.8; // たかさの ばいりつ(すこし おおげさに)
+export const EXAG = 0.9; // おかの たかさの ばいりつ
+const DEFORM_CAP = 15; // おかの さいだかの めやす(m): ゲームが あそびにくく ならない ように おさえる
 const N = TERRAIN.n; const R = TERRAIN.range; const STEP = (2 * R) / (N - 1);
 const grid = new Float32Array(N * N);
 {
   const bin = atob(TERRAIN.data); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); const dv = new DataView(u8.buffer);
   const base = 1.0; // かわの たかさ(ASL m)
-  for (let i = 0; i < N * N; i++) grid[i] = Math.max(0, dv.getInt16(i * 2, true) / 10 - base) * EXAG;
+  // デフォルメ: ひらたい ていちは ほぼ たいらに・おかだけ ゆるやかに もりあげ(さいだか CAP)・なみうつ ちいさな おうとつは ぼかして けす
+  const blur = (arr, passes) => { let cur = arr; for (let p = 0; p < passes; p++) { const nx = new Float32Array(cur); for (let j = 1; j < N - 1; j++) for (let i = 1; i < N - 1; i++) nx[j * N + i] = (cur[j * N + i] * 4 + cur[(j - 1) * N + i] * 2 + cur[(j + 1) * N + i] * 2 + cur[j * N + i - 1] * 2 + cur[j * N + i + 1] * 2 + cur[(j - 1) * N + i - 1] + cur[(j - 1) * N + i + 1] + cur[(j + 1) * N + i - 1] + cur[(j + 1) * N + i + 1]) / 16; cur = nx; } return cur; };
+  const raw = new Float32Array(N * N); for (let i = 0; i < N * N; i++) raw[i] = Math.max(0, dv.getInt16(i * 2, true) / 10 - base);
+  const sm = blur(raw, 4); const PLAIN = 3.4; const CAP = DEFORM_CAP;
+  for (let i = 0; i < N * N; i++) { const r = sm[i]; const plain = Math.min(r, PLAIN) / PLAIN * 1.2; const t = Math.max(0, r - PLAIN); grid[i] = plain + CAP * (1 - Math.exp((-t * EXAG) / CAP)); }
+  grid.set(blur(grid, 2));
   const at = (x, z) => grid[Math.max(0, Math.min(N - 1, Math.round((z + R) / STEP))) * N + Math.max(0, Math.min(N - 1, Math.round((x + R) / STEP)))];
   // かわは ひくく
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; const d = riverDist(x, z); if (d < RIVER.hw) grid[j * N + i] = 0; else if (d < RIVER.hw + 22) { const w = (d - RIVER.hw) / 22; grid[j * N + i] = Math.min(grid[j * N + i], 0.6 + w * 4); } }

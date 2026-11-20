@@ -810,3 +810,5 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-jobbtn{top:calc(env(safe-area-inset-top,0px) + 98px)!important;right:calc(env(safe-area-inset-right,0px) + 138px)!important}
 .c3d-stars{top:calc(env(safe-area-inset-top,0px) + 56px)!important;right:calc(env(safe-area-inset-right,0px) + 186px)!important}
 .c3d-stars.heat{font-size:15px;text-align:right;line-height:1.2;background:rgba(150,10,10,.72);padding:4px 8px;border:2px solid #fff;color:#fff}.c3d-stars.heat .hot{display:block;font-size:20px;color:#ffd84a;animation:rl .5s infinite alternate}.c3d-stars.heat small{font-size:11px;font-weight:700;color:#fff}
+.c3d-menubtn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);right:calc(env(safe-area-inset-right,0px) + 148px);pointer-events:auto;z-index:3;background:rgba(6,16,34,.78);color:#fff;border:2px solid #fff;font-size:20px;font-weight:900;width:40px;height:36px;cursor:pointer;padding:0}
+.c3d-stars{top:calc(env(safe-area-inset-top,0px) + 50px)!important;right:calc(env(safe-area-inset-right,0px) + 136px)!important}
