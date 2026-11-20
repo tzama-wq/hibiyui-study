@@ -290,13 +290,13 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const spawnCopCar = () => { const cps = S.carPaths || []; if (!cps.length) return false; for (let i = 0; i < 120; i++) { const cp = cps[Math.floor(rnd() * cps.length)]; const sx = rnd() * cp.cum[cp.cum.length - 1]; const q = S.pathAt(cp, sx); const dd = hyp(q.x - P.x, q.z - P.z); if (dd < 80 || dd > 230) continue; const dir = rnd() < 0.5 ? 1 : -1; const c = { id: ++nid, path: cp, s: sx, dir, off: cp.hw * 0.5 * dir, spd: 16, tone: 0, model: 'police', bike: false, hostile: true, cop: true, hp: 2, x: 0, z: 0, yaw: 0, wait: 0, dead: 0, r: 2.6 }; S.placeOn(c, cp, c.off); S.traffic.push(c); return true; } return false; };
   // ★ごとの おいかけてくる かず: [あるく けいさつ, 賞金かせぎ, パトカー, せんとうき] ★5は ぜんぶで 20
   const HUNT = [[0, 0, 0, 0, 0], [1, 0, 0, 0, 0], [2, 0, 1, 0, 0], [3, 1, 2, 0, 0], [5, 2, 3, 1, 1], [8, 2, 5, 3, 3]]; // [あるく けいさつ, 賞金かせぎ, パトカー, せんとうき, ヘリ] ★5は ぜんぶで 21
-  const spawnJet = () => { const a = rnd() * 6.283; const d = 260 + rnd() * 120; const j = { id: ++nid, x: P.x + Math.sin(a) * d, z: P.z + Math.cos(a) * d, y: 70 + rnd() * 40, yaw: a + Math.PI, spd: 46, cd: 1 + rnd() * 2, ph: rnd() * 6, model: 'hawk' }; S.jets.push(j); return true; };
-  const spawnHeli = () => { const a = rnd() * 6.283; const d = 130 + rnd() * 80; S.helis.push({ id: ++nid, x: P.x + Math.sin(a) * d, z: P.z + Math.cos(a) * d, y: 32, yaw: a + Math.PI, ang: a, cd: 1 + rnd(), burst: 0, ph: rnd() * 6 }); return true; };
+  const spawnJet = () => { const a = rnd() * 6.283; const d = 260 + rnd() * 120; const j = { id: ++nid, x: P.x + Math.sin(a) * d, z: P.z + Math.cos(a) * d, y: 42 + rnd() * 20, yaw: a + Math.PI, spd: 46, cd: 1 + rnd() * 2, ph: rnd() * 6, model: 'hawk', air: 'jet', hp: 90, hpMax: 90, rad: 4.2 }; S.jets.push(j); return true; };
+  const spawnHeli = () => { const a = rnd() * 6.283; const d = 90 + rnd() * 60; S.helis.push({ id: ++nid, x: P.x + Math.sin(a) * d, z: P.z + Math.cos(a) * d, y: 26, yaw: a + Math.PI, ang: a, cd: 1 + rnd(), burst: 0, ph: rnd() * 6, air: 'heli', hp: 120, hpMax: 120, rad: 4.5 }); return true; };
   const maintainHunters = () => {
     S.crooks = S.crooks.filter((c) => !c.gone); const lv = S.lv; const H = HUNT[lv]; let made = 0;
     for (const [t, n0] of [['cop', H[0]], ['bounty', H[1]]]) { let n = S.crooks.filter((c) => c.hunter === t && c.state !== 'down').length; while (n < n0 && made < 3) { if (!spawnHunter(t)) break; n++; made++; } }
     S.traffic = S.traffic.filter((c) => !(c.cop && c.dead > 1000)); let k = S.traffic.filter((c) => c.cop).length; while (k < H[2] && made < 4 && spawnCopCar()) { k++; made++; }
-    while (S.jets.length < H[3]) spawnJet(); while (S.helis.length < H[4]) spawnHeli();
+    if (S.t >= (S.airRespawn || 0)) { while (S.jets.length < H[3]) spawnJet(); while (S.helis.length < H[4]) spawnHeli(); }
   };
   function payFine() {
     if (S.lv <= 0) { msg('いまは 指名手配されて いないよ', 2.4); return { ok: false, why: 'てはい なし' }; } if (S.lv >= 5) { msg('🚨 ★5は ばっきんでは ゆるされない! ながく にげきるしか ない!', 3); return { ok: false, why: '★5' }; } const f = S.fine; if (P.coins < f) { msg(`ばっきん 🪙${f} が たりないよ…`, 2.8); return { ok: false, why: 'コインが たりない' }; }
@@ -415,7 +415,11 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const refreshWanted = () => { S.wanted = WANTED.map((w) => { const c = S.crooks.find((x) => x.wid === w.id); return { id: w.id, name: w.name, crime: w.crime, stars: w.stars, bounty: Math.round(w.bounty * ((S.arrests[w.id] || 0) === 0 ? 1 : 0.5)), alive: !!c, x: c ? c.x : null, z: c ? c.z : null, caught: S.arrests[w.id] || 0, state: c ? c.state : 'gone' }; }); };
   refreshWanted();
   const downCrook = (c) => { { const sp = ammoSpec(weaponOf(P.weapon)); const A = sp && am(P.weapon); if (A) A.reserve = Math.min(sp.cap, A.reserve + Math.ceil(sp.mag * 0.5)); } c.state = 'down'; c.downT = 0; c.hp = Math.max(1, Math.round(c.hpMax * 0.2)); snd('down'); fx('spark', c.x, 3, c.z, 5); };
-  const hitCrook = (c, dmg) => { if (c.state === 'down') return; if (c.hunter) gunHit('🚨 けいさつを うった!'); c.hp -= dmg; c.alert = true; if (c.hp <= c.hpMax * 0.22) downCrook(c); };
+  const hitAir = (u, dmg) => {
+    u.hp -= dmg; u.flash = 0.12; gunHit('🚨 けいさつの のりものを うった!'); fx('spark', u.x, u.y, u.z, 3);
+    if (u.hp <= 0) { fx('big', u.x, u.y, u.z, 16); snd('bigboom'); const jet = u.air === 'jet'; const reward = jet ? 350 : 250; P.coins += reward; S.stats.coins += reward; S.airRespawn = S.t + 14; S.helis = S.helis.filter((x) => x !== u); S.jets = S.jets.filter((x) => x !== u); msg(`${jet ? '✈️ せんとうき' : '🚁 ヘリ'}を おとした! 🪙+${reward}`, 2.6); ev({ t: 'airkill', jet }); }
+  };
+  const hitCrook = (c, dmg) => { if (c.air) { hitAir(c, dmg); return; } if (c.state === 'down') return; if (c.hunter) gunHit('🚨 けいさつを うった!'); c.hp -= dmg; c.alert = true; if (c.hp <= c.hpMax * 0.22) downCrook(c); };
   const arrest = (c) => {
     S.crooks = S.crooks.filter((x) => x !== c); P.kos++; S.stats.arrests++; snd('win'); fx('spark', c.x, 3, c.z, 6);
     const coins = bountyOf(c); P.coins += coins; S.stats.coins += coins; S.stats.bounty += coins;
@@ -438,8 +442,8 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const respawn = () => { if (S.mission && S.mission.id === 'delivery' && S.mission.stage === 1) { cancelMission(); msg('📦 にもつを おとしちゃった…', 2.4); } P.dead = 0; P.hp = P.hpMax; P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.yaw = 0; P.speed = 0; P.mode = 'foot'; P.invuln = 3; P.chute = false; P.carry = 0; for (const c of S.civs) if (c.state === 'carried') { c.state = 'need'; c.x = c.home.x; c.z = c.home.z; } };
 
   // ---- ねらい ----
-  const nearestCrook = (maxD, cone, yaw) => {
-    let best = null; let bd = maxD; for (const r of S.crooks) { if (r.state === 'down') continue; const d = hyp(r.x - P.x, r.z - P.z); if (d > bd) continue; const a = Math.abs(angDiff(Math.atan2(r.x - P.x, r.z - P.z), yaw)); if (a > cone) continue; bd = d; best = r; } return best;
+  const nearestCrook = (maxD, cone, yaw, air = true) => {
+    let best = null; let bd = maxD; for (const r of air ? [...S.crooks, ...S.helis, ...S.jets] : S.crooks) { if (r.state === 'down') continue; const d = hyp(r.x - P.x, r.z - P.z); if (d > bd) continue; const a = Math.abs(angDiff(Math.atan2(r.x - P.x, r.z - P.z), yaw)); if (a > cone) continue; bd = d; best = r; } return best;
   };
   const aimDir = () => {
     const v = cur(); const kind = v ? v.kind : 'foot';
@@ -451,18 +455,18 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const wallDist = (from, dv, maxD) => { for (let d = 2; d < maxD; d += 1.6) { const x = from.x + dv.x * d; const y = from.y + dv.y * d; const z = from.z + dv.z * d; if (y < 0) return d; if (insideBuilding(x, z, y)) return d; } return maxD + 1; };
   const rayCrook = (from, yaw, pitch, range) => {
     const dv = dirOf(yaw, pitch); let best = null; let ba = 9; const wall = wallDist(from, dv, range);
-    for (const r of S.crooks) {
-      if (r.state === 'down') continue; const vx = r.x - from.x; const vy = 1.6 - from.y; const vz = r.z - from.z; const dist = hyp(vx, vy, vz); if (dist > range || dist > wall) continue;
-      const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = ((r.type === 'boss' ? 3 : 2) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { ba = a; best = r; }
+    for (const r of [...S.crooks, ...S.helis, ...S.jets]) {
+      if (r.state === 'down') continue; const vx = r.x - from.x; const vy = (r.y != null ? r.y : 1.6) - from.y; const vz = r.z - from.z; const dist = hyp(vx, vy, vz); if (dist > range || (!r.air && dist > wall)) continue;
+      const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = ((r.rad || (r.type === 'boss' ? 3 : 2)) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { ba = a; best = r; }
     }
     return { best, dv, wall };
   };
   const fireFoot = () => {
     const W = weaponOf(P.weapon) || weaponOf('fist'); if (P.wCd > 0) return; const sho = (1 + ks.SHO / 500) * (P.buff.dmg > 0 ? 1.4 : 1); const yaw0 = P.camYaw;
-    if (!W.melee && P.noAim > 0.35) { const t = nearestCrook(W.range, 0.7, yaw0); if (t) { P.camYaw += angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0) * 0.45; P.aimPitch = clamp(Math.atan2(2.5 - 1.6, hyp(t.x - P.x, t.z - P.z)), -0.2, 0.4); } }
+    if (!W.melee && P.noAim > 0.35) { const t = nearestCrook(W.range, 0.7, yaw0); if (t) { P.camYaw += angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0) * 0.45; P.aimPitch = clamp(Math.atan2((t.y != null ? t.y : 2.5) - 1.6, hyp(t.x - P.x, t.z - P.z)), -0.2, t.y != null ? 1.1 : 0.4); } }
     const asp = ammoSpec(W); if (asp) { const A = am(W.id); if (P.reload > 0) return; if (A.mag <= 0) { if (A.reserve > 0) startReload(); else if (S.t - (P.dryT || -9) > 1.2) { P.dryT = S.t; snd('warn'); msg('たまが ない! 「おみせ」で たまを かおう(🔫)', 2.2); } return; } A.mag--; }
     P.wCd = 1 / W.rate; const d = aimDir();
-    if (W.melee) { S.swing = 0.25; snd('hit'); const t = nearestCrook(W.range + 1.2, 1.2, d.yaw); if (t) { hitCrook(t, W.dmg * sho); fx('spark', t.x, 2, t.z, 4); } else { const ww = nearestWalker(W.range + 1.2, 1.2, d.yaw); if (ww) hurtWalker(ww, W.dmg * sho, 'melee'); } return; }
+    if (W.melee) { S.swing = 0.25; snd('hit'); const t = nearestCrook(W.range + 1.2, 1.2, d.yaw, false); if (t) { hitCrook(t, W.dmg * sho); fx('spark', t.x, 2, t.z, 4); } else { const ww = nearestWalker(W.range + 1.2, 1.2, d.yaw); if (ww) hurtWalker(ww, W.dmg * sho, 'melee'); } return; }
     if (W.expl) {
       const t = W.homing ? nearestCrook(W.range, 0.8, d.yaw) : null; const dv = dirOf(d.yaw, d.pitch + (W.lob || 0)); const sp = W.speed || 80;
       S.missiles.push({ x: d.from.x + dv.x * 1.5, y: d.from.y, z: d.from.z + dv.z * 1.5, vx: dv.x * sp, vy: dv.y * sp, vz: dv.z * sp, target: t ? t.id : null, t: 0, life: Math.max(1.2, W.range / sp + 1), dmg: W.dmg * sho, g: W.g || 0 }); snd(W.snd); return;
@@ -471,7 +475,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     const mvPen = P.moving ? (W.cat === 'スナイパー' ? 4 : 1.5) : 1; const jj = (W.spread || 0) * (1 + P.bloom) * mvPen * (input.aimLock ? 0.7 : 1) * (1 - S.eq.acc);
     for (let i = 0; i < n; i++) { const r = rayCrook(d.from, d.yaw + (rnd() - 0.5) * 2 * jj, d.pitch + (rnd() - 0.5) * 2 * jj, W.range); last = r.dv; lastWall = r.wall; if (r.best) { const dd = hyp(r.best.x - d.from.x, r.best.z - d.from.z); const fall = asp ? asp.fall : 0; hitCrook(r.best, W.dmg * sho * (1 - fall * Math.min(1, dd / W.range))); hit = r.best; } else { const ww = rayWalker(d.from, r.dv, W.range, r.wall); if (ww) { hurtWalker(ww, W.dmg * sho * (1 - (asp ? asp.fall : 0) * 0.5), 'gun'); hit = ww; } } }
     if (asp) { P.bloom = Math.min(3, P.bloom + asp.recoil * (W.rate > 5 ? 10 : 6)); P.aimPitch = clamp(P.aimPitch + asp.recoil * (0.7 + rnd() * 0.6), -0.35, 1.1); if (P.camFree) P.camYaw += (rnd() - 0.5) * asp.recoil * 0.8; }
-    const wl = Math.min(90, lastWall - 1); S.tracers.push({ from: d.from, to: hit ? { x: hit.x, y: 1.6, z: hit.z } : { x: d.from.x + last.x * wl, y: d.from.y + last.y * wl, z: d.from.z + last.z * wl }, t: 0 }); if (!hit && lastWall < 90) fx('spark', d.from.x + last.x * lastWall, Math.max(0.5, d.from.y + last.y * lastWall), d.from.z + last.z * lastWall, 3); snd(W.snd || 'gun');
+    const wl = Math.min(90, lastWall - 1); S.tracers.push({ from: d.from, to: hit ? { x: hit.x, y: hit.y != null ? hit.y : 1.6, z: hit.z } : { x: d.from.x + last.x * wl, y: d.from.y + last.y * wl, z: d.from.z + last.z * wl }, t: 0 }); if (!hit && lastWall < 90) fx('spark', d.from.x + last.x * lastWall, Math.max(0.5, d.from.y + last.y * lastWall), d.from.z + last.z * lastWall, 3); snd(W.snd || 'gun');
   };
   const fireGun = (dt) => {
     if (!cur()) return fireFoot();
@@ -479,9 +483,9 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     const air = isAir(kind); const range = air ? 650 : kind === 'ship' ? 800 : kind === 'tank' ? 600 : kind === 'car' || kind === 'bike' ? 140 : FS.range;
     if ((kind === 'foot' || kind === 'car' || kind === 'bike') && P.noAim > 0.8) { const yaw0 = v ? v.yaw : P.yaw; const t = nearestCrook(range, 0.9, yaw0); if (t) { P.aimRel = clamp(angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0), -1.5, 1.5); P.aimPitch = clamp(Math.atan2(2.5 - (kind === 'foot' ? 1.6 : 2), Math.hypot(t.x - P.x, t.z - P.z)), -0.2, 0.4); } }
     const d = aimDir(); const dv = dirOf(d.yaw, d.pitch); let best = null; let ba = 9;
-    for (const r of S.crooks) {
-      if (r.state === 'down') continue; const ty = air ? Math.max(1.5, d.from.y - 0.25 * hyp(r.x - d.from.x, r.z - d.from.z)) : 1.6; const vx = r.x - d.from.x; const vy = ty - d.from.y; const vz = r.z - d.from.z; const dist = hyp(vx, vy, vz); if (dist > range) continue;
-      const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = (air ? 0.13 : (r.type === 'boss' ? 3 : 2) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { const dd = { x: vx / (dist || 1), y: vy / (dist || 1), z: vz / (dist || 1) }; if (wallDist(d.from, dd, dist) > dist) { ba = a; best = r; } }
+    for (const r of [...S.crooks, ...S.helis, ...S.jets]) {
+      if (r.state === 'down') continue; const ty = r.y != null ? r.y : air ? Math.max(1.5, d.from.y - 0.25 * hyp(r.x - d.from.x, r.z - d.from.z)) : 1.6; const vx = r.x - d.from.x; const vy = ty - d.from.y; const vz = r.z - d.from.z; const dist = hyp(vx, vy, vz); if (dist > range) continue;
+      const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / (dist || 1), -1, 1)); const tol = (r.rad ? r.rad / dist + 0.06 : air ? 0.13 : (r.type === 'boss' ? 3 : 2) / dist + 0.05) * (gentle ? 1.5 : 1); if (a < tol && a < ba) { const dd = { x: vx / (dist || 1), y: vy / (dist || 1), z: vz / (dist || 1) }; if (r.air || wallDist(d.from, dd, dist) > dist) { ba = a; best = r; } }
     }
     if (best) hitCrook(best, dps * dt * (kind === 'foot' ? 1 : 1.2));
     if (S.t % (kind === 'foot' ? 0.1 : 0.08) < dt) S.tracers.push({ from: d.from, to: best ? { x: best.x, y: 1.6, z: best.z } : { x: d.from.x + dv.x * 120, y: d.from.y + dv.y * 120, z: d.from.z + dv.z * 120 }, t: 0 });
@@ -490,7 +494,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const fireMissile = () => {
     const v = cur(); if (!v || !v.V.missiles || P.missileCd > 0 || P.dead > 0) return false; if ((v.mis == null ? v.V.missiles : v.mis) <= 0) { msg('ミサイルは ふえるのを まってね'); return false; }
     const air = isAir(v.kind); const range = air ? 800 : 500; const t = nearestCrook(range, air ? 0.7 : 3.2, air ? v.yaw : v.yaw + P.aimRel);
-    if (!t) { msg('ロックできる はんにんが いないよ'); return false; }
+    if (!t) { msg('ロックできる てきが いないよ'); return false; }
     v.mis = (v.mis == null ? v.V.missiles : v.mis) - 1; P.missileCd = 0.5; const d = dirOf(air ? v.yaw : v.yaw + P.aimRel, 0.5);
     S.missiles.push({ x: v.x + d.x * 8, y: v.y + 6, z: v.z + d.z * 8, vx: d.x * 120, vy: 0.5 * 120, vz: d.z * 120, target: t.id, t: 0, life: 7, dmg: v.V.missileDmg }); snd('missile'); return true;
   };
@@ -567,11 +571,11 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
         if (d < 5 || m.y < 0.4 || insideBuilding(m.x, m.z, m.y)) { m.t = 99; fx('boom', m.x, Math.max(1, m.y), m.z, 12); snd('boom'); const dd = hyp(P.x - m.x, P.z - m.z); if (dd < 12 && P.dead <= 0) hurtPlayer(m.dmg * (dd < 6 ? 1 : 0.5)); }
         continue;
       }
-      m.t += dt; if (m.g) m.vy -= m.g * dt; const tg = S.crooks.find((r) => r.id === m.target);
-      if (tg) { const vx = tg.x - m.x; const vy = 1.6 - m.y; const vz = tg.z - m.z; const d = hyp(vx, vy, vz) || 1; const k = clamp(4.2 * dt, 0, 1); const c0 = hyp(m.vx, m.vy, m.vz) || 1; m.vx += ((vx / d) * c0 - m.vx) * k; m.vy += ((vy / d) * c0 - m.vy) * k; m.vz += ((vz / d) * c0 - m.vz) * k; }
+      m.t += dt; if (m.g) m.vy -= m.g * dt; const tg = S.crooks.find((r) => r.id === m.target) || S.helis.find((r) => r.id === m.target) || S.jets.find((r) => r.id === m.target);
+      if (tg) { const vx = tg.x - m.x; const vy = (tg.y != null ? tg.y : 1.6) - m.y; const vz = tg.z - m.z; const d = hyp(vx, vy, vz) || 1; const k = clamp(4.2 * dt, 0, 1); const c0 = hyp(m.vx, m.vy, m.vz) || 1; m.vx += ((vx / d) * c0 - m.vx) * k; m.vy += ((vy / d) * c0 - m.vy) * k; m.vz += ((vz / d) * c0 - m.vz) * k; }
       m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
-      const hit = S.crooks.find((r) => r.state !== 'down' && hyp(r.x - m.x, r.z - m.z) < 6 && Math.abs(m.y - 1.6) < 9);
-      if (hit || m.y < 0.5) { m.t = 99; fx('boom', m.x, Math.max(1, m.y), m.z, 12); snd('boom'); for (const r of S.crooks.slice()) { const d = hyp(r.x - m.x, r.z - m.z); if (d < 14) hitCrook(r, m.dmg * (d < 6 ? 1 : 0.4)); } for (const w of S.walkers) if (!(w.dead > 0) && hyp(w.x - m.x, w.z - m.z) < 12) hurtWalker(w, 999, 'blast'); }
+      const hit = [...S.crooks, ...S.helis, ...S.jets].find((r) => r.state !== 'down' && hyp(r.x - m.x, r.z - m.z) < (r.air ? 8 : 6) && Math.abs(m.y - (r.y != null ? r.y : 1.6)) < (r.air ? 8 : 9));
+      if (hit || m.y < 0.5) { m.t = 99; fx('boom', m.x, Math.max(1, m.y), m.z, 12); snd('boom'); for (const r of [...S.crooks, ...S.helis, ...S.jets]) { const d = r.air ? hyp(r.x - m.x, r.y - m.y, r.z - m.z) : hyp(r.x - m.x, r.z - m.z); if (d < (r.air ? 16 : 14)) hitCrook(r, m.dmg * (d < 7 ? 1 : 0.4)); } for (const w of S.walkers) if (!(w.dead > 0) && hyp(w.x - m.x, w.z - m.z) < 12) hurtWalker(w, 999, 'blast'); }
       if (insideBuilding(m.x, m.z, m.y)) { m.t = 99; fx('boom', m.x, m.y, m.z, 10); }
     }
     S.missiles = S.missiles.filter((m) => m.t < m.life);
@@ -607,7 +611,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
       if (dp > 520) { j.x = P.x + Math.sin(j.yaw + Math.PI) * 300; j.z = P.z + Math.cos(j.yaw + Math.PI) * 300; }
     }
     for (const h of S.helis) { // ヘリ: うえに はりついて ぐるぐる まわりながら きかんじゅうで うつ
-      h.ph += dt; h.ang += 0.28 * dt; const orb = 42 + Math.sin(h.ph * 0.4) * 12; const tx = P.x + Math.sin(h.ang) * orb; const tz = P.z + Math.cos(h.ang) * orb; const ddx = tx - h.x; const ddz = tz - h.z; const dd = hyp(ddx, ddz) || 1; const sp = Math.min(26, dd * 1.2); h.x += (ddx / dd) * sp * dt; h.z += (ddz / dd) * sp * dt; h.y += (30 + Math.sin(h.ph) * 4 - h.y) * Math.min(1, dt); h.yaw += clamp(angDiff(Math.atan2(P.x - h.x, P.z - h.z), h.yaw), -2 * dt, 2 * dt);
+      h.ph += dt; h.ang += 0.28 * dt; const orb = 32 + Math.sin(h.ph * 0.4) * 8; const tx = P.x + Math.sin(h.ang) * orb; const tz = P.z + Math.cos(h.ang) * orb; const ddx = tx - h.x; const ddz = tz - h.z; const dd = hyp(ddx, ddz) || 1; const sp = Math.min(26, dd * 1.2); h.x += (ddx / dd) * sp * dt; h.z += (ddz / dd) * sp * dt; h.y += (24 + Math.sin(h.ph) * 3 - h.y) * Math.min(1, dt); h.yaw += clamp(angDiff(Math.atan2(P.x - h.x, P.z - h.z), h.yaw), -2 * dt, 2 * dt);
       const dp = hyp(P.x - h.x, P.z - h.z); const vcur = cur(); const ty = vcur && isAir(vcur.kind) ? P.y : 1.4; h.cd -= dt; h.burst = (h.burst || 0) - dt;
       if (h.burst <= -1.0) h.burst = 1.4; if (h.burst > 0 && h.cd <= 0 && dp < 150 && P.dead <= 0) { h.cd = 0.3; const d3 = hyp(dp, h.y - ty) || 1; const sx = (rnd() - 0.5) * 0.07; const sz = (rnd() - 0.5) * 0.07; S.bullets.push({ x: h.x, y: h.y - 1, z: h.z, vx: ((P.x - h.x) / d3 + sx) * 80, vy: ((ty - h.y) / d3) * 80, vz: ((P.z - h.z) / d3 + sz) * 80, t: 0, dmg: 3 }); snd('cshot'); }
     }
@@ -711,7 +715,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     if (P.dead > 0) { P.dead -= dt; if (P.dead <= 0) respawn(); stepCrooks(dt); return; }
     if (Math.abs(input.aimX) + Math.abs(input.aimY) > 0.05) P.noAim = 0; else P.noAim += dt;
     const v0 = cur(); if (!v0) { if (input.aimX) { P.camYaw += input.aimX * 1.9 * (1 + S.eq.aim) * dt; P.camFree = true; } P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.35, 1.1); if (!P.camFree) P.camYaw = P.yaw; } else if (!isAir(v0.kind)) { P.aimRel = clamp(P.aimRel + input.aimX * 1.7 * dt, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch + input.aimY * 0.9 * dt, -0.2, 1.2); }
-    if (input.aimLock && !cur() && P.dead <= 0) { const t = P.target; if (t) { const wy = Math.atan2(t.x - P.x, t.z - P.z); P.camYaw += angDiff(wy, P.camYaw) * Math.min(1, 12 * (1 + S.eq.aim) * dt); P.aimPitch += (clamp(Math.atan2(1.6 - 2.5, hyp(t.x - P.x, t.z - P.z)), -0.2, 0.4) - P.aimPitch) * Math.min(1, 10 * dt); } P.camFree = true; }
+    if (input.aimLock && !cur() && P.dead <= 0) { const t = P.target; if (t) { const wy = Math.atan2(t.x - P.x, t.z - P.z); P.camYaw += angDiff(wy, P.camYaw) * Math.min(1, 12 * (1 + S.eq.aim) * dt); P.aimPitch += (clamp(Math.atan2((t.y != null ? t.y : 1.6) - 2.5, hyp(t.x - P.x, t.z - P.z)), -0.2, t.y != null ? 1.1 : 0.4) - P.aimPitch) * Math.min(1, 10 * dt); } P.camFree = true; }
     movePlayer(dt); setNear();
     if (input.gun) fireGun(dt);
     stepCrooks(dt); stepMissiles(dt); stepWorld(dt); stepMission(dt);
@@ -720,7 +724,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   return {
     state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, buyEquip, wear, payFine, raise, gunHit, meleeHit, equip, cycleWeapon, reload: startReload, ammoOf: am, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
     takeEvents() { const e = S.events; S.events = []; return e; },
-    aimAt(r) { if (!r) return; if (!cur()) { P.camYaw = Math.atan2(r.x - P.x, r.z - P.z); P.camFree = true; P.aimPitch = clamp(Math.atan2(1.6 - 2.5, hyp(r.x - P.x, r.z - P.z)), -0.2, 0.4); return; } P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(2 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
+    aimAt(r) { if (!r) return; if (!cur()) { P.camYaw = Math.atan2(r.x - P.x, r.z - P.z); P.camFree = true; P.aimPitch = clamp(r.y != null ? Math.atan2(r.y - 1.6, hyp(r.x - P.x, r.z - P.z)) : Math.atan2(1.6 - 2.5, hyp(r.x - P.x, r.z - P.z)), -0.2, r.y != null ? 1.1 : 0.4); return; } P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(2 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
     look(dx, dy) { P.noAim = 0; const v = cur(); if (!v) { const am2 = 1 + S.eq.aim; P.camYaw -= dx * 0.0045 * am2; P.camFree = true; P.aimPitch = clamp(P.aimPitch - dy * 0.0032 * am2, -0.35, 1.1); } else if (!isAir(v.kind)) { P.aimRel = clamp(P.aimRel - dx * 0.0045, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch - dy * 0.0032, -0.2, 1.2); } },
     track(id) { S.tracked = S.tracked === id ? null : id; }, closeUi() { S.ui = null; }, refreshWanted,
   };

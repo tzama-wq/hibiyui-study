@@ -237,4 +237,12 @@ for (const planeId of ['plane', 'hawk']) {
   let ok = 0; let no = 0; for (let k = 0; k < 12; k++) { const sim = mk(st(70), 3 + k); const S = sim.state; const P = S.player; const t = S.traffic.find((x) => !x.hostile && !x.dead); tele(sim, t.x + 3, t.z); run(sim, 0.1); if (!S.nearby || S.nearby.kind !== 'tcar') continue; sim.interact(); if (P.mode === 'veh') { ok++; assert.equal(S.lv, 0); } else { no++; assert.ok(t.denied && S.lv === 0); sim.interact(); assert.ok(P.mode === 'veh' && S.lv === 1, 'ぬすむと ★1'); } }
   assert.ok(ok > 0 && no > 0, `OK(${ok})と だめ(${no})の りょうほうが ある`);
 }
+// ---- ヘリ・せんとうきを うって たおせる ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; sim.raise(5); sim.step(0.05); for (let i = 0; i < 60; i++) { S.huntT = 0; sim.step(0.05); P.hp = P.hpMax; P.invuln = 5; } assert.ok(S.helis.length >= 1 && S.jets.length >= 1, 'ヘリ・せんとうきが いる');
+  const h = S.helis[0]; const hp0 = h.hp; P.weapon = 'assault'; if (!S.wOwned.includes('assault')) S.wOwned.push('assault'); sim.ammoOf('assault').mag = 30;
+  h.x = P.x + 30; h.z = P.z; h.y = 24; P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; P.camFree = true; P.aimPitch = Math.atan2(24 - 1.6, 30); sim.input.gun = true; for (let i = 0; i < 40; i++) { h.x = P.x + 30; h.z = P.z; h.y = 24; P.camYaw = Math.PI / 2; P.aimPitch = Math.atan2(24 - 1.6, 30); P.wCd = 0; P.invuln = 5; sim.step(0.05); if (!S.helis.includes(h)) break; } sim.input.gun = false;
+  assert.ok(h.hp < hp0 || !S.helis.includes(h), 'ヘリに あたる'); 
+  const j = S.jets[0]; const coins0 = P.coins; for (let i = 0; i < 12 && S.jets.includes(j); i++) { j.hp = 1; j.x = P.x + 30; j.z = P.z; j.y = 24; P.camYaw = Math.PI / 2; P.aimPitch = Math.atan2(24 - 1.6, 30); P.wCd = 0; sim.input.gun = true; P.invuln = 5; sim.step(0.05); } sim.input.gun = false; assert.ok(!S.jets.includes(j), 'せんとうきを たおせる'); assert.ok(P.coins > coins0, 'おとすと コインが もらえる');
+}
 console.log('OK: city');
