@@ -247,7 +247,7 @@ for (const planeId of ['plane', 'hawk']) {
 }
 // ---- ばっきん・じかんで かいじょ したら けいさつは きえる / ロックオンが ぐるぐる まわらない ----
 {
-  const sim = mk(); const S = sim.state; const P = S.player; P.coins = 99999; sim.raise(3); for (let i = 0; i < 80; i++) { S.huntT = 0; sim.step(0.05); P.invuln = 5; } assert.ok(S.crooks.some((c) => c.hunter) && S.traffic.some((c) => c.cop), 'けいさつが いる');
+  const sim = mk(); const S = sim.state; const P = S.player; P.coins = 99999; tele(sim, HQ.x, HQ.z); sim.raise(3); for (let i = 0; i < 80; i++) { S.huntT = 0; sim.step(0.05); P.invuln = 5; } assert.ok(S.crooks.some((c) => c.hunter) && S.traffic.some((c) => c.cop), 'けいさつが いる');
   assert.ok(sim.payFine().ok); assert.ok(!S.crooks.some((c) => c.hunter) && !S.traffic.some((c) => c.cop) && S.jets.length === 0 && S.helis.length === 0, 'ばっきんを はらったら けいさつは ぜんいん きえる'); for (let i = 0; i < 60; i++) sim.step(0.05); assert.ok(!S.crooks.some((c) => c.hunter), 'きえた あとも あらわれない');
   const s2 = mk(); const Q = s2.state.player; s2.raise(5); for (let i = 0; i < 40; i++) { s2.state.huntT = 0; s2.step(0.05); Q.invuln = 5; } s2.input.aimLock = true; let maxTurn = 0; let prev = Q.camYaw; for (let i = 0; i < 120; i++) { for (const j of s2.state.jets) { const a = i * 0.9; j.x = Q.x + Math.sin(a) * 6; j.z = Q.z + Math.cos(a) * 6; j.y = 50; } Q.invuln = 5; s2.step(0.05); const d = Math.abs(Math.atan2(Math.sin(Q.camYaw - prev), Math.cos(Q.camYaw - prev))); if (d > maxTurn) maxTurn = d; prev = Q.camYaw; } assert.ok(maxTurn < 0.4, `ロックオンの かいてんは はやすぎない (${maxTurn.toFixed(2)})`);
 }
@@ -275,5 +275,13 @@ for (const planeId of ['plane', 'hawk']) {
   for (const e of EQUIP) if (!(e.need && e.need.all)) assert.ok(sim.buyEquip(e.id).ok, e.id); assert.ok(!sim.buyEquip('u_suit').ok, 'そうびだけでは まだ'); for (const it of VCAT) if (!S.owned.includes(it.id)) assert.ok(sim.buyVehicle(it.id).ok, it.id);
   const u1 = sim.ultimateProgress(); assert.equal(u1.have, u1.total); assert.ok(!sim.buyEquip('u_suit').ok, 'かくれキャラの しれんを クリアするまで かえない'); tele(sim, SECRET.x, SECRET.z); run(sim, 0.1); assert.equal(S.nearby && S.nearby.kind, 'secret', 'かくれキャラに はなしかけられる'); sim.interact(); assert.ok(S.mission && S.mission.id === 'secret' && S.crooks.filter((c) => c.mission).length === 8, 'かくしミッションが はじまる'); assert.ok(S.mission.timeLeft > 100); S.crooks = S.crooks.filter((c) => !c.mission); run(sim, 0.2); assert.ok(S.done.secret === 1 && !S.mission, 'かくしミッション クリア');
   assert.ok(sim.buyEquip('u_suit').ok && sim.buyEquip('u_boots').ok && sim.buyEquip('u_helm').ok, 'ぜんぶ かって しれんを クリアすると さいきょうが かえる'); assert.ok(S.eq.hp >= 220 && S.eq.def >= 0.6 && S.eq.spd >= 0.75 && S.eq.aim >= 1 && S.eq.acc >= 0.75, 'さいきょうの こうか');
+}
+// ---- オートAIMの ON/OFF・ふっかつで 指名手配が きえる・じたくに かくれる ----
+{
+  const aa = (auto) => { const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'pistol'; const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } }); P.x = c.x - 30; P.z = c.z; P.camYaw = Math.PI / 2 + 0.3; P.yaw = P.camYaw; sim.input.autoAim = auto; P.noAim = 5; P.wCd = 0; sim.input.gun = true; sim.step(0.05); return Math.abs(P.camYaw - Math.PI / 2); };
+  assert.ok(aa(true) < 0.28, 'ONだと てきの ほうへ ひきよせる'); assert.ok(aa(false) > 0.29, 'OFFだと ひきよせない');
+  const sim = mk(); const S = sim.state; const P = S.player; tele(sim, HQ.x, HQ.z); sim.raise(3); S.huntT = 0; for (let i = 0; i < 80; i++) { P.invuln = 5; sim.step(0.05); } P.hp = 1; P.invuln = 0; S.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); sim.step(0.05); assert.equal(S.lv, 0, 'たおされたら かいじょ'); sim.raise(2); for (let i = 0; i < 70; i++) sim.step(0.05); assert.ok(S.lv >= 0);
+  const h = mk(); const HS = h.state; const HP = HS.player; h.raise(3); tele(h, BASE.x, BASE.z); HP.lastHurt = -99; for (let i = 0; i < 20 * 14; i++) { HP.invuln = 5; h.step(0.05); if (HS.lv === 0) break; } assert.equal(HS.lv, 0, 'じたくに かくれて 12びょう じっとすると かいじょ'); assert.ok(!HS.crooks.some((c) => c.hunter), 'かくれている あいだは おってが でない');
+  const f = mk(); f.raise(5); tele(f, BASE.x, BASE.z); for (let i = 0; i < 20 * 14; i++) { f.state.player.invuln = 5; f.step(0.05); } assert.equal(f.state.lv, 5, '★5は かくれられない');
 }
 console.log('OK: city');
