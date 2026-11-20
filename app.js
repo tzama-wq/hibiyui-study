@@ -1698,6 +1698,14 @@ function migrateShards() {
   save();
 }
 migrateShards();
+// シティの データを 1かい ぜんいん しょきか(CITY_RESET を ふやすと もういちど ぜんいん しょきかされる)
+const CITY_RESET = 1;
+function migrateCityReset() {
+  let changed = false;
+  for (const k of KIDS) { const p = S.kids[k.id]; if (!p) continue; ensureSky(p); if ((p.sky.cityReset | 0) >= CITY_RESET) continue; p.sky.city = { coins: 0, done: {}, kos: 0, daily: { date: '', n: 0 } }; p.sky.cityReset = CITY_RESET; ensureSky(p); changed = true; }
+  if (changed) save();
+}
+migrateCityReset();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 render();
 syncNow(); // ひらいた ときに じぶんの きろくを おくり、かぞくの きろく・しつもんを うけとる
