@@ -14,6 +14,7 @@ async function loadThree() { if (!T) T = await import('./vendor/three.module.min
 import { installTerrain, terrainH } from './terrain3d.js';
 import { buildRoadMarks } from './roadmarks3d.js';
 import { SYMBOLS } from './symbols-data.js';
+import { nearestRoadPoint } from './citymap.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = (s) => String(s).replace(/[<>&"]/g, '');
 let ACTIVE = null;
@@ -79,16 +80,17 @@ function windowTex(THREE, base, seed) {
 }
 const bmat = (THREE, tex, o = {}) => new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex.userData.em, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.8, metalness: 0.08, ...o });
 function iconSprite(THREE, text, color = '#ffd23f') {
-  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = 'rgba(8,20,44,.75)'; g.beginPath(); g.arc(64, 64, 58, 0, 6.283); g.fill(); g.strokeStyle = color; g.lineWidth = 8; g.stroke(); g.font = '64px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 64, 70);
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = 'rgba(8,20,44,.75)'; g.beginPath(); g.arc(64, 64, 58, 0, 6.283); g.fill(); g.strokeStyle = color; g.lineWidth = 8; g.stroke(); g.font = '64px CityFont, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 64, 70);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.renderOrder = 20; return s;
 }
 
 export async function startCity3D(o) {
+  try { await Promise.race([document.fonts.load('20px CityFont'), new Promise((r) => setTimeout(r, 1500))]); } catch { /* ok */ }
   const THREE = await loadThree();
   const A = await loadCityAssets(THREE).catch(() => null); const glbOn = !!(A && A.ok && A.has('casual'));
   if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
   document.querySelectorAll('.c3d').forEach((e) => e.remove());
-  const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, weapons: o.weapons && o.weapons.length ? o.weapons : DEFAULT_WEAPONS, weapon: o.weapon || 'pistol', ammo: o.ammo || {}, jobOk: o.jobOk || 0, eqOwned: o.eqOwned || [], equip: o.equip || {}, arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
+  const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, weapons: o.weapons && o.weapons.length ? o.weapons : DEFAULT_WEAPONS, weapon: o.weapon || 'pistol', ammo: o.ammo || {}, jobOk: o.jobOk || 0, warps: o.warps || [], eqOwned: o.eqOwned || [], equip: o.equip || {}, arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
   const root = document.createElement('div'); root.className = 'a3d c3d';
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
     <div class="a3d-hud">
@@ -101,7 +103,7 @@ export async function startCity3D(o) {
     <div class="c3d-vig"></div><div class="a3d-pad"><div class="a3d-stick"><div class="a3d-knob"></div></div>
       <div class="a3d-btns"><button class="ab-b ab-gun" data-b="gun">こうげき</button><button class="ab-b ab-ms" data-b="missile">ミサイル</button><button class="ab-b ab-boost" data-b="boost">ダッシュ</button><button class="ab-b ab-act" data-b="act" hidden></button><button class="ab-b ab-wp" data-b="reload">🔄<br>リロード</button><button class="ab-b ab-tg" data-b="target">ねらい<br>あわせ</button><button class="ab-b ab-auto" data-b="auto">オートAIM<br><b>ON</b></button></div></div>
     <div class="a3d-rot p3d-rot"><div>📱↔<br>よこむきに して あそんでね</div></div>
-    <div class="c3d-bigmap" hidden><div class="bm-hint">📍 タップで ピン・ピンチ/＋－で ズーム・ドラッグで いどう・🧭 じぶんは ▲</div><canvas width="640" height="640"></canvas><div class="bm-legend">文がっこう 〒ゆうびん ✚びょういん ✕こうばん 卍てら ⛩じんじゃ ◎やくしょ</div><div class="bm-btns"><button class="btn gray bm-zi">＋</button><button class="btn gray bm-zo">－</button><button class="btn gray bm-zc">🎯</button><button class="btn gold bm-clear">📍 ピンを けす</button><button class="btn gray bm-close">とじる</button></div></div>
+    <div class="c3d-bigmap" hidden><div class="bm-hint">📍 タップで ピン・ピンチ/＋－で ズーム・ドラッグで いどう・🧭 じぶんは ▲</div><canvas width="640" height="640"></canvas><div class="bm-legend">文がっこう 〒ゆうびん ✚びょういん ✕こうばん 卍てら ⛩じんじゃ ◎やくしょ 🛒スーパー</div><div class="bm-btns"><button class="btn gray bm-zi">＋</button><button class="btn gray bm-zo">－</button><button class="btn gray bm-zc">🎯</button><button class="btn gold bm-clear">📍 ピンを けす</button><button class="btn gray bm-close">とじる</button></div></div>
     <div class="c3d-shop" hidden></div>
     <div class="p3d-menu a3d-menu" hidden><div class="p3d-menubox"><b>ポーズ</b><button class="btn gold" data-m="resume">▶ つづける</button><button class="btn gray" data-m="quit">シティを でる</button></div></div>`;
   document.body.appendChild(root); const prevOv = document.body.style.overflow; document.body.style.overflow = 'hidden';
@@ -129,11 +131,35 @@ export async function startCity3D(o) {
   const TONES = ['#8f949f', '#7d8795', '#9a8f7e', '#778472', '#98807a', '#74808f', '#9a9588', '#7f8896', '#8a8f96', '#aeb5bf'];
   const bmats = TONES.map((c, i) => bmat(THREE, windowTex(THREE, c, i + 1)));
   const hangarMat = new THREE.MeshStandardMaterial({ color: '#8a96aa', roughness: 0.5, metalness: 0.4 }); const hqMat = bmat(THREE, windowTex(THREE, '#e8eef7', 9), { roughness: 0.5 });
-  addBuildings(THREE, scene, LAYOUT.buildings, { shadows: shadowsOn, aniso: Math.min(8, renderer.capabilities.getMaxAnisotropy()), glb: glbOn ? { kit: (k) => A.kit(k), pick: (b) => { if (!['apt', 'shop', 'office'].includes(b.kind) || b.w < 7 || b.d < 7 || b.w > 46 || b.d > 46 || b.h < 8 || b.h > 60) return null; const t = b.tone; if (b.kind === 'shop') return ['bk_a', 'bk_b', 'bk_c', 'bk_d'][t % 4]; if (b.h > 30 && b.w < 22 && b.d < 22) return ['kn_sky1', 'kn_sky2'][t % 2]; return ['kn_large1', 'kn_large2', 'kn_large3', 'kn_large4', 'kn_large5', 'bk_a', 'bk_c'][t % 7]; } } : null });
+  // ---- ランドマーク(GLB): スーパー・マツモトキヨシ・えき・トレッサ/アピタの みせさき・じんじゃの とりい ----
+  const landmarkGlb = glbOn && A.has('lm_bkshop1') && typeof A.prop === 'function';
+  const isLandmark = (b) => b.kind === 'supermarket' || b.kind === 'station' || b.kind === 'shrine' || b.name === 'matsukiyo';
+  const shrineHall = (b) => { const g = new THREE.Group(); const M = (c, r = 0.8) => new THREE.MeshStandardMaterial({ color: c, roughness: r }); const bx = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(c)); m.position.set(x, y, z); g.add(m); return m; }; const W = Math.min(b.w, 22); const D = Math.min(b.d, 14);
+    bx(W * 0.74, 0.7, D * 0.8, '#b9b3a5', 0, 0.35, 0); bx(W * 0.5, 3.8, D * 0.56, '#efe7d4', 0, 0.7 + 1.9, 0); for (const sx of [-1, 1]) for (const sz of [-1, 1]) bx(0.55, 4.2, 0.55, '#b3261e', sx * W * 0.26, 0.7 + 2.1, sz * D * 0.3);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1, 3.6, 4), M('#3a4640', 0.6)); roof.scale.set(W * 0.42, 1, D * 0.5); roof.rotation.y = Math.PI / 4; roof.position.y = 0.7 + 3.8 + 1.6; g.add(roof); bx(W * 0.2, 0.5, 0.5, '#d8b04a', 0, 0.7 + 3.9, D * 0.3 + 0.1);
+    for (const sx of [-1, 1]) { const st = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 2.2, 8), M('#9a9a96')); st.position.set(sx * W * 0.5, 1.1, D * 0.55); g.add(st); const top = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.2), M('#8a8a86')); top.position.set(sx * W * 0.5, 2.55, D * 0.55); g.add(top); }
+    g.position.set(b.cx, 0, b.cz); g.rotation.y = -b.ang; g.traverse((o) => { if (o.isMesh) o.castShadow = shadowsOn; }); scene.add(g); };
+  if (landmarkGlb) {
+    const put = (m, x, z, yaw, shadow = true) => { if (!m) return; m.position.set(x, 0, z); m.traverse((o) => { if (o.isMesh) o.castShadow = shadow && shadowsOn; }); scene.add(m); };
+    for (const b of LAYOUT.buildings) {
+      if (b.kind === 'supermarket') { const nx = Math.max(1, Math.ceil(b.w / 20)); const nz = Math.max(1, Math.ceil(b.d / 20)); for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) { const lx = (ix + 0.5 - nx / 2) * (b.w / nx); const lz = (iz + 0.5 - nz / 2) * (b.d / nz); put(A.prop((ix + iz) % 2 ? 'lm_bkshop2' : 'lm_bkshop1', { w: b.w / nx - 0.6, d: b.d / nz - 0.6, h: 11 + ((ix * 7 + iz * 3) % 3), yaw: -b.ang }), b.cx + lx * b.c - lz * b.s, b.cz + lx * b.s + lz * b.c); } }
+      else if (b.name === 'matsukiyo') put(A.prop('lm_bkshop2', { w: b.w, d: b.d, h: b.h + 2, yaw: -b.ang }), b.cx, b.cz);
+      else if (b.kind === 'shrine') shrineHall(b);
+      else if (b.kind === 'station') put(A.prop('lm_station', { w: b.w, d: b.d, h: b.h + 4, yaw: -b.ang }), b.cx, b.cz);
+      else if (b.kind === 'mall') { // みせさきに ならぶ ショップ(トレッサ・アピタ)
+        const N = Math.max(3, Math.round(b.w / 22)); const mw = b.w / N; const front = b.cz - b.d / 2 - 7; for (let i = 0; i < N; i++) { const m = A.prop(i % 2 ? 'lm_bkshop2' : 'lm_bkshop1', { w: mw - 1, d: 13, h: 14, yaw: Math.PI }); put(m, b.cx + (i + 0.5 - N / 2) * mw, front, 0); }
+      }
+    }
+    // じんじゃの とりい(ちかくの みちの ほうを むく)
+    const toriiAt = (x, z) => { const r = nearestRoadPoint(x, z, 0, 80); const a = r ? Math.atan2(r.x - x, r.z - z) : 0; const m = A.prop('lm_torii', { w: 9, h: 8.5, d: 1.6, yaw: a }); if (m) put(m, x + Math.sin(a) * 9, z + Math.cos(a) * 9, 0); };
+    toriiAt(SHRINE.x, SHRINE.z); for (const [k, x, z] of SYMBOLS) if (k === 'shrine') toriiAt(x, z);
+    { const path = new THREE.Mesh(new THREE.PlaneGeometry(5, 26), new THREE.MeshStandardMaterial({ color: '#9a958a', roughness: 1 })); path.rotation.x = -Math.PI / 2; path.position.set(SHRINE.x, 0.06, SHRINE.z + 20); scene.add(path); }
+  }
+  addBuildings(THREE, scene, landmarkGlb ? LAYOUT.buildings.filter((b) => !isLandmark(b)) : LAYOUT.buildings, { shadows: shadowsOn, aniso: Math.min(8, renderer.capabilities.getMaxAnisotropy()), glb: glbOn ? { kit: (k) => A.kit(k), pick: (b) => { if (!['apt', 'shop', 'office'].includes(b.kind) || b.w < 7 || b.d < 7 || b.w > 46 || b.d > 46 || b.h < 8 || b.h > 60) return null; const t = b.tone; if (b.kind === 'shop') return ['bk_a', 'bk_b', 'bk_c', 'bk_d'][t % 4]; if (b.h > 30 && b.w < 22 && b.d < 22) return ['kn_sky1', 'kn_sky2'][t % 2]; return ['kn_large1', 'kn_large2', 'kn_large3', 'kn_large4', 'kn_large5', 'bk_a', 'bk_c'][t % 7]; } } : null });
   for (const b of LAYOUT.buildings) { if (b.kind === 'tower' && b.h > 50) { const cx = (b.x0 + b.x1) / 2; const cz = (b.z0 + b.z1) / 2; const H = b.H || b.h; const a = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 14, 6), new THREE.MeshStandardMaterial({ color: '#ddd' })); a.position.set(cx, H + 11, cz); scene.add(a); const l = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: '#ff3a3a' })); l.position.set(cx, H + 18, cz); scene.add(l); }
     if (b.kind === 'shrine') { const m = new THREE.Mesh(new THREE.BoxGeometry(b.x1 - b.x0, b.h, b.z1 - b.z0), new THREE.MeshStandardMaterial({ color: '#7a4a2a', roughness: 0.9 })); m.position.set((b.x0 + b.x1) / 2, b.h / 2, (b.z0 + b.z1) / 2); m.castShadow = shadowsOn; scene.add(m); } }
   // おみせ(コンビニ・ドラッグストア・ラーメンや・ホビー・ミリタリー)と モール(トレッサ・アピタ)
-  const signTex = (text, bg, fg = '#fff', w = 512, h = 128, fs = 64) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g2 = c.getContext('2d'); g2.fillStyle = bg; g2.fillRect(0, 0, w, h); g2.strokeStyle = 'rgba(255,255,255,.7)'; g2.lineWidth = 6; g2.strokeRect(5, 5, w - 10, h - 10); g2.fillStyle = fg; g2.font = `bold ${fs}px sans-serif`; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(text, w / 2, h / 2 + 3); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+  const signTex = (text, bg, fg = '#fff', w = 512, h = 128, fs = 64) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g2 = c.getContext('2d'); g2.fillStyle = bg; g2.fillRect(0, 0, w, h); g2.strokeStyle = 'rgba(255,255,255,.7)'; g2.lineWidth = 6; g2.strokeRect(5, 5, w - 10, h - 10); g2.fillStyle = fg; g2.font = `bold ${fs}px CityFont, sans-serif`; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(text, w / 2, h / 2 + 3); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
   { const COLS = { conbini: ['#e8eef0', '#2aa86a'], drug: ['#eaf4ea', '#2a9a5a'], ramen: ['#7a4a2a', '#d12a2a'], hobby: ['#4a3a7a', '#8a3ad1'], military: ['#59606c', '#c0392b'] };
     for (const st of STORES) { if (st.id === 'tresa' || st.id === 'apita') continue; const [wallC, signC] = COLS[st.id]; const g = new THREE.Group(); const hubby = st.id === 'conbini' || st.id === 'military';
       const wall = new THREE.Mesh(new THREE.BoxGeometry(14, 7, 8), new THREE.MeshStandardMaterial({ color: wallC, roughness: 0.7 })); wall.position.y = 3.5; const band = new THREE.Mesh(new THREE.BoxGeometry(14.2, 2.4, 0.4), new THREE.MeshStandardMaterial({ color: signC, emissive: signC, emissiveIntensity: 0.4 })); band.position.set(0, 6.0, -4.1);
@@ -158,7 +184,7 @@ export async function startCity3D(o) {
     for (const sx of [-1, 1]) { const po = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 9, 8), new THREE.MeshStandardMaterial({ color: '#2a6ad1' })); po.position.set(SOCCER.x + sx * 8, 4.5, SOCCER_ZONE.z1 + 5); g.add(po); } const arch = new THREE.Mesh(new THREE.BoxGeometry(17, 1.4, 1), new THREE.MeshStandardMaterial({ color: '#2a6ad1', emissive: '#2a6ad1', emissiveIntensity: 0.4 })); arch.position.set(SOCCER.x, 9.5, SOCCER_ZONE.z1 + 5); g.add(arch);
     g.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(g); }
   { const bd = new THREE.Group(); const wood = new THREE.MeshStandardMaterial({ color: '#7a5230', roughness: 0.9 }); const post = new THREE.Mesh(new THREE.BoxGeometry(0.6, 5, 0.6), wood); const board = new THREE.Mesh(new THREE.BoxGeometry(6.4, 3.6, 0.3), wood);
-    const c = document.createElement('canvas'); c.width = 256; c.height = 144; const g2 = c.getContext('2d'); g2.fillStyle = '#e8d9a0'; g2.fillRect(0, 0, 256, 144); g2.fillStyle = '#b3201a'; g2.font = 'bold 26px sans-serif'; g2.textAlign = 'center'; g2.fillText('WANTED', 128, 30); g2.fillStyle = '#3a2a1a'; g2.font = '44px sans-serif'; for (let i = 0; i < 4; i++) g2.fillText('☠', 40 + i * 58, 92); g2.font = 'bold 18px sans-serif'; g2.fillText('指名手配ボード', 128, 130);
+    const c = document.createElement('canvas'); c.width = 256; c.height = 144; const g2 = c.getContext('2d'); g2.fillStyle = '#e8d9a0'; g2.fillRect(0, 0, 256, 144); g2.fillStyle = '#b3201a'; g2.font = 'bold 26px CityFont, sans-serif'; g2.textAlign = 'center'; g2.fillText('WANTED', 128, 30); g2.fillStyle = '#3a2a1a'; g2.font = '44px CityFont, sans-serif'; for (let i = 0; i < 4; i++) g2.fillText('☠', 40 + i * 58, 92); g2.font = 'bold 18px CityFont, sans-serif'; g2.fillText('指名手配ボード', 128, 130);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const face = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.2), new THREE.MeshBasicMaterial({ map: t })); face.position.z = 0.17; board.position.y = 4.2; face.position.y = 4.2; const p2 = post.clone(); post.position.set(-2.4, 2.5, 0); p2.position.set(2.4, 2.5, 0); bd.add(post, p2, board, face);
     const sp = iconSprite(THREE, '📋', '#e8d9a0'); sp.scale.set(5, 5, 1); sp.position.y = 9.5; bd.add(sp); bd.position.set(BOARD.x, 0, BOARD.z + 3); bd.rotation.y = Math.PI; bd.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(bd); }
   { // こうばん(しろい はこ・あおい やね・あかい ランプ)
@@ -210,7 +236,7 @@ export async function startCity3D(o) {
       g.userData = { name, dir, off, s: dir > 0 ? 0 : pathInfo(name).L * 0.6, speed }; g.traverse((m) => { if (m.isMesh) m.castShadow = shadowsOn; }); scene.add(g); trains.push(g); };
     mkTrain('toyoko', 1, -1.8, '#d12a2a', 8, 24); mkTrain('toyoko', -1, 1.8, '#d12a2a', 6, 22); mkTrain('shin', 1, 0, '#2a6ad1', 8, 60); }
   // ---- じんじゃ(とりい)・さくら・でんしんばしら・じどうはんばいき ----
-  { const red = new THREE.MeshStandardMaterial({ color: '#c8281e', roughness: 0.6 }); const to = new THREE.Group(); for (const x of [-4, 4]) { const pl = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 11, 10), red); pl.position.set(x, 5.5, 0); to.add(pl); } const b1 = new THREE.Mesh(new THREE.BoxGeometry(13.5, 0.9, 1.2), red); b1.position.y = 10.6; const b2 = new THREE.Mesh(new THREE.BoxGeometry(11, 0.6, 0.8), red); b2.position.y = 8.4; const b0 = new THREE.Mesh(new THREE.BoxGeometry(15, 0.4, 1.6), new THREE.MeshStandardMaterial({ color: '#222' })); b0.position.y = 11.3; to.add(b1, b2, b0); to.position.set(SHRINE.x, 0, SHRINE.z + 36); scene.add(to);
+  if (!landmarkGlb) { const red = new THREE.MeshStandardMaterial({ color: '#c8281e', roughness: 0.6 }); const to = new THREE.Group(); for (const x of [-4, 4]) { const pl = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 11, 10), red); pl.position.set(x, 5.5, 0); to.add(pl); } const b1 = new THREE.Mesh(new THREE.BoxGeometry(13.5, 0.9, 1.2), red); b1.position.y = 10.6; const b2 = new THREE.Mesh(new THREE.BoxGeometry(11, 0.6, 0.8), red); b2.position.y = 8.4; const b0 = new THREE.Mesh(new THREE.BoxGeometry(15, 0.4, 1.6), new THREE.MeshStandardMaterial({ color: '#222' })); b0.position.y = 11.3; to.add(b1, b2, b0); to.position.set(SHRINE.x, 0, SHRINE.z + 36); scene.add(to);
     const sh = LAYOUT.buildings.find((b) => b.kind === 'shrine'); const rf = new THREE.Mesh(new THREE.ConeGeometry(24, 7, 4), new THREE.MeshStandardMaterial({ color: '#3a4a50', roughness: 0.8 })); rf.rotation.y = Math.PI / 4; rf.scale.set(1, 1, 0.62); rf.position.set((sh.x0 + sh.x1) / 2, sh.h + 3, (sh.z0 + sh.z1) / 2); scene.add(rf);
     const path = new THREE.Mesh(new THREE.PlaneGeometry(6, 28), new THREE.MeshStandardMaterial({ color: '#9a958a', roughness: 1 })); path.rotation.x = -Math.PI / 2; path.position.set(SHRINE.x, 0.06, SHRINE.z + 22); scene.add(path); }
   { const pts = []; const P = RIVER.pts; for (let i = 1; i < P.length; i++) { const a0 = P[i - 1]; const b0 = P[i]; const L = Math.hypot(b0[0] - a0[0], b0[1] - a0[1]); const ang = Math.atan2(b0[1] - a0[1], b0[0] - a0[0]); const nx = -Math.sin(ang); const nz = Math.cos(ang); for (let d = 0; d < L; d += 13) for (const sd of [-1, 1]) { const x = a0[0] + ((b0[0] - a0[0]) * d) / L + nx * sd * (RIVER.hw + 11); const z = a0[1] + ((b0[1] - a0[1]) * d) / L + nz * sd * (RIVER.hw + 11); if (Math.abs(x) > HALF + 20 || Math.abs(z) > HALF + 20 || isWater(x, z) || roadSD(x, z) < 1.5 || LAYOUT.buildings.some((b) => x > b.x0 - 3 && x < b.x1 + 3 && z > b.z0 - 3 && z < b.z1 + 3)) continue; pts.push([x, z]); } }
@@ -297,7 +323,7 @@ export async function startCity3D(o) {
   const ku = (e) => { if (akeys[e.code]) { aimKeys.delete(e.code); recAim(); } if (kmap[e.code]) { br(kmap[e.code]); return; } keys.delete(e.code); recompute(); };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu'); const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const snap = () => ({ coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned, weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
+  const snap = () => ({ coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned, weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
   menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   const showHelp = () => { openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>❓ シティの あそびかた</h3><div class="hp">
@@ -307,7 +333,7 @@ export async function startCity3D(o) {
       <p>💼 <b>おしごと</b>: さんすう・こくごで おきゅうりょう</p>
       <p>🏁 <b>ガレージ</b>: のりものを かう・のる ・ 🏁⚡ボタンで ワープ</p>
       <p>⭐ ミッション(きいろい はしら)で チケット ゲット</p>
-      <p>🗺 ちず ・ 🎯 ついせき ・ 🚉 えき ・ 🌸 さくらなみき</p><p style="font-size:10px;opacity:.7">ちず: © OpenStreetMap contributors ・ 3Dモデル(ひと・くるま): Quaternius (CC0)</p></div><button class="btn gold sh-x">わかった!</button></div>`; }); shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); try { localStorage.setItem('city-help', '1'); } catch { /* ok */ } } }; };
+      <p>🗺 ちず ・ 🎯 ついせき ・ 🚉 えき ・ 🌸 さくらなみき</p><p style="font-size:10px;opacity:.7">ちず: © OpenStreetMap contributors ・ 3Dモデル(えき): Andrew-John Hickman (CC BY) ・ 3Dモデル(ひと・くるま・たてもの・き): Quaternius/Kay Lousberg/Kenney (CC0)</p></div><button class="btn gold sh-x">わかった!</button></div>`; }); shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); try { localStorage.setItem('city-help', '1'); } catch { /* ok */ } } }; };
   root.querySelector('.c3d-help').addEventListener('click', () => { if (!paused) showHelp(); });
   try { if (!localStorage.getItem('city-help')) setTimeout(() => { if (!dead && !paused) showHelp(); }, 1200); } catch { /* ok */ }
   root.querySelector('.c3d-cancel').addEventListener('click', () => sim.cancelMission());
@@ -393,14 +419,29 @@ export async function startCity3D(o) {
       const w = e.target.closest('[data-wear]'); if (w) { const id = w.dataset.wear; if (id === 'none') { const cur = S.equip[slotView]; if (cur) sim.wear(cur); } else if (S.equip[slotView] !== id) sim.wear(id); saveNow(); openEquip(); }
     };
   };
+  // ---- ファストトラベル(じたく・トレッサ・こうばん + じぶんで とうろく 3かしょ) ----
+  const openWarp = () => {
+    const draw = (note = 'いきたい ばしょを タップ! 「とうろく」は いまの いちを おぼえるよ(3かしょまで)') => {
+      const fixed = sim.warpPlaces(); const hot = S.lv >= 5;
+      const row = (id, ic, nm, sub, extra = '') => `<button class="sh-item" data-go="${id}"><span>${ic}</span><div><b>${esc(nm)}</b><small>${esc(sub)}</small></div><em>${extra || '▶ ワープ'}</em></button>`;
+      shopEl.innerHTML = `<div class="sh-box"><h3>🏁 ファストトラベル</h3>${hot ? '<div class="sh-note">🚨 ★5は ワープ できないよ!</div>' : ''}<div class="sh-grp">きまった ばしょ</div>${fixed.map((f) => row(f.id, f.icon, f.name, f.id === 'home' ? 'ガレージの まえ' : f.id === 'tresa' ? 'ショッピングモール' : '指名手配の ばっきんを はらう')).join('')}<div class="sh-grp">じぶんで とうろく(3かしょ)</div>${[0, 1, 2].map((i) => { const w = S.warps[i]; return w ? `<button class="sh-item own" data-go="w${i}"><span>📍</span><div><b>${esc(w.name)}</b><small>スロット ${i + 1}・(${Math.round(w.x)}, ${Math.round(w.z)})</small></div><em><span data-del="${i}" class="wdel">🗑 けす</span></em></button>` : `<button class="sh-item" data-reg="${i}"><span>➕</span><div><b>スロット ${i + 1}: あき</b><small>いま いる ばしょを とうろくする</small></div><em>とうろく</em></button>`; }).join('')}<div class="sh-note">${note}</div><button class="btn gray sh-x">もどる</button></div>`;
+    };
+    openModal(draw);
+    shopEl.onclick = (e) => {
+      if (e.target.closest('.sh-x')) { openMenu(); return; }
+      const del = e.target.closest('[data-del]'); if (del) { sim.removeWarp(+del.dataset.del); saveNow(); draw('けしたよ'); return; }
+      const reg = e.target.closest('[data-reg]'); if (reg) { const r = sim.registerWarp(+reg.dataset.reg); saveNow(); draw(r.ok ? 'とうろくしたよ!' : (r.why || '')); return; }
+      const go = e.target.closest('[data-go]'); if (go) { const r = sim.fastTravel(go.dataset.go); if (r.ok) { closeModal(); } else draw(r.why || ''); }
+    };
+  };
   const openMenu = () => {
     const lv = S.lv || 0;
-    const draw = () => { const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`; shopEl.innerHTML = `<div class="sh-box"><h3>☰ メニュー</h3><div class="sh-coin">🪙 ${P.coins}${lv ? `・🚨 ${'★'.repeat(lv)} ばっきん 🪙${S.fine}` : ''}</div>${it('equip', '👕', 'そうび(ふく・くつ・ぼうし)', EQUIP_SLOTS.map(([k]) => { const e = equipOf(S.equip[k]); return e ? e.icon : '➖'; }).join(' ') + '・' + eqSummary())}${it('weapons', '🎒', 'ぶき', 'もっている ぶきを かえる')}${it('job', '💼', 'おしごと', 'もんだいに こたえて コインを かせぐ')}${it('warp', '🏁', 'ガレージへ ワープ', 'じたくに もどる')}${it('map', '🗺', 'ちず', 'ピンを さして めざす')}${it('help', '❓', 'あそびかた', 'そうさの せつめい')}<button class="btn gray sh-x">とじる</button></div>`; };
+    const draw = () => { const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`; shopEl.innerHTML = `<div class="sh-box"><h3>☰ メニュー</h3><div class="sh-coin">🪙 ${P.coins}${lv ? `・🚨 ${'★'.repeat(lv)} ばっきん 🪙${S.fine}` : ''}</div>${it('equip', '👕', 'そうび(ふく・くつ・ぼうし)', EQUIP_SLOTS.map(([k]) => { const e = equipOf(S.equip[k]); return e ? e.icon : '➖'; }).join(' ') + '・' + eqSummary())}${it('weapons', '🎒', 'ぶき', 'もっている ぶきを かえる')}${it('job', '💼', 'おしごと', 'もんだいに こたえて コインを かせぐ')}${it('warp', '🏁', 'ファストトラベル', 'じたく・トレッサ・こうばん・とうろく(3かしょ)')}${it('map', '🗺', 'ちず', 'ピンを さして めざす')}${it('help', '❓', 'あそびかた', 'そうさの せつめい')}<button class="btn gray sh-x">とじる</button></div>`; };
     openModal(draw);
     shopEl.onclick = (e) => {
       if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
       if (a === 'equip') openEquip(); else if (a === 'weapons') openWeapons(); else if (a === 'job') { if (P.dead <= 0) openJob(); else closeModal(); } else if (a === 'help') showHelp();
-      else if (a === 'warp') { closeModal(); const r = sim.fastTravel(); if (!r.ok && r.why) { S.msg = r.why; S.msgT = 2; } } else if (a === 'map') { closeModal(); bigmap.hidden = false; }
+      else if (a === 'warp') openWarp(); else if (a === 'map') { closeModal(); bigmap.hidden = false; }
     };
   };
   root.querySelector('.c3d-menubtn').addEventListener('click', () => { if (!paused && P.dead <= 0) openMenu(); });
@@ -451,10 +492,10 @@ export async function startCity3D(o) {
         const dot = (x, z, c, r, sq) => { g.fillStyle = c; if (sq) g.fillRect(x - r, z - r, r * 2, r * 2); else { g.beginPath(); g.arc(x, z, r, 0, 6.283); g.fill(); } };
     g.lineWidth = rot ? R / 90 : 3 * zk; g.strokeStyle = 'rgba(40,40,46,.9)'; g.setLineDash([]); for (const [nm, P] of Object.entries(RAILS)) { g.strokeStyle = nm === 'shin' ? 'rgba(40,170,180,.95)' : 'rgba(30,30,36,.95)'; g.setLineDash(nm === 'shin' ? [16, 10] : []); g.beginPath(); P.forEach(([x, z], i) => (i ? g.lineTo(x, z) : g.moveTo(x, z))); g.stroke(); } g.setLineDash([]);
     { g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; g.setLineDash([]); for (const r of roadsOf()) { if (!r.br) continue; g.beginPath(); r.pts.forEach(([x, z], i) => (i ? g.lineTo(x, z) : g.moveTo(x, z))); g.strokeStyle = '#fff'; g.lineWidth = Math.max(r.hw * 2 + 6, rot ? R / 18 : R / 44); g.stroke(); g.strokeStyle = '#ff9f1a'; g.lineWidth = Math.max(r.hw * 2 + 1, rot ? R / 30 : R / 75); g.stroke();
-        if (!rot) { const m = r.pts[Math.floor(r.pts.length / 2)]; g.save(); g.translate(m[0], m[1]); g.rotate(Math.PI); g.font = `bold ${R / 20}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = R / 160; g.strokeStyle = '#000'; g.fillStyle = '#fff'; g.strokeText('橋', 0, -R / 18); g.fillText('橋', 0, -R / 18); g.restore(); } } g.restore(); }
+        if (!rot) { const m = r.pts[Math.floor(r.pts.length / 2)]; g.save(); g.translate(m[0], m[1]); g.rotate(Math.PI); g.font = `bold ${R / 20}px CityFont, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = R / 160; g.strokeStyle = '#000'; g.fillStyle = '#fff'; g.strokeText('橋', 0, -R / 18); g.fillText('橋', 0, -R / 18); g.restore(); } } g.restore(); }
     { // 地図記号(学校=文・郵便局=〒・病院=✚・交番=✕・寺=卍・神社=⛩ など)
-      const SYM = { school: ['文', '#c0148a'], kinder: ['文', '#d86ab8'], hospital: ['✚', '#e02020'], post: ['〒', '#e02020'], police: ['✕', '#1a3aa8'], fire: ['Y', '#e02020'], hall: ['◎', '#1a1a1a'], library: ['📖', '#1a1a1a'], bank: ['¥', '#1a1a1a'], temple: ['卍', '#1a1a1a'], shrine: ['⛩', '#e02020'], church: ['✝', '#1a1a1a'], factory: ['⚙', '#1a1a1a'] };
-      const fs = rot ? R / 6.5 : R / 12; g.font = `bold ${fs}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const SYM = { school: ['文', '#c0148a'], kinder: ['文', '#d86ab8'], hospital: ['✚', '#e02020'], post: ['〒', '#e02020'], police: ['✕', '#1a3aa8'], fire: ['Y', '#e02020'], hall: ['◎', '#1a1a1a'], library: ['📖', '#1a1a1a'], bank: ['¥', '#1a1a1a'], temple: ['卍', '#1a1a1a'], shrine: ['⛩', '#e02020'], church: ['✝', '#1a1a1a'], factory: ['⚙', '#1a1a1a'], super: ['🛒', '#1a1a1a'] };
+      const fs = rot ? R / 6.5 : R / 12; g.font = `bold ${fs}px CityFont, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
       for (const [k, x, z] of SYMBOLS) { const d = SYM[k]; if (!d) continue; if (rot && Math.hypot(x - P.x, z - P.z) > R * 1.1) continue; if (!rot && (x < ccx - R * 1.1 || x > ccx + R * 1.1 || z < ccz - R * 1.1 || z > ccz + R * 1.1)) continue; g.save(); g.translate(x, z); g.rotate(rot ? -(P.yaw + Math.PI) : Math.PI); g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(0, 0, fs * 0.62, 0, 6.283); g.fill(); g.fillStyle = d[1]; g.fillText(d[0], 0, fs * 0.04); g.restore(); }
     }
     const rr = rot ? R / 26 : 7 * zk; for (const { m } of startMarkers) if (!S.mission) { dot(m.start.x, m.start.z, '#ffd23f', rr * 1.1); }

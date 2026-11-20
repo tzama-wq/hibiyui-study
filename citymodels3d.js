@@ -456,6 +456,6 @@ export function crookPerson(THREE, type, id) {
 export function labelSprite(THREE, text, sub, color = '#ffd23f', w = 320) {
   const c = document.createElement('canvas'); c.width = w; c.height = 112; const g = c.getContext('2d');
   g.fillStyle = 'rgba(10,14,30,.78)'; const r = 18; g.beginPath(); g.moveTo(r, 4); g.lineTo(w - r, 4); g.quadraticCurveTo(w - 4, 4, w - 4, r); g.lineTo(w - 4, 108 - r); g.quadraticCurveTo(w - 4, 108, w - r, 108); g.lineTo(r, 108); g.quadraticCurveTo(4, 108, 4, 108 - r); g.lineTo(4, r); g.quadraticCurveTo(4, 4, r, 4); g.fill(); g.strokeStyle = color; g.lineWidth = 4; g.stroke();
-  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.font = 'bold 40px sans-serif'; g.fillText(text, w / 2, 36); g.fillStyle = color; g.font = 'bold 34px sans-serif'; g.fillText(sub, w / 2, 80);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.font = 'bold 40px CityFont, sans-serif'; g.fillText(text, w / 2, 36); g.fillStyle = color; g.font = 'bold 34px CityFont, sans-serif'; g.fillText(sub, w / 2, 80);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.renderOrder = 22; s.scale.set(w / 52, 112 / 52, 1); s.userData.sub = sub; return s;
 }

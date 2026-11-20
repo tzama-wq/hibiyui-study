@@ -3,8 +3,9 @@
 //   モデル: Quaternius (CC0 1.0) via Poly Pizza — Man / Woman Casual / Woman in Dress / Casual Character / SWAT / Taxi / Car / SUV / Sports Car / Police Car / Truck / Pickup
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import * as SkeletonUtils from './vendor/utils/SkeletonUtils.js';
+import { mergeGeometries } from './vendor/utils/BufferGeometryUtils.js';
 const BASE = './models/city/';
-const FILES = ['man', 'swat', 'womancasual', 'womandress', 'casual', 'taxi', 'sedan', 'suv', 'sports', 'police', 'pickup', 'truck', 'bk_a', 'bk_b', 'bk_c', 'bk_d', 'kn_large1', 'kn_large2', 'kn_large3', 'kn_large4', 'kn_large5', 'kn_small', 'kn_sky1', 'kn_sky2', 'nt_pine', 'nt_tree2', 'nt_tree3', 'nt_tree4', 'nt_bush1', 'nt_bushf', 'nt_hedge'];
+const FILES = ['man', 'swat', 'womancasual', 'womandress', 'casual', 'taxi', 'sedan', 'suv', 'sports', 'police', 'pickup', 'truck', 'bk_a', 'bk_b', 'bk_c', 'bk_d', 'kn_large1', 'kn_large2', 'kn_large3', 'kn_large4', 'kn_large5', 'kn_small', 'kn_sky1', 'kn_sky2', 'nt_pine', 'nt_tree2', 'nt_tree3', 'nt_tree4', 'nt_bush1', 'nt_bushf', 'nt_hedge', 'lm_torii', 'lm_bkshop1', 'lm_bkshop2', 'lm_station'];
 const CAR_FILE = { sedan: 'sedan', police: 'police', taxi: 'taxi', suv: 'suv', truck: 'truck', sports: 'sports', super: 'sports' };
 const CAR_LEN = { sedan: 4.6, police: 4.8, taxi: 4.6, suv: 4.8, truck: 6.8, sports: 4.4, super: 4.5 };
 const BODY_MAT = /^(white|blue|yellow|red|green|black_?body|body|paint|atlas)$/i;
@@ -50,5 +51,15 @@ export async function loadCityAssets(THREE) {
     if (kits[key]) return kits[key]; const g = models[key]; if (!g) return null; g.scene.updateMatrixWorld(true); const bx = new THREE.Box3().setFromObject(g.scene); const parts = []; g.scene.traverse((o) => { if (o.isMesh) parts.push({ geo: o.geometry, mat: o.material, m4: o.matrixWorld.clone() }); });
     return (kits[key] = { parts, size: bx.getSize(new THREE.Vector3()), center: bx.getCenter(new THREE.Vector3()), minY: bx.min.y });
   }
-  return { ok: true, models, person, car, kit, has: (k) => !!models[k] };
+  // ランドマーク用の たてもの/かざり: w×d×h(m)に あわせて おおきさを そろえ、ゆかに ぴったり おく(メッシュが おおい ものは まとめて かるく する)
+  function prop(key, o = {}) {
+    const g = models[key]; if (!g) return null; const root = g.scene.clone(true); root.updateMatrixWorld(true); let n = 0; root.traverse((x) => { if (x.isMesh) n++; });
+    let obj = root;
+    if (n > 20) { try { const by = new Map(); root.traverse((x) => { if (!x.isMesh) return; let geo = x.geometry.clone(); geo.applyMatrix4(x.matrixWorld); for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'uv'].includes(k)) geo.deleteAttribute(k); if (geo.index) geo = geo.toNonIndexed(); const m = Array.isArray(x.material) ? x.material[0] : x.material; if (!by.has(m)) by.set(m, []); by.get(m).push(geo); }); const grp = new THREE.Group(); for (const [m, list] of by) { const mg = mergeGeometries(list, false); if (mg) grp.add(new THREE.Mesh(mg, m)); } if (grp.children.length) obj = grp; } catch { obj = root; } }
+    obj.traverse((x) => { if (x.isMesh) { x.castShadow = true; x.frustumCulled = false; } });
+    const bx = new THREE.Box3().setFromObject(obj); const size = bx.getSize(new THREE.Vector3()); const c = bx.getCenter(new THREE.Vector3()); const su = o.s || 1;
+    const sx = o.w ? o.w / size.x : su; const sz = o.d ? o.d / size.z : su; const sy = o.h ? o.h / size.y : Math.min(sx, sz);
+    const inner = new THREE.Group(); inner.add(obj); inner.scale.set(sx, sy, sz); inner.position.set(-c.x * sx, -bx.min.y * sy, -c.z * sz); const wrap = new THREE.Group(); wrap.add(inner); wrap.rotation.y = o.yaw || 0; return wrap;
+  }
+  return { ok: true, models, person, car, kit, prop, has: (k) => !!models[k] };
 }

@@ -315,4 +315,12 @@ for (const planeId of ['plane', 'hawk']) {
   for (let i = 0; i < 12; i++) { const w = ws[i]; rv.speed = 12; w.dead = 0; rv.x = w.x - Math.sin(rv.yaw) * 1.2; rv.z = w.z - Math.cos(rv.yaw) * 1.2; r.step(0.05); if (i === 8) assert.equal(R.lv, 0, '9にん ひいても まだ ★0'); if (i === 9) assert.ok(R.lv >= 1 && R.lv <= 1, '10にん ひくと ★1(それいじょうは あがらない)'); }
   assert.equal(R.lv, 1, 'ひいた だけでは ★1 まで');
 }
+// ---- ファストトラベル: じたく・トレッサ・こうばん + とうろく3かしょ ----
+{
+  const sim = mk(st(70), 3, { warps: [{ x: 100, z: 50, name: 'テスト' }, null, null] }); const S = sim.state; const P = S.player; const pl = sim.warpPlaces(); assert.deepEqual(pl.map((x) => x.id), ['home', 'tresa', 'koban']);
+  for (const id of ['tresa', 'koban', 'home']) { assert.ok(sim.fastTravel(id).ok, id); const d = pl.find((x) => x.id === id); assert.ok(Math.hypot(P.x - d.x, P.z - d.z) < 130 && !isWater(P.x, P.z) && !insideBuilding(P.x, P.z, 0), `${id} へ とべる`); }
+  assert.ok(sim.fastTravel('w0').ok && !sim.fastTravel('w1').ok, 'とうろく ばしょへ・あきスロットは とべない');
+  tele(sim, HQ.x, HQ.z); assert.ok(sim.registerWarp(1).ok && S.warps[1] && Math.abs(S.warps[1].x - HQ.x) < 1, 'いまの いちを とうろく'); assert.ok(sim.registerWarp(2).ok); assert.ok(!sim.registerWarp(3).ok, '3かしょまで'); tele(sim, 0, 0); assert.ok(sim.fastTravel('w1').ok && Math.abs(P.x - S.warps[1].x) < 30, 'とうろくへ ワープ'); sim.removeWarp(1); assert.ok(!sim.fastTravel('w1').ok, 'けしたら とべない');
+  sim.raise(5); assert.ok(!sim.fastTravel('home').ok, '★5は とべない');
+}
 console.log('OK: city');

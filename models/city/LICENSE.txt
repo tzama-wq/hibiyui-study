@@ -4,3 +4,5 @@ CC0: no attribution required, credited here out of courtesy. https://quaternius.
 Loaders (vendor/loaders/GLTFLoader.js, vendor/utils/*.js) are from three.js r160 (MIT).
 Buildings: Kay Lousberg "Building" (bk_*) and Kenney "Large/Small Building", "Skyscraper" (kn_*), CC0 1.0 via Poly Pizza (https://poly.pizza).
 Trees/Bushes (nt_*): Quaternius "Pine", "Tree" x3, "Bush", "Bush with Flowers", "Hedge", CC0 1.0 via Poly Pizza (https://poly.pizza).
+Landmarks (lm_*): "Torii Gate" by Quaternius (CC0), "Building" x2 (shops) by Kay Lousberg (CC0), via Poly Pizza (https://poly.pizza).
+Station (lm_station.glb): "Japanese Train Station" by Andrew-John Hickman, licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/) via Poly Pizza (https://poly.pizza/m/f2ZQl-lX0gM). The model was scaled and its meshes merged for use in this game.

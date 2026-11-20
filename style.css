@@ -818,3 +818,16 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-bigmap canvas{width:min(80vh,94vw)!important;height:min(80vh,94vw)!important;touch-action:none}.bm-legend{background:rgba(6,16,34,.8);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border:1px solid #6ab0ff}.bm-btns .btn{padding:6px 12px}.c3d-bigmap{gap:4px!important}
 .c3d-bigmap canvas{width:min(66vh,94vw)!important;height:min(66vh,94vw)!important}.bm-btns .btn{font-size:14px!important;padding:4px 10px!important;min-width:46px;height:auto!important;line-height:1.2!important}.bm-hint{font-size:11px!important}
 .sh-item[data-no]{opacity:.62}
+.wdel{font-size:11px;background:#7a1f1f;color:#fff;border-radius:8px;padding:3px 8px}
+
+/* ---- シティの フォント(GTAふうの あつい ゴシック: Dela Gothic One・OFL) ---- */
+@font-face{font-family:'CityFont';src:url('fonts/city-font.woff2') format('woff2');font-display:swap}
+.c3d,.c3d *,.c3d-shop,.c3d-shop *,.c3d-bigmap,.c3d-bigmap *{font-family:'CityFont','Hiragino Maru Gothic ProN','BIZ UDPGothic','Yu Gothic',system-ui,sans-serif!important;letter-spacing:.02em}
+.c3d .c3d-coin b,.c3d .ab.hp span,.c3d .ab.boost span{letter-spacing:.06em}
+.c3d-coin b{font-size:1.12em}
+.c3d .ab span{white-space:nowrap;font-size:10px;letter-spacing:0}
+.c3d .ab-b{line-height:1.1;letter-spacing:0;white-space:nowrap}.c3d .ab-wp,.c3d .ab-tg{font-size:10px!important}.c3d .ab-gun{font-size:20px!important}
+.c3d .ab-auto{font-size:8px!important;white-space:normal}.c3d .ab-auto b{font-size:11px}
+.c3d .c3d-coin,.c3d .c3d-coin b{white-space:nowrap}.c3d-coin b{font-size:1.02em}
+.c3d .c3d-wep{font-size:11px;white-space:nowrap;letter-spacing:0}
+.c3d .a3d-act,.c3d .a3d-msg,.c3d .a3d-banner{letter-spacing:0}

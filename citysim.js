@@ -4,6 +4,7 @@
 //   sim.interact()(のる/おりる/ミッション/おみせ/たいほ) ・ sim.fireMissile() ・ sim.step(dt) ・ sim.takeEvents()
 //   ざひょう: x=よこ, y=たかさ, z=おく。からだの むき yaw: まえ = (sin yaw, cos yaw)
 import * as CM from './citymap.js';
+import { SYMBOLS } from './symbols-data.js';
 export const { HALF, RIVER, riverDist, inRiver, riverZ, BRIDGES, BRIDGE_W, BRIDGE_E, RAILS, railDist, isWater, PLAZA, SOCCER, SOCCER_ZONE, HOME, AIRFIELD, roadSD, greens, pitches } = CM;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -53,6 +54,11 @@ function makeLayout() {
   const front = (q, kind, name) => { const r = CM.nearestRoadPoint(q.x, q.z, 1, 80); const ang = r ? Math.round((r.ang / (Math.PI / 2)) % 4) * (Math.PI / 2) * 0 + r.ang : 0; const b = mkB(q.x, q.z, q.w, q.d, ang, q.h, kind, { name }); clearFor(b); add(b); return b; };
   front(SQUARE, 'office', 'square'); front(MICCA, 'shop', 'micca'); front(MATSU, 'shop', 'matsukiyo');
   add(mkB(HQ.x - 40, HQ.z + 52, 42, 22, 0, 11, 'station')); // 新綱島駅の しゅつにゅうぐち
+  // スーパー(OSMの ばしょ): ちかくの たてものを スーパーに する(なければ あたらしく おく)
+  for (const [k, x, z] of SYMBOLS) if (k === 'super') {
+    const hitB = blds.find((b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && Math.abs((x - b.cx) * b.c + (z - b.cz) * b.s) < b.w / 2 && Math.abs(-(x - b.cx) * b.s + (z - b.cz) * b.c) < b.d / 2 && b.w * b.d >= 150 && b.w * b.d <= 5000 && !['school', 'station', 'hq', 'mall', 'home', 'shrine'].includes(b.kind));
+    if (hitB) { hitB.kind = 'supermarket'; hitB.name = 'super'; hitB.h = Math.min(hitB.h, 12); } else { const r = CM.nearestRoadPoint(x, z, 1, 60); const b = mkB(x, z, 26, 18, r ? r.ang : 0, 10, 'supermarket', { name: 'super' }); clearFor(b); add(b); }
+  }
   const mk = (m, name, st) => add(mkB(m.cx, m.cz + m.d * 0.18, m.w - 34, m.d * 0.5, 0, 22, 'mall', { name }));
   mk(MALL_TRESA, 'tresa'); mk(MALL_APITA, 'apita');
   add(mkB(HOME.cx, HOME.z1 - 13, 24, 14, 0, 8, 'home')); // じたく
@@ -301,13 +307,13 @@ const AIR_SLOTS = [[AIRFIELD.x0 + 20, ACZ - 28], [AIRFIELD.x0 + 20, ACZ + 28], [
 const FIXED = { tank: { kind: 'tank', x: PLAZA.cx + 50, z: PLAZA.cz + 4, yaw: Math.PI / 2 }, ship: { kind: 'ship', x: DOCK.x, z: DOCK.z, yaw: Math.PI / 2 }, plane: { kind: 'plane', x: AIRFIELD.x0 + 24, z: ACZ, yaw: Math.PI / 2 } };
 const slotOf = (it, idx) => { if (it.kind === 'bike') { const s = BIKE_SLOTS[idx % BIKE_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; } if (isAir(it.kind)) { const s = AIR_SLOTS[idx % AIR_SLOTS.length]; return { x: s[0], z: s[1], yaw: Math.PI / 2 }; } const s = CAR_SLOTS[idx % CAR_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; };
 
-export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = DEFAULT_WEAPONS, weapon = 'pistol', rnd = mulberry(5), gentle = false, coins = 0, arrests = {}, ammo = {}, eqOwned = [], equip: eqWorn = {}, jobOk = 0 }) {
+export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = DEFAULT_WEAPONS, weapon = 'pistol', rnd = mulberry(5), gentle = false, coins = 0, arrests = {}, ammo = {}, eqOwned = [], equip: eqWorn = {}, jobOk = 0, warps = [] }) {
   const ks = stats; const FS = footStats(ks);
   const input = { turn: 0, climb: 0, moveX: 0, moveY: 0, autoAim: true, aimLock: false, gun: false, boost: false, aimX: 0, aimY: 0 };
   const S = {
     t: 0, ph: 'play', events: [], snd: [], msg: '', msgT: 0, banner: '', bannerT: 0,
     player: { mode: 'foot', x: SPAWN.x, y: 0, z: SPAWN.z, yaw: SPAWN.yaw, pitch: 0, roll: 0, speed: 0, hp: FS.hpMax, hpMax: FS.hpMax, boost: 100, aimRel: 0, aimPitch: 0.05, veh: null, invuln: 0, dead: 0, hurt: 0, coins, wCd: 0, buff: { dmg: 0, speed: 0 }, weapon: 'pistol', noAim: 0, camYaw: SPAWN.yaw, camFree: false, reload: 0, reloadId: null, bloom: 0, chute: false, carry: 0, kos: 0, target: null, missileCd: 0, lastHurt: -99 },
-    vehicles: [], civs: [], crooks: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, owned: [...new Set([...DEFAULT_OWNED, ...owned])], wOwned: [...new Set([...DEFAULT_WEAPONS, ...weapons])], arrests: { ...arrests }, tracked: null, swing: 0, jobOk: jobOk | 0, heat: 0, lv: 0, heatT: 0, fine: 0, melee: 0, jets: [], helis: [], ammo: { ...ammo }, eqOwned: [...new Set(eqOwned.filter((id) => equipOf(id)))], equip: {},
+    vehicles: [], civs: [], crooks: [], bullets: [], missiles: [], tracers: [], effects: [], pickups: [], traffic: [], walkers: [], mission: null, done: {}, nearby: null, ui: null, owned: [...new Set([...DEFAULT_OWNED, ...owned])], wOwned: [...new Set([...DEFAULT_WEAPONS, ...weapons])], arrests: { ...arrests }, tracked: null, swing: 0, warps: (Array.isArray(warps) ? warps : []).slice(0, 3).map((w) => (w && Number.isFinite(w.x) && Number.isFinite(w.z) ? { x: w.x, z: w.z, name: String(w.name || '') } : null)), jobOk: jobOk | 0, heat: 0, lv: 0, heatT: 0, fine: 0, melee: 0, jets: [], helis: [], ammo: { ...ammo }, eqOwned: [...new Set(eqOwned.filter((id) => equipOf(id)))], equip: {},
     wanted: [], stats: { coins: 0, arrests: 0, bounty: 0, missions: 0 },
   };
   const P = S.player; let nid = 100; P.weapon = weapon && S.wOwned.includes(weapon) ? weapon : 'pistol';
@@ -771,10 +777,19 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   function equip(id) { if (!S.wOwned.includes(id)) return false; P.reload = 0; P.weapon = id; P.wCd = Math.max(P.wCd, 0.2); snd('door'); return true; }
   function cycleWeapon(dir = 1) { const list = WEAPONS.filter((w) => S.wOwned.includes(w.id)).map((w) => w.id); const i = list.indexOf(P.weapon); P.reload = 0; P.weapon = list[(i + dir + list.length) % list.length]; P.wCd = Math.max(P.wCd, 0.2); snd('door'); return P.weapon; }
   function addCoins(n) { P.coins += n; S.stats.coins += n; snd('coin'); return P.coins; }
-  function fastTravel() {
+  // ---- ファストトラベル: じたく・トレッサ・こうばん + じぶんで とうろく(3かしょ) ----
+  const warpPlaces = () => { const tr = STORES.find((x) => x.id === 'tresa'); return [{ id: 'home', name: 'じたく', icon: '🏠', x: GARAGE.x, z: GARAGE.z + 10 }, { id: 'tresa', name: 'トレッサ', icon: '🛍️', x: tr.x, z: tr.z }, { id: 'koban', name: '綱島えきまえ こうばん', icon: '🚓', x: KOBAN.x, z: KOBAN.z + 8 }]; };
+  const nameHere = (x, z, slot) => { const cand2 = [...STORES.map((st) => [st.name, st.x, st.z]), ['じたく', GARAGE.x, GARAGE.z], ['こうばん', KOBAN.x, KOBAN.z], ['おしごと(がっこう)', JOB.x, JOB.z], ['サッカーじょう', SOCCER.x, SOCCER.z]]; let best = null; let bd = 70; for (const [n, px, pz] of cand2) { const d = hyp(px - x, pz - z); if (d < bd) { bd = d; best = n; } } return best ? `${best}の ちかく` : `とうろく${slot + 1}`; };
+  function fastTravel(dest = 'home') {
     if (P.dead > 0) return { ok: false, why: '' }; if (S.lv >= 5) return { ok: false, why: '🚨 ★5は にげられない!' }; const v = cur(); if (v && isAir(v.kind) && P.y > 12) return { ok: false, why: 'そらでは つかえないよ' };
-    if (v) leave(); P.chute = false; P.x = GARAGE.x; P.z = GARAGE.z + 10; P.y = 0; P.speed = 0; P.yaw = Math.PI; fx('spark', P.x, 2, P.z, 8); snd('door'); msg('🏁 ガレージに ワープしたよ!', 2.2); return { ok: true };
+    let d = warpPlaces().find((x) => x.id === dest); if (!d && /^w[0-2]$/.test(dest)) { const w = S.warps[+dest[1]]; if (w) d = { id: dest, name: w.name, icon: '📍', x: w.x, z: w.z }; } if (!d) return { ok: false, why: 'そこは とうろく されていないよ' };
+    const f = (insideBuilding(d.x, d.z, 0) || CM.isWater(d.x, d.z)) ? freeAround(d.x, d.z) : { x: d.x, z: d.z };
+    if (v) leave(); P.chute = false; P.x = f.x; P.z = f.z; P.y = 0; P.speed = 0; P.yaw = d.id === 'home' ? Math.PI : 0; P.camYaw = P.yaw; fx('spark', P.x, 2, P.z, 8); snd('door'); msg(`${d.icon} ${d.name}に ワープしたよ!`, 2.2); return { ok: true };
   }
+  function registerWarp(slot) {
+    if (!(slot >= 0 && slot < 3)) return { ok: false, why: '' }; if (CM.isWater(P.x, P.z) || P.y > 12) return { ok: false, why: 'ここには とうろく できないよ' }; const x = Math.round(P.x); const z = Math.round(P.z); S.warps[slot] = { x, z, name: nameHere(x, z, slot) }; snd('win'); msg(`📍 とうろくしたよ: ${S.warps[slot].name}`, 2.4); return { ok: true };
+  }
+  function removeWarp(slot) { if (S.warps[slot]) { S.warps[slot] = null; while (S.warps.length && !S.warps[S.warps.length - 1]) S.warps.pop(); } return { ok: true }; }
   function summon(id) {
     const v = S.vehicles.find((x) => x.id === id && !x.temp); if (!v) return { ok: false, why: 'ないよ' }; if (!canRide(v)) return { ok: false, why: 'まだ かっていないよ(トレッサで かおう)' }; if (v.kind === 'ship') return { ok: false, why: 'ふねは みなとに あるよ' };
     if (P.dead > 0) return { ok: false, why: '' }; if (cur() && cur() !== v) { if (isAir(cur().kind) && P.y > 12) return { ok: false, why: 'そらでは つかえないよ' }; leave(); }
@@ -795,7 +810,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     { const Wt = weaponOf(P.weapon) || {}; const vt = cur(); P.target = nearestCrook(vt ? (vt.kind === 'car' || vt.kind === 'bike' ? AUTOAIM_MAX_VEH : 600) : (Wt.range || 3) + AUTOAIM_EXTRA, 6.3, P.yaw); } // あるいている ときは ぶきの しゃてい+12mの なかだけ ねらいが きく
   }
   return {
-    state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, buyEquip, wear, ultimateProgress, addJobOk(n) { S.jobOk += n | 0; return S.jobOk; }, payFine, raise, gunHit, meleeHit, equip, cycleWeapon, reload: startReload, ammoOf: am, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
+    state: S, input, step, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, buyEquip, wear, ultimateProgress, warpPlaces, registerWarp, removeWarp, addJobOk(n) { S.jobOk += n | 0; return S.jobOk; }, payFine, raise, gunHit, meleeHit, equip, cycleWeapon, reload: startReload, ammoOf: am, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
     takeEvents() { const e = S.events; S.events = []; return e; },
     aimAt(r) { if (!r) return; if (!cur()) { P.camYaw = Math.atan2(r.x - P.x, r.z - P.z); P.camFree = true; P.aimPitch = clamp(r.y != null ? Math.atan2(r.y - 1.6, hyp(r.x - P.x, r.z - P.z)) : Math.atan2(1.6 - 2.5, hyp(r.x - P.x, r.z - P.z)), -0.2, r.y != null ? 1.1 : 0.4); return; } P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(2 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
     look(dx, dy) { P.noAim = 0; const v = cur(); if (!v) { const am2 = 1 + S.eq.aim; P.camYaw -= dx * 0.0034 * am2; P.camFree = true; P.aimPitch = clamp(P.aimPitch - dy * 0.0024 * am2, -0.35, 1.1); } else if (!isAir(v.kind)) { P.aimRel = clamp(P.aimRel - dx * 0.0036, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch - dy * 0.0026, -0.2, 1.2); } },

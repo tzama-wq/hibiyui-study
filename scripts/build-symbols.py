@@ -13,6 +13,7 @@ Q = f'''[out:json][timeout:90];
  nwr["amenity"~"^(school|kindergarten|hospital|clinic|post_office|police|fire_station|townhall|library|place_of_worship|bank|college|university)$"]{BBOX};
  nwr["office"="government"]{BBOX};
  nwr["man_made"="works"]{BBOX};
+ nwr["shop"="supermarket"]{BBOX};
 );
 out center tags;'''
 
@@ -36,6 +37,7 @@ def kind(t):
         r = t.get('religion')
         return 'temple' if r == 'buddhist' else 'shrine' if r == 'shinto' else 'church' if r == 'christian' else None
     if t.get('man_made') == 'works': return 'factory'
+    if t.get('shop') == 'supermarket': return 'super'
     return None
 
 

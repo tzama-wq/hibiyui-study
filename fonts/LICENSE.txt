@@ -1,0 +1,1 @@
+city-font.woff2: 'Dela Gothic One' (Google Fonts), SIL Open Font License 1.1 (https://openfontlicense.org). Subset (only the characters used in the city UI) generated via the Google Fonts CSS API.
