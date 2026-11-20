@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
+import { weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
 
 const st = (v) => ({ SHO: v, PAS: v, SPD: v, DEF: v, STA: v });
@@ -90,7 +90,7 @@ const drive = (sim, tx, tz, { speed = 1 } = {}) => {
 {
   const sim = mk(); const S = sim.state; const P = S.player; tele(sim, MS('rescue').x, MS('rescue').z); sim.interact(); assert.equal(S.mission.id, 'rescue'); assert.equal(S.civs.length, 3);
   for (const c of S.civs.slice()) { tele(sim, c.x - 3, c.z - 3); P.hp = P.hpMax; assert.equal(S.nearby.kind, 'civ'); sim.interact(); }
-  tele(sim, HQ.x, HQ.z); P.hp = P.hpMax; run(sim, 8); assert.ok(!S.mission && S.done.rescue === 1, 'ひとじちを ほんぶへ とどけて クリア');
+  tele(sim, BASE.x, BASE.z); P.hp = P.hpMax; run(sim, 8); assert.ok(!S.mission && S.done.rescue === 1, 'ひとじちを ほんぶへ とどけて クリア');
 }
 {
   const sim = mk(st(100)); const S = sim.state; const P = S.player; tele(sim, MS('gang').x, MS('gang').z); sim.interact(); assert.equal(S.mission.id, 'gang'); const mc = () => S.crooks.filter((c) => c.mission); assert.equal(mc().length, 5);
@@ -115,7 +115,7 @@ for (const planeId of ['plane', 'hawk']) {
 }
 {
   const sim = mk(); const S = sim.state; tele(sim, MS('delivery').x, MS('delivery').z); sim.interact(); assert.equal(S.mission.id, 'delivery');
-  tele(sim, S.mission.pk.x, S.mission.pk.z); assert.equal(S.nearby.kind, 'pack'); sim.interact(); assert.equal(S.mission.stage, 1); tele(sim, HQ.x, HQ.z); run(sim, 0.5); assert.ok(S.done.delivery === 1, 'にもつを とどけた');
+  tele(sim, S.mission.pk.x, S.mission.pk.z); assert.equal(S.nearby.kind, 'pack'); sim.interact(); assert.equal(S.mission.stage, 1); tele(sim, BASE.x, BASE.z); run(sim, 0.5); assert.ok(S.done.delivery === 1, 'にもつを とどけた');
   const s2 = mk(); const S2 = s2.state; tele(s2, MS('delivery').x, MS('delivery').z); s2.interact(); tele(s2, S2.mission.pk.x, S2.mission.pk.z); s2.interact(); run(s2, 105); assert.ok(!S2.mission && !S2.done.delivery, 'じかんぎれは しっぱい');
 }
 // ---- ノックアウト・ふっかつ・ひったくり ----
@@ -151,7 +151,7 @@ for (const planeId of ['plane', 'hawk']) {
 }
 // ---- スマホふうの そうさ: カメラきじゅんの いどう・ねらいロックで よこいどう・スティックで ダッシュ ----
 {
-  const sim = mk(); const S = sim.state; const P = S.player; const fy = freeYaw(P.x, P.z, 60); P.camYaw = fy; P.camFree = true; P.yaw = fy;
+  const sim = mk(); const S = sim.state; const P = S.player; P.x = HQ.x; P.z = HQ.z; const fy = freeYaw(P.x, P.z, 60); P.camYaw = fy; P.camFree = true; P.yaw = fy;
   const x0 = P.x; const z0 = P.z; sim.input.moveY = 0.5; run(sim, 1.5); const dF = Math.hypot(P.x - x0, P.z - z0); sim.input.moveY = 0; run(sim, 0.5);
   const spWalk = dF / 1.5; assert.ok(dF > 3, 'スティックを うえに たおすと カメラの むきに すすむ');
   sim.input.moveY = 1; run(sim, 1.2); const spMax = P.speed; sim.input.moveY = 0; run(sim, 0.5); assert.ok(spMax > spWalk * 1.3, 'ふかく たおすと ダッシュ');
