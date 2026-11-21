@@ -23,6 +23,13 @@ export function createSfx(isQuiet = () => false) {
     const g = a.createGain(); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
     src.connect(f); f.connect(g); g.connect(a.destination); src.start(t);
   };
+  // Higgsfield で つくった こうかおん(audio/sfx/*.mp3)。よみこむ まえは じさくの シンセの おとを つかう
+  const SFXF = ['shot_pistol', 'shot_smg', 'shot_sg', 'shot_rifle', 'shot_sniper', 'reload', 'dry', 'boom', 'bigboom', 'missile', 'hit', 'hitmark', 'siren', 'spray', 'coin', 'cash', 'door', 'jump', 'win', 'lose', 'click', 'bump', 'warn', 'sparkle'];
+  const ALIAS_F = { gun: 'shot_rifle', basehit: 'bump', evade: 'sparkle', spark: 'click', gem: 'sparkle', goal: 'win', save: 'click', pass: 'click' };
+  const VOL_F = { shot_pistol: 0.85, shot_smg: 0.7, shot_sg: 0.95, shot_rifle: 0.8, shot_sniper: 1, boom: 0.9, bigboom: 1, siren: 0.45, spray: 0.5, win: 0.7, lose: 0.7, click: 0.6, warn: 0.6 };
+  const bufs = {}; let loading = false;
+  const loadBufs = () => { if (loading) return; const a = A(); if (!a) return; loading = true; for (const n of SFXF) { fetch(`./audio/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((ab) => new Promise((res, rej) => a.decodeAudioData(ab, res, rej))).then((b) => { bufs[n] = b; }).catch(() => { /* ok */ }); } };
+  const playBuf = (b, n) => { const a = A(); if (!a) return; const src = a.createBufferSource(); src.buffer = b; const g = a.createGain(); g.gain.value = VOL_F[n] != null ? VOL_F[n] : 0.8; src.connect(g); g.connect(a.destination); src.start(); };
   const SOUNDS = {
     kick: () => { noise(0.06, 0.12); tone(150, 0.09, { to: 60, type: 'triangle', v: 0.09 }); },
     pass: () => tone(540, 0.04, { v: 0.022 }),
@@ -73,12 +80,12 @@ export function createSfx(isQuiet = () => false) {
   };
   let theme = null; let fileEl = null; let fileTimer = null;
   // フリー素材(CC0)の BGM ファイル(audio/LICENSE.txt)。ないテーマは じさくの シンセで なる
-  const FILES = { city: './audio/04_glass_maze.ogg', home: './audio/05_moss_garden.ogg' };
+  const FILES = { city: './audio/bgm/city.mp3', wanted: './audio/bgm/wanted.mp3', home: './audio/bgm/home.mp3', defense: './audio/bgm/defense.mp3' };
   const stopFile = () => { clearInterval(fileTimer); fileTimer = null; if (fileEl) { try { fileEl.pause(); } catch { /* ignore */ } fileEl = null; } };
   const MEL = [523, 0, 659, 0, 784, 659, 523, 0, 587, 0, 698, 0, 880, 698, 587, 0]; // ゆるい ドット ふう メロディ
   const BASS = [131, 131, 165, 165, 196, 196, 165, 165];
   return {
-    play(name) { if (isQuiet()) return; try { (SOUNDS[name] || (() => {}))(); } catch { /* おとが でなくても うごく */ } },
+    play(name) { if (isQuiet()) return; try { const f = ALIAS_F[name] || name; if (SFXF.includes(f)) { loadBufs(); const b = bufs[f]; if (b) { playBuf(b, f); return; } } (SOUNDS[name] || (() => {}))(); } catch { /* おとが でなくても うごく */ } },
     bgmStart() {
       if (bgmTimer) return; step = 0;
       bgmTimer = setInterval(() => {
