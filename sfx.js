@@ -46,6 +46,15 @@ export function createSfx(isQuiet = () => false) {
     spark: () => tone(1500, 0.05, { v: 0.02 }),
     win: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, { at: i * 0.12, v: 0.05 })); },
     lose: () => { [392, 330, 262].forEach((f, i) => tone(f, 0.25, { at: i * 0.18, type: 'triangle', v: 0.05 })); },
+    // ぶきごとの はっぽうおん(おもい・かるい・ながい よいん)
+    shot_pistol: () => { noise(0.07, 0.2, { freq: 1500 }); tone(190, 0.1, { to: 60, type: 'square', v: 0.09 }); noise(0.2, 0.06, { type: 'lowpass', freq: 900, at: 0.03 }); },
+    shot_smg: () => { noise(0.04, 0.15, { freq: 2300 }); tone(250, 0.05, { to: 120, type: 'square', v: 0.06 }); },
+    shot_sg: () => { noise(0.28, 0.26, { type: 'lowpass', freq: 1500 }); tone(95, 0.24, { to: 38, type: 'sawtooth', v: 0.14 }); noise(0.1, 0.18, { freq: 3200 }); noise(0.3, 0.07, { type: 'lowpass', freq: 600, at: 0.08 }); },
+    shot_rifle: () => { noise(0.09, 0.2, { freq: 1800 }); tone(150, 0.13, { to: 55, type: 'sawtooth', v: 0.1 }); noise(0.24, 0.07, { type: 'lowpass', freq: 800, at: 0.04 }); },
+    shot_sniper: () => { noise(0.15, 0.27, { freq: 1200 }); tone(110, 0.32, { to: 34, type: 'sawtooth', v: 0.16 }); noise(0.7, 0.08, { type: 'lowpass', freq: 500, at: 0.05 }); },
+    reload: () => { tone(300, 0.04, { type: 'square', v: 0.04 }); tone(520, 0.05, { at: 0.22, type: 'square', v: 0.04 }); noise(0.05, 0.07, { at: 0.45, freq: 3000 }); },
+    dry: () => tone(1200, 0.03, { type: 'square', v: 0.035 }),
+    hitmark: () => { tone(1700, 0.04, { type: 'triangle', v: 0.05 }); tone(2300, 0.05, { at: 0.04, type: 'triangle', v: 0.035 }); },
     // シティ
     click: () => tone(880, 0.04, { type: 'triangle', v: 0.03 }),
     cash: () => { tone(1320, 0.06, { v: 0.035 }); tone(1760, 0.12, { at: 0.06, v: 0.035 }); },

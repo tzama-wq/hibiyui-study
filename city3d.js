@@ -18,6 +18,7 @@ import { nearestRoadPoint } from './citymap.js';
 import { JOBS, JOB_LIST, SYMPTOMS } from './citysim.js';
 import { buildHouse } from './home3d.js';
 import * as HM from './cityhome.js';
+import { BODIES, OUTFITS, HATS, normLook } from './citylook.js';
 import { rankOf, jobLevel, jobNext, JOB_HOWTO, XP_PER_LV } from './cityquest.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = (s) => String(s).replace(/[<>&"]/g, '');
@@ -102,7 +103,7 @@ export async function startCity3D(o) {
     <div class="a3d-hud">
       <div class="a3d-bars"><div class="ab hp"><span>HP</span><i><u></u></i></div><div class="ab boost"><span>ダッシュ</span><i><u></u></i></div><div class="ab ms"><span>ミサイル</span><b></b></div><div class="c3d-coin">🪙 <b>0</b></div><div class="c3d-hits" hidden></div></div>
       <div class="a3d-top c3d-mis" hidden><div class="a3d-name"></div><div class="a3d-obj"></div></div>
-      <div class="c3d-track" hidden></div><div class="c3d-pinhud" hidden></div><div class="c3d-goal" hidden></div><div class="c3d-stars"></div><button class="c3d-help" aria-label="やりかた">？</button><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
+      <div class="c3d-track" hidden></div><div class="c3d-pinhud" hidden></div><div class="c3d-goal" hidden></div><div class="c3d-hitm" hidden>✕</div><div class="c3d-stars"></div><button class="c3d-help" aria-label="やりかた">？</button><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
       <canvas class="c3d-map" width="150" height="150"></canvas>
       <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button><button class="c3d-bigmapbtn" aria-label="ちず">🗺</button><button class="c3d-menubtn" aria-label="メニュー">☰</button><button class="c3d-wep" aria-label="ぶき"></button><div class="c3d-jobchip" hidden></div><button class="c3d-cancel" hidden>✖ ミッションを やめる</button>
     </div>
@@ -285,7 +286,8 @@ export async function startCity3D(o) {
 
   // ---- ものたち ----
   let heldId = ''; let heldM = null;
-  const me = (glbOn && A.person('casual', { height: 1.82 })) || makePerson(THREE, { shirt: '#3a3a3e', jacket: true, jacketColor: '#1c1d21', pants: '#4a5a34', cargo: true, boots: true, shoe: '#4a3020', sole: '#1a1612', hair: '#2a1c14', hairStyle: 0, stubble: true, scale: 1.0 }); if (me.userData.glb) me.userData.handR = me.userData.hand; scene.add(me); const vmodels = new Map();
+  const look = normLook(o.look); const bodyKey = (BODIES.find((b) => b.id === look.body) || BODIES[0]).key;
+  const me = (glbOn && A.person(bodyKey, { height: 1.82 })) || makePerson(THREE, { shirt: '#3a3a3e', jacket: true, jacketColor: '#1c1d21', pants: '#4a5a34', cargo: true, boots: true, shoe: '#4a3020', sole: '#1a1612', hair: '#2a1c14', hairStyle: 0, stubble: true, scale: 1.0 }); if (me.userData.glb) me.userData.handR = me.userData.hand; scene.add(me); const vmodels = new Map();
   const glbMe = (dt) => { const u = me.userData; const sp = Math.abs(P.speed); const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.hand.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.hand.add(heldM); }
     const moving = sp > 0.6; const ranged = !W.melee && W.id !== 'fist'; const aiming = sim.input.gun || sim.input.aimLock; let an; const rel = P.moveRel || 0;
     if (P.dead > 0) an = 'Death'; else if (P.chute) an = 'Idle'; else if (W.melee && S.swing > 0) an = 'Punch_Right';
@@ -335,7 +337,7 @@ export async function startCity3D(o) {
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let bgmCur = null;
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu'); const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const snap = () => ({ quest: S.qs, rpgXp: S.rpgXp, job: S.job, defLevel: S.defLevel, jobXp: S.jobXp, home: S.home, phone: S.hasPhone, coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned.filter((id) => !S.loaned.includes(id)), weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
+  const snap = () => ({ look, collect: S.coll, quest: S.qs, rpgXp: S.rpgXp, job: S.job, defLevel: S.defLevel, jobXp: S.jobXp, home: S.home, phone: S.hasPhone, coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned.filter((id) => !S.loaned.includes(id)), weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
   menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   const showHelp = () => { openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>❓ シティの あそびかた</h3><div class="hp">
@@ -350,7 +352,7 @@ export async function startCity3D(o) {
   try { if (!localStorage.getItem('city-help')) setTimeout(() => { if (!dead && !paused) showHelp(); }, 1200); } catch { /* ok */ }
   root.querySelector('.c3d-cancel').addEventListener('click', () => sim.cancelMission());
   root.querySelector('.c3d-wep').addEventListener('click', () => { if (!paused) openWeapons(); });
-  const bigmap = root.querySelector('.c3d-bigmap'); root.querySelector('.c3d-bigmapbtn').addEventListener('click', () => { bigmap.hidden = !bigmap.hidden; });
+  const bigmap = root.querySelector('.c3d-bigmap'); root.querySelector('.c3d-bigmapbtn').addEventListener('click', () => { bigmap.hidden = !bigmap.hidden; }); root.querySelector('.c3d-map').addEventListener('click', () => { if (!paused && P.dead <= 0) bigmap.hidden = false; });
   bigmap.querySelector('.bm-close').addEventListener('click', (e) => { e.stopPropagation(); bigmap.hidden = true; }); bigmap.querySelector('.bm-clear').addEventListener('click', (e) => { e.stopPropagation(); setPin(null); });
   // おおきな ちず: ピンチ/ホイールで ズーム・ドラッグで いどう・タップで ピン
   const bmv = { cx: 0, cz: 0, R: HALF + 40 }; const BM_RMAX = HALF + 40; const BM_RMIN = 100; const bmc = bigmap.querySelector('canvas'); const bmPtr = new Map(); let bmG = null;
@@ -457,10 +459,15 @@ export async function startCity3D(o) {
   const applyCostume = () => {
     if (!me.userData.glb) return; const J = JOBS[S.job] || JOBS.none;
     if (!costume.orig) { costume.orig = []; me.traverse((x) => { if (x.isMesh && x.material) { const ms = Array.isArray(x.material) ? x.material : [x.material]; for (const m of ms) if (m.color) costume.orig.push([m, m.color.getHex()]); } }); }
-    for (const [m, c] of costume.orig) m.color.setHex(c); if (J.tint) A.retint(me, J.tint);
+    for (const [m, c] of costume.orig) m.color.setHex(c); { const ot = OUTFITS.find((x) => x.id === look.outfit); const lt = J.tint || (ot && ot.shirt ? (look.body === 'dress' ? { Dress: ot.shirt } : { Shirt: ot.shirt, Pants: ot.pants }) : null); if (lt) A.retint(me, lt); }
     if (costume.hat && costume.hat.parent) costume.hat.parent.remove(costume.hat); costume.hat = null;
-    if (J.hat) { const head = me.getObjectByName('Head'); const hat = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: J.hat.color, roughness: 0.6 });
-      if (J.hat.kind === 'helmet') { const dome = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, 6.283, 0, Math.PI / 2), mat); dome.position.y = 0.06; hat.add(dome); const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.02, 14), mat); brim.position.y = 0.06; hat.add(brim); }
+    const H0 = J.hat || (look.hat !== 'none' ? HATS.find((x) => x.id === look.hat) : null);
+    if (H0) { const head = me.getObjectByName('Head'); const hat = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: H0.color, roughness: 0.6 });
+      if (H0.kind === 'beanie') { const dome = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, 6.283, 0, Math.PI / 2), mat); dome.position.y = 0.07; hat.add(dome); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), new THREE.MeshStandardMaterial({ color: '#fff' })); ball.position.y = 0.25; hat.add(ball); }
+      else if (H0.kind === 'headband') { const r = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.018, 6, 20), mat); r.rotation.x = Math.PI / 2; r.position.y = 0.12; hat.add(r); }
+      else if (H0.kind === 'ears') { for (const sx of [-0.07, 0.07]) { const e = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.03), mat); e.position.set(sx, 0.28, 0); e.rotation.z = -sx * 2.2; hat.add(e); } }
+      else if (H0.kind === 'crown') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.15, 0.08, 14), mat); b.position.y = 0.12; hat.add(b); for (let k = 0; k < 5; k++) { const t = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 6), mat); const a = (k / 5) * 6.283; t.position.set(Math.cos(a) * 0.12, 0.2, Math.sin(a) * 0.12); hat.add(t); } }
+      else if (H0.kind === 'helmet') { const dome = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, 6.283, 0, Math.PI / 2), mat); dome.position.y = 0.06; hat.add(dome); const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.02, 14), mat); brim.position.y = 0.06; hat.add(brim); }
       else { const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.16, 0.1, 14), mat); crown.position.y = 0.1; hat.add(crown); const brim = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.015, 0.12), mat); brim.position.set(0, 0.06, 0.15); hat.add(brim); }
       hat.traverse((o) => { if (o.isMesh) o.castShadow = shadowsOn; }); if (head) { const tv = new THREE.Vector3(); head.getWorldScale(tv); const sc = 1 / (tv.x || 1); hat.scale.setScalar(sc); hat.position.set(0, 0.1 * sc, 0.02 * sc); head.add(hat); } else { hat.position.y = 1.72; me.add(hat); } costume.hat = hat; }
   };
@@ -468,9 +475,9 @@ export async function startCity3D(o) {
   // ---- じたくに はいる(しょくぎょう・おへや・がいかん) ----
   const openHouse = () => {
     const draw = () => { const J = JOBS[S.job] || JOBS.none; const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`;
-      shopEl.innerHTML = `<div class="sh-box menu"><h3>🏠 じたく</h3><div class="sh-coin">🪙 ${P.coins}・Lv.${S.home.lv + 1} ${HM.HOME_LEVELS[S.home.lv].name}</div>${it('job', J.icon, 'しょくぎょうを えらぶ', `いま: ${J.name}`)}${it('room', '🛋️', 'おへやを つくる', `かぐ・かべがみ・ゆか(もちもの ${Object.values(S.home.inv).reduce((q, n) => q + n, 0)}こ)`)}${it('ext', '🏡', 'いえの がいかん・かくちょう', HM.houseOf(S.home.house).name)}${it('rest', '🛌', 'やすむ', 'HPが ぜんかいふく')}<button class="btn gray sh-x">とじる</button></div>`; };
+      shopEl.innerHTML = `<div class="sh-box menu"><h3>🏠 じたく</h3><div class="sh-coin">🪙 ${P.coins}・Lv.${S.home.lv + 1} ${HM.HOME_LEVELS[S.home.lv].name}</div>${it('job', J.icon, 'しょくぎょうを えらぶ', `いま: ${J.name}`)}${it('look', '👗', 'きがえ', 'からだ・ふく・ぼうし')}${it('room', '🛋️', 'おへやを つくる', `かぐ・かべがみ・ゆか(もちもの ${Object.values(S.home.inv).reduce((q, n) => q + n, 0)}こ)`)}${it('ext', '🏡', 'いえの がいかん・かくちょう', HM.houseOf(S.home.house).name)}${it('rest', '🛌', 'やすむ', 'HPが ぜんかいふく')}<button class="btn gray sh-x">とじる</button></div>`; };
     openModal(draw);
-    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act; if (a === 'job') openJobSelect(); else if (a === 'room') openRoom(); else if (a === 'ext') openExterior(); else if (a === 'rest') { P.hp = P.hpMax; S.msg = '🛌 ぐっすり ねて ぜんかいふく!'; S.msgT = 2.4; closeModal(); } };
+    shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act; if (a === 'job') openJobSelect(); else if (a === 'look') openLook(); else if (a === 'room') openRoom(); else if (a === 'ext') openExterior(); else if (a === 'rest') { P.hp = P.hpMax; S.msg = '🛌 ぐっすり ねて ぜんかいふく!'; S.msgT = 2.4; closeModal(); } };
   };
   const openJobSelect = (note = `しょくぎょうを えらぶと いしょうが かわって、のりものと しごとが もらえるよ。${JOB_HOWTO}`) => {
     const draw = (n2 = note) => { const rows = ['none', ...JOB_LIST].map((id) => { const J = JOBS[id]; const lv = jobLevel(S.jobXp[id]); return `<button class="sh-item ${S.job === id ? 'trk' : ''}" data-job="${id}"><span>${J.icon}</span><div><b>${esc(J.name)}${id !== 'none' ? ` <small style="display:inline">Lv.${lv} 「${esc(rankOf(id, S.jobXp[id]))}」</small>` : ''}</b><small>${esc(J.desc)}${id !== 'none' ? ` ・ つぎの Lvまで あと${jobNext(S.jobXp[id])}` : ''}</small></div><em>${S.job === id ? '✔ いま' : 'なる'}</em></button>`; }).join('');
@@ -539,13 +546,27 @@ export async function startCity3D(o) {
   };
   const openMenu = () => {
     const lv = S.lv || 0;
-    const draw = () => { const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`; shopEl.innerHTML = `<div class="sh-box menu"><h3>☰ メニュー</h3><div class="sh-coin">🪙 ${P.coins}${lv ? `・🚨 ${'★'.repeat(lv)} ばっきん 🪙${S.fine}` : ''}</div>${S.hasPhone ? it('phone', '📱', 'スマートフォン', 'もっている のりものを その場で よびだす') : ''}${it('equip', '👕', 'そうび', EQUIP_SLOTS.map(([k]) => { const e = equipOf(S.equip[k]); return e ? e.icon : '➖'; }).join(' ') + '・' + eqSummary())}${it('weapons', '🎒', 'ぶき', 'もっている ぶきを かえる')}${it('story', '📖', 'ストーリー・ランク', S.job === 'none' ? 'じたくで しょくぎょうを えらぶと はじまるよ' : `${(JOBS[S.job] || JOBS.none).name} Lv.${jobLevel(S.jobXp[S.job])} 「${rankOf(S.job, S.jobXp[S.job])}」`)}${it('job', '📚', 'おべんきょう', 'もんだいに こたえて コインを かせぐ')}${it('warp', '🏁', 'ファストトラベル', 'じたく・トレッサ・こうばん・とうろく(3かしょ)')}${it('map', '🗺', 'ちず', 'ピンを さして めざす')}${it('help', '❓', 'あそびかた', 'そうさの せつめい')}<button class="btn gray sh-x">とじる</button></div>`; };
+    const draw = () => { const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`; shopEl.innerHTML = `<div class="sh-box menu"><h3>☰ メニュー</h3><div class="sh-coin">🪙 ${P.coins}${lv ? `・🚨 ${'★'.repeat(lv)} ばっきん 🪙${S.fine}` : ''}</div>${S.hasPhone ? it('phone', '📱', 'スマートフォン', 'もっている のりものを その場で よびだす') : ''}${it('equip', '👕', 'そうび', EQUIP_SLOTS.map(([k]) => { const e = equipOf(S.equip[k]); return e ? e.icon : '➖'; }).join(' ') + '・' + eqSummary())}${it('weapons', '🎒', 'ぶき', 'もっている ぶきを かえる')}${it('look', '👗', 'きがえ', 'ふく・ぼうし・キャラ')}${it('story', '📖', 'ストーリー・ランク', S.job === 'none' ? 'じたくで しょくぎょうを えらぶと はじまるよ' : `${(JOBS[S.job] || JOBS.none).name} Lv.${jobLevel(S.jobXp[S.job])} 「${rankOf(S.job, S.jobXp[S.job])}」`)}${it('job', '📚', 'おべんきょう', 'もんだいに こたえて コインを かせぐ')}${it('warp', '🏁', 'ファストトラベル', 'じたく・トレッサ・こうばん・とうろく(3かしょ)')}${it('map', '🗺', 'ちず', 'ピンを さして めざす')}${it('help', '❓', 'あそびかた', 'そうさの せつめい')}<button class="btn gray sh-x">とじる</button></div>`; };
     openModal(draw);
     shopEl.onclick = (e) => {
       if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
       if (a === 'phone') openPhone(); else if (a === 'equip') openEquip(); else if (a === 'weapons') openWeapons(); else if (a === 'job') { if (P.dead <= 0) openJob(); else closeModal(); } else if (a === 'help') showHelp();
-      else if (a === 'story') openStory();
+      else if (a === 'story') openStory(); else if (a === 'look') openLook();
       else if (a === 'warp') openWarp(); else if (a === 'map') { closeModal(); bigmap.hidden = false; }
+    };
+  };
+  // ---- きがえ(からだ・ふく・ぼうし) ----
+  const openLook = () => {
+    const draw = (note = '') => {
+      const sec = (title, list, cur, kind) => `<div class="q-title">${title}</div>` + list.map((x) => { const own = kind === 'body' || look.owned.includes(x.id); return `<button class="sh-item ${cur === x.id ? 'trk' : ''}" data-look="${kind}:${x.id}"><span>${x.icon || '🧍'}</span><div><b>${esc(x.name)}</b><small>${own ? 'もっている' : '🪙 ' + x.price}</small></div><em>${cur === x.id ? '✔ きてる' : own ? 'きる' : 'かう'}</em></button>`; }).join('');
+      shopEl.innerHTML = `<div class="sh-box"><h3>👗 きがえ</h3><div class="sh-coin">🪙 ${P.coins}</div>${sec('からだ(かえると シティに はいりなおすよ)', BODIES, look.body, 'body')}${sec('ふく', OUTFITS, look.outfit, 'outfit')}${sec('ぼうし', HATS, look.hat, 'hat')}<div class="sh-note">${note || 'しょくぎょう ちゅうは しごとの ふくに なるよ'}</div><button class="btn gray sh-x">もどる</button></div>`;
+    };
+    openModal(draw);
+    shopEl.onclick = (e) => {
+      if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-look]'); if (!b) return; const [kind, id] = b.dataset.look.split(':'); const list = kind === 'body' ? BODIES : kind === 'outfit' ? OUTFITS : HATS; const it = list.find((x) => x.id === id); if (!it) return;
+      if (kind !== 'body' && !look.owned.includes(id)) { if (!sim.spend(it.price)) { draw('コインが たりないよ'); return; } look.owned.push(id); }
+      if (kind === 'body') { if (look.body === id) { draw(); return; } look.body = id; saveNow(); destroy(); if (o.onRestart) o.onRestart(); return; }
+      look[kind] = id; applyCostume(); saveNow(); draw(`${it.name}に きがえたよ!`);
     };
   };
   // ---- ストーリー・ランク ----
@@ -565,6 +586,7 @@ export async function startCity3D(o) {
         }
         body += `<small class="q-sub">${esc(JOB_HOWTO)}</small>`;
       }
+      { const cv = sim.collectView(); body += `<div class="q-title">🏅 やりこみ たっせいりつ ${cv.pct}% <small>(${cv.got}/${cv.total})</small></div><ul class="q-steps">` + cv.cats.map((c) => `<li class="${c.got >= c.total ? 'done' : 'cur'}">${c.icon} ${esc(c.name)} ${c.got}/${c.total}${c.got >= c.total ? ' ✅' : `<br><small>${esc(c.how)}</small>`}</li>`).join('') + '</ul>'; }
       const rl = sim.questView('none'); body += `<div class="q-rpg">⭐ プレイヤー Lv.${rl.rpgLv} <small>つぎの Lvまで あと ${rl.rpgNext}(HPが ふえるよ)</small></div>`;
       shopEl.innerHTML = `<div class="sh-box"><h3>📖 ストーリー・ランク</h3>${body}<button class="btn gray sh-x">もどる</button></div>`;
     };
@@ -640,6 +662,7 @@ export async function startCity3D(o) {
     if (S.tracked) { const w = S.wanted.find((x) => x.id === S.tracked); if (w && w.alive) { g.strokeStyle = '#fff'; g.lineWidth = rr * 0.5; g.beginPath(); g.arc(w.x, w.z, rr * (2.2 + Math.sin(tt * 6) * 0.5), 0, 6.283); g.stroke(); } }
     dot(GARAGE.x, GARAGE.z, '#ff9f43', rr * 1.1, true); dot(BOARD.x, BOARD.z, '#e8d9a0', rr * 1.0, true); dot(KOBAN.x, KOBAN.z, '#6aa8ff', rr * 1.0, true); dot(JOB.x, JOB.z, '#7fe7ff', rr, true); dot(SOCCER.x, SOCCER.z, '#9fe29f', rr * 1.1, true); for (const st of STORES) dot(st.x, st.z, '#ffb35a', rr * (st.id === 'tresa' || st.id === 'apita' ? 1.6 : 0.95), true);
     for (const v of S.vehicles) if (!v.occ && !v.temp) dot(v.x, v.z, '#6ab0ff', rr * 0.9, true);
+    for (const u of S.cnear) if (u.cat !== 'gold' || u.d < 150) dot(u.x, u.z, u.col, rr * 0.85);
     if (pin) { // ピン(ルートの ガイドせん つき)
       const pr = rot ? R / 26 : 7 * zk; g.save(); g.setLineDash([pr * 2.4, pr * 1.6]); g.strokeStyle = 'rgba(255,90,110,.9)'; g.lineWidth = pr * 0.45; g.beginPath(); g.moveTo(P.x, P.z); g.lineTo(pin.x, pin.z); g.stroke(); g.setLineDash([]);
       const dx = pin.x - P.x; const dz = pin.z - P.z; const dd = Math.hypot(dx, dz); let px = pin.x; let pz = pin.z; if (rot && dd > R * 0.82) { px = P.x + (dx / dd) * R * 0.82; pz = P.z + (dz / dd) * R * 0.82; }
@@ -672,15 +695,42 @@ export async function startCity3D(o) {
     { const gl = root.querySelector('.c3d-goal'); const G = S.goal; let ghtml = ''; if (G) { const dd = Math.hypot(G.x - P.x, G.z - P.z); let dA = Math.atan2(G.x - P.x, G.z - P.z) - P.yaw; while (dA > Math.PI) dA -= 2 * Math.PI; while (dA < -Math.PI) dA += 2 * Math.PI; const ar = Math.abs(dA) < 0.35 ? '⬆' : dA > 0 ? (Math.abs(dA) > 2.4 ? '⬇' : '⬅') : (Math.abs(dA) > 2.4 ? '⬇' : '➡'); ghtml = `🎯 つぎは: <b>${esc(G.label)}</b> ${ar} ${dd >= 1000 ? (dd / 1000).toFixed(1) + 'km' : Math.round(dd) + 'm'}`; goalMarker.visible = true; goalMarker.position.set(G.x, 0, G.z); } else { goalMarker.visible = false; if (S.qLock) ghtml = `🔒 しょくぎょう Lv.${S.qLock.need} で つぎの しょう(あと ${S.qLock.left})`; }
       if (gl.dataset.h !== ghtml) { gl.dataset.h = ghtml; gl.innerHTML = ghtml; gl.hidden = !ghtml; } }
     { const w = S.tracked ? S.wanted.find((x) => x.id === S.tracked) : null; hud.track.hidden = !w; if (w) hud.track.textContent = w.alive ? `🎯 ${w.name} 🪙${w.bounty} ・ ${Math.round(Math.hypot(w.x - P.x, w.z - P.z))}m` : `🎯 ${w.name}(いまは いないよ)`; }
-    drawMap(hud.map, 240, 150, true); if (!bigmap.hidden) drawMap(hud.big, bmv.R, 640, false, bmv.cx, bmv.cz);
+    { // ミニマップ: てき・もくてきが ちかい ときは すこし ズームして いちを わかりやすく
+      let near = 0; for (const c of S.crooks) { if (c.state === 'down') continue; if (!(c.wid || c.qtag || c.hunter || c.alert || c.task)) continue; const dd = Math.hypot(c.x - P.x, c.z - P.z); if (dd < 320) near++; } for (const c of S.traffic) if (c.cop && !(c.dead > 0) && Math.hypot(c.x - P.x, c.z - P.z) < 300) near++; if (S.jets.length || S.helis.length) near++; if (S.goal && Math.hypot(S.goal.x - P.x, S.goal.z - P.z) < 320) near++;
+      const tr = near ? 165 : 240; mmR += (tr - mmR) * 0.05; }
+    { const nowH = performance.now(); const dt = Math.min(0.05, (nowH - (hudT || nowH)) / 1000); hudT = nowH; const sh = S.shot; if (sh && sh.n !== shotSeen) { shotSeen = sh.n; flashT = 0.06; shakeT = 0.1; shakeA = Math.min(0.09, 0.012 + (sh.pw || 0.03) * 0.5) * (sh.cat === 'ショットガン' || sh.cat === 'スナイパー' ? 1.8 : 1); const dd0 = { x: Math.sin(P.camYaw != null ? P.camYaw : P.yaw), z: Math.cos(P.camYaw != null ? P.camYaw : P.yaw) }; muzzle.position.set(sh.x + dd0.x * 0.9, sh.y, sh.z + dd0.z * 0.9); const ms = (sh.cat === 'ショットガン' ? 1.8 : sh.cat === 'スナイパー' ? 2.1 : sh.cat === 'SMG' ? 0.9 : 1.3) * (0.85 + Math.random() * 0.3); muzzle.scale.set(ms, ms, 1); muzzle.material.rotation = Math.random() * 6.28; muzzleL.position.copy(muzzle.position); try { if (navigator.vibrate) navigator.vibrate(sh.cat === 'ショットガン' || sh.cat === 'スナイパー' ? 22 : 9); } catch { /* ignore */ } }
+      if (flashT > 0) { flashT -= dt; muzzle.visible = true; muzzleL.intensity = 6 * Math.max(0, flashT / 0.06); if (flashT <= 0) { muzzle.visible = false; muzzleL.intensity = 0; } } if (shakeT > 0) shakeT -= dt;
+      const hm = root.querySelector('.c3d-hitm'); if (S.hitT != null && S.hitT !== hitSeen) { hitSeen = S.hitT; hitmT = 0.16; } if (hitmT > 0) { hitmT -= dt; hm.hidden = false; hm.style.opacity = String(Math.min(1, hitmT / 0.1)); } else hm.hidden = true; }
+    { const pl = P.plat; for (const [k, g] of rooms) g.visible = !!(pl && pl.kind === 'shop' && pl.id === k); if (pl && pl.kind === 'shop' && !rooms.has(pl.id)) rooms.set(pl.id, buildRoom(pl)); }
+    drawMap(hud.map, mmR, 150, true); if (!bigmap.hidden) drawMap(hud.big, bmv.R, 640, false, bmv.cx, bmv.cz);
   }
   // ---- かく ----
-  const cam = { x: 0, y: 0, z: 0, init: false }; let tt = 0; let raf = 0; let last = 0; let acc = 0; let trailT = 0; let lastEffN = 0;
+  // うった かんじ: マズルフラッシュ・ライト・がめんの ゆれ・ヒットマーク・バイブ
+  const flashTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,230,1)'); gr.addColorStop(0.35, 'rgba(255,190,70,.85)'); gr.addColorStop(1, 'rgba(255,120,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+  const muzzle = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); muzzle.visible = false; muzzle.renderOrder = 8; scene.add(muzzle); const muzzleL = new THREE.PointLight(0xffb050, 0, 22); scene.add(muzzleL);
+  let hudT = 0; let shotSeen = 0; let shakeT = 0; let shakeA = 0; let flashT = 0; let hitSeen = -1; let hitmT = 0;
+  // おみせの なか(うえの そらに うかぶ ヘやに はいる しくみ)
+  const rooms = new Map();
+  const buildRoom = (pl) => {
+    const st = STORES.find((x) => x.id === pl.id); const g = new THREE.Group(); g.position.set(pl.cx, pl.y, pl.cz); const W = 18; const D = 14; const Hh = 4.6;
+    const mat = (c) => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.6 }); const box = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); g.add(m); return m; };
+    const pal = { tresa: [0xf3e9d8, 0xffd9a0], apita: [0xeaf2f6, 0xbfe0f0], conbini: [0xf4f4ee, 0x7fd6a4], drug: [0xfff0f0, 0xff9fb0], ramen: [0xe9d3b0, 0xd0583a], hobby: [0xeee6ff, 0xb08cff], military: [0xc9cfb8, 0x6c7a4a] }[st ? st.id : 'conbini'] || [0xf0f0f0, 0xffc15a];
+    box(W, 0.4, D, 0xb9a98c, 0, -0.2, 0); box(W, 0.2, D, pal[0], 0, Hh + 0.1, 0); box(W, Hh, 0.4, pal[0], 0, Hh / 2, -D / 2); box(0.4, Hh, D, pal[0], -W / 2, Hh / 2, 0); box(0.4, Hh, D, pal[0], W / 2, Hh / 2, 0); box(W / 2 - 1.5, Hh, 0.4, pal[0], -W / 4 - 0.75, Hh / 2, D / 2); box(W / 2 - 1.5, Hh, 0.4, pal[0], W / 4 + 0.75, Hh / 2, D / 2); box(3, 1.2, 0.4, pal[0], 0, Hh - 0.6, D / 2);
+    box(6.5, 1.15, 1.1, pal[1], 0, 0.58, -4); box(6.7, 0.1, 1.3, 0xffffff, 0, 1.2, -4);
+    for (let i = 0; i < 6; i++) { const x = -7.5 + i * 3; box(2.4, 2.6, 0.7, 0x8a6a48, x, 1.3, -D / 2 + 0.7); for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) box(0.45, 0.4, 0.4, [0xff6a6a, 0x6aa8ff, 0xffd23f, 0x7fe0a0][(i + r + c) % 4], x - 0.9 + c * 0.6, 0.45 + r * 0.8, -D / 2 + 0.7); }
+    for (const sx of [-6, 6]) { box(2.2, 1.0, 1.0, pal[1], sx, 0.5, 1); for (let c = 0; c < 3; c++) box(0.5, 0.4, 0.5, [0xff8a3a, 0x6ad0ff, 0xff6ab0][c], sx - 0.7 + c * 0.7, 1.2, 1); }
+    box(3, 0.05, 1.4, 0x3a9a5a, 0, 0.03, D / 2 - 0.9);
+    const lt = new THREE.PointLight(0xfff0d8, 40, 30); lt.position.set(0, Hh - 0.8, 0); g.add(lt); const lt2 = new THREE.PointLight(0xffffff, 15, 22); lt2.position.set(0, 2, 4); g.add(lt2);
+    const lb = labelSprite(THREE, st ? st.name : 'おみせ', '', '#ffd23f', 360); lb.position.set(0, 3.9, -D / 2 + 1); g.add(lb);
+    const clerk = mkNpc(900 + (st ? st.id.length : 1)); scene.remove(clerk); clerk.position.set(0, 0, -5.4); clerk.rotation.y = 0; g.add(clerk); if (clerk.userData && clerk.userData.play) clerk.userData.play('Idle', 0);
+    scene.add(g); return g;
+  };
+  const collM = new Map(); let mmR = 240; const cam = { x: 0, y: 0, z: 0, init: false }; let tt = 0; let raf = 0; let last = 0; let acc = 0; let trailT = 0; let lastEffN = 0;
     function syncScene(dt) {
     const v = sim.vehicleOf(); const kind = v ? v.kind : 'foot';
     // じぶん
     chuteM.visible = !!P.chute && !v && P.dead <= 0; if (chuteM.visible) { chuteM.position.set(P.x, P.y + 4.4, P.z); chuteM.rotation.y = P.yaw; chuteM.rotation.z = Math.sin(tt * 2) * 0.05; }
-    me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : 0, P.z); me.rotation.y = P.yaw; if (me.userData.glb) glbMe(dt); else { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.handR.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.handR.add(heldM); } if (W.melee) { if (S.swing > 0) { u.armR.rotation.x = -2.3 + (1 - S.swing / 0.25) * 2.6; } else u.armR.rotation.x = -0.5 + (sw > 0 ? 0 : 0); } else { const long = ['ライフル', 'SMG', 'マシンガン', 'スナイパー', 'ショットガン'].includes(W.cat); if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = long ? -1.4 : -1.3; } else if (!W.expl || W.range > 100) u.armR.rotation.x = Math.min(u.armR.rotation.x, -0.55); } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; poseLimbs(u); }
+    me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : P.plat ? P.plat.y : 0, P.z); me.rotation.y = P.yaw; if (me.userData.glb) glbMe(dt); else { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.handR.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.handR.add(heldM); } if (W.melee) { if (S.swing > 0) { u.armR.rotation.x = -2.3 + (1 - S.swing / 0.25) * 2.6; } else u.armR.rotation.x = -0.5 + (sw > 0 ? 0 : 0); } else { const long = ['ライフル', 'SMG', 'マシンガン', 'スナイパー', 'ショットガン'].includes(W.cat); if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = long ? -1.4 : -1.3; } else if (!W.expl || W.range > 100) u.armR.rotation.x = Math.min(u.armR.rotation.x, -0.55); } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; poseLimbs(u); }
     shield.visible = P.invuln > 0; shield.position.set(P.x, (v ? v.y : P.y) + (isAir(kind) ? 0 : 3), P.z); shield.scale.setScalar(kind === 'foot' ? 1 : isAir(kind) ? 3 : 4);
     // のりもの
     const vseen = new Set();
@@ -737,6 +787,8 @@ export async function startCity3D(o) {
       if (e.label) { e.label.visible = d < 160 && P.dead <= 0; e.label.position.set(c.x, (c.type === 'boss' ? 3.9 : 3.5) + (down ? -0.6 : 0), c.z); }
       e.cuff.visible = down && d < 60; e.cuff.position.set(c.x, 3.2, c.z); e.cuff.scale.setScalar(3.4 + Math.sin(tt * 6) * 0.4);
     }
+    { const seenC = new Set(); for (const u of S.cnear) { if (u.d > 150) continue; const key = u.cat + u.i; seenC.add(key); let m = collM.get(key); if (!m) { if (u.cat === 'gold') { m = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.75, 0.75), new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xc88a00, emissiveIntensity: 0.9, metalness: 0.7, roughness: 0.3 })); } else { m = iconSprite(THREE, u.icon, u.col); m.scale.set(u.cat === 'run' ? 3.6 : 2.4, u.cat === 'run' ? 3.6 : 2.4, 1); } scene.add(m); collM.set(key, m); } const bob = Math.sin(tt * 2.5 + u.i) * 0.25; if (u.cat === 'gold') { m.position.set(u.x, 1.7 + bob, u.z); m.rotation.y = tt * 1.6; } else m.position.set(u.x, (u.y || 0) + 1.9 + bob, u.z); }
+      for (const [k, m] of collM) if (!seenC.has(k)) { scene.remove(m); if (m.material) { if (m.material.map) m.material.map.dispose(); m.material.dispose(); } collM.delete(k); } }
     for (const [id, e] of crookM) if (!rseen.has(id)) { scene.remove(e.m); if (e.label) scene.remove(e.label); if (e.mark) scene.remove(e.mark); scene.remove(e.cuff); crookM.delete(id); }
     // ひろいもの
     const pseen = new Set(); for (const p of S.pickups) { if (Math.hypot(p.x - P.x, p.z - P.z) > 300) continue; pseen.add(p.id); let m = pickM.get(p.id); if (!m) { m = p.kind === 'drop' ? (() => { const g = new THREE.Group(); const sp = iconSprite(THREE, p.icon, p.col); sp.scale.set(3.6, 3.6, 1); g.add(sp); const bm = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 30, 8, 1, true), new THREE.MeshBasicMaterial({ color: p.col, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })); bm.position.y = 13; g.add(bm); return g; })() : p.kind === 'gem' ? new THREE.Mesh(new THREE.OctahedronGeometry(1.4), new THREE.MeshBasicMaterial({ color: '#7ff3ff' })) : new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.3, 16), new THREE.MeshBasicMaterial({ color: '#ffd23f' })); if (p.kind !== 'gem' && p.kind !== 'drop') m.rotation.x = Math.PI / 2; scene.add(m); pickM.set(p.id, m); } m.position.set(p.x, 1.8 + Math.sin(tt * 3 + p.id) * 0.3, p.z); if (p.kind !== 'drop') m.rotation.y = tt * 3; }
@@ -757,10 +809,10 @@ export async function startCity3D(o) {
     const f = { x: Math.sin(P.yaw) * Math.cos(P.pitch || 0), y: Math.sin(P.pitch || 0), z: Math.cos(P.yaw) * Math.cos(P.pitch || 0) };
     let bx; let by; let bz; let lx; let ly; let lz; const k = 1 - Math.exp(-8 * dt);
     if (isAir(kind)) { const dd = kind === 'jet' ? 30 : 26; bx = P.x - f.x * dd; by = P.y - f.y * dd + 7; bz = P.z - f.z * dd; lx = P.x + f.x * 90; ly = P.y + f.y * 90; lz = P.z + f.z * 90; }
-    else { const foot = kind === 'foot'; const cy = foot ? P.camYaw : kind === 'tank' || kind === 'ship' ? P.yaw + P.aimRel : P.yaw; const sh = foot ? 0.85 : 0; const rxs = -Math.cos(cy) * sh; const rzs = Math.sin(cy) * sh; const d = { foot: 5.4, car: 11, bike: 8, tank: 30, ship: 68 }[kind]; const h = { foot: 2.7, car: 4.6, bike: 3.8, tank: 15, ship: 30 }[kind]; bx = P.x - Math.sin(cy) * d + rxs; by = (P.chute ? P.y : 0) + h + (foot ? P.aimPitch * 2.2 : 0); bz = P.z - Math.cos(cy) * d + rzs; lx = P.x + Math.sin(cy) * 80 + rxs; ly = (P.chute ? P.y : 0) + (kind === 'foot' ? 2 : 6) + (foot || kind === 'tank' || kind === 'ship' ? Math.tan(P.aimPitch) * 80 : 0); lz = P.z + Math.cos(cy) * 80 + rzs; }
+    else { const foot = kind === 'foot'; const cy = foot ? P.camYaw : kind === 'tank' || kind === 'ship' ? P.yaw + P.aimRel : P.yaw; const sh = foot ? 0.7 : 0; const rxs = -Math.cos(cy) * sh; const rzs = Math.sin(cy) * sh; const d = { foot: 3.5, car: 7.6, bike: 5.6, tank: 24, ship: 56 }[kind]; const h = { foot: 2.0, car: 3.5, bike: 2.9, tank: 12, ship: 26 }[kind]; bx = P.x - Math.sin(cy) * d + rxs; by = (P.chute ? P.y : P.plat ? P.plat.y : 0) + h + (foot ? P.aimPitch * 2.2 : 0); bz = P.z - Math.cos(cy) * d + rzs; lx = P.x + Math.sin(cy) * 80 + rxs; ly = (P.chute ? P.y : P.plat ? P.plat.y : 0) + (kind === 'foot' ? 2 : 6) + (foot || kind === 'tank' || kind === 'ship' ? Math.tan(P.aimPitch) * 80 : 0); lz = P.z + Math.cos(cy) * 80 + rzs; }
     if (!cam.init) { cam.x = bx; cam.y = by; cam.z = bz; cam.init = true; } cam.x += (bx - cam.x) * k; cam.y += (by - cam.y) * k; cam.z += (bz - cam.z) * k;
     { const R2n = mobile ? 300 : 460; for (const tl of natureTiles) tl.visible = Math.hypot(tl.userData.cx - P.x, tl.userData.cz - P.z) < R2n + 130; }
-    { const gh = terrainH(P.x, P.z); const gc2 = terrainH(cam.x, cam.z); camera.position.set(cam.x, Math.max(2.2 + gc2, cam.y + gh), cam.z); camera.up.set(0, 1, 0); camera.lookAt(lx, ly + gh, lz); }
+    { const gh = terrainH(P.x, P.z); const gc2 = terrainH(cam.x, cam.z); camera.position.set(cam.x, Math.max(2.2 + gc2, cam.y + gh), cam.z); if (shakeT > 0) { const k2 = shakeT / 0.1; camera.position.x += (Math.random() - 0.5) * shakeA * k2 * 2; camera.position.y += (Math.random() - 0.5) * shakeA * k2 * 2; } camera.up.set(0, 1, 0); camera.lookAt(lx, ly + gh, lz); }
     sky.position.set(camera.position.x, 0, camera.position.z); sea.position.x = camera.position.x; sea.position.z = camera.position.z; sea.material.uniforms.time.value = tt;
     { const gh = terrainH(P.x, P.z); sun.position.set(P.x + sunDir.x * 300, gh + sunDir.y * 300, P.z + sunDir.z * 300); sun.target.position.set(P.x, gh, P.z); }
     fx.update(dt, renderer.domElement.height / (2 * Math.tan((camera.fov * Math.PI) / 360)));

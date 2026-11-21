@@ -375,4 +375,25 @@ for (const planeId of ['plane', 'hawk']) {
   const q2 = mk(); q2.setJob('police'); q2.state.fireT = 0; q2.step(0.05); assert.ok(!/かじだ/.test(q2.state.msg || ''), 'しょくぎょうに かんけいない かじの メッセージは なし');
   const q3 = mk(); q3.setJob('fire'); q3.state.fireT = 0; q3.step(0.05); assert.ok(q3.state.fires.length > 0, 'かじは おこる'); assert.ok(q3.state.goal && q3.state.goal.icon, 'もくてきが でる');
 }
+// ---- やりこみ(あつめる・スピードラン) ----
+{
+  const c0 = mk(); c0.step(0.5); const cv0 = c0.collectView(); assert.equal(cv0.cats.length, 6); assert.equal(cv0.got, 0); assert.equal(cv0.total, 67);
+  for (const cat of ['gold', 'cat', 'flower', 'bbq', 'run']) { const sp = c0.state.cnear.find((u) => u.cat === cat); if (sp) assert.ok(sp.d < 240); }
+  // ぜんぶの ばしょを じっさいに まわる(ゴールドは じどう・ほかは ボタン)
+  const c1 = mk(); let guard = 0; for (const cat of ['gold', 'cat', 'flower', 'bbq']) { for (let i = 0; i < 40 && guard++ < 400; i++) { c1.state.cT = 0; c1.step(0.05); const u = c1.state.cnear.find((x) => x.cat === cat); if (!u) { tele(c1, c1.state.player.x + 150, c1.state.player.z); continue; } tele(c1, u.x + 1, u.z); c1.state.cT = 0; c1.step(0.05); if (cat !== 'gold') { c1.step(0.05); if (c1.state.nearby && c1.state.nearby.kind === 'collect') c1.interact(); } } }
+  assert.ok(c1.collectView().got >= 1, 'あつめた');
+  const c2 = mk(); c2.step(0.05); const rn = (() => { for (let k = 0; k < 20; k++) { c2.state.cT = 0; c2.step(0.05); const u = c2.state.cnear.find((x) => x.cat === 'run'); if (u) return u; tele(c2, c2.state.player.x + 160 * (k % 2 ? 1 : -1), c2.state.player.z + 90 * (k % 3)); } return null; })();
+  if (rn) { tele(c2, rn.x, rn.z); c2.state.cT = 0; c2.step(0.05); c2.step(0.05); if (c2.state.nearby && c2.state.nearby.kind === 'collect') { c2.interact(); assert.ok(c2.state.run, 'ランが はじまる'); c2.step(0.05); assert.ok(c2.state.goal && c2.state.goal.icon === '🏁', 'ゴールが でる'); c2.state.run.t = 0.01; c2.step(0.2); assert.ok(!c2.state.run, 'じかんぎれ'); } }
+}
+// ---- おみせに はいる・おくじょうに のぼる ----
+{
+  const e0 = mk(); const st0 = STORES.find((x) => x.id === 'conbini'); tele(e0, st0.x, st0.z); e0.step(0.05); assert.equal(e0.state.nearby && e0.state.nearby.kind, 'enter', 'おみせに はいる');
+  e0.interact(); const P0 = e0.state.player; assert.ok(P0.plat && P0.plat.kind === 'shop' && P0.plat.y > 100, 'おみせの なか'); e0.step(0.05); assert.equal(e0.state.nearby.kind, 'leave', 'でぐち');
+  P0.x = P0.plat.cx; P0.z = P0.plat.cz - 3; e0.step(0.05); assert.equal(e0.state.nearby.kind, 'store', 'てんいんさん'); P0.x = 99999; e0.step(0.05); assert.ok(Math.abs(P0.x - P0.plat.cx) < 9, 'へやの そとに でない');
+  P0.x = P0.plat.cx; P0.z = P0.plat.cz + 6; e0.step(0.05); assert.equal(e0.state.nearby.kind, 'leave'); e0.interact(); assert.ok(!P0.plat && Math.hypot(P0.x - st0.x, P0.z - st0.z) < 40, 'そとに でた');
+  const e1 = mk(); tele(e1, st0.x, st0.z); e1.step(0.05); e1.state.lv = 1; e1.interact(); assert.ok(!e1.state.player.plat, 'てはい ちゅうは はいれない');
+  const e2 = mk(); const bt = LAYOUT.buildings.find((b) => b.h >= 14 && !isWater(b.cx, b.cz)); const lx = bt.cx; tele(e2, bt.cx + (bt.w / 2 + 1.2) * Math.cos(Math.atan2(bt.s, bt.c)) , bt.cz); e2.step(0.05);
+  if (e2.state.nearby && e2.state.nearby.kind === 'roof') { e2.interact(); assert.ok(e2.state.player.plat && e2.state.player.plat.kind === 'roof', 'おくじょう'); e2.step(0.05); assert.equal(e2.state.nearby.kind, 'leave'); e2.interact(); assert.ok(!e2.state.player.plat, 'おりた'); }
+  void lx;
+}
 console.log('OK: city');

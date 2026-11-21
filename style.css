@@ -883,3 +883,7 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .q-sub{display:block;opacity:.75;font-size:11px;margin:4px 0;line-height:1.5}.q-title{font-weight:900;font-size:15px;margin:8px 0 4px;color:#ffe14a}.q-say{font-size:13px;line-height:1.6;margin:4px 0}
 .q-steps{list-style:none;padding:0;margin:6px 0}.q-steps li{padding:4px 6px;font-size:13px;font-weight:700;opacity:.6}.q-steps li.cur{opacity:1;background:rgba(255,210,63,.18);border-radius:8px}.q-steps li.done{opacity:.8}
 .q-lock{background:rgba(255,255,255,.1);border-radius:8px;padding:6px 8px;font-size:12px;font-weight:800;margin:6px 0}.q-lock.ok{background:rgba(80,200,120,.25)}.q-rpg{margin-top:8px;font-weight:900;font-size:13px}
+
+.c3d-map{pointer-events:auto;cursor:pointer}
+
+.c3d-hitm{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;color:#fff;font-size:34px;font-weight:900;text-shadow:0 0 6px #f22,0 0 12px #f22}
