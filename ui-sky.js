@@ -5,7 +5,7 @@ import { VEHICLES, SLOTS, RARITY_NAME, RARITY_RANK, partOf, buildVehicle, autoLo
 import { pairUI, modal, closeModal } from './ui-net.js';
 import { startAir3D, startPreview, stopPreview } from './air3d.js';
 import { startCity3D } from './city3d.js';
-import { carStats, DEFAULT_OWNED, DEFAULT_WEAPONS } from './citysim.js';
+import { carStats, DEFAULT_OWNED, DEFAULT_WEAPONS, weaponOf, equipOf } from './citysim.js';
 import { normalizeHome } from './cityhome.js';
 import { normLook } from './citylook.js';
 import { defenseMission, JOBS as CJOBS, JSDF } from './cityjobs.js';
@@ -273,6 +273,12 @@ async function startCity(coop) {
       const prog = { a: Object.values(city.arrests || {}).filter((n) => n > 0).length, m: Object.entries(city.done || {}).filter(([kk]) => kk !== 'secret').reduce((q, [, n]) => q + n, 0), j: city.jobOk | 0 };
       AG = await startCity3D({ coop: coop || null, progress: prog, kidName: k.name, stats: ks, vehicles: { car: carStats(ks), tank: tank.V, ship: ship.V, plane: plane.V }, specs: { tank: tank.spec, ship: ship.spec, plane: plane.spec }, coins: city.coins, done: city.done, owned: city.owned, weapons: city.weapons, weapon: city.weapon, ammo: city.ammo, jobOk: city.jobOk, warps: city.warps, defLevel: city.defLevel, quest: city.quest, rpgXp: city.rpgXp, collect: city.collect, look: city.look, loadout: city.loadout, onRestart: () => startCity(), onDefense: (d) => startDefense(d), job: city.job, jobXp: city.jobXp, home: city.home, phone: city.phone, eqOwned: city.eqOwned, equip: city.equip, arrests: city.arrests, onSoccer: () => { AG = null; if (X.openSoccer) X.openSoccer(); else X.render(); }, getJobQuestion: (subj) => jobQuestion(k, subj), onJobDone: (r) => cityJob(r), calm: !!(X.cfg && X.cfg().calm), gentle: !!(X.cfg && X.cfg().gentle),
         onSfx: (n) => { if (!SFX) return; if (n.startsWith('bgm:')) SFX.bgmTheme(n.slice(4)); else if (map[n]) SFX.play(map[n]); },
+        onCoopLoot: (l) => { // きょうりょくで ひろった ぶき・ぼうぐを もちかえる
+          let nw = 0; let ne = 0; city.weapons = city.weapons || []; city.eqOwned = city.eqOwned || [];
+          for (const id of (l && l.w) || []) if (typeof id === 'string' && weaponOf(id) && !DEFAULT_WEAPONS.includes(id) && !city.weapons.includes(id)) { city.weapons.push(id); nw++; }
+          for (const id of (l && l.e) || []) { const e = equipOf(id); if (typeof id === 'string' && e && !(e.need && e.need.secret) && !city.eqOwned.includes(id)) { city.eqOwned.push(id); ne++; } }
+          if (nw || ne) { X.save(); X.toast(`なかまと ひろった ぶき ${nw}こ・ぼうぐ ${ne}こ を もちかえったよ!`); }
+        },
         onSave: (r) => { city.coins = r.coins; city.done = { ...r.done }; if (r.owned) city.owned = r.owned.filter((id) => !DEFAULT_OWNED.includes(id)); if (r.arrests) city.arrests = { ...r.arrests }; if (r.weapons) city.weapons = r.weapons.filter((id) => !DEFAULT_WEAPONS.includes(id)); if (r.weapon) city.weapon = r.weapon; if (r.ammo) city.ammo = JSON.parse(JSON.stringify(r.ammo)); if (r.jobOk != null) city.jobOk = r.jobOk | 0; if (Array.isArray(r.warps)) city.warps = r.warps.map((w) => (w ? { x: w.x, z: w.z, name: w.name } : null)); if (typeof r.job === 'string') city.job = r.job; if (r.jobXp) city.jobXp = { ...r.jobXp }; if (r.quest) city.quest = JSON.parse(JSON.stringify(r.quest)); if (r.rpgXp != null) city.rpgXp = r.rpgXp | 0; if (r.collect) city.collect = JSON.parse(JSON.stringify(r.collect)); if (r.look) city.look = normLook(r.look); if (Array.isArray(r.loadout)) city.loadout = r.loadout.slice(0, 5); if (r.defLevel) city.defLevel = Math.max(city.defLevel | 0, r.defLevel | 0); if (r.home) city.home = JSON.parse(JSON.stringify(r.home)); city.phone = !!r.phone; if (r.eqOwned) city.eqOwned = [...r.eqOwned]; if (r.equip) city.equip = { ...r.equip }; X.save(); },
         onBounty: (e) => cityBounty(e),
         onReward: (e) => cityReward(e),

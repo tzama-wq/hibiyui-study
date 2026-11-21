@@ -36,7 +36,7 @@ export function snapshotCity(sim, forPl) {
 }
 
 export function hostBindCity(sim, conn, onEvent) {
-  let pl = null; let alive = true; let acc = 0; const bestOf = {};
+  let pl = null; let alive = true; let acc = 0; let lastIv = ''; const bestOf = {};
   conn.on((m) => {
     if (!alive || !m) return;
     if (m.t === 'hello') { if (!pl) { pl = sim.addPlayer(String(m.n || 'ゲスト').slice(0, 8), m.inv || null); if (!pl) { conn.send({ t: 'full' }); return; } if (m.pr) { bestOf.pr = m.pr; recalc(); } conn.send({ t: 'hi', me: sim.state.players.indexOf(pl) }); if (onEvent) onEvent({ e: 'join', pl }); } return; }
@@ -47,13 +47,13 @@ export function hostBindCity(sim, conn, onEvent) {
   const recalc = () => { let b = null; if (bestOf.pr) b = bestOf.pr; sim.setCoopBest(b); };
   conn.onClose(() => { alive = false; if (pl) { sim.removePlayer(pl); if (onEvent) onEvent({ e: 'leave', pl }); pl = null; } });
   return {
-    tick(dt) { acc += dt; if (acc < 1 / 15 || !pl || !conn.isOpen()) return; acc = 0; conn.fast(snapshotCity(sim, pl)); sim.state.snd.length = 0; },
+    tick(dt) { acc += dt; if (acc < 1 / 15 || !pl || !conn.isOpen()) return; acc = 0; const sn = snapshotCity(sim, pl); const iv = JSON.stringify([pl.wOwned, pl.eqOwned]); if (iv !== lastIv) { lastIv = iv; sn.iv = [(pl.wOwned || []).slice(), (pl.eqOwned || []).slice()]; } conn.fast(sn); sim.state.snd.length = 0; },
     get player() { return pl; }, gone: () => !alive || !conn.isOpen(),
   };
 }
 
-export function guestBindCity(sim, conn, name, progress) {
-  const inv = { w: sim.state.wOwned.slice(), am: JSON.parse(JSON.stringify(sim.state.ammo || {})), wp: sim.state.player.weapon, eq: { ...sim.state.equip }, eo: sim.state.eqOwned.slice() };
+export function guestBindCity(sim, conn, name, progress, onLoot) {
+  const inv = { w: sim.state.wOwned.filter((id) => !(sim.state.loaned || []).includes(id)), am: JSON.parse(JSON.stringify(sim.state.ammo || {})), wp: sim.state.player.weapon, eq: { ...sim.state.equip }, eo: sim.state.eqOwned.slice() };
   const S = sim.state; const P = S.player; let me = 0; let got = false; let lastRx = 0; const store = {}; const smooth = {};
   const objs = { crooks: new Map(), traffic: new Map(), walkers: new Map(), civs: new Map(), vehicles: new Map(), jets: new Map(), helis: new Map() };
   const adopt = (k, rows) => { const keys = KEYS[k]; const list = dec(rows, keys); const mp = objs[k]; if (!mp) return list; const out = []; const seen = new Set(); for (const n of list) { let o = mp.get(n.id); seen.add(n.id); if (!o) { o = { ...n }; o.tx = n.x; o.tz = n.z; o.tyaw = n.yaw; mp.set(n.id, o); } else { const keep = { x: o.x, z: o.z, yaw: o.yaw }; Object.assign(o, n); o.tx = n.x; o.tz = n.z; o.tyaw = n.yaw; o.x = keep.x; o.z = keep.z; o.yaw = keep.yaw; if (Math.hypot(o.tx - o.x, o.tz - o.z) > 40) { o.x = o.tx; o.z = o.tz; o.yaw = o.tyaw; } } out.push(o); } for (const id of [...mp.keys()]) if (!seen.has(id)) mp.delete(id); return out; };
@@ -66,6 +66,7 @@ export function guestBindCity(sim, conn, name, progress) {
     const arr = m.pl.map((r, i) => { const o = {}; PL.forEach((k, j) => { o[k] = r[j]; }); o.name = m.pn[i]; o.y2 = m.pp[i]; return o; });
     if (!S.players || S.players.length !== arr.length) S.players = arr.map((o, i) => (i === me ? P : { ...o, tx: o.x, tz: o.z, tyaw: o.yaw }));
     arr.forEach((o, i) => { const tgt = S.players[i]; if (i === me) { const keep = { camYaw: P.camYaw, aimPitch: P.aimPitch, yaw: P.yaw }; const px = P.x; const pz = P.z; Object.assign(P, o); P.name = o.name; P.tx = o.x; P.tz = o.z; if (Math.hypot(o.x - px, o.z - pz) < 6 && P.mode === 'foot') { P.x = px + (o.x - px) * 0.5; P.z = pz + (o.z - pz) * 0.5; } P.camYaw = keep.camYaw; P.aimPitch = keep.aimPitch; if (o.mode !== 'foot') P.camYaw = o.camYaw; P.dead = o.dead; P.plat = o.y2 > 0 ? { y: o.y2, kind: 'roof' } : null; } else { const px = tgt.x; const pz = tgt.z; Object.assign(tgt, o); tgt.tx = o.x; tgt.tz = o.z; tgt.tyaw = o.yaw; tgt.x = Math.hypot(o.x - px, o.z - pz) > 30 ? o.x : px; tgt.z = Math.hypot(o.x - px, o.z - pz) > 30 ? o.z : pz; tgt.plat = o.y2 > 0 ? { y: o.y2, kind: 'roof' } : null; } });
+    if (m.iv && onLoot) { try { onLoot({ w: m.iv[0], e: m.iv[1] }); } catch { /* ok */ } }
     S.nearby = m.nb || null; if (m.am) { S.ammo = S.ammo || {}; S.ammo[P.weapon] = { mag: m.am[0], reserve: m.am[1] }; }
     for (const s of m.snd) if (S.snd.length < 24) S.snd.push(s);
   };

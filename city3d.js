@@ -113,7 +113,7 @@ export async function startCity3D(o) {
   // きょうりょく(3にん): ホスト=せかいを うごかす・ゲスト=そうさと えいぞう
   const coop = o.coop || null; const isGuest = !!(coop && coop.role === 'guest'); const hostBinds = []; let guestB = null; let coopGone = false;
   if (coop && coop.role === 'host') for (const c of coop.conns || []) hostBinds.push(hostBindCity(sim, c.conn));
-  if (isGuest) guestB = guestBindCity(sim, coop.conn, o.kidName, o.progress || null);
+  if (isGuest) guestB = guestBindCity(sim, coop.conn, o.kidName, o.progress || null, (l) => { if (o.onCoopLoot) o.onCoopLoot(l); });
   const root = document.createElement('div'); root.className = 'a3d c3d';
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
     <div class="a3d-hud">
