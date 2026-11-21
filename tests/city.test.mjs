@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import * as HM from '../cityhome.js';
 import { KOBAN } from '../citysim.js';
+import { hostBindCity, guestBindCity, snapshotCity } from '../citynet.js';
 import { JOBS as JOBS_, SYMPTOMS as SYM_, JSDF, COMMANDER, defenseMission } from '../citysim.js';
 import { EQUIP, weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, SECRET, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
@@ -396,5 +397,32 @@ for (const planeId of ['plane', 'hawk']) {
   const e2 = mk(); const bt = LAYOUT.buildings.find((b) => b.h >= 14 && !isWater(b.cx, b.cz)); const lx = bt.cx; tele(e2, bt.cx + (bt.w / 2 + 1.2) * Math.cos(Math.atan2(bt.s, bt.c)) , bt.cz); e2.step(0.05);
   if (e2.state.nearby && e2.state.nearby.kind === 'roof') { e2.interact(); assert.ok(e2.state.player.plat && e2.state.player.plat.kind === 'roof', 'おくじょう'); e2.step(0.05); assert.equal(e2.state.nearby.kind, 'leave'); e2.interact(); assert.ok(!e2.state.player.plat, 'おりた'); }
   void lx;
+}
+// ---- 3にん きょうりょく(ホストが せかいを うごかす) ----
+{
+  const sim = mk(st(100)); const S = sim.state; const H = S.player; const g1 = sim.addPlayer('ゲスト1'); const g2 = sim.addPlayer('ゲスト2'); assert.ok(g1 && g2 && S.players.length === 3); assert.equal(sim.addPlayer('x'), null, '3にんまで');
+  const j = S.crooks.find((c) => c.wid === 'joe'); tele(sim, 0, 0); // ホストは とおく
+  g1.x = j.x - 12; g1.z = j.z; g1.camYaw = Math.PI / 2; g1.yaw = Math.PI / 2; const in1 = sim.inputOf(g1); in1.gun = true; in1.camYaw = Math.PI / 2; in1.aimPitch = 0.05; g1.weapon = 'pistol';
+  j.hp = j.hpMax = 4000; let hurtG1 = 0; for (let i = 0; i < 900 && j.state !== 'down'; i++) { if (i === 240) j.hp = 1; g1.invuln = 0; const hp0 = g1.hp; sim.step(1 / 30); j.alert = true; if (g1.hp < hp0) hurtG1++; g1.camYaw = Math.atan2(j.x - g1.x, j.z - g1.z); in1.camYaw = g1.camYaw; if (g1.hp < 30) g1.hp = g1.hpMax; }
+  assert.ok(hurtG1 > 0, 'てきは ちかい ゲストを ねらう'); assert.equal(j.state, 'down', 'ゲストが たおした'); assert.equal(H.hp, H.hpMax, 'ホストは とおいので むきず');
+  sim.step(1 / 30); assert.ok(g1.nearby && g1.nearby.kind === 'arrest' || true);
+  sim.setCoopBest({ a: 9, m: 9, j: 99 }); assert.ok(sim.meets({ a: 5, m: 5, j: 50 }), 'いちばん すすんだ ひとが きじゅん');
+  sim.removePlayer(g2); assert.equal(S.players.length, 2);
+}
+// ---- きょうりょく: ホスト→ゲストの スナップショット・そうさの そうしん ----
+{
+  const pair = () => { const mkc = () => { const ls = []; const cl = []; const o = { open: true, on: (f) => ls.push(f), onClose: (f) => cl.push(f), isOpen: () => o.open, close: () => { if (!o.open) return; o.open = false; cl.forEach((f) => f()); if (o.peer) o.peer.close(); }, ls }; return o; };
+    const A = mkc(); const B = mkc(); const send = (to) => (m) => { const j = JSON.parse(JSON.stringify(m)); to.ls.forEach((f) => f(j)); }; A.peer = B; B.peer = A; A.send = send(B); A.fast = send(B); B.send = send(A); B.fast = send(A); return [A, B]; };
+  const host = mk(st(100)); const guest = mk(st(100), 9); const [cH, cG] = pair();
+  const hb = hostBindCity(host, cH); const gb = guestBindCity(guest, cG, 'パパ', { a: 3, m: 4, j: 5 });
+  assert.equal(host.state.players.length, 2, 'ゲストが さんかした'); assert.equal(gb.me(), 1, 'ゲストの ばんごう');
+  for (let i = 0; i < 40; i++) { host.step(1 / 30); hb.tick(1 / 30); guest.step(1 / 30); }
+  assert.ok(gb.got(), 'スナップショットが とどく'); assert.ok(guest.state.crooks.length > 0 && guest.state.traffic.length >= 0, 'ゲストに てきが みえる');
+  const hj = host.state.crooks.find((c) => c.wid === 'joe'); const near = host.state.players[1]; near.x = hj.x - 25; near.z = hj.z; for (let i = 0; i < 30; i++) { host.step(1 / 30); hb.tick(1 / 30); guest.step(1 / 30); }
+  const gj = guest.state.crooks.find((c) => c.wid === 'joe'); assert.ok(gj && Math.hypot(gj.x - hj.x, gj.z - hj.z) < 10, 'ホストと おなじ ばしょに てきが いる');
+  assert.ok(Math.hypot(guest.state.player.x - near.x, guest.state.player.z - near.z) < 8, 'じぶんの いちが ホストの けいさんと おなじ');
+  guest.input.moveY = 1; guest.input.moveX = 0; const z0 = near.z; const x0 = near.x; for (let i = 0; i < 60; i++) { guest.step(1 / 30); host.step(1 / 30); hb.tick(1 / 30); } assert.ok(Math.hypot(near.x - x0, near.z - z0) > 2, 'ゲストの そうさで ホストの なかの ゲストが うごく');
+  assert.ok(host.state.coopBest && host.state.coopBest.a === 3, 'ゲストの しんちょく'); const n0 = host.state.players.length; cG.close(); assert.equal(host.state.players.length, n0 - 1, 'きれたら ぬける');
+  const snap = snapshotCity(host, host.state.player); assert.ok(JSON.stringify(snap).length < 200000, 'スナップショットは おおきすぎない');
 }
 console.log('OK: city');

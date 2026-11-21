@@ -65,14 +65,15 @@ function tile(prims, scale, accent) {
   const key = prims; let url = cache.get(key + accent + scale); if (url) return url;
   try {
     const c = document.createElement('canvas'); c.width = 200; c.height = 100; const g = c.getContext('2d'); g.scale(2, 2);
-    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#2a3242'); bg.addColorStop(1, '#141a24'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
-    g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(0, 0, W, 2); g.strokeStyle = accent; g.globalAlpha = 0.55; g.lineWidth = 1.5; g.strokeRect(1, 1, W - 2, H - 2); g.globalAlpha = 1;
-    g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 3; g.shadowOffsetY = 1.5; drawPrims(g, prims, scale * 0.86, '#eef2f7'); g.shadowColor = 'transparent';
+    const steel = g.createLinearGradient(0, 8, 0, H - 8); steel.addColorStop(0, '#f2f5fa'); steel.addColorStop(0.5, '#b8c0cc'); steel.addColorStop(1, '#6f7889');
+    g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 3; g.shadowOffsetY = 2; drawPrims(g, prims, scale * 0.9, steel); g.shadowColor = 'transparent'; g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(255,255,255,.0)';
     url = c.toDataURL('image/png');
   } catch { url = ''; }
   cache.set(key + accent + scale, url); return url;
 }
 const RAR = ['#7a8aa6', '#5ac8ff', '#ffb02a', '#ff5aff'];
-export function weaponIconURL(w) { const shape = GUN[WSHAPE[w.id] || (w.melee ? 'knife' : w.expl ? 'rpg' : 'pistol')]; const tier = w.price >= 40000 ? 3 : w.price >= 14000 ? 2 : w.price >= 4000 ? 1 : 0; return tile(shape, SCALE[w.id] || 1, RAR[tier]); }
-export function equipIconURL(e) { const shape = EQ[ESHAPE[e.id] || (e.slot === 'body' ? 'jacket' : e.slot === 'feet' ? 'shoe' : 'cap')]; const tier = e.price >= 100000 ? 3 : e.price >= 15000 ? 2 : e.price >= 3000 ? 1 : 0; return tile(shape, 1, RAR[tier]); }
+// Higgsfield で つくった アイコン(textures/icons/)。ないものは したの じさく シルエット
+const GEN = new Set(['armor', 'assault', 'assaultsg', 'bat', 'bsuit', 'cap', 'carbine', 'crowbar', 'fist', 'goggle', 'hammer', 'headset', 'heavypistol', 'heavyrifle', 'heavysniper', 'hmask', 'hoodie', 'jersey', 'knife', 'lightning', 'machete', 'mg', 'pistol', 'pump', 'revolver', 'rider', 'rocket', 'runner', 'sawedoff', 'smg', 'sneaker', 'sniper', 'spike', 'tactical', 'turbo', 'u_boots', 'u_helm', 'u_suit', 'vest', 'visor']);
+export function weaponIconURL(w) { if (GEN.has(w.id)) return `./textures/icons/${w.id}.webp`; const shape = GUN[WSHAPE[w.id] || (w.melee ? 'knife' : w.expl ? 'rpg' : 'pistol')]; const tier = w.price >= 40000 ? 3 : w.price >= 14000 ? 2 : w.price >= 4000 ? 1 : 0; return tile(shape, SCALE[w.id] || 1, RAR[tier]); }
+export function equipIconURL(e) { if (GEN.has(e.id)) return `./textures/icons/${e.id}.webp`; const shape = EQ[ESHAPE[e.id] || (e.slot === 'body' ? 'jacket' : e.slot === 'feet' ? 'shoe' : 'cap')]; const tier = e.price >= 100000 ? 3 : e.price >= 15000 ? 2 : e.price >= 3000 ? 1 : 0; return tile(shape, 1, RAR[tier]); }
 export const iconImg = (url, cls = 'wi') => (url ? `<img class="${cls}" src="${url}" alt="" draggable="false">` : '');

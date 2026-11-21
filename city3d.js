@@ -1,6 +1,7 @@
 // 地球防衛隊「シティ」の 3Dがめん(three.js): じゆうに うごける まち。ルールは citysim.js。
 //   const g = await startCity3D({ kidName, stats, vehicles, specs, coins, done, calm, onSfx, onReward, onBuy, onQuit });
 import { STAIRS } from './citysim.js';
+import { hostBindCity, guestBindCity } from './citynet.js';
 import { createCity, LAYOUT, HALF, RIVER, BRIDGES, riverZ, AIRFIELD, PLAZA, HQ, BASE, SECRET, SQUARE, MICCA, MATSU, KOBAN, insideBuilding, COMMANDER, SPAWN, RAILS, STATION, STATION2, SCHOOL, SCHOOL_POLY, PARK3, PARK3_POLY, MALL_TRESA, MALL_APITA, SHRINE, SOCCER, SOCCER_ZONE, HOME, STORES, ITEMS, storeOf, railDist, roadsOf, roadSD, greens, pitches, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, JOB, CROOKS, DEFAULT_OWNED, WEAPONS, DEFAULT_WEAPONS, weaponOf, ammoSpec, needText, SPECIALS, EQUIP, EQUIP_SLOTS, equipOf, equipDesc } from './citysim.js';
 import { makeCarModel, makeBikeModel, makeAirModel, makeHeliModel, makeServiceVehicle, makePerson, makeWeaponModel, poseLimbs, townsPerson, crookPerson, labelSprite } from './citymodels3d.js';
 import { makeVehicleModel } from './vehicle3d.js';
@@ -89,6 +90,7 @@ function windowTex(THREE, base, seed) {
   const t = mk(c); t.userData.em = mk(e); return t;
 }
 const bmat = (THREE, tex, o = {}) => new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex.userData.em, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.8, metalness: 0.08, ...o });
+function nameSprite(THREE, text) { const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g = c.getContext('2d'); g.font = '900 34px "Zen Kaku Gothic New", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 7; g.strokeStyle = 'rgba(0,20,40,.9)'; g.strokeText(text, 128, 34); g.fillStyle = '#8ff0ff'; g.fillText(text, 128, 34); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, toneMapped: false })); sp.scale.set(3.6, 0.9, 1); sp.renderOrder = 9; return sp; }
 let THREAT_TEX = null;
 function threatTex(THREE) { if (THREAT_TEX) return THREAT_TEX; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#ff2a2a'; g.strokeStyle = '#fff'; g.lineWidth = 5; g.lineJoin = 'round'; g.beginPath(); g.moveTo(8, 10); g.lineTo(56, 10); g.lineTo(32, 56); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#fff'; g.font = '900 24px sans-serif'; g.textAlign = 'center'; g.fillText('!', 32, 36); THREAT_TEX = new THREE.CanvasTexture(c); return THREAT_TEX; }
 const KEEP_EMO = new Set(['⬆', '⬇', '⬅', '➡', '↔', '↑', '↓', '←', '→']);
@@ -107,6 +109,10 @@ export async function startCity3D(o) {
   if (ACTIVE) { try { ACTIVE.destroy(); } catch { /* ok */ } ACTIVE = null; }
   document.querySelectorAll('.c3d').forEach((e) => e.remove());
   const sim = createCity({ stats: o.stats, vehicles: o.vehicles, owned: o.owned && o.owned.length ? o.owned : DEFAULT_OWNED, weapons: o.weapons && o.weapons.length ? o.weapons : DEFAULT_WEAPONS, weapon: o.weapon || 'pistol', ammo: o.ammo || {}, jobOk: o.jobOk || 0, warps: o.warps || [], job: o.job || 'none', defLevel: o.defLevel || 1, jobXp: o.jobXp || {}, home: o.home || null, phone: !!o.phone, eqOwned: o.eqOwned || [], equip: o.equip || {}, arrests: o.arrests || {}, coins: o.coins || 0, gentle: !!o.gentle }); const S = sim.state; const P = S.player; S.done = { ...(o.done || {}) };
+  // きょうりょく(3にん): ホスト=せかいを うごかす・ゲスト=そうさと えいぞう
+  const coop = o.coop || null; const isGuest = !!(coop && coop.role === 'guest'); const hostBinds = []; let guestB = null; let coopGone = false;
+  if (coop && coop.role === 'host') for (const c of coop.conns || []) hostBinds.push(hostBindCity(sim, c.conn));
+  if (isGuest) guestB = guestBindCity(sim, coop.conn, o.kidName, o.progress || null);
   const root = document.createElement('div'); root.className = 'a3d c3d';
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
     <div class="a3d-hud">
@@ -371,7 +377,7 @@ export async function startCity3D(o) {
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let bgmCur = null;
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu'); const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const snap = () => ({ look, collect: S.coll, quest: S.qs, rpgXp: S.rpgXp, job: S.job, defLevel: S.defLevel, jobXp: S.jobXp, home: S.home, phone: S.hasPhone, coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned.filter((id) => !S.loaned.includes(id)), weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
+  const snap = () => ({ look, collect: S.coll, quest: S.qs, rpgXp: S.rpgXp, job: S.job, defLevel: S.defLevel, jobXp: S.jobXp, home: S.home, phone: S.hasPhone, coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned.filter((id) => !S.loaned.includes(id)), weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (isGuest) return; if (o.onSave) o.onSave(snap()); };
   menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   const showHelp = () => { openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>❓ シティの あそびかた</h3><div class="hp">
@@ -784,6 +790,7 @@ export async function startCity3D(o) {
     dot(GARAGE.x, GARAGE.z, '#ff9f43', rr * 1.1, true); dot(BOARD.x, BOARD.z, '#e8d9a0', rr * 1.0, true); dot(KOBAN.x, KOBAN.z, '#6aa8ff', rr * 1.0, true); dot(JOB.x, JOB.z, '#7fe7ff', rr, true); dot(SOCCER.x, SOCCER.z, '#9fe29f', rr * 1.1, true); for (const st of STORES) dot(st.x, st.z, '#ffb35a', rr * (st.id === 'tresa' || st.id === 'apita' ? 1.6 : 0.95), true);
     for (const v of S.vehicles) if (!v.occ && !v.temp) dot(v.x, v.z, '#6ab0ff', rr * 0.9, true);
     for (const u of S.cnear) if (u.cat !== 'gold' || u.d < 150) dot(u.x, u.z, u.col, rr * 0.85);
+    for (const pl of S.players || []) if (pl !== P && !(pl.dead > 0)) dot(pl.x, pl.z, '#7fe7ff', rr * 1.4);
     if (pin) { // ピン(ルートの ガイドせん つき)
       const pr = rot ? R / 26 : 7 * zk; g.save(); g.setLineDash([pr * 2.4, pr * 1.6]); g.strokeStyle = 'rgba(255,90,110,.9)'; g.lineWidth = pr * 0.45; g.beginPath(); g.moveTo(P.x, P.z); g.lineTo(pin.x, pin.z); g.stroke(); g.setLineDash([]);
       const dx = pin.x - P.x; const dz = pin.z - P.z; const dd = Math.hypot(dx, dz); let px = pin.x; let pz = pin.z; if (rot && dd > R * 0.82) { px = P.x + (dx / dd) * R * 0.82; pz = P.z + (dz / dd) * R * 0.82; }
@@ -854,12 +861,20 @@ export async function startCity3D(o) {
     const clerk = mkNpc(900 + (st ? st.id.length : 1)); scene.remove(clerk); clerk.position.set(0, 0, -5.4); clerk.rotation.y = 0; g.add(clerk); if (clerk.userData && clerk.userData.play) clerk.userData.play('Idle', 0);
     scene.add(g); return g;
   };
-  const collM = new Map(); let mmR = 240; const cam = { x: 0, y: 0, z: 0, init: false }; let tt = 0; let raf = 0; let last = 0; let acc = 0; let trailT = 0; let lastEffN = 0;
+  const pmap = new Map(); const collM = new Map(); let mmR = 240; const cam = { x: 0, y: 0, z: 0, init: false }; let tt = 0; let raf = 0; let last = 0; let acc = 0; let trailT = 0; let lastEffN = 0;
     function syncScene(dt) {
     const v = sim.vehicleOf(); const kind = v ? v.kind : 'foot';
     // じぶん
     chuteM.visible = !!P.chute && !v && P.dead <= 0; if (chuteM.visible) { chuteM.position.set(P.x, P.y + 4.4, P.z); chuteM.rotation.y = P.yaw; chuteM.rotation.z = Math.sin(tt * 2) * 0.05; }
     me.visible = !v && P.dead <= 0; me.position.set(P.x, P.chute ? P.y : P.plat ? P.plat.y : 0, P.z); if (lookMode) lookSpin += dt * 0.7; else lookSpin = 0; me.rotation.y = P.yaw + lookSpin; if (me.userData.glb) glbMe(dt); else { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.handR.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.handR.add(heldM); } if (W.melee) { if (S.swing > 0) { u.armR.rotation.x = -2.3 + (1 - S.swing / 0.25) * 2.6; } else u.armR.rotation.x = -0.5 + (sw > 0 ? 0 : 0); } else { const long = ['ライフル', 'SMG', 'マシンガン', 'スナイパー', 'ショットガン'].includes(W.cat); if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = long ? -1.4 : -1.3; } else if (!W.expl || W.range > 100) u.armR.rotation.x = Math.min(u.armR.rotation.x, -0.55); } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; poseLimbs(u); }
+    { // なかま(ほかの プレイヤー)
+      const others = (S.players || []).filter((pl) => pl !== P); const seenO = new Set();
+      others.forEach((pl, i) => { seenO.add(pl); let e = pmap.get(pl); if (!e) { const m = mkNpc(700 + i * 7 + (pl.name ? pl.name.length : 0)); const lb = nameSprite(THREE, pl.name || 'なかま'); scene.add(lb); e = { m, lb, lx: pl.x, lz: pl.z }; pmap.set(pl, e); }
+        const u = e.m.userData; const mv = Math.hypot(pl.x - e.lx, pl.z - e.lz) / Math.max(dt, 0.001); e.lx = pl.x; e.lz = pl.z; const show = pl.mode !== 'veh' && !(pl.dead > 0); e.m.visible = show; e.lb.visible = show; e.m.position.set(pl.x, pl.y2 || 0, pl.z); e.m.rotation.y = pl.yaw || 0; e.lb.position.set(pl.x, (pl.y2 || 0) + 2.7, pl.z);
+        if (u && u.glb && u.play) { u.play(mv > 4 ? 'Run' : mv > 0.6 ? 'Walk' : 'Idle', 0.2); if (u.mixer) u.mixer.update(dt); } });
+      for (const [pl, e] of pmap) if (!seenO.has(pl)) { scene.remove(e.m); scene.remove(e.lb); pmap.delete(pl); }
+      if (isGuest && guestB && guestB.lost() && !coopGone) { coopGone = true; S.msg = 'ホストと つながらなくなったよ'; S.msgT = 3; setTimeout(() => { destroy(); if (o.onQuit) o.onQuit(null); }, 2200); }
+    }
     shield.visible = P.invuln > 0; shield.position.set(P.x, (v ? v.y : P.y) + (isAir(kind) ? 0 : 3), P.z); shield.scale.setScalar(kind === 'foot' ? 1 : isAir(kind) ? 3 : 4);
     // のりもの
     const vseen = new Set();
@@ -950,10 +965,10 @@ export async function startCity3D(o) {
   const input_boost = () => sim.input.boost;
   function frame(ts) {
     if (dead) return; const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts; tt += dt;
-    if (!paused && !portrait) { acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); acc -= 1 / 60; } while (S.snd.length) { const nm = S.snd.shift(); if (o.onSfx) o.onSfx(nm); } { const th = S.ui === 'modal' ? 'home' : (S.lv || 0) > 0 ? 'wanted' : 'city'; if (th !== bgmCur) { bgmCur = th; if (o.onSfx) o.onSfx('bgm:' + th); } } for (const e of sim.takeEvents()) handleEvent(e); }
+    if (!paused && !portrait) { acc += dt; let n = 0; while (acc >= 1 / 60 && n++ < 4) { sim.step(1 / 60); for (const hb of hostBinds) hb.tick(1 / 60); acc -= 1 / 60; } while (S.snd.length) { const nm = S.snd.shift(); if (o.onSfx) o.onSfx(nm); } { const th = S.ui === 'modal' ? 'home' : (S.lv || 0) > 0 ? 'wanted' : 'city'; if (th !== bgmCur) { bgmCur = th; if (o.onSfx) o.onSfx('bgm:' + th); } } for (const e of sim.takeEvents()) handleEvent(e); }
     syncScene(dt); updateHud(); if (post) post.render(scene, camera, tt); else renderer.render(scene, camera); raf = requestAnimationFrame(frame);
   }
-  function destroy() { try { uiPolish.destroy(); } catch { /* ok */ }
+  function destroy() { try { uiPolish.destroy(); } catch { /* ok */ } try { if (isGuest && guestB) guestB.close(); else for (const c of (coop && coop.conns) || []) c.conn.close(); } catch { /* ok */ }
     if (dead) return; dead = true; cancelAnimationFrame(raf); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', resize); window.removeEventListener('orientationchange', resize);
     try { fx.dispose(); if (post) post.dispose(); renderer.dispose(); scene.traverse((ob) => { if (ob.geometry) ob.geometry.dispose(); if (ob.material) (Array.isArray(ob.material) ? ob.material : [ob.material]).forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); }); }); } catch { /* ok */ }
     root.remove(); document.body.style.overflow = prevOv; try { if (document.fullscreenElement) document.exitFullscreen(); if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch { /* ok */ }

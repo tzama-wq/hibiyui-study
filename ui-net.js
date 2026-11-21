@@ -12,7 +12,7 @@ export function modal(html, onClose) {
 const copy = async (t) => { try { await navigator.clipboard.writeText(t); return true; } catch { return false; } };
 
 // ペアリング: つながったら onConn(conn, role) 。やめたら onCancel()
-export function pairUI({ title, onConn, onCancel }) {
+export function pairUI({ title, onConn, onCancel, role: forceRole }) {
   let scanStop = null; let pending = null; let done = false;
   const stopAll = () => { if (scanStop) { scanStop(); scanStop = null; } if (pending && pending.cancel && !done) pending.cancel(); };
   const cancel = () => { stopAll(); closeModal(); if (onCancel) onCancel(); };
@@ -58,6 +58,6 @@ export function pairUI({ title, onConn, onCancel }) {
     box.querySelector('[data-n=go]').addEventListener('click', () => go(box.querySelector('.codein').value));
     box.querySelector('[data-n=scan]').addEventListener('click', () => { const v = box.querySelector('.scanv'); v.hidden = false; scanStop = scanQr(v, (t, err) => { v.hidden = true; if (t) go(t); else st.textContent = `カメラが つかえなかったよ(${err ? esc(err.message) : ''})`; }); });
   }
-  top();
+  if (forceRole === 'host') host(); else if (forceRole === 'guest') guest(); else top();
   return { cancel };
 }

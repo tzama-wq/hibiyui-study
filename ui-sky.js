@@ -73,6 +73,7 @@ export function skyHome(k, p) {
   return `<section class="panel sky-home"><h2 class="sec">EastRopeIslandCity <small>イースト ロープ アイランド シティ</small></h2>
     <div class="muted">しゅじんこうは ${esc(k.name)}! まちを じゆうに あるいて、のりものや しょくぎょうを たのしもう。サッカーの つよさも ひきつぐよ。</div>${res}
     <div class="netcard city main"><b>🏙️ シティへ でかける</b><div class="muted">くるま・バイク・せんしゃ・ふね・ひこうき・せんとうきに のりおり! 指名手配の 凶悪犯を たいほ。じたくで しょくぎょう(けいさつ・SWAT・しょうぼう・きゅうきゅう・じえいたい)を えらんで、おへやも つくろう。ガレージで のりものを かおう。</div><div class="muted">${jobNow.icon} ${esc(jobNow.name)} ・ 🪙 ${cty.coins || 0} ・ ミッション クリア ${Object.values(cty.done || {}).reduce((a2, b2) => a2 + b2, 0)}かい ・ たいほ ${Object.values(cty.arrests || {}).reduce((a2, b2) => a2 + b2, 0)}にん</div><button class="btn gold" data-act="citygo">🏙️ シティへ でかける</button></div>
+    <div class="netcard"><b>みんなで あそぶ(さいだい 3にん)</b><div class="muted">ホストの QRコードを ほかの ふたりが よみとると、いっしょに シティで たたかえるよ。ホストは パパが おすすめ。パパが いない ときは ふたりでも あそべるよ。</div><div class="row"><button class="btn gold" data-act="coophost">ホストに なる</button><button class="btn" data-act="coopjoin">さんかする</button></div></div>
     <div class="netcard def"><b>🎖️ 地球防衛隊 ぼうえい にんむ <em>Lv.${cty.defLevel || 1}</em></b><div class="muted">${inJsdf ? 'シティの きちに いる ちょうかんに はなしかけると すぐに ぼうえい にんむが はじまるよ。にんむは だんだん むずかしくなる! クリアするまで おわれないぞ。' : 'じえいたい(りく・うみ・そら)の しょくぎょうに なって、シティの きちの ちょうかんに はなしかけよう。にんむは おわりなく むずかしくなるよ。'}</div><div class="muted">さいこう きろく Lv.${cty.defBest || 0}</div></div>
     <h3 class="sec">MACHINE <small>のりものを えらぶ</small></h3>${vehicleTabs(sk)}
     <div class="sky-me"><b>${VEHICLES[sk.vehicle].icon} ${sk.names[sk.vehicle] ? esc(sk.names[sk.vehicle]) : `${esc(k.name)}の ${VEHICLES[sk.vehicle].name}`}</b> <em>パワー ${V.rating}</em>${bars(V)}
@@ -187,6 +188,8 @@ export function onSkyAct(a, el) {
     case 'skygo': startMission(el.dataset.m); return true;
     case 'netsky': openSkyNet(); return true;
     case 'citygo': startCity(); return true;
+    case 'coophost': coopHost(); return true;
+    case 'coopjoin': coopJoin(); return true;
     case 'skyclear': { delete sk.last; X.save(); X.render(); return true; }
     case 'skyslot': { sk.pick = sk.pick === el.dataset.slot ? null : el.dataset.slot; X.render(); return true; }
     case 'skyput': {
@@ -242,7 +245,24 @@ function lobby(conn, role, hello) {
 }
 
 // ---- シティ(じゆうに うごける まち) ------------------------------------------------------------
-async function startCity() {
+// ---- みんなで あそぶ(きょうりょく・さいだい 3にん): ホストの QRを ほかの ふたりが よみとる ----
+function coopHost() {
+  const conns = []; const k = X.kid();
+  const go = () => { closeModal(); for (const c of conns) { try { c.conn.send({ t: 'go', host: k.name }); } catch { /* ok */ } } startCity({ role: 'host', conns }); };
+  const more = () => { const box = modal(`<h3>つながったよ!(${conns.length}にん)</h3><p class="muted">もう ひとり さそう? それとも はじめる?</p><button class="btn gold" data-n="add">もうひとり さそう</button><button class="btn" data-n="go">はじめる</button><button class="btn gray" data-n="cancel">やめる</button>`, () => {});
+    box.querySelector('[data-n=add]').addEventListener('click', pairOne); box.querySelector('[data-n=go]').addEventListener('click', go); box.querySelector('[data-n=cancel]').addEventListener('click', () => { for (const c of conns) { try { c.conn.close(); } catch { /* ok */ } } closeModal(); }); };
+  const pairOne = () => pairUI({ title: `みんなで あそぶ: ${conns.length + 1}にんめを さそう`, role: 'host', onCancel: () => { if (conns.length) more(); }, onConn: (conn) => { conns.push({ conn }); if (conns.length >= 2) go(); else more(); } });
+  pairOne();
+}
+function coopJoin() {
+  pairUI({ title: 'みんなで あそぶ: さんかする', role: 'guest', onCancel: () => {}, onConn: (conn) => {
+    const box = modal('<h3>つながったよ!</h3><p class="muted">ホストが はじめるのを まっているよ…</p><button class="btn gray" data-n="cancel">やめる</button>', () => {}); let started = false;
+    box.querySelector('[data-n=cancel]').addEventListener('click', () => { try { conn.close(); } catch { /* ok */ } closeModal(); });
+    conn.on((m) => { if (m && m.t === 'go' && !started) { started = true; closeModal(); startCity({ role: 'guest', conn }); } });
+    conn.onClose(() => { if (!started) { closeModal(); X.toast('ホストと きれたよ'); } });
+  } });
+}
+async function startCity(coop) {
   if (STARTING) return false; STARTING = true;
   try {
     const k = X.kid(); const p = X.p(); const sk = ensureSky(p); const ks = G.kidStats(p); const city = sk.city;
@@ -250,7 +270,8 @@ async function startCity() {
     X.toast('🏙️ まちへ いくよ…'); SFX = SFX || createSfx(() => (X.quiet ? X.quiet() : false)); stopPreview();
     const map = { shot_pistol: 'shot_pistol', shot_smg: 'shot_smg', shot_sg: 'shot_sg', shot_rifle: 'shot_rifle', shot_sniper: 'shot_sniper', reload: 'reload', dry: 'dry', hitmark: 'hitmark', gun: 'gun', missile: 'missile', boom: 'boom', bigboom: 'bigboom', hit: 'hit', warn: 'warn', win: 'win', lose: 'lose', coin: 'cash', gem: 'sparkle', door: 'door', bump: 'hit', mission: 'warn', down: 'spark' };
     try {
-      AG = await startCity3D({ kidName: k.name, stats: ks, vehicles: { car: carStats(ks), tank: tank.V, ship: ship.V, plane: plane.V }, specs: { tank: tank.spec, ship: ship.spec, plane: plane.spec }, coins: city.coins, done: city.done, owned: city.owned, weapons: city.weapons, weapon: city.weapon, ammo: city.ammo, jobOk: city.jobOk, warps: city.warps, defLevel: city.defLevel, quest: city.quest, rpgXp: city.rpgXp, collect: city.collect, look: city.look, onRestart: () => startCity(), onDefense: (d) => startDefense(d), job: city.job, jobXp: city.jobXp, home: city.home, phone: city.phone, eqOwned: city.eqOwned, equip: city.equip, arrests: city.arrests, onSoccer: () => { AG = null; if (X.openSoccer) X.openSoccer(); else X.render(); }, getJobQuestion: (subj) => jobQuestion(k, subj), onJobDone: (r) => cityJob(r), calm: !!(X.cfg && X.cfg().calm), gentle: !!(X.cfg && X.cfg().gentle),
+      const prog = { a: Object.values(city.arrests || {}).filter((n) => n > 0).length, m: Object.entries(city.done || {}).filter(([kk]) => kk !== 'secret').reduce((q, [, n]) => q + n, 0), j: city.jobOk | 0 };
+      AG = await startCity3D({ coop: coop || null, progress: prog, kidName: k.name, stats: ks, vehicles: { car: carStats(ks), tank: tank.V, ship: ship.V, plane: plane.V }, specs: { tank: tank.spec, ship: ship.spec, plane: plane.spec }, coins: city.coins, done: city.done, owned: city.owned, weapons: city.weapons, weapon: city.weapon, ammo: city.ammo, jobOk: city.jobOk, warps: city.warps, defLevel: city.defLevel, quest: city.quest, rpgXp: city.rpgXp, collect: city.collect, look: city.look, onRestart: () => startCity(), onDefense: (d) => startDefense(d), job: city.job, jobXp: city.jobXp, home: city.home, phone: city.phone, eqOwned: city.eqOwned, equip: city.equip, arrests: city.arrests, onSoccer: () => { AG = null; if (X.openSoccer) X.openSoccer(); else X.render(); }, getJobQuestion: (subj) => jobQuestion(k, subj), onJobDone: (r) => cityJob(r), calm: !!(X.cfg && X.cfg().calm), gentle: !!(X.cfg && X.cfg().gentle),
         onSfx: (n) => { if (!SFX) return; if (n.startsWith('bgm:')) SFX.bgmTheme(n.slice(4)); else if (map[n]) SFX.play(map[n]); },
         onSave: (r) => { city.coins = r.coins; city.done = { ...r.done }; if (r.owned) city.owned = r.owned.filter((id) => !DEFAULT_OWNED.includes(id)); if (r.arrests) city.arrests = { ...r.arrests }; if (r.weapons) city.weapons = r.weapons.filter((id) => !DEFAULT_WEAPONS.includes(id)); if (r.weapon) city.weapon = r.weapon; if (r.ammo) city.ammo = JSON.parse(JSON.stringify(r.ammo)); if (r.jobOk != null) city.jobOk = r.jobOk | 0; if (Array.isArray(r.warps)) city.warps = r.warps.map((w) => (w ? { x: w.x, z: w.z, name: w.name } : null)); if (typeof r.job === 'string') city.job = r.job; if (r.jobXp) city.jobXp = { ...r.jobXp }; if (r.quest) city.quest = JSON.parse(JSON.stringify(r.quest)); if (r.rpgXp != null) city.rpgXp = r.rpgXp | 0; if (r.collect) city.collect = JSON.parse(JSON.stringify(r.collect)); if (r.look) city.look = normLook(r.look); if (r.defLevel) city.defLevel = Math.max(city.defLevel | 0, r.defLevel | 0); if (r.home) city.home = JSON.parse(JSON.stringify(r.home)); city.phone = !!r.phone; if (r.eqOwned) city.eqOwned = [...r.eqOwned]; if (r.equip) city.equip = { ...r.equip }; X.save(); },
         onBounty: (e) => cityBounty(e),
