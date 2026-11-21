@@ -850,7 +850,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   function stepWorld(dt) {
     stepJobs(dt); stepQuest(); stepCollect(dt);
     if (S.pickups.some((p) => p.life != null)) S.pickups = S.pickups.filter((p) => p.life == null || (p.life -= dt) > 0);
-    for (const pl of players) { P = pl; for (const p of S.pickups.slice()) if (P.dead <= 0 && S.pickups.includes(p) && hyp(p.x - P.x, p.z - P.z) < (P.mode === 'veh' ? 7 : p.kind === 'drop' ? 4.5 : 3) && (P.y < 12 || P.mode === 'foot')) { S.pickups = S.pickups.filter((x) => x !== p); if (p.kind === 'drop') applyDrop(p.drop); else if (p.kind === 'gem') { ev({ t: 'gem', v: 1 }); snd('gem'); msg('💎 ほうせきを みつけた!', 2); P.coins += p.v; S.stats.coins += p.v; } else { P.coins += p.v; S.stats.coins += p.v; snd('coin'); } } } P = HOST;
+    for (const pl of players) { P = pl; const svp = swapIn(pl); for (const p of S.pickups.slice()) if (P.dead <= 0 && S.pickups.includes(p) && hyp(p.x - P.x, p.z - P.z) < (P.mode === 'veh' ? 7 : p.kind === 'drop' ? 4.5 : 3) && (P.y < 12 || P.mode === 'foot')) { S.pickups = S.pickups.filter((x) => x !== p); if (p.kind === 'drop') applyDrop(p.drop); else if (p.kind === 'gem') { ev({ t: 'gem', v: 1 }); snd('gem'); msg('💎 ほうせきを みつけた!', 2); P.coins += p.v; S.stats.coins += p.v; } else { P.coins += p.v; S.stats.coins += p.v; snd('coin'); } } swapOut(svp, pl); } P = HOST;
     S.relocT = (S.relocT || 0) + dt; const fire = P.mode === 'foot' && (input.gun || P.wCd > 0.1) && (weaponOf(P.weapon) || {}).range > 5;
     for (const w of S.walkers) { if (w.dead > 0) { w.dead -= dt; if (w.dead <= 0) { w.hp = 40; w.idle = false; w.scared = 0; if (!(S.relocWalker && S.relocWalker(w))) w.dead = 3; } continue; } if (w.idle) { if (fire && hyp(w.x - P.x, w.z - P.z) < 30) { w.idle = false; w.scared = 6; w.relocFlee = true; if (S.relocWalker) S.relocWalker(w); w.spd = 1.8; } continue; } if (!w.path) continue;
       if (S.relocT > 0.4 && hyp(w.x - P.x, w.z - P.z) > 300) { if (S.relocWalker(w)) { S.relocT = 0; } }
@@ -1027,15 +1027,18 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     const dt = Math.min(dtIn, 1 / 20); S.t += dt; if (S.msgT > 0) S.msgT -= dt; if (S.bannerT > 0) S.bannerT -= dt;
     for (let i = S.effects.length - 1; i >= 0; i--) { S.effects[i].t += dt; if (S.effects[i].t > S.effects[i].life) S.effects.splice(i, 1); }
     S.tracers = S.tracers.filter((tr) => { tr.t += dt; return tr.t < 0.1; });
-    for (let k = players.length - 1; k >= 0; k--) { P = players[k]; input = inputs[k]; const alive = stepPlayer(dt, k > 0); if (k === 0 && !alive) { P = HOST; input = HOST_IN; stepCrooks(dt); return; } }
+    for (let k = players.length - 1; k >= 0; k--) { P = players[k]; input = inputs[k]; const sv = swapIn(P); const alive = stepPlayer(dt, k > 0); swapOut(sv, P); if (k === 0 && !alive) { P = HOST; input = HOST_IN; stepCrooks(dt); return; } }
     P = HOST; input = HOST_IN;
     stepCrooks(dt); stepMissiles(dt); stepWorld(dt); stepMission(dt);
   }
   // ---- きょうりょく(3にん): ホストが せかいを うごかし、ゲストは そうさを おくる ----
   const GUEST_OK = ['veh', 'tcar', 'exit', 'arrest', 'collect'];
-  const as = (pl, fn) => { if (!players.includes(pl)) return undefined; const k = players.indexOf(pl); P = pl; input = inputs[k]; try { return fn(); } finally { P = HOST; input = HOST_IN; } };
-  const addPlayer = (name = 'ゲスト') => {
-    if (players.length >= 3) return null; const g = JSON.parse(JSON.stringify(HOST)); g.name = name; g.mode = 'foot'; g.veh = null; g.dead = 0; g.hp = g.hpMax; g.invuln = 3; g.x = SPAWN.x + players.length * 3; g.z = SPAWN.z; g.y = 0; g.yaw = 0; g.camYaw = 0; g.speed = 0; g.plat = null; g.coins = 0; g.target = null; g.nearby = null; g.reload = 0; g.wCd = 0; g.weapon = S.wOwned.includes(HOST.weapon) ? HOST.weapon : 'pistol';
+  // ゲストは じぶんの ぶき・たまを つかう(ホストの もちものを つかわない)
+  const swapIn = (pl) => { if (pl === HOST) return null; const sv = { o: S.wOwned, a: S.ammo }; S.wOwned = pl.wOwned || ['pistol']; S.ammo = pl.ammo || {}; return sv; };
+  const swapOut = (sv, pl) => { if (!sv) return; pl.wOwned = S.wOwned; pl.ammo = S.ammo; S.wOwned = sv.o; S.ammo = sv.a; };
+  const as = (pl, fn) => { if (!players.includes(pl)) return undefined; const k = players.indexOf(pl); P = pl; input = inputs[k]; const sv = swapIn(pl); try { return fn(); } finally { swapOut(sv, pl); P = HOST; input = HOST_IN; } };
+  const addPlayer = (name = 'ゲスト', inv = null) => {
+    if (players.length >= 3) return null; const g = JSON.parse(JSON.stringify(HOST)); g.name = name; g.mode = 'foot'; g.veh = null; g.dead = 0; g.hp = g.hpMax; g.invuln = 3; g.x = SPAWN.x + players.length * 3; g.z = SPAWN.z; g.y = 0; g.yaw = 0; g.camYaw = 0; g.speed = 0; g.plat = null; g.coins = 0; g.target = null; g.nearby = null; g.reload = 0; g.wCd = 0; const gw = inv && Array.isArray(inv.w) ? inv.w.filter((id) => typeof id === 'string' && weaponOf(id)).slice(0, 60) : []; g.wOwned = [...new Set(['pistol', ...gw])]; g.ammo = {}; if (inv && inv.am && typeof inv.am === 'object') for (const id of g.wOwned) { const a = inv.am[id]; const sp = ammoSpec(weaponOf(id)); if (a && sp) g.ammo[id] = { mag: Math.min(sp.mag, a.mag | 0), reserve: Math.min(sp.cap, a.reserve | 0) }; } g.weapon = inv && g.wOwned.includes(inv.wp) ? inv.wp : 'pistol';
     players.push(g); inputs.push({ turn: 0, climb: 0, moveX: 0, moveY: 0, autoAim: true, aimLock: false, gun: false, boost: false, aimX: 0, aimY: 0 }); msg(`${name} が さんかしたよ!`, 3); return g;
   };
   const removePlayer = (pl) => { const k = players.indexOf(pl); if (k <= 0) return; if (pl.veh) as(pl, () => leave()); players.splice(k, 1); inputs.splice(k, 1); };

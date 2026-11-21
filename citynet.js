@@ -30,7 +30,7 @@ export function snapshotCity(sim, forPl) {
   for (const [k, keys] of Object.entries(KEYS)) { let a = S[k] || []; if (NEAR.has(k)) a = a.filter(near); m[k] = enc(a, keys); }
   m.tracers = (S.tracers || []).map((t) => [r1(t.from.x), r1(t.from.y), r1(t.from.z), r1(t.to.x), r1(t.to.y), r1(t.to.z), r2(t.t)]);
   m.pl = pls.map((p) => PL.map((k) => (k === 'plat' ? 0 : rnd(p[k])))); m.pn = pls.map((p) => p.name || ''); m.pp = pls.map((p) => (p.plat ? p.plat.y : 0));
-  if (forPl) { m.me = pls.indexOf(forPl); const A = (S.ammo || {})[forPl.weapon]; m.am = A ? [A.mag, A.reserve] : null; m.nb = forPl.nearby ? { kind: forPl.nearby.kind, id: forPl.nearby.id, label: forPl.nearby.label } : null; }
+  if (forPl) { m.me = pls.indexOf(forPl); const A = ((forPl === pls[0] ? S.ammo : forPl.ammo) || {})[forPl.weapon]; m.am = A ? [A.mag, A.reserve] : null; m.nb = forPl.nearby ? { kind: forPl.nearby.kind, id: forPl.nearby.id, label: forPl.nearby.label } : null; }
   m.snd = (S.snd || []).slice(0, 12);
   return m;
 }
@@ -39,7 +39,7 @@ export function hostBindCity(sim, conn, onEvent) {
   let pl = null; let alive = true; let acc = 0; const bestOf = {};
   conn.on((m) => {
     if (!alive || !m) return;
-    if (m.t === 'hello') { if (!pl) { pl = sim.addPlayer(String(m.n || 'ゲスト').slice(0, 8)); if (!pl) { conn.send({ t: 'full' }); return; } if (m.pr) { bestOf.pr = m.pr; recalc(); } conn.send({ t: 'hi', me: sim.state.players.indexOf(pl) }); if (onEvent) onEvent({ e: 'join', pl }); } return; }
+    if (m.t === 'hello') { if (!pl) { pl = sim.addPlayer(String(m.n || 'ゲスト').slice(0, 8), m.inv || null); if (!pl) { conn.send({ t: 'full' }); return; } if (m.pr) { bestOf.pr = m.pr; recalc(); } conn.send({ t: 'hi', me: sim.state.players.indexOf(pl) }); if (onEvent) onEvent({ e: 'join', pl }); } return; }
     if (!pl) return; const I = sim.inputOf(pl); if (!I) return;
     if (m.t === 'in' && m.i) { I.moveX = +m.i[0] || 0; I.moveY = +m.i[1] || 0; I.aimX = +m.i[2] || 0; I.aimY = +m.i[3] || 0; I.gun = !!m.i[4]; I.boost = !!m.i[5]; I.aimLock = !!m.i[6]; I.autoAim = m.i[7] !== 0; I.camYaw = typeof m.cy === 'number' ? m.cy : null; I.aimPitch = typeof m.ap === 'number' ? m.ap : null; I.turn = +m.i[8] || 0; I.climb = +m.i[9] || 0; }
     else if (m.t === 'ev') { if (m.e === 'jump') I.jump = true; else if (m.e === 'interact') sim.interactFor(pl); else if (m.e === 'reload') sim.as(pl, () => sim.reload && sim.reload()); else if (m.e === 'cycle') sim.as(pl, () => sim.cycleWeapon && sim.cycleWeapon(1)); else if (m.e === 'equip') sim.as(pl, () => sim.equip && sim.equip(String(m.id))); }
@@ -53,6 +53,7 @@ export function hostBindCity(sim, conn, onEvent) {
 }
 
 export function guestBindCity(sim, conn, name, progress) {
+  const inv = { w: sim.state.wOwned.slice(), am: JSON.parse(JSON.stringify(sim.state.ammo || {})), wp: sim.state.player.weapon };
   const S = sim.state; const P = S.player; let me = 0; let got = false; let lastRx = 0; const store = {}; const smooth = {};
   const objs = { crooks: new Map(), traffic: new Map(), walkers: new Map(), civs: new Map(), vehicles: new Map(), jets: new Map(), helis: new Map() };
   const adopt = (k, rows) => { const keys = KEYS[k]; const list = dec(rows, keys); const mp = objs[k]; if (!mp) return list; const out = []; const seen = new Set(); for (const n of list) { let o = mp.get(n.id); seen.add(n.id); if (!o) { o = { ...n }; o.tx = n.x; o.tz = n.z; o.tyaw = n.yaw; mp.set(n.id, o); } else { const keep = { x: o.x, z: o.z, yaw: o.yaw }; Object.assign(o, n); o.tx = n.x; o.tz = n.z; o.tyaw = n.yaw; o.x = keep.x; o.z = keep.z; o.yaw = keep.yaw; if (Math.hypot(o.tx - o.x, o.tz - o.z) > 40) { o.x = o.tx; o.z = o.tz; o.yaw = o.tyaw; } } out.push(o); } for (const id of [...mp.keys()]) if (!seen.has(id)) mp.delete(id); return out; };
@@ -69,7 +70,7 @@ export function guestBindCity(sim, conn, name, progress) {
     for (const s of m.snd) if (S.snd.length < 24) S.snd.push(s);
   };
   conn.on((x) => { if (!x) return; if (x.t === 's') apply(x); else if (x.t === 'hi') me = x.me; });
-  conn.send({ t: 'hello', n: name || 'ゲスト', pr: progress || null });
+  conn.send({ t: 'hello', n: name || 'ゲスト', pr: progress || null, inv });
   let sendT = 0; let lastKey = '';
   const I = sim.input;
   const sendInput = (force) => { const a = [r2(I.moveX), r2(I.moveY), r2(I.aimX), r2(I.aimY), I.gun ? 1 : 0, I.boost ? 1 : 0, I.aimLock ? 1 : 0, I.autoAim === false ? 0 : 1, r2(I.turn || 0), r2(I.climb || 0)]; const key = a.join(',') + '|' + r2(P.camYaw || 0) + '|' + r2(P.aimPitch || 0); if (!force && key === lastKey) return; lastKey = key; conn.fast({ t: 'in', i: a, cy: r2(P.camYaw || 0), ap: r2(P.aimPitch || 0) }); };
