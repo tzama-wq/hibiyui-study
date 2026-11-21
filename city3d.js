@@ -113,7 +113,7 @@ export async function startCity3D(o) {
   // きょうりょく(3にん): ホスト=せかいを うごかす・ゲスト=そうさと えいぞう
   const coop = o.coop || null; const isGuest = !!(coop && coop.role === 'guest'); const hostBinds = []; let guestB = null; let coopGone = false;
   if (coop && coop.role === 'host') for (const c of coop.conns || []) hostBinds.push(hostBindCity(sim, c.conn));
-  if (isGuest) guestB = guestBindCity(sim, coop.conn, o.kidName, o.progress || null, (l) => { if (o.onCoopLoot) o.onCoopLoot(l); });
+  if (isGuest) guestB = guestBindCity(sim, coop.conn, o.kidName, o.progress || null, (l) => { if (o.onCoopLoot) o.onCoopLoot(l); }, o.look);
   const root = document.createElement('div'); root.className = 'a3d c3d';
   root.innerHTML = `<canvas class="a3d-cv"></canvas>
     <div class="a3d-hud">
@@ -327,7 +327,7 @@ export async function startCity3D(o) {
 
   // ---- ものたち ----
   let heldId = ''; let heldM = null;
-  const look = normLook(o.look); const bodyKey = (BODIES.find((b) => b.id === look.body) || BODIES[0]).key;
+  const look = normLook(o.look); P.look = look; P.name = o.kidName || 'ホスト'; const bodyKey = (BODIES.find((b) => b.id === look.body) || BODIES[0]).key;
   const me = (glbOn && A.person(bodyKey, { height: 1.82 })) || makePerson(THREE, { shirt: '#3a3a3e', jacket: true, jacketColor: '#1c1d21', pants: '#4a5a34', cargo: true, boots: true, shoe: '#4a3020', sole: '#1a1612', hair: '#2a1c14', hairStyle: 0, stubble: true, scale: 1.0 }); if (me.userData.glb) me.userData.handR = me.userData.hand; scene.add(me); const vmodels = new Map();
   // ガンの ポーズが ない からだ(おとこのこ・おんなのこ)の ために、うでを まえに あげる ポーズを うえから かさねる
   const AIMQ = { r1: new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.35, 0.1, 0.35)), r2: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.25, 0, 0)), l1: new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.15, -0.1, -0.5)), l2: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.55, 0, 0)), id: new THREE.Quaternion() };
@@ -576,40 +576,41 @@ export async function startCity3D(o) {
     jersey: { tint: { Shirt: '#2a6adf', Pants: '#f2f2f2' } }, hoodie: { tint: { Shirt: '#7a7a86', Pants: '#3a3f4a' } }, rider: { tint: { Shirt: '#26262a', Pants: '#33363e' } },
     sneaker: { tint: { Shoes: '#f2f2f2' } }, runner: { tint: { Shoes: '#ff8a3a' } }, spike: { tint: { Shoes: '#2a9a4a' } }, turbo: { tint: { Shoes: '#f0c420' }, ring: '#ffd23f' }, rocket: { tint: { Shoes: '#d62a2a' }, ring: '#ff6a3a' }, lightning: { tint: { Shoes: '#2a3a6a' }, ring: '#40e0ff' }, u_boots: { tint: { Shoes: '#d8b020' }, ring: '#ffffff' },
   };
-  const attachTo = (bone, obj, px, py, pz) => { const tv = new THREE.Vector3(); bone.getWorldScale(tv); const sc = 1 / (tv.x || 1); obj.scale.setScalar(sc); obj.position.set(px * sc, py * sc, pz * sc); bone.add(obj); costume.extra.push(obj); };
+  const attachTo = (bone, obj, px, py, pz, cst = costume) => { const tv = new THREE.Vector3(); bone.getWorldScale(tv); const sc = 1 / (tv.x || 1); obj.scale.setScalar(sc); obj.position.set(px * sc, py * sc, pz * sc); bone.add(obj); cst.extra.push(obj); };
   // ぬの(Higgsfieldで つくった ぬのの テクスチャ)を ふくに ぬる(ほうこうを えらばない 3めんマッピング)
-  const ALIAS = look.body === 'casual' ? { Shirt: 'LightBrown', Pants: 'LightBlue', Shoes: 'Red_Dark' } : {}; const rm = (mp) => { const o2 = {}; for (const [k, v] of Object.entries(mp || {})) o2[ALIAS[k] || k] = v; return o2; };
+  const aliasOf = (bodyId) => (bodyId === 'casual' ? { Shirt: 'LightBrown', Pants: 'LightBlue', Shoes: 'Red_Dark' } : {}); const rmOf = (ALIAS, mp) => { const o2 = {}; for (const [k, v] of Object.entries(mp || {})) o2[ALIAS[k] || k] = v; return o2; };
   const fabTex = {}; const fabLoad = (nm) => { if (fabTex[nm]) return fabTex[nm]; const t = new THREE.TextureLoader().load(`./textures/outfit/${nm}.jpg`); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; fabTex[nm] = t; return t; };
-  const fabInit = () => {
-    if (costume.fab) return; costume.fab = {}; const tp0 = THREE.Material.prototype.onBeforeCompile; let hh = 1;
-    me.traverse((x) => { if (!x.isMesh || !x.material) return; if (x.geometry && !x.geometry.boundingBox) x.geometry.computeBoundingBox(); const bb = x.geometry.boundingBox; if (bb) hh = Math.max(hh, bb.max.y - bb.min.y);
+  const fabInit = (mdl, cst, ALIAS) => {
+    if (cst.fab) return; cst.fab = {}; const tp0 = THREE.Material.prototype.onBeforeCompile; let hh = 1;
+    mdl.traverse((x) => { if (!x.isMesh || !x.material) return; if (x.geometry && !x.geometry.boundingBox) x.geometry.computeBoundingBox(); const bb = x.geometry.boundingBox; if (bb) hh = Math.max(hh, bb.max.y - bb.min.y);
       const ms = Array.isArray(x.material) ? x.material : [x.material]; for (const m of ms) { if (![ALIAS.Shirt || 'Shirt', ALIAS.Pants || 'Pants', 'Dress'].includes(m.name) || m.userData.fabU) continue; const U = { uFab: { value: fabLoad('camo') }, uFabOn: { value: 0 }, uFabS: { value: 1.3 }, uFabC: { value: new THREE.Color('#ffffff') } }; m.userData.fabU = U;
         m.onBeforeCompile = (shader, rr) => { if (tp0) tp0.call(m, shader, rr); Object.assign(shader.uniforms, U); shader.vertexShader = 'varying vec3 vOP; varying vec3 vON;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOP = position; vON = normal;'); shader.fragmentShader = 'uniform sampler2D uFab; uniform float uFabOn; uniform float uFabS; uniform vec3 uFabC; varying vec3 vOP; varying vec3 vON;\n' + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
           if (uFabOn > 0.5) { vec3 b_ = pow(abs(normalize(vON)), vec3(4.0)); b_ /= (b_.x + b_.y + b_.z); vec3 fa_ = texture2D(uFab, vOP.zy * uFabS).rgb * b_.x + texture2D(uFab, vOP.xz * uFabS).rgb * b_.y + texture2D(uFab, vOP.xy * uFabS).rgb * b_.z; diffuseColor.rgb = fa_ * uFabC; }`); };
-        m.customProgramCacheKey = () => 'outfit-fab'; m.needsUpdate = true; costume.fab[m.name + '#' + m.uuid] = { m, U }; } });
-    for (const { U } of Object.values(costume.fab)) U.uFabS.value = 2.2 / hh;
+        m.customProgramCacheKey = () => 'outfit-fab'; m.needsUpdate = true; cst.fab[m.name + '#' + m.uuid] = { m, U }; } });
+    for (const { U } of Object.values(cst.fab)) U.uFabS.value = 2.2 / hh;
   };
-  const setFab = (kind, name, color) => { fabInit(); for (const { m, U } of Object.values(costume.fab)) { const isPants = m.name === (ALIAS.Pants || 'Pants'); if ((kind === 'pants') !== isPants) continue; U.uFabOn.value = name ? 1 : 0; if (name) { U.uFab.value = fabLoad(name); U.uFabC.value.set(color || '#ffffff'); } } };
-  const applyCostume = () => {
-    if (!me.userData.glb) return; const J = JOBS[S.job] || JOBS.none;
-    if (!costume.orig) { costume.orig = []; me.traverse((x) => { if (x.isMesh && x.material) { const ms = Array.isArray(x.material) ? x.material : [x.material]; for (const m of ms) if (m.color) costume.orig.push([m, m.color.getHex()]); } }); }
-    for (const [m, c] of costume.orig) m.color.setHex(c);
-    for (const x of costume.extra) if (x.parent) x.parent.remove(x); costume.extra = [];
-    if (costume.hat && costume.hat.parent) costume.hat.parent.remove(costume.hat); costume.hat = null;
+  const setFab = (mdl, cst, ALIAS, kind, name, color) => { fabInit(mdl, cst, ALIAS); for (const { m, U } of Object.values(cst.fab)) { const isPants = m.name === (ALIAS.Pants || 'Pants'); if ((kind === 'pants') !== isPants) continue; U.uFabOn.value = name ? 1 : 0; if (name) { U.uFab.value = fabLoad(name); U.uFabC.value.set(color || '#ffffff'); } } };
+  const dressModel = (mdl, cst, look, equip, jobId) => {
+    if (!mdl.userData.glb) return; const J = JOBS[jobId] || JOBS.none; const ALIAS = aliasOf(look.body); const rm = (mp) => rmOf(ALIAS, mp);
+    if (!cst.orig) { cst.orig = []; mdl.traverse((x) => { if (x.isMesh && x.material) { const ms = Array.isArray(x.material) ? x.material : [x.material]; for (const m of ms) if (m.color) cst.orig.push([m, m.color.getHex()]); } }); }
+    for (const [m, c] of cst.orig) m.color.setHex(c);
+    for (const x of cst.extra) if (x.parent) x.parent.remove(x); cst.extra = [];
+    if (cst.hat && cst.hat.parent) cst.hat.parent.remove(cst.hat); cst.hat = null;
     // からだの いろ(キャラクリエイト)
-    const body = { Skin: look.skin, Skin_Darker: look.skin, Hair: look.hair, HairBase: look.hair }; for (const k of Object.keys(body)) if (!body[k]) delete body[k]; if (look.shoes) body.Shoes = look.shoes; A.retint(me, rm(body));
-    const eqv = (id) => (id && EQ_VIS[id]) || {}; const eb = eqv(S.equip.body); const ef = eqv(S.equip.feet); const eh = eqv(S.equip.head);
+    const body = { Skin: look.skin, Skin_Darker: look.skin, Hair: look.hair, HairBase: look.hair }; for (const k of Object.keys(body)) if (!body[k]) delete body[k]; if (look.shoes) body.Shoes = look.shoes; A.retint(mdl, rm(body));
+    const eqv = (id) => (id && EQ_VIS[id]) || {}; const eb = eqv(equip.body); const ef = eqv(equip.feet); const eh = eqv(equip.head);
     const ot = OUTFITS.find((x) => x.id === look.outfit); const lookTint = look.outfit === 'custom' ? { Shirt: look.shirt, Pants: look.pants } : ot && ot.shirt ? { Shirt: ot.shirt, Pants: ot.pants } : null;
-    const mine = look.outfit !== 'default'; let shirtTint = mine ? (lookTint || eb.tint) : (J.tint || eb.tint || lookTint); if (shirtTint) { const t2 = look.body === 'dress' ? { Dress: shirtTint.Shirt || shirtTint.Dress } : shirtTint; A.retint(me, rm(t2)); }
-    if (ef.tint) A.retint(me, rm(ef.tint));
-    { const ob = OUTFITS.find((x) => x.id === look.outfit); const src = mine ? (look.outfit !== 'custom' && ob && ob.shirtTex ? ob : null) : (J.shirtTex ? J : eb.tex ? eb : null); setFab('shirt', src ? src.shirtTex || src.tex : null, src ? src.texTint : null); const srcP = mine ? (look.outfit !== 'custom' && ob && ob.pantsTex ? ob : null) : (J.pantsTex ? J : null); setFab('pants', srcP ? srcP.pantsTex : null, srcP ? srcP.texTintP || srcP.texTint : null); }
-    const head = me.getObjectByName('Head'); const torso = me.getObjectByName('Torso') || me.getObjectByName('Abdomen');
+    const mine = look.outfit !== 'default'; let shirtTint = mine ? (lookTint || eb.tint) : (J.tint || eb.tint || lookTint); if (shirtTint) { const t2 = look.body === 'dress' ? { Dress: shirtTint.Shirt || shirtTint.Dress } : shirtTint; A.retint(mdl, rm(t2)); }
+    if (ef.tint) A.retint(mdl, rm(ef.tint));
+    { const ob = OUTFITS.find((x) => x.id === look.outfit); const src = mine ? (look.outfit !== 'custom' && ob && ob.shirtTex ? ob : null) : (J.shirtTex ? J : eb.tex ? eb : null); setFab(mdl, cst, ALIAS, 'shirt', src ? src.shirtTex || src.tex : null, src ? src.texTint : null); const srcP = mine ? (look.outfit !== 'custom' && ob && ob.pantsTex ? ob : null) : (J.pantsTex ? J : null); setFab(mdl, cst, ALIAS, 'pants', srcP ? srcP.pantsTex : null, srcP ? srcP.texTintP || srcP.texTint : null); }
+    const head = mdl.getObjectByName('Head'); const torso = mdl.getObjectByName('Torso') || mdl.getObjectByName('Abdomen');
     const hatDef = eh.head ? { kind: eh.head[0], color: eh.head[1], accent: eh.head[2] } : look.hat !== 'none' ? HATS.find((x) => x.id === look.hat) : J.hat ? { kind: J.hat.kind, color: J.hat.color } : null;
-    if (hatDef && head) { const GL = { helmet: ['helmet', 0.3, 0, 0.14, -0.01], cap: ['cap', 0.3, 0, 0.2, 0.05], goggle: ['goggles', 0.28, 0, 0.1, 0.02] }[hatDef.kind]; const glh = GL && (eh.head || look.hat === 'cap' || look.hat === 'builder') ? gearFit(GL[0], { w: GL[1], ry: 0 }) : null; const hg = glh ? new THREE.Group() : eqMesh(hatDef.kind, hatDef.color, hatDef.accent); if (glh) { hg.add(glh); glh.position.set(GL[2], GL[3] - 0.1, GL[4]); } hg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(head, hg, 0, 0.1, 0.02); costume.hat = hg; }
-    if (eb.chest && torso) { const glv = eb.chest[0] === 'plate' ? gearFit('vest', { w: 0.52, ry: 0 }) : null; const cg = glv ? new THREE.Group() : eqMesh(eb.chest[0], eb.chest[1], eb.chest[2]); if (glv) { cg.add(glv); glv.position.set(0, -0.02, 0.01); } cg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(torso, cg, 0, 0.12, 0.02); }
-    if (ef.ring) for (const nm of ['FootL', 'FootR']) { const b = me.getObjectByName(nm); if (!b) continue; const glb2 = S.equip.feet === 'rocket' ? gearFit('boot', { w: 0.34, ry: Math.PI / 2 }) : null; if (glb2) { if (nm === 'FootL') glb2.scale.x = -1; const wr = new THREE.Group(); wr.add(glb2); attachTo(b, wr, 0, 0.04, 0.05); } else attachTo(b, eqMesh('ring', ef.ring), 0, 0.02, 0); }
-    me.scale.setScalar(look.size === 's' ? 0.92 : look.size === 'l' ? 1.08 : 1);
+    if (hatDef && head) { const GL = { helmet: ['helmet', 0.3, 0, 0.14, -0.01], cap: ['cap', 0.3, 0, 0.2, 0.05], goggle: ['goggles', 0.28, 0, 0.1, 0.02] }[hatDef.kind]; const glh = GL && (eh.head || look.hat === 'cap' || look.hat === 'builder') ? gearFit(GL[0], { w: GL[1], ry: 0 }) : null; const hg = glh ? new THREE.Group() : eqMesh(hatDef.kind, hatDef.color, hatDef.accent); if (glh) { hg.add(glh); glh.position.set(GL[2], GL[3] - 0.1, GL[4]); } hg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(head, hg, 0, 0.1, 0.02, cst); cst.hat = hg; }
+    if (eb.chest && torso) { const glv = eb.chest[0] === 'plate' ? gearFit('vest', { w: 0.52, ry: 0 }) : null; const cg = glv ? new THREE.Group() : eqMesh(eb.chest[0], eb.chest[1], eb.chest[2]); if (glv) { cg.add(glv); glv.position.set(0, -0.02, 0.01); } cg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(torso, cg, 0, 0.12, 0.02, cst); }
+    if (ef.ring) for (const nm of ['FootL', 'FootR']) { const b = mdl.getObjectByName(nm); if (!b) continue; const glb2 = equip.feet === 'rocket' ? gearFit('boot', { w: 0.34, ry: Math.PI / 2 }) : null; if (glb2) { if (nm === 'FootL') glb2.scale.x = -1; const wr = new THREE.Group(); wr.add(glb2); attachTo(b, wr, 0, 0.04, 0.05, cst); } else attachTo(b, eqMesh('ring', ef.ring), 0, 0.02, 0, cst); }
+    mdl.scale.setScalar(look.size === 's' ? 0.92 : look.size === 'l' ? 1.08 : 1);
   };
+  const applyCostume = () => dressModel(me, costume, look, S.equip, S.job);
   applyCostume();
   // そうび・しょくぎょうが かわったら みためを こうしん
   const costumeSig = () => `${S.job}|${S.equip.body}|${S.equip.feet}|${S.equip.head}`;
@@ -919,7 +920,7 @@ export async function startCity3D(o) {
     me.visible = !v && P.dead <= 0; me.position.set(P.x, (P.chute ? P.y : P.plat ? P.plat.y : 0) + (P.jh || 0), P.z); if (lookMode) lookSpin += dt * 0.7; else lookSpin = 0; me.rotation.y = P.yaw + lookSpin; if (me.userData.glb) glbMe(dt); else { const u = me.userData; const sp = Math.abs(P.speed); const sw = Math.sin(tt * 11) * Math.min(1, sp / 5) * 0.9; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8; const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.handR.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.handR.add(heldM); } if (W.melee) { if (S.swing > 0) { u.armR.rotation.x = -2.3 + (1 - S.swing / 0.25) * 2.6; } else u.armR.rotation.x = -0.5 + (sw > 0 ? 0 : 0); } else { const long = ['ライフル', 'SMG', 'マシンガン', 'スナイパー', 'ショットガン'].includes(W.cat); if (sim.input.gun && P.dead <= 0) { u.armR.rotation.x = -1.5; u.armL.rotation.x = long ? -1.4 : -1.3; } else if (!W.expl || W.range > 100) u.armR.rotation.x = Math.min(u.armR.rotation.x, -0.55); } if (P.chute) { u.armL.rotation.x = u.armR.rotation.x = -2.8; } me.position.y += Math.abs(Math.sin(tt * 11)) * Math.min(1, sp / 5) * 0.1; poseLimbs(u); }
     { // なかま(ほかの プレイヤー)
       const others = (S.players || []).filter((pl) => pl !== P); const seenO = new Set();
-      others.forEach((pl, i) => { seenO.add(pl); let e = pmap.get(pl); if (!e) { const m = mkNpc(700 + i * 7 + (pl.name ? pl.name.length : 0)); const lb = nameSprite(THREE, pl.name || 'なかま'); scene.add(lb); e = { m, lb, lx: pl.x, lz: pl.z }; pmap.set(pl, e); }
+      others.forEach((pl, i) => { seenO.add(pl); let e = pmap.get(pl); if (e && pl.look && glbOn) { const want = JSON.stringify([pl.look, pl.eqp || {}]); if (e.want !== want) { e.want = want; const lk = normLook(pl.look); const bk = (BODIES.find((b) => b.id === lk.body) || BODIES[0]).key; if (e.key !== bk) { const m2 = A.person(bk, { height: 1.82 }); if (m2) { m2.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.remove(e.m); scene.add(m2); e.m = m2; e.key = bk; e.cst = { hat: null, orig: null, extra: [], fab: null }; } } if (!e.cst) e.cst = { hat: null, orig: null, extra: [], fab: null }; dressModel(e.m, e.cst, lk, pl.eqp || {}, 'none'); } } if (!e) { const m = mkNpc(700 + i * 7 + (pl.name ? pl.name.length : 0)); const lb = nameSprite(THREE, pl.name || 'なかま'); scene.add(lb); e = { m, lb, lx: pl.x, lz: pl.z }; pmap.set(pl, e); }
         const u = e.m.userData; const mv = Math.hypot(pl.x - e.lx, pl.z - e.lz) / Math.max(dt, 0.001); e.lx = pl.x; e.lz = pl.z; const show = pl.mode !== 'veh' && !(pl.dead > 0); e.m.visible = show; e.lb.visible = show; e.m.position.set(pl.x, (pl.y2 || 0) + (pl.jh || 0), pl.z); e.m.rotation.y = pl.yaw || 0; e.lb.position.set(pl.x, (pl.y2 || 0) + 2.7, pl.z);
         if (u && u.glb && u.play) { u.play(mv > 4 ? 'Run' : mv > 0.6 ? 'Walk' : 'Idle', 0.2); if (u.mixer) u.mixer.update(dt); } });
       for (const [pl, e] of pmap) if (!seenO.has(pl)) { scene.remove(e.m); scene.remove(e.lb); pmap.delete(pl); }

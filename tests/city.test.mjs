@@ -414,13 +414,14 @@ for (const planeId of ['plane', 'hawk']) {
   const pair = () => { const mkc = () => { const ls = []; const cl = []; const o = { open: true, on: (f) => ls.push(f), onClose: (f) => cl.push(f), isOpen: () => o.open, close: () => { if (!o.open) return; o.open = false; cl.forEach((f) => f()); if (o.peer) o.peer.close(); }, ls }; return o; };
     const A = mkc(); const B = mkc(); const send = (to) => (m) => { const j = JSON.parse(JSON.stringify(m)); to.ls.forEach((f) => f(j)); }; A.peer = B; B.peer = A; A.send = send(B); A.fast = send(B); B.send = send(A); B.fast = send(A); return [A, B]; };
   const host = mk(st(100)); const guest = mk(st(100), 9, { weapons: ['pistol', 'sniper'], eqOwned: ['vest'], equip: { body: 'vest' } }); const [cH, cG] = pair();
-  const loots = []; const hb = hostBindCity(host, cH); const gb = guestBindCity(guest, cG, 'パパ', { a: 3, m: 4, j: 5 }, (l) => loots.push(l));
+  const loots = []; const hb = hostBindCity(host, cH); const gb = guestBindCity(guest, cG, 'パパ', { a: 3, m: 4, j: 5 }, (l) => loots.push(l), { body: 'man', outfit: 'red', hat: 'cap' });
   assert.equal(host.state.players.length, 2, 'ゲストが さんかした'); assert.equal(gb.me(), 1, 'ゲストの ばんごう');
   for (let i = 0; i < 40; i++) { host.step(1 / 30); hb.tick(1 / 30); guest.step(1 / 30); }
   const gpl = host.state.players[1]; assert.ok(gpl.wOwned.includes('sniper') && !host.state.wOwned.includes('sniper'), 'ゲストは じぶんの ぶきを もつ(ホストの ものを つかわない)');
   assert.equal(gpl.equip.body, 'vest', 'ゲストの ぼうぐ'); assert.ok(gpl.hpMax > host.state.player.hpMax, 'ゲストの ぼうぐで HPが ふえる'); assert.ok(!host.state.equip.body, 'ホストは ぼうぐなし');
   gpl.wOwned.push('assault'); gpl.eqOwned.push('armor'); for (let i = 0; i < 8; i++) { host.step(1 / 30); hb.tick(1 / 30); guest.step(1 / 30); } const lt = loots[loots.length - 1]; assert.ok(lt && lt.w.includes('assault') && lt.e.includes('armor'), 'ひろった ぶき・ぼうぐが ゲストに とどく(もちかえり)');
   guest.equip('sniper'); for (let i = 0; i < 6; i++) { host.step(1 / 30); hb.tick(1 / 30); guest.step(1 / 30); } assert.equal(gpl.weapon, 'sniper', 'ゲストが じぶんの ぶきに もちかえた'); assert.notEqual(host.state.player.weapon, 'sniper', 'ホストの ぶきは かわらない');
+  assert.equal(gpl.look && gpl.look.outfit, 'red', 'ゲストの ふくが ホストに とどく'); assert.equal(guest.state.players[1].look && guest.state.players[1].look.body, 'man', 'スナップショットで ふくが もどる');
   assert.ok(gb.got(), 'スナップショットが とどく'); assert.ok(guest.state.crooks.length > 0 && guest.state.traffic.length >= 0, 'ゲストに てきが みえる');
   const hj = host.state.crooks.find((c) => c.wid === 'joe'); const near = host.state.players[1]; near.x = hj.x - 25; near.z = hj.z; for (let i = 0; i < 30; i++) { host.step(1 / 30); hb.tick(1 / 30); guest.step(1 / 30); }
   const gj = guest.state.crooks.find((c) => c.wid === 'joe'); assert.ok(gj && Math.hypot(gj.x - hj.x, gj.z - hj.z) < 10, 'ホストと おなじ ばしょに てきが いる');
