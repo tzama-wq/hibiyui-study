@@ -197,6 +197,7 @@ export function catalogV(it, ks) {
 export const carStats = (ks) => catalogV(catalogOf('sedan'), ks); // (むかしの なまえ)
 
 // ---- 指名手配はん(けんしょう金つき) -------------------------------------------------------------
+const TAC = { thug: { pref: 12, strafe: 0.5, rush: 1 }, gunman: { pref: 30, strafe: 1 }, boss: { pref: 34, cover: 1, strafe: 0.6 }, elite: { pref: 26, orbit: 1, dash: 1 }, legend: { pref: 22, orbit: 1, dash: 1, rush: 0.4 }, cop: { pref: 28, strafe: 1 }, bounty: { pref: 34, cover: 1, strafe: 0.5 } };
 export const CROOKS = {
   thug: { name: 'チンピラ', hp: 50, dmg: 4, speed: 4.6, range: 55, fire: 1.7 },
   gunman: { name: 'ごうとう', hp: 90, dmg: 6, speed: 5, range: 70, fire: 1.4 },
@@ -622,9 +623,16 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     S.crooks.push(c); return c;
   }
   const bountyOf = (c) => { if (c.wid) { const w = WANTED.find((x) => x.id === c.wid); const n = S.arrests[c.wid] || 0; return Math.round(w.bounty * (n === 0 ? 1 : 0.5)); } return c.minor ? 40 : 0; };
+  // ひとが かくれる ばしょは まいかい ちがう(つよい はんにんほど とおい ばしょ)
+  const pickSpot = (w) => {
+    if (rnd() < 0.3) return w.spot; const lo = 120 + w.stars * 90; const hi = 320 + w.stars * 170;
+    for (let t = 0; t < 70; t++) { const rp = roadPoint(rnd, 1); const d = hyp(rp.x - HQ.x, rp.z - HQ.z); if (d < lo || d > hi || insideBuilding(rp.x, rp.z, 0) || isWater(rp.x, rp.z) || inRect(AIRFIELD, rp.x, rp.z) || inRect(HOME, rp.x, rp.z) || hyp(rp.x - P.x, rp.z - P.z) < 90) continue; return { x: rp.x, z: rp.z }; }
+    return w.spot;
+  };
   const spawnWanted = (w) => {
-    spawnCrook(w.type, w.spot.x, w.spot.z, { wid: w.id, wander: 30, hpMul: w.hpMul || 1 });
-    for (let i = 0; i < w.guards; i++) { const a = (i / w.guards) * 6.28; spawnCrook(w.guardType || (w.stars >= 4 && i < 2 ? 'gunman' : 'thug'), w.spot.x + Math.cos(a) * 22, w.spot.z + Math.sin(a) * 22, { wander: 30, hpMul: 1, guardOf: w.id }); }
+    const sp = pickSpot(w); const form = Math.floor(rnd() * 3); // かこむ・いっれつ・ばらばら
+    spawnCrook(w.type, sp.x, sp.z, { wid: w.id, wander: 30 + rnd() * 30, hpMul: w.hpMul || 1 });
+    for (let i = 0; i < w.guards; i++) { const a = (i / w.guards) * 6.28 + rnd() * 0.5; const rr = form === 0 ? 22 : form === 1 ? 10 + i * 6 : 12 + rnd() * 26; const ax = form === 1 ? sp.x + (i - w.guards / 2) * 7 : sp.x + Math.cos(a) * rr; const az = form === 1 ? sp.z + 14 : sp.z + Math.sin(a) * rr; spawnCrook(w.guardType || (w.stars >= 4 && i < 2 ? 'gunman' : 'thug'), ax, az, { wander: 30 + rnd() * 20, hpMul: 1, guardOf: w.id }); }
   };
   const respawnAt = {}; for (const w of WANTED) spawnWanted(w);
   const refreshWanted = () => { S.wanted = WANTED.map((w) => { const c = S.crooks.find((x) => x.wid === w.id); return { id: w.id, name: w.name, rarity: w.rarity || null, rname: w.rarity ? RARITY_NAME[w.rarity] : '', crime: w.crime, stars: w.stars, bounty: Math.round(w.bounty * ((S.arrests[w.id] || 0) === 0 ? 1 : 0.5)), alive: !!c, x: c ? c.x : null, z: c ? c.z : null, caught: S.arrests[w.id] || 0, state: c ? c.state : 'gone' }; }); };
@@ -653,7 +661,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     u.hp -= dmg; u.flash = 0.12; gunHit('🚨 けいさつの のりものを うった!', 4); fx('spark', u.x, u.y, u.z, 3);
     if (u.hp <= 0) { fx('big', u.x, u.y, u.z, 16); snd('bigboom'); const jet = u.air === 'jet'; const reward = jet ? 350 : 250; P.coins += reward; S.stats.coins += reward; S.airRespawn = S.t + 14; S.helis = S.helis.filter((x) => x !== u); S.jets = S.jets.filter((x) => x !== u); msg(`${jet ? '✈️ せんとうき' : '🚁 ヘリ'}を おとした! 🪙+${reward}`, 2.6); ev({ t: 'airkill', jet }); }
   };
-  const hitCrook = (c, dmg) => { if (!c.air && c.state !== 'down' && S.t - (S.hmT || -9) > 0.06) { S.hmT = S.t; S.hitT = S.t; snd('hitmark'); } if (c.air) { hitAir(c, dmg); return; } if (c.state === 'down') return; if (c.hunter) gunHit('🚨 けいさつを うった!', 3); c.hp -= dmg; c.alert = true; if (c.hp <= c.hpMax * 0.22) downCrook(c); };
+  const hitCrook = (c, dmg) => { if (c.state !== 'down' && !c.air && c.type !== 'thug' && c.type !== 'runner' && rnd() < (c.type === 'legend' || c.type === 'elite' ? 0.5 : 0.25)) { c.reactT = 0.3; c.dashDir = rnd() < 0.5 ? 1 : -1; } if (!c.air && c.state !== 'down' && S.t - (S.hmT || -9) > 0.06) { S.hmT = S.t; S.hitT = S.t; snd('hitmark'); } if (c.air) { hitAir(c, dmg); return; } if (c.state === 'down') return; if (c.hunter) gunHit('🚨 けいさつを うった!', 3); c.hp -= dmg; c.alert = true; if (c.hp <= c.hpMax * 0.22) downCrook(c); };
   const arrest = (c) => {
     S.crooks = S.crooks.filter((x) => x !== c); P.kos++; qNote('arrest'); if (c.wid) qNote('wanted'); S.stats.arrests++; snd('win'); fx('spark', c.x, 3, c.z, 6);
     const coins = bountyOf(c) * (S.job === 'swat' && c.wid ? 1.5 : 1); P.coins += Math.round(coins); S.stats.coins += Math.round(coins); S.stats.bounty += Math.round(coins);
@@ -794,7 +802,19 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
         continue;
       }
       if (hunt) {
-        const want = Math.atan2(P.x - r.x, P.z - r.z); r.yaw += clamp(angDiff(want, r.yaw), -3 * dt, 3 * dt); if (dp > 22) groundMove(r, r.x + Math.sin(r.yaw) * r.speed * dt, r.z + Math.cos(r.yaw) * r.speed * dt, 1.4, false); r.cd -= dt;
+        // つよさに おうじた うごき(ストレイフ・かこむ・ダッシュで よける・かげに かくれる・ひるむと さがる)
+        const want = Math.atan2(P.x - r.x, P.z - r.z); r.yaw += clamp(angDiff(want, r.yaw), -4 * dt, 4 * dt); r.cd -= dt;
+        const tc = TAC[r.type] || TAC.gunman; r.mv = r.mv || { t: 0, dir: rnd() < 0.5 ? 1 : -1 };
+        const lowHp = r.hp < r.hpMax * 0.3 && r.type !== 'thug'; const pref = tc.pref * (lowHp ? 1.8 : 1);
+        let rad = dp > pref + 6 ? 1 : dp < pref - 8 ? -0.8 : 0; let tan = 0; r.mv.t -= dt; if (r.mv.t <= 0) { r.mv.t = 0.7 + rnd() * 1.6; if (rnd() < 0.6) r.mv.dir *= -1; }
+        if (tc.strafe) tan = r.mv.dir * tc.strafe; if (tc.orbit) { tan = r.mv.dir; rad *= 0.5; } if (tc.rush && dp > 9) rad = 1;
+        if (tc.dash) { r.dashCd = (r.dashCd == null ? 2 : r.dashCd) - dt; if (r.dashCd <= 0 && dp < 70) { r.dashCd = 2.2 + rnd() * 2; r.dashT = 0.28; r.dashDir = rnd() < 0.5 ? 1 : -1; } if (r.dashT > 0) { r.dashT -= dt; tan = (r.dashDir || 1) * 2.8; } }
+        if (r.reactT > 0) { r.reactT -= dt; tan = (r.dashDir || 1) * 2.2; }
+        let mx = 0; let mz = 0; let sp = r.speed * (r.dashT > 0 || r.reactT > 0 ? 1.7 : 1);
+        if (tc.cover && !lowHp) { r.coverT = (r.coverT || 0) - dt; if (!r.cover || r.coverT <= 0) { r.coverT = 4 + rnd() * 3; r.cover = null; let best = null; let bd = 55; for (const b of nearB(r.x, r.z)) { if (b.w * b.d < 40) continue; const d0 = hyp(b.cx - r.x, b.cz - r.z); if (d0 < bd) { bd = d0; best = b; } } if (best) { const ux = best.cx - P.x; const uz = best.cz - P.z; const ul = hyp(ux, uz) || 1; const off = Math.max(best.w, best.d) / 2 + 2.5; r.cover = { x: best.cx + (ux / ul) * off, z: best.cz + (uz / ul) * off }; } }
+          if (r.cover) { const dc = hyp(r.cover.x - r.x, r.cover.z - r.z); if (dc > 2) { mx = (r.cover.x - r.x) / dc; mz = (r.cover.z - r.z) / dc; } else { mx = Math.cos(want) * 0.25 * r.mv.dir; mz = -Math.sin(want) * 0.25 * r.mv.dir; sp = r.speed * 0.5; } } }
+        if (!mx && !mz) { const rx = Math.sin(want); const rz = Math.cos(want); mx = rad * rx + tan * Math.cos(want); mz = rad * rz - tan * Math.sin(want); const ml = hyp(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; } }
+        if (mx || mz) groundMove(r, r.x + mx * sp * dt, r.z + mz * sp * dt, 1.4, false);
         if (r.cd <= 0 && dp < T.range) { r.cd = T.fire + rnd() * 0.5; const sx = (rnd() - 0.5) * 0.14; const vx = Math.sin(r.yaw + sx); const vz = Math.cos(r.yaw + sx); const vcur = cur(); const ty = vcur && isAir(vcur.kind) ? P.y : 1.4; const dy = (ty - 1.6) / Math.max(10, dp); S.bullets.push({ x: r.x, y: 1.6, z: r.z, vx: vx * 62, vy: dy * 62, vz: vz * 62, t: 0, dmg: T.dmg }); snd('cshot'); }
       } else { const home = hyp(r.homeX - r.x, r.homeZ - r.z); if (r.t % 4 < dt || home > r.wander) r.goal = { x: r.homeX + (rnd() - 0.5) * r.wander, z: r.homeZ + (rnd() - 0.5) * r.wander }; if (r.goal) { const want = Math.atan2(r.goal.x - r.x, r.goal.z - r.z); r.yaw += clamp(angDiff(want, r.yaw), -2 * dt, 2 * dt); if (hyp(r.goal.x - r.x, r.goal.z - r.z) > 3) groundMove(r, r.x + Math.sin(r.yaw) * r.speed * 0.4 * dt, r.z + Math.cos(r.yaw) * r.speed * 0.4 * dt, 1.4, false); } }
     }

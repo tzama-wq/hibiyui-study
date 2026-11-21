@@ -10,7 +10,7 @@ const ch = (id, rarity, pos) => ({ id, name: id, face: '', rarity, pos, stats: s
 const chars = [ch('f', 'legend', 'FW'), ch('m', 'legend', 'MF'), ch('d', 'legend', 'DF'), ch('g', 'super', 'GK'), ch('f2', 'rare', 'FW')];
 const veh = (kind, ks) => { const lo = autoLoadout(kind, chars); const parts = {}; for (const [s, id] of Object.entries(lo)) parts[s] = partOf(kind, s, chars.find((c) => c.id === id)); return buildVehicle({ vehicle: kind, name: 'P', kidStats: ks, parts }); };
 const mk = (ks = st(70), seed = 3, extra = {}) => { let a = seed; const rnd = () => { a = (a * 1664525 + 1013904223) % 4294967296; return a / 4294967296; }; return createCity({ stats: ks, vehicles: { tank: veh('tank', ks), ship: veh('ship', ks), plane: veh('plane', ks) }, rnd, ...extra }); };
-const run = (sim, sec, f) => { for (let t = 0; t < sec; t += 1 / 30) { if (f) f(t); sim.step(1 / 30); } };
+const run = (sim, sec, f) => { for (let t = 0; t < sec; t += 1 / 30) { if (f && f(t) === 'stop') break; sim.step(1 / 30); } };
 const freeYaw = (x, z, L = 170) => { let best = 0; let bl = -1; for (let k = 0; k < 16; k++) { const y = (k / 16) * Math.PI * 2; let d = 0; for (; d < L; d += 4) { const px = x + Math.sin(y) * d; const pz = z + Math.cos(y) * d; if (isWater(px, pz) || insideBuilding(px, pz, 0)) break; } if (d > bl) { bl = d; best = y; } } return best; };
 const clearLine = (x0, z0, y0, x1, z1, y1) => { const L = Math.hypot(x1 - x0, z1 - z0, y1 - y0); for (let d = 2; d < L - 1; d += 1.5) { const t = d / L; if (insideBuilding(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, y0 + (y1 - y0) * t)) return false; } return true; };
 const hopLos = (sim, r) => { const P = sim.state.player; for (const rad of [10, 16, 24, 34]) for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; const x = r.x + Math.cos(a) * rad; const z = r.z + Math.sin(a) * rad; if (isWater(x, z) || insideBuilding(x, z, 0)) continue; if (!clearLine(x, z, 4, r.x, r.z, 1.6)) continue; const v = sim.vehicleOf(); if (v) { v.x = x; v.z = z; } P.x = x; P.z = z; return true; } return false; };
@@ -69,7 +69,7 @@ const tele = (sim, x, z) => { sim.state.player.x = x; sim.state.player.z = z; si
 {
   const sim = mk(st(100)); const S = sim.state; const P = S.player; const joe = () => S.crooks.find((c) => c.wid === 'joe'); const j = joe(); assert.ok(j && S.crooks.length >= 20);
   tele(sim, j.x - 14, j.z); P.yaw = Math.PI / 2;
-  run(sim, 30, () => { P.hp = P.hpMax; const c = joe(); if (!c || c.state === 'down') { sim.input.gun = false; sim.input.turn = 0; return; } let d = Math.atan2(c.x - P.x, c.z - P.z) - P.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; sim.input.turn = Math.max(-1, Math.min(1, d * 3)); sim.input.climb = 0; sim.input.gun = true; });
+  run(sim, 60, () => { P.hp = P.hpMax; const c = joe(); if (!c || c.state === 'down') { sim.input.gun = false; sim.input.turn = 0; return 'stop'; } let d = Math.atan2(c.x - P.x, c.z - P.z) - P.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; sim.input.turn = Math.max(-1, Math.min(1, d * 3)); sim.input.climb = 0; sim.input.gun = true; });
   sim.input.gun = false; sim.input.turn = 0; assert.equal(joe().state, 'down', 'うたれて ばんざい(たおれる)'); assert.ok(joe().hp >= 1, 'たおしても しなない');
   const hpBefore = joe().hp; sim.input.gun = true; run(sim, 2); sim.input.gun = false; assert.ok(joe().hp >= hpBefore, 'たおれた はんにんは うてない');
   tele(sim, joe().x - 2, joe().z); assert.equal(S.nearby.kind, 'arrest'); const c0 = P.coins; assert.ok(sim.interact()); assert.equal(P.coins - c0, 100, 'けんしょう金 100'); assert.ok(!joe()); assert.ok(sim.takeEvents().some((e) => e.t === 'bounty' && e.id === 'joe' && e.coins === 100 && e.first));
@@ -301,8 +301,9 @@ for (const planeId of ['plane', 'hawk']) {
   const kaito = S.crooks.find((c) => c.wid === 'kaito'); P.weapon = 'pistol'; kaito.hp = 1; P.x = kaito.x - 20; P.z = kaito.z; P.camYaw = Math.PI / 2; P.yaw = Math.PI / 2; P.wCd = 0; sim.input.gun = true; for (let i = 0; i < 30 && kaito.state !== 'down'; i++) { P.invuln = 5; P.wCd = 0; P.camYaw = Math.PI / 2; P.aimPitch = 0.05; kaito.x = P.x + 20; kaito.z = P.z; sim.step(0.05); } sim.input.gun = false;
   assert.equal(kaito.state, 'down', 'たおれた'); const drops = S.pickups.filter((p) => p.kind === 'drop'); assert.ok(drops.length >= 3 && drops.some((d) => d.drop.t === 'heal') && drops.some((d) => d.drop.t === 'ammo'), 'おとしもの'); const wp = drops.find((d) => d.drop.t === 'weapon'); const eq = drops.find((d) => d.drop.t === 'equip');
   const got = (d) => { P.x = d.x; P.z = d.z; P.invuln = 5; sim.step(0.05); };
+  const coins0 = P.coins;
   if (wp) { assert.ok(!S.wOwned.includes(wp.drop.id)); got(wp); assert.ok(S.wOwned.includes(wp.drop.id), 'ぶきを てにいれる'); } if (eq) { got(eq); assert.ok(S.eqOwned.includes(eq.drop.id), 'そうびを てにいれる'); }
-  const coins0 = P.coins; for (const d of S.pickups.filter((p) => p.kind === 'drop')) got(d); assert.ok(P.coins > coins0, 'コインも おちる');
+  for (const d of S.pickups.filter((p) => p.kind === 'drop')) got(d); assert.ok(P.coins > coins0, 'コインも おちる');
 }
 // ---- せんしゃ・せんとうきは かわないと のれない / ガレージで くるまに のらない / くるまごとの スピード ----
 {

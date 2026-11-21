@@ -385,18 +385,21 @@ export async function startCity3D(o) {
       for (const n of list) { const par = n.parentElement; if (!par || par.closest('.keep-emoji') || (par.matches('.sh-item > span:first-child') && !par.classList.contains('wi-s'))) continue; const v = clean(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
     };
     const FIT = '.sh-item b,.sh-item small,.sh-item em,.sh-box h3,.sh-note,.sh-coin,.sh-grp,.q-title,.q-say,.q-lock,.q-sub,.a3d-msg,.a3d-banner,.c3d-goal,.c3d-jobchip,.c3d-jobtag,.c3d-pinhud,.ab-act,.a3d-obj,.a3d-name,.chipb,.sh-box .btn,.jb-p';
+    const sigs = new WeakMap();
     const fitEl = (el) => {
-      if (el.hidden || !el.offsetParent && getComputedStyle(el).position !== 'fixed') return; el.style.fontSize = ''; el.style.whiteSpace = ''; el.style.webkitLineClamp = ''; el.style.lineHeight = '';
-      const over = () => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2; if (!over()) return;
+      if (el.hidden || !el.offsetParent && getComputedStyle(el).position !== 'fixed') return; const sig = `${el.textContent}|${el.clientWidth}|${el.parentElement ? el.parentElement.clientWidth : 0}`; if (sigs.get(el) === sig) return; el.style.fontSize = ''; el.style.whiteSpace = ''; el.style.webkitLineClamp = ''; el.style.lineHeight = '';
+      const over = () => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2; if (!over()) { sigs.set(el, sig); return; }
       let fs = parseFloat(getComputedStyle(el).fontSize) || 14; const min = Math.max(11, fs * 0.72); let n = 0; while (over() && fs > min && n++ < 14) { fs -= 0.75; el.style.fontSize = fs + 'px'; }
+      sigs.set(el, `${el.textContent}|${el.clientWidth}|${el.parentElement ? el.parentElement.clientWidth : 0}`);
       if (over()) { el.style.whiteSpace = 'normal'; el.style.overflowWrap = 'anywhere'; el.style.textOverflow = 'clip'; el.style.webkitLineClamp = 'unset'; el.style.lineHeight = '1.22'; }
     };
     const targets = [shopEl, ...['.a3d-msg', '.a3d-banner', '.c3d-goal', '.c3d-jobchip', '.c3d-jobtag', '.c3d-pinhud', '.ab-act', '.c3d-mis'].map((q2) => root.querySelector(q2)).filter(Boolean)];
     let raf = 0; let busy = false;
-    const run = () => { raf = 0; busy = true; mo.disconnect(); try { for (const t of targets) cleanNode(t); for (const t of targets) { if (t.matches && t.matches(FIT)) fitEl(t); for (const el of t.querySelectorAll(FIT)) fitEl(el); } } catch { /* ignore */ } for (const t of targets) mo.observe(t, { childList: true, subtree: true, characterData: true }); busy = false; };
-    const mo = new MutationObserver(() => { if (!busy && !raf) raf = requestAnimationFrame(run); });
+    const dirty = new Set();
+    const run = () => { raf = 0; busy = true; mo.disconnect(); const list = dirty.size ? [...dirty] : targets; dirty.clear(); try { for (const t of list) cleanNode(t); for (const t of list) { if (t.matches && t.matches(FIT)) fitEl(t); for (const el of t.querySelectorAll(FIT)) fitEl(el); } } catch { /* ignore */ } for (const t of targets) mo.observe(t, { childList: true, subtree: true, characterData: true }); busy = false; };
+    const mo = new MutationObserver((recs) => { for (const r of recs) { const t = targets.find((x) => x === r.target || x.contains(r.target)); if (t) dirty.add(t); } if (!busy && !raf) raf = requestAnimationFrame(run); });
     for (const t of targets) mo.observe(t, { childList: true, subtree: true, characterData: true });
-    window.addEventListener('resize', () => { if (!raf) raf = requestAnimationFrame(run); });
+    window.addEventListener('resize', () => { for (const t of targets) dirty.add(t); if (!raf) raf = requestAnimationFrame(run); });
     return { run, destroy: () => { mo.disconnect(); if (raf) cancelAnimationFrame(raf); } };
   })();
   // モーダルを 「みだし(ぐるぐる しない)・リスト(スクロール)・フッター(とじる)」に そろえる + ・の あとで かいぎょう できるように
