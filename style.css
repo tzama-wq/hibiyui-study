@@ -975,3 +975,5 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-scope .sc-z{position:absolute;left:calc(50% + 24vh);top:calc(50% + 22vh);color:#fff;font-size:14px;text-shadow:0 1px 3px #000}
 
 .c3d .a3d-btns,.c3d .a3d-pad{z-index:4}
+
+.c3d .a3d-btns .ab-scope{right:calc(env(safe-area-inset-right,0px) + 142px)!important;bottom:calc(env(safe-area-inset-bottom,0px) + 96px)!important;left:auto!important;top:auto!important;width:56px!important;height:56px!important;background:linear-gradient(180deg,#3a4f7a,#1c2a48)!important;border:2px solid rgba(255,255,255,.55)!important}.ab-scope svg{width:34px;height:34px}.ab-scope.on{box-shadow:0 0 12px #ff5a4a}
