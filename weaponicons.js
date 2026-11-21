@@ -31,10 +31,10 @@ const GUN = {
   hammer: [R(40, 20, 52, 6), R(12, 8, 30, 14), R(8, 12, 6, 6)],
   crowbar: [R(8, 22, 78, 5), P([86, 24], [94, 14], [98, 18], [92, 30]), P([8, 24], [2, 30], [6, 34], [14, 27])],
   machete: [P([6, 28], [74, 8], [92, 12], [74, 26]), R(2, 24, 18, 8)],
-  axe: [R(6, 21, 88, 5), P([50, 6], [27, 3], [24, 22], [27, 41], [50, 38]), P([50, 6], [73, 3], [76, 22], [73, 41], [50, 38]), R(45, 17, 10, 13)],
+  axe: [R(6, 22, 88, 5), P([46, 6], [26, 1], [31, 22], [26, 43], [46, 38], [40, 22]), P([54, 6], [74, 1], [69, 22], [74, 43], [54, 38], [60, 22]), R(44, 17, 12, 15), R(2, 20, 6, 9)],
   fist: [R(26, 14, 44, 24), C(32, 16, 6), C(44, 14, 6), C(56, 14, 6), C(68, 16, 6), R(22, 30, 20, 14)],
   grenade: [C(46, 28, 15), R(40, 6, 12, 9), R(52, 8, 14, 3), C(70, 10, 4)],
-  molotov: [P([42, 12], [56, 12], [60, 26], [66, 46], [34, 46], [40, 26]), R(44, 6, 10, 8), P([46, 6], [50, -2], [54, 6])],
+  molotov: [P([42, 20], [56, 20], [60, 32], [66, 49], [34, 49], [40, 32]), R(44, 13, 10, 8), P([45, 13], [50, 1], [55, 13]), P([48, 13], [51, 6], [53, 13])],
 };
 const WSHAPE = { pistol: 'pistol', combatpistol: 'pistol', heavypistol: 'pistol', pistol50: 'pistol50', revolver: 'revolver', appistol: 'appistol', microsmg: 'microsmg', smg: 'smg', assaultsmg: 'smg', combatpdw: 'pdw', sawedoff: 'shotgun', pump: 'shotgun', dbarrel: 'shotgun', assaultsg: 'shotgun', assault: 'rifle', carbine: 'rifle', specialcarbine: 'spcarbine', heavyrifle: 'rifle', mg: 'mg', combatmg: 'combatmg', minigun: 'minigun', sniper: 'sniper', marksman: 'marksman', heavysniper: 'sniper', grenade: 'grenade', molotov: 'molotov', grenadel: 'grenadel', rpg: 'rpg', homing: 'homing', railgun: 'railgun', knife: 'knife', bat: 'bat', hammer: 'hammer', crowbar: 'crowbar', machete: 'machete', axe: 'axe', fist: 'fist' };
 const SCALE = { sawedoff: 0.78, microsmg: 0.78, combatpistol: 0.95, heavypistol: 1.05, pistol50: 1.08, appistol: 0.95, heavyrifle: 1.05, heavysniper: 1.0, combatmg: 1.0 };
