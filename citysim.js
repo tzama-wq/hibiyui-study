@@ -200,6 +200,7 @@ export const carStats = (ks) => catalogV(catalogOf('sedan'), ks); // (むかし�
 
 // ---- 指名手配はん(けんしょう金つき) -------------------------------------------------------------
 const TAC = { thug: { pref: 12, strafe: 0.5, rush: 1 }, gunman: { pref: 30, strafe: 1 }, boss: { pref: 34, cover: 1, strafe: 0.6 }, elite: { pref: 26, orbit: 1, dash: 1 }, legend: { pref: 22, orbit: 1, dash: 1, rush: 0.4 }, cop: { pref: 28, strafe: 1 }, bounty: { pref: 34, cover: 1, strafe: 0.5 } };
+export const DIFF_HP = 1.8; export const DIFF_DMG = 1.5; // てきの つよさ(HP・ダメージ)
 export const CROOKS = {
   thug: { name: 'チンピラ', hp: 50, dmg: 4, speed: 4.6, range: 55, fire: 1.7 },
   gunman: { name: 'ごうとう', hp: 90, dmg: 6, speed: 5, range: 70, fire: 1.4 },
@@ -550,7 +551,8 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   // ---- ちかくの ものと ボタン ----
   const setNear = () => {
     let best = null; let bd = 1e9; const px = P.x; const pz = P.z;
-    const cand = (kind, id, x, z, r, label, extra = {}) => { const d = hyp(px - x, pz - z); if (d < r && d < bd) { bd = d; best = { kind, id, label, d, ...extra }; } };
+    const PRI = { arrest: 3, collect: 3, patient: 2, commander: 2, veh: 2, tcar: 2, roof: 0, job: 0, leave: 0, exit: 0 }; let bpri = -1;
+    const cand = (kind, id, x, z, r, label, extra = {}) => { const d = hyp(px - x, pz - z); const pri = PRI[kind] != null ? PRI[kind] : 1; if (d < r && (pri > bpri || (pri === bpri && d < bd))) { bd = d; bpri = pri; best = { kind, id, label, d, ...extra }; } };
     if (P.mode === 'foot') {
       for (const c of S.crooks) if (c.state === 'down' && !c.hunter) cand('arrest', c.id, c.x, c.z, 6, `🚔 たいほする${c.wid ? `(けんしょう金 ${bountyOf(c)})` : ''}`);
       for (const v of S.vehicles) if (!v.occ) { if (!canRide(v)) { if (specialOf(v.id)) cand('lockveh', v.id, v.x, v.z, 12, `🔒 ${specialOf(v.id).name}(トレッサで かうと のれるよ)`); continue; } if (!v.temp && v.kind !== 'ship' && inRect(HOME, v.x, v.z)) continue; /* じたくの なかの くるまは ガレージの メニューから のる */ cand('veh', v.id, v.x, v.z, v.kind === 'ship' ? 26 : 12, `${VNAME[v.kind] || '🚗'} ${v.name || ''}に のる`); }
@@ -621,7 +623,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   // ---- はんにん ----
   function spawnCrook(type, x, z, o = {}) {
     if (insideBuilding(x, z, 0) || isWater(x, z)) { const f = freeAround(x, z); x = f.x; z = f.z; }
-    const T = CROOKS[type]; const hp = Math.round(T.hp * (o.hpMul || 1));
+    const T = CROOKS[type]; const hp = Math.round(T.hp * (o.hpMul || 1) * DIFF_HP * (1 + 0.05 * (rpgLevel(S.rpgXp) - 1)) * (1 + 0.55 * (players.length - 1)));
     const c = { id: ++nid, type, x, z, yaw: rnd() * 6.28, hp, hpMax: hp, cd: 1 + rnd(), homeX: x, homeZ: z, wander: o.wander || 36, state: 'idle', t: 0, downT: 0, mission: !!o.mission, wid: o.wid || null, rad: T.rad || 0, speed: T.speed, ph: rnd() * 6, alert: false, look: Math.floor(rnd() * 8), flee: 0 };
     S.crooks.push(c); return c;
   }
@@ -819,7 +821,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
           if (r.cover) { const dc = hyp(r.cover.x - r.x, r.cover.z - r.z); if (dc > 2) { mx = (r.cover.x - r.x) / dc; mz = (r.cover.z - r.z) / dc; } else { mx = Math.cos(want) * 0.25 * r.mv.dir; mz = -Math.sin(want) * 0.25 * r.mv.dir; sp = r.speed * 0.5; } } }
         if (!mx && !mz) { const rx = Math.sin(want); const rz = Math.cos(want); mx = rad * rx + tan * Math.cos(want); mz = rad * rz - tan * Math.sin(want); const ml = hyp(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; } }
         if (mx || mz) groundMove(r, r.x + mx * sp * dt, r.z + mz * sp * dt, 1.4, false);
-        if (r.cd <= 0 && dp < T.range) { r.cd = T.fire + rnd() * 0.5; const sx = (rnd() - 0.5) * 0.14; const vx = Math.sin(r.yaw + sx); const vz = Math.cos(r.yaw + sx); const vcur = cur(); const ty = vcur && isAir(vcur.kind) ? P.y : 1.4; const dy = (ty - 1.6) / Math.max(10, dp); S.bullets.push({ x: r.x, y: 1.6, z: r.z, vx: vx * 62, vy: dy * 62, vz: vz * 62, t: 0, dmg: T.dmg }); snd('cshot'); }
+        if (r.cd <= 0 && dp < T.range) { r.cd = T.fire * 0.8 + rnd() * 0.4; const sx = (rnd() - 0.5) * 0.075; const vx = Math.sin(r.yaw + sx); const vz = Math.cos(r.yaw + sx); const vcur = cur(); const ty = vcur && isAir(vcur.kind) ? P.y : 1.4; const dy = (ty - 1.6) / Math.max(10, dp); S.bullets.push({ x: r.x, y: 1.6, z: r.z, vx: vx * 62, vy: dy * 62, vz: vz * 62, t: 0, dmg: T.dmg * DIFF_DMG }); snd('cshot'); }
       } else { const home = hyp(r.homeX - r.x, r.homeZ - r.z); if (r.t % 4 < dt || home > r.wander) r.goal = { x: r.homeX + (rnd() - 0.5) * r.wander, z: r.homeZ + (rnd() - 0.5) * r.wander }; if (r.goal) { const want = Math.atan2(r.goal.x - r.x, r.goal.z - r.z); r.yaw += clamp(angDiff(want, r.yaw), -2 * dt, 2 * dt); if (hyp(r.goal.x - r.x, r.goal.z - r.z) > 3) groundMove(r, r.x + Math.sin(r.yaw) * r.speed * 0.4 * dt, r.z + Math.cos(r.yaw) * r.speed * 0.4 * dt, 1.4, false); } }
     }
     P = HOST;
