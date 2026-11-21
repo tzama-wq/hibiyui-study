@@ -887,3 +887,20 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .c3d-map{pointer-events:auto;cursor:pointer}
 
 .c3d-hitm{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;color:#fff;font-size:34px;font-weight:900;text-shadow:0 0 6px #f22,0 0 12px #f22}
+
+/* ---- キャラクリエイト・ぶきアイコン・ジョブひょうじ ---- */
+.c3d-jobtag{font-size:12px;font-weight:900;letter-spacing:.02em;color:#ffe9a0;margin:0 0 3px;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.wi{display:block;width:64px;height:32px;border-radius:6px;object-fit:cover}
+.sh-item>span.wi-s{width:68px;height:36px;background:none;border-radius:6px;font-size:0;display:block;overflow:hidden}
+.sh-item.lock .wi{opacity:.65;filter:grayscale(.6)}
+.c3d-shop.look{background:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.15) 40%,rgba(8,14,30,.55) 100%);backdrop-filter:none;justify-content:flex-end;align-items:stretch}
+.c3d-shop.look .sh-box.side{width:min(46vw,380px);max-width:380px;height:100%;max-height:100%}
+.sh-scroll{flex:1;overflow:auto;min-height:0;text-align:left;padding-right:2px}
+.sw-row{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.sw{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.35);cursor:pointer;padding:0}.sw.on{border-color:#ffd23f;box-shadow:0 0 0 3px rgba(255,210,63,.45)}
+.sw-dot{display:block;width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}
+.sh-item>span:first-child .sw-dot,.sh-item>span.sw-dot{margin:auto}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.chipb{border:1.5px solid #3a5aa0;background:#162a52;color:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-weight:800;font-size:13px;cursor:pointer}.chipb.on{background:#ffd23f;color:#1a1400;border-color:#ffd23f}
+
+.c3d-jobtag{height:15px;line-height:15px}.c3d-wep{top:calc(env(safe-area-inset-top,0px) + 108px)!important}.c3d-jobchip{top:calc(env(safe-area-inset-top,0px) + 146px)!important}
