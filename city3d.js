@@ -1,6 +1,7 @@
 // 地球防衛隊「シティ」の 3Dがめん(three.js): じゆうに うごける まち。ルールは citysim.js。
 //   const g = await startCity3D({ kidName, stats, vehicles, specs, coins, done, calm, onSfx, onReward, onBuy, onQuit });
 import { STAIRS } from './citysim.js';
+import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { hostBindCity, guestBindCity } from './citynet.js';
 import { createCity, LAYOUT, HALF, RIVER, BRIDGES, riverZ, AIRFIELD, PLAZA, HQ, BASE, SECRET, SQUARE, MICCA, MATSU, KOBAN, insideBuilding, COMMANDER, SPAWN, RAILS, STATION, STATION2, SCHOOL, SCHOOL_POLY, PARK3, PARK3_POLY, MALL_TRESA, MALL_APITA, SHRINE, SOCCER, SOCCER_ZONE, HOME, STORES, ITEMS, storeOf, railDist, roadsOf, roadSD, greens, pitches, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, JOB, CROOKS, DEFAULT_OWNED, WEAPONS, DEFAULT_WEAPONS, weaponOf, ammoSpec, needText, SPECIALS, EQUIP, EQUIP_SLOTS, equipOf, equipDesc } from './citysim.js';
 import { makeCarModel, makeBikeModel, makeAirModel, makeHeliModel, makeServiceVehicle, makePerson, makeWeaponModel, poseLimbs, townsPerson, crookPerson, labelSprite } from './citymodels3d.js';
@@ -331,7 +332,7 @@ export async function startCity3D(o) {
   // ガンの ポーズが ない からだ(おとこのこ・おんなのこ)の ために、うでを まえに あげる ポーズを うえから かさねる
   const AIMQ = { r1: new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.35, 0.1, 0.35)), r2: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.25, 0, 0)), l1: new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.15, -0.1, -0.5)), l2: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.55, 0, 0)), id: new THREE.Quaternion() };
   const aimPose = (rig, amt) => { const q = new THREE.Quaternion(); const ap = (b, qq) => { if (!b) return; q.copy(AIMQ.id).slerp(qq, amt); b.quaternion.multiply(q); }; ap(rig.armR, AIMQ.r1); ap(rig.foreR, AIMQ.r2); ap(rig.armL, AIMQ.l1); ap(rig.foreL, AIMQ.l2); };
-  const glbMe = (dt) => { const u = me.userData; const sp = Math.abs(P.speed); const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.hand.remove(heldM); heldM = makeWeaponModel(THREE, W.id || 'fist'); u.hand.add(heldM); }
+  const glbMe = (dt) => { const u = me.userData; const sp = Math.abs(P.speed); const W = weaponOf(P.weapon) || {}; if (heldId !== P.weapon) { heldId = P.weapon; if (heldM) u.hand.remove(heldM); heldM = gunGlb(W.id) || makeWeaponModel(THREE, W.id || 'fist'); u.hand.add(heldM); }
     const moving = sp > 0.6; const ranged = !W.melee && W.id !== 'fist'; const aiming = sim.input.gun || sim.input.aimLock; let an; const rel = P.moveRel || 0;
     if (P.dead > 0) an = 'Death'; else if (P.chute) an = 'Idle'; else if (W.melee && S.swing > 0) an = 'Punch_Right';
     else if (moving && aiming) an = Math.abs(rel) < 0.9 ? (ranged ? 'Run_Shoot' : 'Run') : Math.abs(rel) > 2.3 ? 'Run_Back' : rel > 0 ? 'Run_Left' : 'Run_Right';
@@ -527,6 +528,20 @@ export async function startCity3D(o) {
   };
   // ---- いしょう(しょくぎょうで ふくと ぼうしが かわる) ----
   const costume = { hat: null, orig: null, extra: [], sig: '' };
+  // Higgsfield で つくった 3Dの ぶき・そうび(models/gear/)。よみこめるまでは じさくの モデルを つかう
+  const gearCache = new Map(); const gltfL = new GLTFLoader();
+  const gearInst = (name) => {
+    let e = gearCache.get(name); if (!e) { e = { st: 'loading' }; gearCache.set(name, e); gltfL.load(`./models/gear/${name}.glb`, (g) => { e.st = 'ok'; e.scene = g.scene; g.scene.traverse((x) => { if (x.isMesh) { x.frustumCulled = false; if (x.material) { x.material.side = THREE.DoubleSide; } } }); try { heldId = ''; applyCostume(); } catch { /* ok */ } }, undefined, () => { e.st = 'fail'; }); }
+    if (e.st !== 'ok') return null; const c = e.scene.clone(true); c.traverse((x) => { if (x.isMesh) { x.material = x.material.clone(); x.castShadow = shadowsOn; } }); return c;
+  };
+  const gearFit = (name, o2) => { // o2: { w: めやすの おおきさ(いちばん ながい じく), ry, gx, gy, gz }
+    const c = gearInst(name); if (!c) return null; const bb = new THREE.Box3().setFromObject(c); const sz = bb.getSize(new THREE.Vector3()); const ct = bb.getCenter(new THREE.Vector3()); const s0 = o2.w / Math.max(sz.x, sz.y, sz.z);
+    const pivot = new THREE.Group(); c.position.set(-ct.x, -ct.y, -ct.z); pivot.add(c); pivot.scale.setScalar(s0); pivot.rotation.y = o2.ry || 0; const holder = new THREE.Group(); holder.add(pivot); pivot.position.set((o2.gx || 0) * s0, (o2.gy || 0) * s0, (o2.gz || 0) * s0); return holder;
+  };
+  const GUNG = { pistol: ['pistol', 0.26, 0.1, 0.18], combatpistol: ['pistol', 0.25, 0.1, 0.18], heavypistol: ['pistol', 0.29, 0.1, 0.18], pistol50: ['pistol', 0.31, 0.1, 0.18], appistol: ['pistol', 0.26, 0.1, 0.18], revolver: ['pistol', 0.3, 0.1, 0.18],
+    microsmg: ['rifle', 0.48, 0.05, 0.1], smg: ['rifle', 0.58, 0.05, 0.1], assaultsmg: ['rifle', 0.64, 0.05, 0.1], combatpdw: ['rifle', 0.6, 0.05, 0.1], assault: ['rifle', 0.9, 0.05, 0.12], carbine: ['rifle', 0.86, 0.05, 0.12], specialcarbine: ['rifle', 0.84, 0.05, 0.12], heavyrifle: ['rifle', 1.0, 0.05, 0.12], mg: ['rifle', 1.0, 0.05, 0.12], combatmg: ['rifle', 1.05, 0.05, 0.12],
+    sawedoff: ['shotgun', 0.6, 0.2, 0.05], pump: ['shotgun', 0.95, 0.2, 0.05], dbarrel: ['shotgun', 0.9, 0.2, 0.05], assaultsg: ['shotgun', 0.9, 0.2, 0.05], sniper: ['sniper', 1.15, 0.12, 0.08], marksman: ['sniper', 1.05, 0.12, 0.08], heavysniper: ['sniper', 1.25, 0.12, 0.08] };
+  const gunGlb = (id) => { const c = GUNG[id]; if (!c) return null; return gearFit(c[0], { w: c[1], ry: Math.PI / 2, gx: c[2], gy: c[3] }); };
   // 3Dの そうび(ぼうし・アーマー・くつ)。ボーンに くっつけて うごきに ついていく
   const eqMesh = (kind, color, accent) => {
     const g = new THREE.Group(); const mat = (c, em = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.25, emissive: em ? c : 0x000000, emissiveIntensity: em });
@@ -581,9 +596,9 @@ export async function startCity3D(o) {
     { const ob = OUTFITS.find((x) => x.id === look.outfit); const src = mine ? (look.outfit !== 'custom' && ob && ob.shirtTex ? ob : null) : (J.shirtTex ? J : eb.tex ? eb : null); setFab('shirt', src ? src.shirtTex || src.tex : null, src ? src.texTint : null); const srcP = mine ? (look.outfit !== 'custom' && ob && ob.pantsTex ? ob : null) : (J.pantsTex ? J : null); setFab('pants', srcP ? srcP.pantsTex : null, srcP ? srcP.texTintP || srcP.texTint : null); }
     const head = me.getObjectByName('Head'); const torso = me.getObjectByName('Torso') || me.getObjectByName('Abdomen');
     const hatDef = eh.head ? { kind: eh.head[0], color: eh.head[1], accent: eh.head[2] } : look.hat !== 'none' ? HATS.find((x) => x.id === look.hat) : J.hat ? { kind: J.hat.kind, color: J.hat.color } : null;
-    if (hatDef && head) { const hg = eqMesh(hatDef.kind, hatDef.color, hatDef.accent); hg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(head, hg, 0, 0.1, 0.02); costume.hat = hg; }
-    if (eb.chest && torso) { const cg = eqMesh(eb.chest[0], eb.chest[1], eb.chest[2]); cg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(torso, cg, 0, 0.12, 0.02); }
-    if (ef.ring) for (const nm of ['FootL', 'FootR']) { const b = me.getObjectByName(nm); if (b) attachTo(b, eqMesh('ring', ef.ring), 0, 0.02, 0); }
+    if (hatDef && head) { const GL = { helmet: ['helmet', 0.3, 0, 0.14, -0.01], cap: ['cap', 0.3, 0, 0.2, 0.05], goggle: ['goggles', 0.28, 0, 0.1, 0.02] }[hatDef.kind]; const glh = GL && (eh.head || look.hat === 'cap' || look.hat === 'builder') ? gearFit(GL[0], { w: GL[1], ry: 0 }) : null; const hg = glh ? new THREE.Group() : eqMesh(hatDef.kind, hatDef.color, hatDef.accent); if (glh) { hg.add(glh); glh.position.set(GL[2], GL[3] - 0.1, GL[4]); } hg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(head, hg, 0, 0.1, 0.02); costume.hat = hg; }
+    if (eb.chest && torso) { const glv = eb.chest[0] === 'plate' ? gearFit('vest', { w: 0.52, ry: 0 }) : null; const cg = glv ? new THREE.Group() : eqMesh(eb.chest[0], eb.chest[1], eb.chest[2]); if (glv) { cg.add(glv); glv.position.set(0, -0.02, 0.01); } cg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(torso, cg, 0, 0.12, 0.02); }
+    if (ef.ring) for (const nm of ['FootL', 'FootR']) { const b = me.getObjectByName(nm); if (!b) continue; const glb2 = S.equip.feet === 'rocket' ? gearFit('boot', { w: 0.34, ry: Math.PI / 2 }) : null; if (glb2) { if (nm === 'FootL') glb2.scale.x = -1; const wr = new THREE.Group(); wr.add(glb2); attachTo(b, wr, 0, 0.04, 0.05); } else attachTo(b, eqMesh('ring', ef.ring), 0, 0.02, 0); }
     me.scale.setScalar(look.size === 's' ? 0.92 : look.size === 'l' ? 1.08 : 1);
   };
   applyCostume();
@@ -684,18 +699,19 @@ export async function startCity3D(o) {
       if (lookTab === 'body') body = `<div class="q-title">キャラ(かえると シティに はいりなおすよ)</div><div class="chip-row">${BODIES.map((b) => chip(b.id, b.name, look.body === b.id, `data-look="body:${b.id}"`)).join('')}</div><div class="q-title">せのたかさ</div><div class="chip-row">${SIZES.map((z) => chip(z.id, z.name, look.size === z.id, `data-set="size:${z.id}"`)).join('')}</div>`;
       else if (lookTab === 'face') body = `<div class="q-title">はだの いろ</div>${sw('skin', SKINS, look.skin)}<div class="q-title">かみの いろ</div>${sw('hair', HAIRS, look.hair)}`;
       else if (lookTab === 'outfit') {
-        body = OUTFITS.map((x) => { const own = look.owned.includes(x.id); return `<button class="sh-item ${look.outfit === x.id ? 'trk' : ''}" data-look="outfit:${x.id}"><span class="sw-dot" style="background:${x.shirt || (x.id === 'custom' ? look.shirt : '#8a8a92')}"></span><div><b>${esc(x.name)}</b><small>${own ? 'もっている' : x.price + ' コイン'}</small></div><em>${look.outfit === x.id ? 'きてる' : own ? 'きる' : 'かう'}</em></button>`; }).join('');
+        body = OUTFITS.map((x) => { const own = look.owned.includes(x.id); return `<button class="sh-item ${look.outfit === x.id ? 'trk' : ''}" data-look="outfit:${x.id}"><span class="sw-dot" style="background:${x.shirt || (x.id === 'custom' ? look.shirt : '#8a8a92')}"></span><div><b>${esc(x.name)}</b><small>${own ? 'もっている' : look.freeUsed ? x.price + ' コイン' : 'むりょう(1かいだけ)'}</small></div><em>${look.outfit === x.id ? 'きてる' : own ? 'きる' : look.freeUsed ? 'かう' : 'もらう'}</em></button>`; }).join('');
         if (look.outfit === 'custom') body += `<div class="q-title">うえの ふく</div>${sw('shirt', COLORS, look.shirt)}<div class="q-title">ズボン</div>${sw('pants', COLORS, look.pants)}<div class="q-title">くつ</div>${sw('shoes', COLORS, look.shoes)}`;
-      } else body = HATS.map((x) => { const own = look.owned.includes(x.id); return `<button class="sh-item ${look.hat === x.id ? 'trk' : ''}" data-look="hat:${x.id}"><span class="sw-dot" style="background:${x.color || '#8a8a92'}"></span><div><b>${esc(x.name)}</b><small>${own ? 'もっている' : x.price + ' コイン'}</small></div><em>${look.hat === x.id ? 'きてる' : own ? 'きる' : 'かう'}</em></button>`; }).join('');
-      shopEl.innerHTML = `<div class="sh-box side"><h3>キャラクリエイト</h3><div class="sh-coin">${P.coins} コイン</div><div class="sh-tabs">${tabs.map(([k, t]) => `<button class="chipb ${lookTab === k ? 'on' : ''}" data-tab="${k}">${t}</button>`).join('')}</div><div class="sh-scroll">${body}</div><div class="sh-note">${esc(note || 'そうびは からだに あらわれるよ。「いつもの ふく」だと しごとの ふくに なるよ')}</div><button class="btn gray sh-x">もどる</button></div>`;
+      } else body = HATS.map((x) => { const own = look.owned.includes(x.id); return `<button class="sh-item ${look.hat === x.id ? 'trk' : ''}" data-look="hat:${x.id}"><span class="sw-dot" style="background:${x.color || '#8a8a92'}"></span><div><b>${esc(x.name)}</b><small>${own ? 'もっている' : look.freeUsed ? x.price + ' コイン' : 'むりょう(1かいだけ)'}</small></div><em>${look.hat === x.id ? 'きてる' : own ? 'きる' : look.freeUsed ? 'かう' : 'もらう'}</em></button>`; }).join('');
+      shopEl.innerHTML = `<div class="sh-box side"><h3>キャラクリエイト</h3><div class="sh-coin">${P.coins} コイン</div><div class="sh-tabs">${tabs.map(([k, t]) => `<button class="chipb ${lookTab === k ? 'on' : ''}" data-tab="${k}">${t}</button>`).join('')}</div><div class="sh-scroll">${body}</div><div class="sh-note">${esc(note || (look.freeUsed ? 'そうびは からだに あらわれるよ。「いつもの ふく」だと しごとの ふくに なるよ' : 'はじめの 1かいだけ ぜんぶ むりょう! きまったら「けってい」を おそう'))}</div>${look.freeUsed ? '' : '<button class="btn gold" data-fin="1">これで けってい!(むりょうは ここまで)</button>'}<button class="btn gray sh-x">もどる</button></div>`;
     };
     lookMode = true; openModal(draw); shopEl.classList.add('look');
     shopEl.onclick = (e) => {
       if (e.target.closest('.sh-x')) { closeModal(); return; }
+      if (e.target.closest('[data-fin]')) { look.freeUsed = true; saveNow(); draw('けってい! これからは コインで かえるよ'); return; }
       const t = e.target.closest('[data-tab]'); if (t) { lookTab = t.dataset.tab; draw(); return; }
       const st = e.target.closest('[data-set]'); if (st) { const [k, v] = st.dataset.set.split(':'); look[k] = k === 'size' ? v : v; if (k === 'shirt' || k === 'pants' || k === 'shoes') look.outfit = look.outfit === 'custom' ? 'custom' : look.outfit; applyCostume(); saveNow(); draw(); return; }
       const b = e.target.closest('[data-look]'); if (!b) return; const [kind, id] = b.dataset.look.split(':'); const list = kind === 'body' ? BODIES : kind === 'outfit' ? OUTFITS : HATS; const it = list.find((x) => x.id === id); if (!it) return;
-      if (kind !== 'body' && !look.owned.includes(id)) { if (!sim.spend(it.price)) { draw('コインが たりないよ'); return; } look.owned.push(id); }
+      if (kind !== 'body' && !look.owned.includes(id)) { if (look.freeUsed && !sim.spend(it.price)) { draw('コインが たりないよ'); return; } look.owned.push(id); }
       if (kind === 'body') { if (look.body === id) { draw(); return; } look.body = id; saveNow(); destroy(); if (o.onRestart) o.onRestart(); return; }
       look[kind] = id; applyCostume(); saveNow(); draw(`${it.name}に きがえたよ`);
     };
