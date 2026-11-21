@@ -79,6 +79,37 @@ export const STORY = {
     C('5. さいごの くうせん', 'ちょうかん「ノワールの ぜんぎょうが きた! きみが エースだ!」', [goto('base', 'ちょうかんと さくせん かいぎ'), defend(2, 'ぼうえい にんむを 2かい クリア')], 'ちょうかん「きみは そらの エースだ!」', { coins: 2600, gem: 1 }),
   ],
 };
+// ---- ストーリーを ながく・むずかしく: ぜんぶの ステップの かずを ふやし、だい6〜10しょうを ついか(ノワールは かげむしゃ! ほんとうの ボスは「しっこくの おう」) ----
+STORY_SCALE: {
+  for (const job of Object.keys(STORY)) STORY[job].forEach((c) => c.steps.forEach((st) => {
+    const n0 = st.n; if (st.k === 'do' || st.k === 'defend') st.n = Math.ceil(st.n * 1.7); else if (st.k === 'boss' && st.n > 1) st.n = Math.ceil(st.n * 1.6); else return;
+    if (st.n !== n0 && /\d+/.test(st.label)) st.label = st.label.replace(/\d+/, String(st.n));
+  }));
+  const UNIT = { snatch: ['ひったくりを', 'にん たいほ'], speed: ['スピードいはんを', 'だい とりしまる'], raid: ['ギャングの アジトを', 'かしょ せいあつ'], fire: ['かじを', 'けん けす'], patient: ['かんじゃを', 'にん はこぶ'], arrest: ['はんにんを', 'にん たいほ'], wanted: ['指名手配はんを', 'にん たいほ'], wreck: ['てきの くるまを', 'だい こわす'] };
+  const lab = (w, n) => `${UNIT[w][0]} ${n}${UNIT[w][1]}`;
+  const MORE = {
+    police: { who: 'しょちょう', A: 'snatch', B: 'wanted', C: 'speed', p: ['koban', 'plaza', 'tresa'] },
+    swat: { who: 'たいちょう', A: 'raid', B: 'wanted', C: 'raid', p: ['plaza', 'tresa', 'koban'] },
+    fire: { who: 'たいちょう', A: 'fire', B: 'arrest', C: 'fire', p: ['plaza', 'hosp0', 'tresa'] },
+    ems: { who: 'いし', A: 'patient', B: 'arrest', C: 'patient', p: ['hosp0', 'plaza', 'hosp1'] },
+    jgsdf: { who: 'ちょうかん', A: 'wreck', B: 'wreck', C: 'wreck', p: ['base', 'plaza', 'tresa'], d: true },
+    jmsdf: { who: 'ちょうかん', A: 'wreck', B: 'wreck', C: 'wreck', p: ['dock', 'plaza', 'base'], d: true },
+    jasdf: { who: 'ちょうかん', A: 'wreck', B: 'wreck', C: 'wreck', p: ['air', 'plaza', 'base'], d: true },
+  };
+  const elite = (n, label) => ({ k: 'boss', n, label, elite: true });
+  const legend = (label) => ({ k: 'boss', n: 1, label, legend: true });
+  for (const [job, m] of Object.entries(MORE)) {
+    const T = m.who; const [p0, p1, p2] = m.p;
+    const d = (n, label) => (m.d ? defend(n, label) : dos(m.C, n + 2, lab(m.C, n + 2)));
+    STORY[job].push(
+      C('6. ノワールは かげむしゃ!', `${T}「ざんねんな しらせだ。たいほした ノワールは にせものだった…。ほんとうの ボスは『しっこくの おう』。てしたも ずっと つよく なっている!」`, [goto(p1, 'じょうほうを あつめに いこう'), dos(m.A, 5, lab(m.A, 5)), dos(m.B, 3, lab(m.B, 3))], `${T}「しっこくの おうの なまえが うかびあがった。ここからが ほんばんだ。」`, { coins: 1800 }),
+      C('7. エリートぶたいの わな', `${T}「おうの しんえい『エリートぶたい』が まちに はなたれた! こうげきは はげしい。しゃへいぶつを つかえ!」`, [goto('rand', 'エリートの いる ばしょへ'), elite(4, 'エリートぶたいを 4にん たおす'), dos(m.B, 4, lab(m.B, 4))], `${T}「エリートが たおれた…! でも おうは まだ おくに いる。」`, { coins: 2200 }),
+      C('8. おおきな さくせん', `${T}「ぜんぶたいを あげた さくせんを おこなう。しごとを たくさん こなして ちからを しめせ!」`, [goto(p2, 'さくせん ほんぶへ'), dos(m.A, 8, lab(m.A, 8)), d(2, m.d ? 'ぼうえい にんむを 2かい クリア' : ''), dos(m.B, 5, lab(m.B, 5))], `${T}「たいしたものだ! まちが みるみる あんぜんに なっていく。」`, { coins: 2800, gem: 1 }),
+      C('9. けっせんの まえの よる', `${T}「おうの かくれがが わかった。ちかづく ほど てきは ふえる。ぜんぶ たおして すすめ!」`, [goto('rand', 'おうの かくれがの ちかくへ'), elite(7, 'エリートぶたいを 7にん たおす'), dos(m.A, 6, lab(m.A, 6))], `${T}「あとは おう ただ ひとり。ぶきと そうびを ととのえて いこう!」`, { coins: 3500 }),
+      C('10. しっこくの おうと けっちゃく', `${T}「これが ほんとうの さいごの しごとだ! しっこくの おうを たおして、まちを すくえ!」`, [goto('rand', 'おうの かくれがへ'), legend('しっこくの おうを たおす'), goto(p0, 'ほうこくに もどる')], `${T}「やった…! きみは まちの でんせつだ!」`, { coins: 8000, gem: 1 }),
+    );
+  }
+}
 export const chapterOf = (job, i) => (STORY[job] || [])[i] || null;
 export const lvNeeded = (i) => i + 1; // だい (i+1)しょうは しょくぎょう Lv.(i+1) で ひらく
 export const JOB_HOWTO = 'しごと(ひったくり・かじ・かんじゃ など)を クリアすると けいけんち +1、ストーリーの ステップで +1、しょうを クリアで +3。6たまると しょくぎょう Lv UP! Lvが あがると ランクと ほうしゅう(+8%)が ふえて、つぎの しょうが ひらくよ。';

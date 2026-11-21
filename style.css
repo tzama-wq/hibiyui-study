@@ -966,3 +966,12 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .bm-legend{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;background:none!important;border:0!important;color:#dfe8ff!important;font-size:11px!important}
 .bm-legend span{display:inline-flex;align-items:center;gap:4px}.bm-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
 .bm-panel .bm-btns{justify-content:center}.bm-clear{padding:6px 16px;border-radius:12px;border:1.5px solid rgba(255,255,255,.4);background:rgba(190,40,70,.85);color:#fff;font-size:13px;cursor:pointer}
+
+.c3d-scope{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 31vh,rgba(0,0,0,.5) 31.6vh,rgba(0,0,0,.55) 100%)}
+.c3d-scope[hidden]{display:none}
+.c3d-scope .sc-h,.c3d-scope .sc-v{position:absolute;background:rgba(0,0,0,.85)}
+.c3d-scope .sc-h{left:calc(50% - 31vh);width:62vh;top:calc(50% - .5px);height:1px}
+.c3d-scope .sc-v{top:calc(50% - 31vh);height:62vh;left:calc(50% - .5px);width:1px}
+.c3d-scope .sc-z{position:absolute;left:calc(50% + 24vh);top:calc(50% + 22vh);color:#fff;font-size:14px;text-shadow:0 1px 3px #000}
+
+.c3d .a3d-btns,.c3d .a3d-pad{z-index:4}

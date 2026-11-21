@@ -24,7 +24,7 @@ const GUN = {
   hammer: [R(40, 20, 52, 6), R(12, 8, 30, 14), R(8, 12, 6, 6)],
   crowbar: [R(8, 22, 78, 5), P([86, 24], [94, 14], [98, 18], [92, 30]), P([8, 24], [2, 30], [6, 34], [14, 27])],
   machete: [P([6, 28], [74, 8], [92, 12], [74, 26]), R(2, 24, 18, 8)],
-  axe: [R(10, 22, 78, 5), P([56, 6], [76, 6], [86, 24], [56, 22]), R(2, 18, 12, 12)],
+  axe: [R(6, 21, 88, 5), P([50, 6], [27, 3], [24, 22], [27, 41], [50, 38]), P([50, 6], [73, 3], [76, 22], [73, 41], [50, 38]), R(45, 17, 10, 13)],
   fist: [R(26, 14, 44, 24), C(32, 16, 6), C(44, 14, 6), C(56, 14, 6), C(68, 16, 6), R(22, 30, 20, 14)],
   grenade: [C(46, 28, 15), R(40, 6, 12, 9), R(52, 8, 14, 3), C(70, 10, 4)],
   molotov: [P([42, 12], [56, 12], [60, 26], [66, 46], [34, 46], [40, 26]), R(44, 6, 10, 8), P([46, 6], [50, -2], [54, 6])],
@@ -48,6 +48,7 @@ const EQ = {
   helmet: [P([14, 34], [16, 18], [34, 6], [66, 6], [84, 18], [86, 34]), R(12, 32, 78, 6), R(44, 6, 12, 8)],
   goggle: [R(8, 20, 84, 4), C(32, 24, 14), C(68, 24, 14), R(46, 22, 8, 5)],
   mask: [P([10, 22], [24, 12], [76, 12], [90, 22], [82, 36], [60, 28], [50, 36], [40, 28], [18, 36]), P([30, 6], [50, 0], [70, 6], [50, 10])],
+  robot: [R(24, 14, 52, 30), R(48, 3, 4, 11), C(50, 3, 3), C(38, 28, 6), C(62, 28, 6), R(17, 24, 7, 12), R(76, 24, 7, 12), R(38, 38, 24, 3)],
   crown: [P([12, 36], [18, 12], [34, 26], [50, 6], [66, 26], [82, 12], [88, 36]), R(12, 34, 76, 8)],
 };
 const ESHAPE = { jersey: 'jacket', hoodie: 'hood', rider: 'jacket', vest: 'vest', armor: 'armor', bsuit: 'suit', u_suit: 'suit', sneaker: 'shoe', runner: 'shoe', spike: 'shoe', turbo: 'boot', rocket: 'wing', lightning: 'bolt', u_boots: 'bolt', cap: 'cap', visor: 'visor', headset: 'headset', tactical: 'helmet', goggle: 'goggle', hmask: 'mask', u_helm: 'crown' };
@@ -73,7 +74,7 @@ function tile(prims, scale, accent) {
 }
 const RAR = ['#7a8aa6', '#5ac8ff', '#ffb02a', '#ff5aff'];
 // Higgsfield で つくった アイコン(textures/icons/)。ないものは したの じさく シルエット
-const GEN = new Set(['armor', 'assault', 'assaultsg', 'bat', 'bsuit', 'cap', 'carbine', 'crowbar', 'fist', 'goggle', 'hammer', 'headset', 'heavypistol', 'heavyrifle', 'heavysniper', 'hmask', 'hoodie', 'jersey', 'knife', 'lightning', 'machete', 'mg', 'pistol', 'pump', 'revolver', 'rider', 'rocket', 'runner', 'sawedoff', 'smg', 'sneaker', 'sniper', 'spike', 'tactical', 'turbo', 'u_boots', 'u_helm', 'u_suit', 'vest', 'visor']);
+const GEN = new Set(['armor', 'assault', 'assaultsg', 'bat', 'bsuit', 'cap', 'carbine', 'combatpistol', 'dbarrel', 'railgun', 'omega', 'tempest', 'crowbar', 'fist', 'goggle', 'hammer', 'headset', 'heavypistol', 'heavyrifle', 'heavysniper', 'hmask', 'hoodie', 'jersey', 'knife', 'lightning', 'machete', 'mg', 'pistol', 'pump', 'revolver', 'rider', 'rocket', 'runner', 'sawedoff', 'smg', 'sneaker', 'sniper', 'spike', 'tactical', 'turbo', 'u_boots', 'u_helm', 'u_suit', 'vest', 'visor']);
 export function weaponIconURL(w) { if (GEN.has(w.id)) return `./textures/icons/${w.id}.webp`; const shape = GUN[WSHAPE[w.id] || (w.melee ? 'knife' : w.expl ? 'rpg' : 'pistol')]; const tier = w.price >= 40000 ? 3 : w.price >= 14000 ? 2 : w.price >= 4000 ? 1 : 0; return tile(shape, SCALE[w.id] || 1, RAR[tier]); }
-export function equipIconURL(e) { if (GEN.has(e.id)) return `./textures/icons/${e.id}.webp`; const shape = EQ[ESHAPE[e.id] || (e.slot === 'body' ? 'jacket' : e.slot === 'feet' ? 'shoe' : 'cap')]; const tier = e.price >= 100000 ? 3 : e.price >= 15000 ? 2 : e.price >= 3000 ? 1 : 0; return tile(shape, 1, RAR[tier]); }
+export function equipIconURL(e) { if (GEN.has(e.id)) return `./textures/icons/${e.id}.webp`; const shape = EQ[ESHAPE[e.id] || (e.slot === 'body' ? 'jacket' : e.slot === 'feet' ? 'shoe' : e.slot === 'acc' ? 'robot' : 'cap')]; const tier = e.price >= 100000 ? 3 : e.price >= 15000 ? 2 : e.price >= 3000 ? 1 : 0; return tile(shape, 1, RAR[tier]); }
 export const iconImg = (url, cls = 'wi') => (url ? `<img class="${cls}" src="${url}" alt="" draggable="false">` : '');

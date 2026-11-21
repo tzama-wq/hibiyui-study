@@ -283,8 +283,8 @@ for (const planeId of ['plane', 'hawk']) {
 }
 // ---- オートAIMの ON/OFF・ふっかつで 指名手配が きえる・じたくに かくれる ----
 {
-  const aa = (auto) => { const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'pistol'; const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } }); P.x = c.x - 30; P.z = c.z; P.camYaw = Math.PI / 2 + 0.2; P.yaw = P.camYaw; sim.input.autoAim = auto; P.noAim = 5; P.wCd = 0; sim.input.gun = true; sim.step(0.05); return Math.abs(P.camYaw - Math.PI / 2); };
-  assert.ok(aa(true) < 0.18 && aa(true) > 0.1, 'ONだと すこしだけ てきの ほうへ ひきよせる(エイムアシスト)'); assert.ok(aa(false) > 0.19, 'OFFだと ひきよせない');
+  const aa = (auto, lv = 3) => { const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'pistol'; S.eq = { ...S.eq, aimLv: lv }; const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } }); P.x = c.x - 30; P.z = c.z; P.camYaw = Math.PI / 2 + 0.2; P.yaw = P.camYaw; sim.input.autoAim = auto; P.noAim = 5; P.wCd = 0; sim.input.gun = true; sim.step(0.05); return Math.abs(P.camYaw - Math.PI / 2); };
+  assert.ok(aa(true) < 0.18 && aa(true) > 0.1, 'ロボ ランク3は すこしだけ ひきよせる(エイムアシスト)'); assert.ok(aa(false) > 0.19, 'OFFだと ひきよせない'); assert.ok(aa(true, 0) > 0.19, 'ロボなしは ほとんど ひきよせない'); assert.ok(aa(true, 5) < aa(true, 3), 'ランクが たかい ほど つよい');
   const sim = mk(); const S = sim.state; const P = S.player; tele(sim, HQ.x, HQ.z); sim.raise(3); S.huntT = 0; for (let i = 0; i < 80; i++) { P.invuln = 5; sim.step(0.05); } P.hp = 1; P.invuln = 0; S.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); sim.step(0.05); assert.equal(S.lv, 0, 'たおされたら かいじょ'); sim.raise(2); for (let i = 0; i < 70; i++) sim.step(0.05); assert.ok(S.lv >= 0);
   const h = mk(); const HS = h.state; const HP = HS.player; h.raise(3); tele(h, BASE.x, BASE.z); HP.lastHurt = -99; for (let i = 0; i < 20 * 14; i++) { HP.invuln = 5; h.step(0.05); if (HS.lv === 0) break; } assert.equal(HS.lv, 0, 'じたくに かくれて 12びょう じっとすると かいじょ'); assert.ok(!HS.crooks.some((c) => c.hunter), 'かくれている あいだは おってが でない');
   const f = mk(); f.raise(5); tele(f, BASE.x, BASE.z); for (let i = 0; i < 20 * 14; i++) { f.state.player.invuln = 5; f.step(0.05); } assert.equal(f.state.lv, 5, '★5は かくれられない');
@@ -373,7 +373,7 @@ for (const planeId of ['plane', 'hawk']) {
   tele(q0, KOBAN.x, KOBAN.z + 8); q0.step(0.05); v = q0.questView(); assert.ok(v.steps[0].done && v.xp >= 1, 'goto を クリア→けいけんち');
   const q1 = mk(); q1.setJob('police'); Object.assign(q1.state.qs.police, { c: 1, s: 0 }); q1.step(0.05); v = q1.questView(); assert.ok(v.locked && v.need === 2 && v.left === 6, 'Lvが たりないと ロック');
   q1.state.jobXp.police = 6; q1.step(0.05); assert.ok(!q1.questView().locked, 'Lv2で ひらく');
-  for (const j of ['police', 'swat', 'fire', 'ems', 'jgsdf', 'jmsdf', 'jasdf']) { const qq = mk(); assert.ok(qq.setJob(j).ok); const vv = qq.questView(); assert.equal(vv.total, 5, j); }
+  for (const j of ['police', 'swat', 'fire', 'ems', 'jgsdf', 'jmsdf', 'jasdf']) { const qq = mk(); assert.ok(qq.setJob(j).ok); const vv = qq.questView(); assert.equal(vv.total, 10, j); }
   const q2 = mk(); q2.setJob('police'); q2.state.fireT = 0; q2.step(0.05); assert.ok(!/かじだ/.test(q2.state.msg || ''), 'しょくぎょうに かんけいない かじの メッセージは なし');
   const q3 = mk(); q3.setJob('fire'); q3.state.fireT = 0; q3.step(0.05); assert.ok(q3.state.fires.length > 0, 'かじは おこる'); assert.ok(q3.state.goal && q3.state.goal.icon, 'もくてきが でる');
 }
