@@ -1,5 +1,5 @@
 {
- "date": "2026-11-20",
+ "date": "2026-11-21",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -9,11 +9,11 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 8,
+   "returned": 9,
    "rejected": {},
-   "unverified": 0,
+   "unverified": 1,
    "accepted": 8,
-   "rounds": 1,
+   "rounds": 2,
    "samples": [],
    "missing": 0
   },
@@ -29,22 +29,104 @@
   },
   "3": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
+   "returned": 9,
+   "rejected": {
+    "wrong-shape": 1
+   },
+   "unverified": 1,
+   "accepted": 7,
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "局",
+      "target": "薬局",
+      "reading": "やっきょく",
+      "sentence": "近くの 薬局で くすりを 買う。",
+      "explain": "「局」は おん読みで「きょく」と 読みます。",
+      "wrong": [
+       {
+        "text": "やくきょく",
+        "tag": "small_kana"
+       },
+       {
+        "text": "やっぎょく",
+        "tag": "dakuten"
+       },
+       {
+        "text": "やっこう",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    }
+   ],
+   "missing": 1
   },
   "4": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
+   "returned": 10,
+   "rejected": {
+    "sentence-kanji-out-of-grade": 1,
+    "target-not-once": 1
+   },
    "unverified": 0,
    "accepted": 8,
-   "rounds": 1,
-   "samples": [],
+   "rounds": 2,
+   "samples": [
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "喜",
+      "target": "喜劇",
+      "reading": "きげき",
+      "sentence": "おもしろい喜劇を見て大わらいした。",
+      "explain": "「きげき」は「喜劇」と書きます。",
+      "wrong": [
+       {
+        "text": "希劇",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "紀劇",
+        "tag": "similar_sound"
+       },
+       {
+        "text": "汽劇",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "target-not-once",
+     "item": {
+      "type": "kaki",
+      "kanji": "囲",
+      "target": "囲む",
+      "reading": "かこむ",
+      "sentence": "みんなでつくえを囲んで話し合う。",
+      "explain": "「かこむ」は「囲む」と書きます。",
+      "wrong": [
+       {
+        "text": "園む",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "固む",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "国む",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   }
  }
