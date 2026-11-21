@@ -22,7 +22,7 @@ const NEAR = new Set(['crooks', 'traffic', 'walkers', 'civs', 'pickups', 'vehicl
 const rnd = (v) => (typeof v === 'number' ? (Math.abs(v) < 10 ? r2(v) : r1(v)) : v);
 const enc = (arr, keys) => arr.map((o) => keys.map((k) => rnd(o[k])));
 const dec = (rows, keys) => rows.map((r) => { const o = {}; keys.forEach((k, i) => { if (r[i] !== undefined && r[i] !== null) o[k] = r[i]; }); return o; });
-const PL = ['x', 'y', 'z', 'yaw', 'camYaw', 'aimPitch', 'hp', 'hpMax', 'dead', 'mode', 'veh', 'weapon', 'invuln', 'coins', 'speed', 'swing', 'reload', 'chute', 'aimRel'];
+const PL = ['x', 'y', 'z', 'yaw', 'camYaw', 'aimPitch', 'hp', 'hpMax', 'dead', 'mode', 'veh', 'weapon', 'invuln', 'coins', 'speed', 'swing', 'reload', 'chute', 'aimRel', 'jh'];
 
 export function snapshotCity(sim, forPl) {
   const S = sim.state; const pls = S.players; const near = (o) => pls.some((p) => Math.abs(p.x - o.x) < 380 && Math.abs(p.z - o.z) < 380);
@@ -42,7 +42,7 @@ export function hostBindCity(sim, conn, onEvent) {
     if (m.t === 'hello') { if (!pl) { pl = sim.addPlayer(String(m.n || 'ゲスト').slice(0, 8)); if (!pl) { conn.send({ t: 'full' }); return; } if (m.pr) { bestOf.pr = m.pr; recalc(); } conn.send({ t: 'hi', me: sim.state.players.indexOf(pl) }); if (onEvent) onEvent({ e: 'join', pl }); } return; }
     if (!pl) return; const I = sim.inputOf(pl); if (!I) return;
     if (m.t === 'in' && m.i) { I.moveX = +m.i[0] || 0; I.moveY = +m.i[1] || 0; I.aimX = +m.i[2] || 0; I.aimY = +m.i[3] || 0; I.gun = !!m.i[4]; I.boost = !!m.i[5]; I.aimLock = !!m.i[6]; I.autoAim = m.i[7] !== 0; I.camYaw = typeof m.cy === 'number' ? m.cy : null; I.aimPitch = typeof m.ap === 'number' ? m.ap : null; I.turn = +m.i[8] || 0; I.climb = +m.i[9] || 0; }
-    else if (m.t === 'ev') { if (m.e === 'interact') sim.interactFor(pl); else if (m.e === 'reload') sim.as(pl, () => sim.reload && sim.reload()); else if (m.e === 'cycle') sim.as(pl, () => sim.cycleWeapon && sim.cycleWeapon(1)); else if (m.e === 'equip') sim.as(pl, () => sim.equip && sim.equip(String(m.id))); }
+    else if (m.t === 'ev') { if (m.e === 'jump') I.jump = true; else if (m.e === 'interact') sim.interactFor(pl); else if (m.e === 'reload') sim.as(pl, () => sim.reload && sim.reload()); else if (m.e === 'cycle') sim.as(pl, () => sim.cycleWeapon && sim.cycleWeapon(1)); else if (m.e === 'equip') sim.as(pl, () => sim.equip && sim.equip(String(m.id))); }
   });
   const recalc = () => { let b = null; if (bestOf.pr) b = bestOf.pr; sim.setCoopBest(b); };
   conn.onClose(() => { alive = false; if (pl) { sim.removePlayer(pl); if (onEvent) onEvent({ e: 'leave', pl }); pl = null; } });
@@ -87,6 +87,7 @@ export function guestBindCity(sim, conn, name, progress) {
   };
   sim.step = stepLocal;
   sim.interact = () => { conn.send({ t: 'ev', e: 'interact' }); return true; };
+  sim.jump = () => { conn.send({ t: 'ev', e: 'jump' }); return true; };
   sim.reload = () => { conn.send({ t: 'ev', e: 'reload' }); return true; };
   sim.cycleWeapon = () => { conn.send({ t: 'ev', e: 'cycle' }); return true; };
   sim.equip = (id) => { conn.send({ t: 'ev', e: 'equip', id }); return { ok: true }; };

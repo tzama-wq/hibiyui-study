@@ -826,7 +826,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     for (const b of S.bullets) {
       b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
       if (insideBuilding(b.x, b.z, b.y)) { b.t = 99; continue; }
-      for (const pl of players) { P = pl; if (b.t >= 99) break; if (P.dead <= 0) { const v = cur(); const py = v ? (isAir(v.kind) ? P.y : 1.8) : 1.2; const rad = v ? (v.kind === 'ship' ? 14 : v.kind === 'tank' ? 7 : isAir(v.kind) ? 8 : v.kind === 'bike' ? 2.2 : 3.2) : 1.4; if (hyp(b.x - P.x, b.z - P.z) < rad && Math.abs(b.y - py) < rad + 2) { hurtPlayer(b.dmg); b.t = 99; fx('spark', b.x, b.y, b.z, 3); } } } P = HOST;
+      for (const pl of players) { P = pl; if (b.t >= 99) break; if (P.dead <= 0) { const v = cur(); const py = v ? (isAir(v.kind) ? P.y : 1.8) : 1.2 + (P.jh || 0); const rad = v ? (v.kind === 'ship' ? 14 : v.kind === 'tank' ? 7 : isAir(v.kind) ? 8 : v.kind === 'bike' ? 2.2 : 3.2) : 1.4; if (hyp(b.x - P.x, b.z - P.z) < rad && Math.abs(b.y - py) < rad + 2) { hurtPlayer(b.dmg); b.t = 99; fx('spark', b.x, b.y, b.z, 3); } } } P = HOST;
     }
     S.bullets = S.bullets.filter((b) => b.t < 3.5);
   }
@@ -1016,6 +1016,9 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     }
     movePlayer(dt); if (P.plat) { if (P.mode !== 'foot' || P.dead > 0) P.plat = null; else { P.x = clamp(P.x, P.plat.x0, P.plat.x1); P.z = clamp(P.z, P.plat.z0, P.plat.z1); } } setNear();
     P.nearby = S.nearby;
+    // ジャンプ(あるいている ときだけ・じめん/おくじょうから)
+    if (input.jump) { input.jump = false; if (P.mode === 'foot' && !P.chute && !(P.jh > 0.02)) { P.jv = 6.6; P.jh = 0.001; snd('jump'); } }
+    if (P.mode !== 'foot' || P.chute) { P.jh = 0; P.jv = 0; } else if (P.jh > 0) { P.jv -= 21 * dt; P.jh += P.jv * dt; if (P.jh <= 0) { P.jh = 0; P.jv = 0; } }
     if (input.gun) fireGun(dt);
     { const Wt = weaponOf(P.weapon) || {}; const vt = cur(); P.target = nearestCrook(vt ? (vt.kind === 'car' || vt.kind === 'bike' ? AUTOAIM_MAX_VEH : 600) : (Wt.range || 3) + AUTOAIM_EXTRA, 6.3, P.yaw); } // あるいている ときは ぶきの しゃてい+12mの なかだけ ねらいが きく
     return true;

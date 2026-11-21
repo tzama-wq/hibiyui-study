@@ -425,4 +425,8 @@ for (const planeId of ['plane', 'hawk']) {
   assert.ok(host.state.coopBest && host.state.coopBest.a === 3, 'ゲストの しんちょく'); const n0 = host.state.players.length; cG.close(); assert.equal(host.state.players.length, n0 - 1, 'きれたら ぬける');
   const snap = snapshotCity(host, host.state.player); assert.ok(JSON.stringify(snap).length < 200000, 'スナップショットは おおきすぎない');
 }
+// ---- ジャンプ ----
+{
+  const j = mk(); const P = j.state.player; j.step(0.05); assert.equal(P.jh || 0, 0); j.input.jump = true; j.step(1 / 30); assert.ok(P.jh > 0, 'とびあがる'); let peak = 0; for (let i = 0; i < 40; i++) { j.step(1 / 30); peak = Math.max(peak, P.jh); } assert.ok(peak > 0.5 && peak < 2.5, 'たかさ'); assert.equal(P.jh, 0, 'ちゃくち'); j.input.jump = true; j.step(1 / 30); j.input.jump = true; const h1 = P.jh; j.step(1 / 30); assert.ok(P.jh >= h1 - 0.01, 'くうちゅうでは にだんジャンプしない');
+}
 console.log('OK: city');

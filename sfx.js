@@ -55,6 +55,7 @@ export function createSfx(isQuiet = () => false) {
     reload: () => { tone(300, 0.04, { type: 'square', v: 0.04 }); tone(520, 0.05, { at: 0.22, type: 'square', v: 0.04 }); noise(0.05, 0.07, { at: 0.45, freq: 3000 }); },
     dry: () => tone(1200, 0.03, { type: 'square', v: 0.035 }),
     hitmark: () => { tone(1700, 0.04, { type: 'triangle', v: 0.05 }); tone(2300, 0.05, { at: 0.04, type: 'triangle', v: 0.035 }); },
+    jump: () => tone(380, 0.09, { to: 640, type: 'triangle', v: 0.03 }),
     // シティ
     click: () => tone(880, 0.04, { type: 'triangle', v: 0.03 }),
     cash: () => { tone(1320, 0.06, { v: 0.035 }); tone(1760, 0.12, { at: 0.06, v: 0.035 }); },
