@@ -14,6 +14,13 @@ const GUN = {
   rifle: [R(22, 14, 48, 10), R(70, 16, 26, 3), P([3, 14], [22, 14], [22, 25], [3, 31]), P([44, 24], [53, 24], [49, 40], [40, 38]), R(44, 9, 12, 5), P([30, 24], [37, 24], [35, 36], [29, 36])],
   mg: [R(18, 14, 46, 11), R(64, 15, 30, 4), P([2, 14], [18, 14], [18, 26], [2, 30]), R(34, 25, 16, 13), R(66, 19, 3, 12), R(74, 19, 3, 12), R(40, 9, 14, 5)],
   sniper: [R(18, 15, 36, 9), R(54, 17, 42, 3), R(36, 6, 30, 6), R(44, 12, 4, 4), P([2, 15], [18, 15], [18, 25], [2, 30]), P([30, 24], [37, 24], [35, 37], [29, 37]), R(78, 20, 3, 9)],
+  appistol: [R(18, 12, 60, 10), R(76, 13, 14, 5), R(82, 9, 3, 4), P([28, 22], [40, 22], [38, 48], [29, 48]), R(44, 24, 10, 3), R(30, 8, 8, 4), P([22, 22], [30, 22], [26, 40], [19, 40])],
+  pistol50: [R(12, 10, 72, 13), R(82, 12, 11, 7), R(38, 7, 30, 3), P([22, 23], [44, 23], [40, 47], [22, 47]), R(44, 25, 12, 3), C(62, 16, 2), R(8, 12, 6, 8)],
+  microsmg: [R(26, 16, 40, 10), R(66, 18, 14, 4), P([36, 26], [43, 26], [43, 46], [36, 46]), P([16, 16], [26, 16], [26, 24], [8, 31]), R(38, 11, 14, 4), R(28, 26, 6, 10), R(80, 17, 4, 6)],
+  pdw: [R(20, 12, 52, 12), R(72, 15, 18, 4), P([44, 24], [56, 24], [62, 38], [54, 47], [46, 40]), P([4, 13], [20, 13], [20, 26], [4, 22]), R(30, 6, 24, 6), R(34, 24, 8, 10), C(80, 11, 3)],
+  spcarbine: [R(22, 14, 46, 10), R(68, 14, 30, 7), P([3, 14], [22, 14], [22, 25], [3, 29]), P([44, 24], [53, 24], [50, 38], [42, 38]), R(34, 6, 20, 7), R(28, 24, 7, 11), R(46, 11, 2, 4)],
+  combatmg: [R(16, 14, 44, 12), R(60, 15, 34, 4), P([2, 14], [16, 14], [16, 27], [2, 31]), R(28, 26, 22, 14), R(70, 19, 3, 12), R(80, 19, 3, 12), R(34, 8, 18, 6), L(40, 36, 52, 46, 3)],
+  marksman: [R(18, 15, 38, 9), R(56, 17, 40, 3), R(26, 7, 26, 6), R(30, 13, 4, 3), P([2, 15], [18, 15], [18, 25], [2, 28]), P([34, 24], [42, 24], [40, 38], [33, 38]), R(78, 19, 3, 10), L(84, 20, 91, 33, 2)],
   rpg: [R(6, 15, 70, 9), P([76, 12], [96, 19], [76, 27]), P([26, 24], [34, 24], [32, 40], [25, 40]), R(40, 9, 8, 6), R(2, 17, 6, 5)],
   grenadel: [R(24, 14, 48, 12), R(72, 16, 20, 8), C(48, 27, 8), P([4, 15], [24, 15], [24, 26], [4, 32]), P([34, 34], [41, 34], [39, 46], [33, 46])],
   homing: [R(6, 18, 72, 9), P([78, 15], [97, 22], [78, 30]), R(26, 8, 34, 10), P([30, 27], [38, 27], [36, 43], [29, 43]), R(60, 10, 6, 4)],
@@ -29,7 +36,7 @@ const GUN = {
   grenade: [C(46, 28, 15), R(40, 6, 12, 9), R(52, 8, 14, 3), C(70, 10, 4)],
   molotov: [P([42, 12], [56, 12], [60, 26], [66, 46], [34, 46], [40, 26]), R(44, 6, 10, 8), P([46, 6], [50, -2], [54, 6])],
 };
-const WSHAPE = { pistol: 'pistol', combatpistol: 'pistol', heavypistol: 'pistol', pistol50: 'pistol', revolver: 'revolver', appistol: 'pistol', microsmg: 'smg', smg: 'smg', assaultsmg: 'smg', combatpdw: 'smg', sawedoff: 'shotgun', pump: 'shotgun', dbarrel: 'shotgun', assaultsg: 'shotgun', assault: 'rifle', carbine: 'rifle', specialcarbine: 'rifle', heavyrifle: 'rifle', mg: 'mg', combatmg: 'mg', minigun: 'minigun', sniper: 'sniper', marksman: 'sniper', heavysniper: 'sniper', grenade: 'grenade', molotov: 'molotov', grenadel: 'grenadel', rpg: 'rpg', homing: 'homing', railgun: 'railgun', knife: 'knife', bat: 'bat', hammer: 'hammer', crowbar: 'crowbar', machete: 'machete', axe: 'axe', fist: 'fist' };
+const WSHAPE = { pistol: 'pistol', combatpistol: 'pistol', heavypistol: 'pistol', pistol50: 'pistol50', revolver: 'revolver', appistol: 'appistol', microsmg: 'microsmg', smg: 'smg', assaultsmg: 'smg', combatpdw: 'pdw', sawedoff: 'shotgun', pump: 'shotgun', dbarrel: 'shotgun', assaultsg: 'shotgun', assault: 'rifle', carbine: 'rifle', specialcarbine: 'spcarbine', heavyrifle: 'rifle', mg: 'mg', combatmg: 'combatmg', minigun: 'minigun', sniper: 'sniper', marksman: 'marksman', heavysniper: 'sniper', grenade: 'grenade', molotov: 'molotov', grenadel: 'grenadel', rpg: 'rpg', homing: 'homing', railgun: 'railgun', knife: 'knife', bat: 'bat', hammer: 'hammer', crowbar: 'crowbar', machete: 'machete', axe: 'axe', fist: 'fist' };
 const SCALE = { sawedoff: 0.78, microsmg: 0.78, combatpistol: 0.95, heavypistol: 1.05, pistol50: 1.08, appistol: 0.95, heavyrifle: 1.05, heavysniper: 1.0, combatmg: 1.0 };
 
 const EQ = {
