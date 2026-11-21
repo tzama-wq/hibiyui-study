@@ -3,7 +3,7 @@
 //   ゲスト: const gb = guestBindCity(sim, conn)  → sim.step を おきかえて、ホストの けしきを あらわす
 const r1 = (v) => Math.round(v * 10) / 10; const r2 = (v) => Math.round(v * 100) / 100;
 const KEYS = {
-  crooks: ['id', 'type', 'x', 'y', 'z', 'yaw', 'hp', 'hpMax', 'state', 'wid', 'alert', 'minor', 'hunter', 'qtag', 'qboss', 'task', 'ph', 'air', 'cop', 'dead', 'speed'],
+  crooks: ['id', 'type', 'x', 'y', 'z', 'yaw', 'hp', 'hpMax', 'state', 'wid', 'alert', 'minor', 'hunter', 'qtag', 'qboss', 'task', 'ph', 'air', 'cop', 'dead', 'speed', 'hideout'],
   traffic: ['id', 'x', 'z', 'yaw', 'model', 'tone', 'hostile', 'cop', 'dead', 'hidden', 'speeding', 'bike', 'r'],
   walkers: ['id', 'x', 'z', 'yaw', 'dead', 'look', 'scared', 'idle', 'spd', 'vert', 'dir'],
   civs: ['id', 'x', 'z', 'yaw', 'state', 'wid', 'minor', 'qtag'],
@@ -31,7 +31,7 @@ export function snapshotCity(sim, forPl) {
   const m = { t: 's', tm: r1(S.t), lv: S.lv | 0, fine: S.fine | 0, msg: S.msg || '', mt: r2(S.msgT || 0), bn: S.banner || '', bt: r2(S.bannerT || 0), hit: S.hitT == null ? 0 : r2(S.hitT), sw: r2(S.swing || 0) };
   for (const [k, keys] of Object.entries(KEYS)) { let a = S[k] || []; if (NEAR.has(k)) a = a.filter(near); m[k] = enc(a, keys); }
   m.tracers = (S.tracers || []).map((t) => [r1(t.from.x), r1(t.from.y), r1(t.from.z), r1(t.to.x), r1(t.to.y), r1(t.to.z), r2(t.t)]);
-  m.pk = pls.map((p, i) => [cleanLook(p.look), i === 0 ? { ...S.equip } : { ...(p.equip || {}) }]); m.pl = pls.map((p) => PL.map((k) => (k === 'plat' ? 0 : rnd(p[k])))); m.pn = pls.map((p) => p.name || ''); m.pp = pls.map((p) => (p.plat ? p.plat.y : 0));
+  m.pk = pls.map((p, i) => [cleanLook(p.look), i === 0 ? { ...S.equip } : { ...(p.equip || {}) }]); m.pl = pls.map((p) => PL.map((k) => (k === 'plat' ? 0 : rnd(p[k])))); m.pn = pls.map((p) => p.name || ''); m.pp = pls.map((p) => (p.plat ? p.plat.y : 0)); m.pi = pls.map((p) => (p.plat && p.plat.id ? p.plat.id : 0)); m.pc = pls.map((p) => (p.plat && p.plat.cx != null ? [Math.round(p.plat.cx), Math.round(p.plat.cz)] : 0));
   if (forPl) { m.me = pls.indexOf(forPl); const A = ((forPl === pls[0] ? S.ammo : forPl.ammo) || {})[forPl.weapon]; m.am = A ? [A.mag, A.reserve] : null; m.nb = forPl.nearby ? { kind: forPl.nearby.kind, id: forPl.nearby.id, label: forPl.nearby.label } : null; }
   m.snd = (S.snd || []).slice(0, 12);
   return m;
@@ -65,9 +65,9 @@ export function guestBindCity(sim, conn, name, progress, onLoot, look) {
     for (const k of Object.keys(KEYS)) { if (!m[k]) continue; const v = adopt(k, m[k]); if (k === 'wanted') { S.wanted = v; continue; } S[k] = v; }
     S.tracers = m.tracers.map((t) => ({ from: { x: t[0], y: t[1], z: t[2] }, to: { x: t[3], y: t[4], z: t[5] }, t: t[6] }));
     // プレイヤー(じぶんと ほかの ふたり)
-    const arr = m.pl.map((r, i) => { const o = {}; PL.forEach((k, j) => { o[k] = r[j]; }); o.name = m.pn[i]; o.y2 = m.pp[i]; return o; });
+    const arr = m.pl.map((r, i) => { const o = {}; PL.forEach((k, j) => { o[k] = r[j]; }); o.name = m.pn[i]; o.y2 = m.pp[i]; o.pid = m.pi ? m.pi[i] : 0; o.pcc = m.pc ? m.pc[i] : 0; return o; });
     if (!S.players || S.players.length !== arr.length) S.players = arr.map((o, i) => (i === me ? P : { ...o, tx: o.x, tz: o.z, tyaw: o.yaw }));
-    arr.forEach((o, i) => { const tgt = S.players[i]; if (i === me) { const keep = { camYaw: P.camYaw, aimPitch: P.aimPitch, yaw: P.yaw }; const px = P.x; const pz = P.z; Object.assign(P, o); P.name = o.name; P.tx = o.x; P.tz = o.z; if (Math.hypot(o.x - px, o.z - pz) < 6 && P.mode === 'foot') { P.x = px + (o.x - px) * 0.5; P.z = pz + (o.z - pz) * 0.5; } P.camYaw = keep.camYaw; P.aimPitch = keep.aimPitch; if (o.mode !== 'foot') P.camYaw = o.camYaw; P.dead = o.dead; P.plat = o.y2 > 0 ? { y: o.y2, kind: 'roof' } : null; } else { const px = tgt.x; const pz = tgt.z; Object.assign(tgt, o); tgt.tx = o.x; tgt.tz = o.z; tgt.tyaw = o.yaw; tgt.x = Math.hypot(o.x - px, o.z - pz) > 30 ? o.x : px; tgt.z = Math.hypot(o.x - px, o.z - pz) > 30 ? o.z : pz; tgt.plat = o.y2 > 0 ? { y: o.y2, kind: 'roof' } : null; } });
+    arr.forEach((o, i) => { const tgt = S.players[i]; if (i === me) { const keep = { camYaw: P.camYaw, aimPitch: P.aimPitch, yaw: P.yaw }; const px = P.x; const pz = P.z; Object.assign(P, o); P.name = o.name; P.tx = o.x; P.tz = o.z; if (Math.hypot(o.x - px, o.z - pz) < 6 && P.mode === 'foot') { P.x = px + (o.x - px) * 0.5; P.z = pz + (o.z - pz) * 0.5; } P.camYaw = keep.camYaw; P.aimPitch = keep.aimPitch; if (o.mode !== 'foot') P.camYaw = o.camYaw; P.dead = o.dead; P.plat = o.y2 > 0 ? { y: o.y2, kind: o.pid ? 'hideout' : 'roof', id: o.pid || undefined, cx: o.pcc ? o.pcc[0] : undefined, cz: o.pcc ? o.pcc[1] : undefined } : null; } else { const px = tgt.x; const pz = tgt.z; Object.assign(tgt, o); tgt.tx = o.x; tgt.tz = o.z; tgt.tyaw = o.yaw; tgt.x = Math.hypot(o.x - px, o.z - pz) > 30 ? o.x : px; tgt.z = Math.hypot(o.x - px, o.z - pz) > 30 ? o.z : pz; tgt.plat = o.y2 > 0 ? { y: o.y2, kind: 'roof' } : null; } });
     if (m.iv && onLoot) { try { onLoot({ w: m.iv[0], e: m.iv[1] }); } catch { /* ok */ } }
     if (m.pk) m.pk.forEach((r, i) => { const t = S.players[i]; if (t) { t.look = r[0]; t.eqp = r[1]; } });
     S.nearby = m.nb || null; if (m.am) { S.ammo = S.ammo || {}; S.ammo[P.weapon] = { mag: m.am[0], reserve: m.am[1] }; }

@@ -27,7 +27,7 @@ export async function loadCityAssets(THREE) {
     // ないクリップは にた どうさで おぎなう(おとこのこ・おんなのこは はしる/ねらう どうさが すくない)
     const alias = (to, from) => { if (!actions[to] && actions[from]) actions[to] = actions[from]; };
     ['Run_Shoot', 'Run_Left', 'Run_Right', 'Run_Back'].forEach((n) => alias(n, 'Run')); alias('Punch_Right', 'Punch'); alias('Punch_Left', 'Punch'); alias('Sword_Slash', 'SwordSlash');
-    ['Idle_Gun', 'Idle_Gun_Pointing', 'Idle_Gun_Shoot', 'Idle_Neutral', 'Gun_Shoot', 'HitRecieve', 'HitRecieve_2'].forEach((n) => alias(n, 'Standing')); ['Idle_Gun', 'Idle_Gun_Pointing', 'Idle_Gun_Shoot', 'Idle_Neutral', 'Interact', 'Wave'].forEach((n) => alias(n, 'Idle'));
+     ['Idle_Gun', 'Idle_Gun_Pointing', 'Idle_Gun_Shoot', 'Idle_Neutral', 'Interact', 'Wave'].forEach((n) => alias(n, 'Idle'));
     let cur = null; const play = (name, fade = 0.18, once = false) => { const a = actions[name] || actions.Idle; if (!a || a === cur) return; if (once) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } else a.setLoop(THREE.LoopRepeat, Infinity); a.reset().fadeIn(fade).play(); if (cur) cur.fadeOut(fade); cur = a; };
     let handBone = null; root.traverse((n) => { if (!handBone && n.isBone && /^(wrist|fist|palm|hand).?r(ight)?$|wrist\.?r$|hand\.?r$|fist\.?r$/i.test(n.name)) handBone = n; });
     const hand = new THREE.Group(); if (handBone) { wrap.updateMatrixWorld(true); const ws = new THREE.Vector3(); handBone.getWorldScale(ws); hand.scale.setScalar(1 / (ws.x || 1)); handBone.add(hand); } else wrap.add(hand);

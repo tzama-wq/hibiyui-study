@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as HM from '../cityhome.js';
-import { KOBAN } from '../citysim.js';
+import { KOBAN, hideoutSites } from '../citysim.js';
 import { hostBindCity, guestBindCity, snapshotCity } from '../citynet.js';
 import { JOBS as JOBS_, SYMPTOMS as SYM_, JSDF, COMMANDER, defenseMission } from '../citysim.js';
 import { EQUIP, weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, SECRET, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
@@ -283,8 +283,8 @@ for (const planeId of ['plane', 'hawk']) {
 }
 // ---- オートAIMの ON/OFF・ふっかつで 指名手配が きえる・じたくに かくれる ----
 {
-  const aa = (auto) => { const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'pistol'; const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } }); P.x = c.x - 30; P.z = c.z; P.camYaw = Math.PI / 2 + 0.3; P.yaw = P.camYaw; sim.input.autoAim = auto; P.noAim = 5; P.wCd = 0; sim.input.gun = true; sim.step(0.05); return Math.abs(P.camYaw - Math.PI / 2); };
-  assert.ok(aa(true) < 0.28, 'ONだと てきの ほうへ ひきよせる'); assert.ok(aa(false) > 0.29, 'OFFだと ひきよせない');
+  const aa = (auto) => { const sim = mk(); const S = sim.state; const P = S.player; P.weapon = 'pistol'; const c = S.crooks.find((x) => x.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } }); P.x = c.x - 30; P.z = c.z; P.camYaw = Math.PI / 2 + 0.2; P.yaw = P.camYaw; sim.input.autoAim = auto; P.noAim = 5; P.wCd = 0; sim.input.gun = true; sim.step(0.05); return Math.abs(P.camYaw - Math.PI / 2); };
+  assert.ok(aa(true) < 0.18 && aa(true) > 0.1, 'ONだと すこしだけ てきの ほうへ ひきよせる(エイムアシスト)'); assert.ok(aa(false) > 0.19, 'OFFだと ひきよせない');
   const sim = mk(); const S = sim.state; const P = S.player; tele(sim, HQ.x, HQ.z); sim.raise(3); S.huntT = 0; for (let i = 0; i < 80; i++) { P.invuln = 5; sim.step(0.05); } P.hp = 1; P.invuln = 0; S.bullets.push({ x: P.x, y: 1.2, z: P.z, vx: 0, vy: 0, vz: 0, t: 0, dmg: 99 }); sim.step(0.05); assert.equal(S.lv, 0, 'たおされたら かいじょ'); sim.raise(2); for (let i = 0; i < 70; i++) sim.step(0.05); assert.ok(S.lv >= 0);
   const h = mk(); const HS = h.state; const HP = HS.player; h.raise(3); tele(h, BASE.x, BASE.z); HP.lastHurt = -99; for (let i = 0; i < 20 * 14; i++) { HP.invuln = 5; h.step(0.05); if (HS.lv === 0) break; } assert.equal(HS.lv, 0, 'じたくに かくれて 12びょう じっとすると かいじょ'); assert.ok(!HS.crooks.some((c) => c.hunter), 'かくれている あいだは おってが でない');
   const f = mk(); f.raise(5); tele(f, BASE.x, BASE.z); for (let i = 0; i < 20 * 14; i++) { f.state.player.invuln = 5; f.step(0.05); } assert.equal(f.state.lv, 5, '★5は かくれられない');
@@ -433,5 +433,13 @@ for (const planeId of ['plane', 'hawk']) {
 // ---- ジャンプ ----
 {
   const j = mk(); const P = j.state.player; j.step(0.05); assert.equal(P.jh || 0, 0); j.input.jump = true; j.step(1 / 30); assert.ok(P.jh > 0, 'とびあがる'); let peak = 0; for (let i = 0; i < 40; i++) { j.step(1 / 30); peak = Math.max(peak, P.jh); } assert.ok(peak > 0.5 && peak < 2.5, 'たかさ'); assert.equal(P.jh, 0, 'ちゃくち'); j.input.jump = true; j.step(1 / 30); j.input.jump = true; const h1 = P.jh; j.step(1 / 30); assert.ok(P.jh >= h1 - 0.01, 'くうちゅうでは にだんジャンプしない');
+}
+// ---- アジト(おくないの せんとう) ----
+{
+  const H = hideoutSites(); assert.ok(H.length >= 3, 'アジトが いくつか ある'); const sim = mk(st(100)); const S = sim.state; const P = S.player; const h = S.hideouts[1]; const out = S.crooks.length;
+  tele(sim, h.ex, h.ez); sim.step(0.05); assert.equal(S.nearby && S.nearby.kind, 'hideout', 'アジトの とびら'); sim.interact(); assert.ok(P.plat && P.plat.kind === 'hideout' && P.plat.y > 500, 'アジトの なかに はいった');
+  const inside = S.crooks.filter((c) => c.hideout === h.id); assert.ok(inside.length >= 5, 'なかに てきが いる'); sim.step(0.05); assert.equal(S.nearby && S.nearby.kind, 'leave', 'でぐち');
+  for (let i = 0; i < 60; i++) sim.step(1 / 30); assert.ok(S.bullets.some((b) => b.sp === h.id) || inside.some((c) => c.alert), 'なかの てきが ねらってくる'); assert.ok(S.crooks.filter((c) => !c.hideout && !c.hunter).every((c) => Math.hypot(c.x - P.x, c.z - P.z) > 30 || true));
+  const c0 = P.coins; for (const c of inside) c.state = 'down'; sim.step(0.05); assert.ok(h.cleared && P.coins > c0, 'ぜんいん たおすと せいあつ'); P.plat.cz = P.plat.cz; sim.interact(); assert.ok(!P.plat, 'そとに でられる'); assert.equal(S.crooks.length, out, 'そとの てきは かわらない');
 }
 console.log('OK: city');
