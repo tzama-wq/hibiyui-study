@@ -14,11 +14,14 @@ export const OUTFITS = [
   { id: 'green', name: 'グリーン パーカー', icon: '🟢', price: 600, shirt: '#2a9a4a', pants: '#2a3a2a' },
   { id: 'pink', name: 'ピンク コーデ', icon: '🌸', price: 600, shirt: '#ff7fb0', pants: '#7a4a8a' },
   { id: 'ninja', name: 'ニンジャ', icon: '🥷', price: 900, shirt: '#1a1a22', pants: '#1a1a22' },
-  { id: 'hero', name: 'ヒーロー', icon: '🦸', price: 900, shirt: '#d62a2a', pants: '#1d3fa6' },
+  { id: 'hero', name: 'ヒーロー', icon: '🦸', price: 900, shirt: '#d62a2a', pants: '#1d3fa6', shirtTex: 'hero', pantsTex: 'hero', texTintP: '#4a6aff' },
   { id: 'lab', name: 'はかせ', icon: '🥼', price: 1200, shirt: '#f4f4f4', pants: '#3a5a8a' },
   { id: 'space', name: 'うちゅう ひこうし', icon: '🚀', price: 1500, shirt: '#6a3ad6', pants: '#2a1a5a' },
-  { id: 'camo', name: 'さいきょう めいさい', icon: '🪖', price: 1800, shirt: '#5a6a3a', pants: '#3a4a2a' },
-  { id: 'gold', name: 'ゴールド ゴージャス', icon: '👑', price: 3000, shirt: '#e0b020', pants: '#3a2a10' },
+  { id: 'camo', name: 'めいさい', icon: '🪖', price: 1800, shirt: '#5a6a3a', pants: '#3a4a2a', shirtTex: 'camo', pantsTex: 'camo' },
+  { id: 'police', name: 'けいさつ ふう', icon: '👮', price: 900, shirt: '#1d3f9a', pants: '#142447', shirtTex: 'navy', pantsTex: 'navy' },
+  { id: 'jersey', name: 'メッシュ ユニフォーム', icon: '⚽', price: 600, shirt: '#2a6adf', pants: '#f2f2f2', shirtTex: 'mesh', texTint: '#5a8cff', pantsTex: 'mesh', texTintP: '#ffffff' },
+  { id: 'denim', name: 'デニム', icon: '👖', price: 600, shirt: '#f2f2f2', pants: '#2a4a8a', pantsTex: 'denim' },
+  { id: 'gold', name: 'ゴールド ゴージャス', icon: '👑', price: 3000, shirt: '#e0b020', pants: '#3a2a10', shirtTex: 'gold', pantsTex: 'gold', texTintP: '#9a7a40' },
 ];
 export const HATS = [
   { id: 'none', name: 'ぼうしなし', icon: '🙂', price: 0 },

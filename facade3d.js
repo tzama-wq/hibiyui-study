@@ -21,8 +21,16 @@ function upperTile(kind, seed) {
       g.fillStyle = '#b8b6b0'; for (let m = 0; m <= 2; m++) g.fillRect(x + m * cell / 2 - 1.5, y + 4, 3, cell - 44);
       if (lit) { ge.fillStyle = wc; ge.globalAlpha = 0.85; ge.fillRect(x + 3, y + 30, cell - 6, cell - 72); ge.globalAlpha = 1; for (let m = 0; m <= 2; m++) { ge.fillStyle = '#000'; ge.fillRect(x + m * cell / 2 - 1.5, y + 30, 3, cell - 72); } }
       gr.fillStyle = '#2a2a2a'; gr.fillRect(x, y + 4, cell, cell - 44); gb.fillStyle = '#505050'; gb.fillRect(x, y + 4, cell, cell - 44);
-    } else if (kind === 'apt') {
-      g.fillStyle = '#e2ded6'; g.fillRect(x, y, cell, cell);
+    } else if (kind === 'glass') { // ガラスの カーテンウォール
+      const gg = g.createLinearGradient(x, y, x + cell, y + cell); gg.addColorStop(0, '#7fb4d6'); gg.addColorStop(0.5, '#3f7098'); gg.addColorStop(1, '#1f3a56'); g.fillStyle = gg; g.fillRect(x, y, cell, cell);
+      g.fillStyle = 'rgba(255,255,255,.22)'; g.beginPath(); g.moveTo(x + 6, y); g.lineTo(x + 46, y); g.lineTo(x + 12, y + cell); g.lineTo(x - 28, y + cell); g.fill();
+      g.fillStyle = '#9aa4ae'; for (let m = 0; m <= 4; m++) g.fillRect(x + m * cell / 4 - 1.2, y, 2.4, cell); g.fillRect(x, y + cell - 3, cell, 3); g.fillRect(x, y + cell / 2 - 1, cell, 2);
+      if (lit) { ge.fillStyle = wc; ge.globalAlpha = 0.6; ge.fillRect(x + 3, y + 3, cell - 6, cell - 8); ge.globalAlpha = 1; }
+      gr.fillStyle = '#1c1c1c'; gr.fillRect(x, y, cell, cell); gb.fillStyle = '#606060'; gb.fillRect(x, y, cell, cell);
+    } else if (kind === 'apt' || kind === 'tile' || kind === 'concrete') {
+      if (kind === 'tile') { const TC = ['#b8654a', '#c8b898', '#8a9aa0', '#a8806a'][seed % 4]; g.fillStyle = TC; g.fillRect(x, y, cell, cell); g.strokeStyle = 'rgba(0,0,0,.22)'; g.lineWidth = 1; for (let t = 0; t <= cell; t += 10) { g.beginPath(); g.moveTo(x + t, y); g.lineTo(x + t, y + cell); g.stroke(); g.beginPath(); g.moveTo(x, y + t); g.lineTo(x + cell, y + t); g.stroke(); } gb.fillStyle = '#8c8c8c'; gb.fillRect(x, y, cell, cell); }
+      else if (kind === 'concrete') { g.fillStyle = '#a9aaa6'; g.fillRect(x, y, cell, cell); g.fillStyle = 'rgba(0,0,0,.16)'; g.fillRect(x, y + cell / 2 - 1, cell, 2); g.fillRect(x + cell / 2 - 1, y, 2, cell); g.fillStyle = 'rgba(0,0,0,.28)'; for (let t = 0; t < 4; t++) for (let u = 0; u < 4; u++) { g.beginPath(); g.arc(x + 16 + t * 32, y + 16 + u * 32, 1.8, 0, 6.28); g.fill(); } for (let t = 0; t < 3; t++) { g.fillStyle = `rgba(40,30,20,${0.04 + rnd() * 0.06})`; g.fillRect(x + rnd() * cell, y, 3 + rnd() * 3, cell); } }
+      else { g.fillStyle = '#e2ded6'; g.fillRect(x, y, cell, cell); }
       // ベランダ(スラブ・てすり)
       g.fillStyle = '#b9b5ac'; g.fillRect(x + 4, y + cell - 40, cell - 8, 10); g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(x + 4, y + cell - 30, cell - 8, 4);
       g.fillStyle = '#7a7e86'; for (let k = 0; k < 14; k++) g.fillRect(x + 6 + k * 8, y + cell - 70, 2, 30); g.fillStyle = '#a9adb5'; g.fillRect(x + 4, y + cell - 72, cell - 8, 3);
@@ -95,7 +103,7 @@ export function addBuildings(THREE, scene, buildings, o = {}) {
   const aniso = o.aniso || 4; const S = o.shadows;
   const tex = (cv, srgb) => { const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = aniso; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
   const mkMat = (P, extra = {}) => new THREE.MeshStandardMaterial({ map: tex(P.m, true), emissiveMap: tex(P.e, true), emissive: 0xffffff, emissiveIntensity: 1.0, bumpMap: tex(P.b), bumpScale: 1.5, roughnessMap: tex(P.r), roughness: 1, metalness: 0.05, vertexColors: true, ...extra });
-  const up = { office: mkMat(upperTile('office', 1), { metalness: 0.2 }), apt: mkMat(upperTile('apt', 2)), tenant: mkMat(upperTile('tenant', 3)), school: mkMat(upperTile('school', 4)), tower: mkMat(upperTile('tower', 5), { metalness: 0.45 }), warehouse: mkMat(upperTile('warehouse', 6), { metalness: 0.3 }) };
+  const up = { glass: mkMat(upperTile('glass', 13), { metalness: 0.65 }), tile0: mkMat(upperTile('tile', 8)), tile1: mkMat(upperTile('tile', 9)), tile2: mkMat(upperTile('tile', 10)), tile3: mkMat(upperTile('tile', 11)), concrete: mkMat(upperTile('concrete', 12)), office: mkMat(upperTile('office', 1), { metalness: 0.2 }), apt: mkMat(upperTile('apt', 2)), tenant: mkMat(upperTile('tenant', 3)), school: mkMat(upperTile('school', 4)), tower: mkMat(upperTile('tower', 5), { metalness: 0.45 }), warehouse: mkMat(upperTile('warehouse', 6), { metalness: 0.3 }) };
   const gd = { shop: [0, 1, 2].map((i) => mkMat(groundTile('shop', i + 1))), conbini: [mkMat(groundTile('conbini', 9))], lobby: [mkMat(groundTile('lobby', 4))], garage: [mkMat(groundTile('garage', 6))] };
   const rf = mkMat(roofTile(), { vertexColors: true });
   const plain = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.1 });
@@ -117,7 +125,7 @@ export function addBuildings(THREE, scene, buildings, o = {}) {
     if (['house', 'pillar', 'shrine', 'home'].includes(b.kind)) continue;
     if (o.glb) { const pk = o.glb.pick(b); if (pk) { const kit = o.glb.kit(pk); if (kit) { const sx = b.w / kit.size.x; const sz = b.d / kit.size.z; const sm = (sx + sz) / 2; const sy = Math.max(0.75 * sm, Math.min(1.8 * sm, b.h / kit.size.y)); glbInst.push({ b, kit, sx, sy, sz }); b.H = kit.size.y * sy; continue; } } }
     const w = b.w; const d = b.d; const tint = TINT[b.tone % TINT.length]; const k = b.kind;
-    const style = k === 'tower' ? 'tower' : k === 'office' ? 'office' : k === 'apt' ? 'apt' : k === 'shop' ? 'tenant' : (k === 'school' || k === 'gym') ? 'school' : (k === 'hq' || k === 'station' || k === 'mall') ? 'office' : 'warehouse';
+    const style = k === 'tower' ? 'tower' : k === 'office' ? (b.tone % 3 === 0 ? 'glass' : 'office') : k === 'apt' ? ['apt', 'tile' + (b.tone % 4), 'concrete', 'tile' + ((b.tone + 1) % 4)][b.tone % 4] : k === 'shop' ? (b.tone % 4 === 0 ? 'tile' + (b.tone % 3) : 'tenant') : (k === 'school' || k === 'gym') ? 'school' : (k === 'hq' || k === 'station' || k === 'mall') ? 'office' : 'warehouse';
     const hasGround = ['tower', 'office', 'apt', 'shop', 'hq', 'station', 'mall'].includes(k) && b.h > 9 && w > 8 && d > 8;
     const hb = hasGround ? 4.6 : 0; const nUp = Math.max(1, Math.round((b.h - hb) / FLOOR)); const hUp = nUp * FLOOR; const H = hb + hUp;
     if (hasGround) { const gk = k === 'shop' ? (rnd() < 0.18 ? 'conbini' : 'shop') : (k === 'apt' ? 'garage' : 'lobby'); const arr = gd[gk]; wallBox(arr[Math.floor(rnd() * arr.length)], b, hb, hb / 2, tint, 1 / (hb / 5), 0); }

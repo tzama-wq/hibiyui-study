@@ -7,8 +7,8 @@ import { AIRFIELD, HOME, PLAZA, MALL_TRESA, MALL_APITA, SOCCER_ZONE, RIVER, rive
 
 export const EXAG = 0.9; // おかの たかさの ばいりつ
 const DEFORM_CAP = 15; // おかの さいだかの めやす(m): ゲームが あそびにくく ならない ように おさえる
-const N = TERRAIN.n; const R = TERRAIN.range; const STEP = (2 * R) / (N - 1);
-const grid = new Float32Array(N * N);
+let N = TERRAIN.n; const R = TERRAIN.range; let STEP = (2 * R) / (N - 1);
+let grid = new Float32Array(N * N);
 {
   const bin = atob(TERRAIN.data); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); const dv = new DataView(u8.buffer);
   const base = 1.0; // かわの たかさ(ASL m)
@@ -19,11 +19,18 @@ const grid = new Float32Array(N * N);
   for (let i = 0; i < N * N; i++) { const r = sm[i]; const plain = Math.min(r, PLAIN) / PLAIN * 1.2; const t = Math.max(0, r - PLAIN); grid[i] = plain + CAP * (1 - Math.exp((-t * EXAG) / CAP)); }
   grid.set(blur(grid, 2));
   const at = (x, z) => grid[Math.max(0, Math.min(N - 1, Math.round((z + R) / STEP))) * N + Math.max(0, Math.min(N - 1, Math.round((x + R) / STEP)))];
+  // こうさいどを 2ばいに(どての はばや はしを ていねいに つくる ため 10m→5m)
+  { const N0 = N; const g0 = grid; const N1 = (N0 - 1) * 2 + 1; const g1 = new Float32Array(N1 * N1);
+    for (let j = 0; j < N1; j++) for (let i = 0; i < N1; i++) { const fx = i / 2; const fz = j / 2; const i0 = Math.min(N0 - 2, Math.floor(fx)); const j0 = Math.min(N0 - 2, Math.floor(fz)); const u = fx - i0; const v = fz - j0; g1[j * N1 + i] = g0[j0 * N0 + i0] * (1 - u) * (1 - v) + g0[j0 * N0 + i0 + 1] * u * (1 - v) + g0[(j0 + 1) * N0 + i0] * (1 - u) * v + g0[(j0 + 1) * N0 + i0 + 1] * u * v; }
+    N = N1; STEP = (2 * R) / (N - 1); grid = g1; }
   // かわは ひくく
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; const d = riverDist(x, z); if (d < RIVER.hw) grid[j * N + i] = 0; else if (d < RIVER.hw + 44) { const w = (d - RIVER.hw) / 44; grid[j * N + i] = Math.min(grid[j * N + i], w * w * (3 - 2 * w) * 1.3); } }
+  // かわ: かわぞこ(ひくい)→きし→かせんじき(たいら)→どて(たかい)→そとがわの のりめん。みずは うみの めんが -1.5 に あるので かわぞこが ひくいと みずに なる
+  const LEV = 4.2; const smooth = (t) => { const c = Math.max(0, Math.min(1, t)); return c * c * (3 - 2 * c); };
+  const profile = (e, base) => { if (e < -6) return -3.4; if (e < 6) return -3.4 + smooth((e + 6) / 12) * 3.7; if (e < 30) return 0.3; if (e < 42) return 0.3 + smooth((e - 30) / 12) * (LEV - 0.3); if (e < 48) return LEV; if (e < 74) return LEV + (Math.min(base, LEV) - LEV) * smooth((e - 48) / 26); return base; };
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; const d = riverDist(x, z); const e = d - RIVER.hw; if (e < 74) { const base = grid[j * N + i]; grid[j * N + i] = e < 48 ? profile(e, base) : profile(e, base); } }
   // はしの まわりは たいらに(はしを わたるとき じめんに うまらない・ゆるやかな ざか)
   { const segD = (px, pz, a, b) => { const dx = b[0] - a[0]; const dz = b[1] - a[1]; const L2 = dx * dx + dz * dz || 1; const t = Math.max(0, Math.min(1, ((px - a[0]) * dx + (pz - a[1]) * dz) / L2)); return Math.hypot(px - a[0] - dx * t, pz - a[1] - dz * t); };
-    for (const r of roadsOf()) { if (!r.br) continue; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; let d = 1e9; for (let k = 1; k < r.pts.length; k++) d = Math.min(d, segD(x, z, r.pts[k - 1], r.pts[k])); const m = r.hw + 34; if (d < m) { const w = d < r.hw + 14 ? 1 : 1 - (d - r.hw - 14) / 20; const q = w * w * (3 - 2 * w); grid[j * N + i] = grid[j * N + i] * (1 - q) + 0.9 * q; } } } }
+    for (const r of roadsOf()) { if (!r.br) continue; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * STEP; const z = -R + j * STEP; let d = 1e9; for (let k = 1; k < r.pts.length; k++) d = Math.min(d, segD(x, z, r.pts[k - 1], r.pts[k])); const m = r.hw + 14; if (d < m) { const e = riverDist(x, z) - RIVER.hw; const ramp = e <= 48 ? 1 : e >= 100 ? 0 : 1 - (e - 48) / 52; if (ramp > 0) { const w = d < r.hw + 5 ? 1 : 1 - (d - r.hw - 5) / 9; const q = w * w * (3 - 2 * w) * ramp; const target = e <= 48 ? LEV : LEV + (grid[j * N + i] - LEV) * (1 - ramp); grid[j * N + i] = grid[j * N + i] * (1 - q) + (e <= 48 ? LEV : Math.max(target, grid[j * N + i] * 0)) * q; } } } } }
   // ひろば・じたく・くうこう・モール・サッカーじょうは たいらに ならす
   for (const r of [PLAZA, HOME, AIRFIELD, MALL_TRESA, MALL_APITA, SOCCER_ZONE]) {
     if (!r) continue; const m = 14; let sum = 0; let n = 0;

@@ -1,16 +1,16 @@
 // しょくぎょう(じたくで えらぶ): けいさつかん・SWAT・しょうぼうし・きゅうきゅうきゅうめいし。データと テキストだけ(シミュレーションは citysim.js)
 export const JOBS = {
   none: { id: 'none', name: 'しょくぎょうなし', icon: '🙂', vehicle: null, desc: 'じゆうに あそぶ', color: '#3a3a3e' },
-  police: { id: 'police', name: 'けいさつかん', icon: '👮', vehicle: 'police', desc: 'ひったくりを おいかけて たいほ・スピードいはんの くるまを とりしまる', tint: { Shirt: '#1d3f9a', Pants: '#142447' }, hat: { color: '#12275e', kind: 'cap' } },
-  swat: { id: 'swat', name: 'SWAT たいいん', icon: '🪖', vehicle: 'swatvan', desc: 'じゅうかきを つかって ギャングや 指名手配はんを たいほ(ぶきを かしてもらえる)', tint: { Shirt: '#1a1c22', Pants: '#22252c' }, hat: { color: '#14161b', kind: 'helmet' } },
+  police: { id: 'police', name: 'けいさつかん', icon: '👮', vehicle: 'police', desc: 'ひったくりを おいかけて たいほ・スピードいはんの くるまを とりしまる', tint: { Shirt: '#1d3f9a', Pants: '#142447' }, shirtTex: 'navy', pantsTex: 'navy', texTint: '#9fb4ff', hat: { color: '#12275e', kind: 'cap' } },
+  swat: { id: 'swat', name: 'SWAT たいいん', icon: '🪖', vehicle: 'swatvan', desc: 'じゅうかきを つかって ギャングや 指名手配はんを たいほ(ぶきを かしてもらえる)', tint: { Shirt: '#1a1c22', Pants: '#22252c' }, shirtTex: 'navy', pantsTex: 'navy', texTint: '#4a4a52', hat: { color: '#14161b', kind: 'helmet' } },
   fire: { id: 'fire', name: 'しょうぼうし', icon: '🧑‍🚒', vehicle: 'firetruck', desc: 'しょうぼうしゃで みずを かけて かじを けす', tint: { Shirt: '#e0641e', Pants: '#c45018' }, hat: { color: '#d8321e', kind: 'helmet' } },
   ems: { id: 'ems', name: 'きゅうきゅうきゅうめいし', icon: '🧑‍⚕️', vehicle: 'ambulance', desc: 'きゅうきゅうしゃで かんじゃの ところへ・おうきゅう てあてを して びょういんへ はこぶ', tint: { Shirt: '#f0f6f4', Pants: '#2a8a6a' }, hat: { color: '#f4f4f4', kind: 'cap' } },
 };
 // 自衛隊(りく・うみ・そら)。きちの ちょうかんに はなしかけると 「地球防衛隊」の ぼうえい にんむへ シームレスに いどう
 Object.assign(JOBS, {
-  jgsdf: { id: 'jgsdf', name: 'りくじょう じえいたい', icon: '🪖', vehicle: 'tank', branch: 'tank', desc: 'せんしゃに のって りくから まもる。きちの ちょうかんと はなすと ぼうえい にんむへ', tint: { Shirt: '#51603a', Pants: '#3b4a2b' }, hat: { color: '#3f5a2a', kind: 'helmet' } },
-  jmsdf: { id: 'jmsdf', name: 'かいじょう じえいたい', icon: '⚓', vehicle: 'ship', branch: 'ship', desc: 'ぐんかんで うみから まもる。きちの ちょうかんと はなすと ぼうえい にんむへ', tint: { Shirt: '#f4f6f8', Pants: '#1c2a4a' }, hat: { color: '#f4f6f8', kind: 'cap' } },
-  jasdf: { id: 'jasdf', name: 'こうくう じえいたい', icon: '✈️', vehicle: 'plane', branch: 'plane', desc: 'せんとうきで そらから まもる。きちの ちょうかんと はなすと ぼうえい にんむへ', tint: { Shirt: '#2a4a8a', Pants: '#1f3566' }, hat: { color: '#1f3566', kind: 'helmet' } },
+  jgsdf: { id: 'jgsdf', name: 'りくじょう じえいたい', icon: '🪖', vehicle: 'tank', branch: 'tank', desc: 'せんしゃに のって りくから まもる。きちの ちょうかんと はなすと ぼうえい にんむへ', tint: { Shirt: '#51603a', Pants: '#3b4a2b' }, shirtTex: 'camo', pantsTex: 'camo', hat: { color: '#3f5a2a', kind: 'helmet' } },
+  jmsdf: { id: 'jmsdf', name: 'かいじょう じえいたい', icon: '⚓', vehicle: 'ship', branch: 'ship', desc: 'ぐんかんで うみから まもる。きちの ちょうかんと はなすと ぼうえい にんむへ', tint: { Shirt: '#f4f6f8', Pants: '#1c2a4a' }, shirtTex: 'mesh', pantsTex: 'navy', texTint: '#f4f6f8', texTintP: '#7a8ab0', hat: { color: '#f4f6f8', kind: 'cap' } },
+  jasdf: { id: 'jasdf', name: 'こうくう じえいたい', icon: '✈️', vehicle: 'plane', branch: 'plane', desc: 'せんとうきで そらから まもる。きちの ちょうかんと はなすと ぼうえい にんむへ', tint: { Shirt: '#2a4a8a', Pants: '#1f3566' }, shirtTex: 'navy', pantsTex: 'navy', texTint: '#7a9aff', texTintP: '#5a7ad0', hat: { color: '#1f3566', kind: 'helmet' } },
 });
 export const JSDF = ['jgsdf', 'jmsdf', 'jasdf'];
 export const JOB_LIST = ['police', 'swat', 'fire', 'ems', ...JSDF];

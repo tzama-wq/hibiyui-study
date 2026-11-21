@@ -1,5 +1,6 @@
 // 地球防衛隊「シティ」の 3Dがめん(three.js): じゆうに うごける まち。ルールは citysim.js。
 //   const g = await startCity3D({ kidName, stats, vehicles, specs, coins, done, calm, onSfx, onReward, onBuy, onQuit });
+import { STAIRS } from './citysim.js';
 import { createCity, LAYOUT, HALF, RIVER, BRIDGES, riverZ, AIRFIELD, PLAZA, HQ, BASE, SECRET, SQUARE, MICCA, MATSU, KOBAN, insideBuilding, COMMANDER, SPAWN, RAILS, STATION, STATION2, SCHOOL, SCHOOL_POLY, PARK3, PARK3_POLY, MALL_TRESA, MALL_APITA, SHRINE, SOCCER, SOCCER_ZONE, HOME, STORES, ITEMS, storeOf, railDist, roadsOf, roadSD, greens, pitches, CITY_MISSIONS, SHOP as SHOPD, isWater, isAir, VCAT, catalogOf, BOARD, GARAGE, JOB, CROOKS, DEFAULT_OWNED, WEAPONS, DEFAULT_WEAPONS, weaponOf, ammoSpec, needText, SPECIALS, EQUIP, EQUIP_SLOTS, equipOf, equipDesc } from './citysim.js';
 import { makeCarModel, makeBikeModel, makeAirModel, makeHeliModel, makeServiceVehicle, makePerson, makeWeaponModel, poseLimbs, townsPerson, crookPerson, labelSprite } from './citymodels3d.js';
 import { makeVehicleModel } from './vehicle3d.js';
@@ -48,8 +49,11 @@ function groundCanvas(S = 2048) {
   g.fillStyle = '#4b4d53'; for (const b of LAYOUT.buildings) { if (b.kind === 'pillar') continue; g.save(); g.translate(X(b.cx), Z(b.cz)); g.rotate(b.ang); g.fillRect((-b.w / 2) * k, (-b.d / 2) * k, b.w * k, b.d * k); g.restore(); }
   // みち(ほどう→アスファルト→ちゅうおうせん)
   const RL = roadsOf(); g.lineJoin = 'round'; g.lineCap = 'round';
-  g.strokeStyle = '#8b8d90'; for (const r of RL) { trace(r.pts); g.lineWidth = r.hw * 2 * k; g.stroke(); }
-  g.strokeStyle = '#373c45'; for (const r of RL) { trace(r.pts); g.lineWidth = (r.hw - (r.cls >= 2 ? 1.7 : 0.9)) * 2 * k; g.stroke(); }
+  const SW = (r) => (r.cls >= 2 ? 2.4 : 1.4); // ほどうの はば
+  g.strokeStyle = '#4a4b43'; for (const r of RL) { if (r.br) continue; trace(r.pts); g.lineWidth = (r.hw * 2 + 1.5) * k; g.stroke(); } // しきちとの さかいめ(みぞ・かこい)
+  g.strokeStyle = '#aaa89d'; for (const r of RL) { trace(r.pts); g.lineWidth = r.hw * 2 * k; g.stroke(); } // ほどう
+  g.strokeStyle = '#dcdad2'; for (const r of RL) { trace(r.pts); g.lineWidth = (r.hw - SW(r) + 0.4) * 2 * k; g.stroke(); } // ふちいし
+  g.strokeStyle = '#373c45'; for (const r of RL) { trace(r.pts); g.lineWidth = (r.hw - SW(r)) * 2 * k; g.stroke(); }
   g.lineCap = 'butt';
   g.setLineDash([]); g.strokeStyle = 'rgba(255,255,255,.7)'; for (const r of RL) { if (r.cls < 3) continue; for (const sgn of [-1, 1]) { g.beginPath(); for (let i = 0; i < r.pts.length; i++) { const a = r.pts[Math.max(0, i - 1)]; const b = r.pts[Math.min(r.pts.length - 1, i + 1)]; const ang = Math.atan2(b[1] - a[1], b[0] - a[0]); const x = r.pts[i][0] - Math.sin(ang) * sgn * (r.hw - 2.1); const z = r.pts[i][1] + Math.cos(ang) * sgn * (r.hw - 2.1); if (i) g.lineTo(X(x), Z(z)); else g.moveTo(X(x), Z(z)); } g.lineWidth = 0.22 * k; g.stroke(); } }
   g.lineCap = 'round';
@@ -221,12 +225,35 @@ export async function startCity3D(o) {
     ac.count = ia; tk.count = it; ac.castShadow = shadowsOn; tk.castShadow = shadowsOn; scene.add(ac, tk); }
   // ---- 住宅(ほんものの いえの むき・やね) ----
   { const hs = LAYOUT.buildings.filter((b) => b.kind === 'house'); const n = hs.length; const wt = windowTex(THREE, '#d8d4c6', 20); wt.repeat.set(2, 1);
-    const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ map: wt, emissiveMap: wt.userData.em, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.9 }), n);
-    const roofs = new THREE.InstancedMesh(new THREE.ConeGeometry(0.72, 1, 4), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 }), n); const dm = new THREE.Object3D();
-    const WC = ['#e8e2d2', '#d8d4c6', '#cfc8b8', '#e4ddc8', '#c9d0c4', '#dcd2c0']; const RC = ['#4a4f58', '#6a3a30', '#3a5a5a', '#5a4a3a', '#2f3a4a'];
-    hs.forEach((b, i) => { dm.position.set(b.cx, b.h / 2, b.cz); dm.rotation.set(0, -b.ang, 0); dm.scale.set(b.w, b.h, b.d); dm.updateMatrix(); walls.setMatrixAt(i, dm.matrix); walls.setColorAt(i, new THREE.Color(WC[b.tone % WC.length]));
-      dm.position.set(b.cx, b.h + 1.6, b.cz); dm.rotation.set(0, -b.ang + Math.PI / 4, 0); dm.scale.set(b.w * 1.5, 3.2, b.d * 1.5); dm.updateMatrix(); roofs.setMatrixAt(i, dm.matrix); roofs.setColorAt(i, new THREE.Color(RC[Math.abs(Math.floor(b.cx * 3 + b.cz)) % RC.length])); });
-    walls.instanceColor.needsUpdate = true; roofs.instanceColor.needsUpdate = true; walls.castShadow = shadowsOn; roofs.castShadow = shadowsOn; walls.receiveShadow = shadowsOn; scene.add(walls, roofs); }
+    const hwTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, 128, 128); for (let i = 0; i < 700; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.05)'; g.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 2, 1 + Math.random() * 2); } g.fillStyle = 'rgba(0,0,0,.10)'; g.fillRect(0, 118, 128, 10); g.fillStyle = '#e8e6e0'; g.fillRect(20, 30, 62, 66); g.fillStyle = '#3d4d60'; g.fillRect(24, 34, 54, 58); const gg = g.createLinearGradient(24, 34, 24, 92); gg.addColorStop(0, 'rgba(255,255,255,.28)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.fillRect(24, 34, 54, 58); g.fillStyle = '#e8e6e0'; g.fillRect(49, 34, 4, 58); g.fillRect(24, 61, 54, 3); g.fillStyle = '#b8b4aa'; g.fillRect(16, 96, 70, 5); g.fillStyle = '#8a8a90'; g.fillRect(92, 70, 24, 30); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; })();
+    const hwMat = new THREE.MeshStandardMaterial({ map: hwTex, roughness: 0.92 }); const tp = THREE.Material.prototype.onBeforeCompile;
+    hwMat.onBeforeCompile = (shader, rr) => { if (tp) tp.call(hwMat, shader, rr); shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
+      #ifdef USE_INSTANCING
+      { vec3 sc_ = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz)); vec3 n_ = abs(normal); float ue_ = n_.x > 0.5 ? sc_.z : sc_.x; float ve_ = n_.y > 0.5 ? sc_.z : sc_.y; vMapUv = uv * vec2(ue_ / 4.0, ve_ / 3.2); }
+      #endif`); };
+    hwMat.customProgramCacheKey = () => 'house-wall';
+    const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), hwMat, n);
+    const dm = new THREE.Object3D();
+    const WC = ['#e8e2d2', '#d8d4c6', '#cfc8b8', '#e4ddc8', '#c9d0c4', '#dcd2c0']; const RC = ['#4a4f58', '#6a3a30', '#3a5a5a', '#5a4a3a', '#2f3a4a', '#7a7468', '#4a5a42'];
+    // やね: きりづま・よせむね・かたながれ・ひらやね(ひさし つき・かわらの すじ)
+    const tileTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#d0d0d0'; g.fillRect(0, 0, 128, 128); for (let r = 0; r < 16; r++) { const y = r * 8; g.fillStyle = r % 2 ? '#c4c4c4' : '#dadada'; g.fillRect(0, y, 128, 6); g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(0, y + 6, 128, 2); for (let x = (r % 2) * 8; x < 128; x += 16) { g.fillStyle = 'rgba(0,0,0,.14)'; g.fillRect(x, y, 1.5, 6); } } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; })();
+    const mkGeo = (tris) => { const pos = []; const uv = []; for (const t of tris) for (const v of t) { pos.push(v[0], v[1], v[2]); uv.push(v[0] * 5 + v[2] * 0.3, v[2] * 3.2 + v[1] * 2.6); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals(); return g; };
+    const q = (a, b, c, d) => [[a, b, c], [a, c, d]]; const V = (x, y, z) => [x, y, z];
+    const gable = mkGeo([...q(V(-.5, 0, .5), V(.5, 0, .5), V(.5, 1, 0), V(-.5, 1, 0)), ...q(V(.5, 0, -.5), V(-.5, 0, -.5), V(-.5, 1, 0), V(.5, 1, 0)), [V(-.5, 0, -.5), V(-.5, 0, .5), V(-.5, 1, 0)], [V(.5, 0, .5), V(.5, 0, -.5), V(.5, 1, 0)]]);
+    const hip = mkGeo([...q(V(-.5, 0, .5), V(.5, 0, .5), V(.22, 1, 0), V(-.22, 1, 0)), ...q(V(.5, 0, -.5), V(-.5, 0, -.5), V(-.22, 1, 0), V(.22, 1, 0)), [V(-.5, 0, -.5), V(-.5, 0, .5), V(-.22, 1, 0)], [V(.5, 0, .5), V(.5, 0, -.5), V(.22, 1, 0)]]);
+    const mono = mkGeo([...q(V(-.5, 1, -.5), V(.5, 1, -.5), V(.5, .2, .5), V(-.5, .2, .5)), ...q(V(-.5, 0, -.5), V(-.5, 0, .5), V(-.5, .2, .5), V(-.5, 1, -.5)), ...q(V(.5, 0, .5), V(.5, 0, -.5), V(.5, 1, -.5), V(.5, .2, .5)), ...q(V(.5, 0, -.5), V(-.5, 0, -.5), V(-.5, 1, -.5), V(.5, 1, -.5))]);
+    const flat = new THREE.BoxGeometry(1, 1, 1); flat.translate(0, 0.5, 0);
+    const roofMat = (rough) => new THREE.MeshStandardMaterial({ color: '#ffffff', map: tileTex, roughness: rough, side: THREE.DoubleSide });
+    const types = [['gable', gable], ['hip', hip], ['mono', mono], ['flat', flat]]; const lists = { gable: [], hip: [], mono: [], flat: [] };
+    hs.forEach((b, i) => { const k = Math.abs(Math.floor(b.cx * 7 + b.cz * 13)) % 100; lists[k < 38 ? 'gable' : k < 62 ? 'hip' : k < 82 ? 'mono' : 'flat'].push([b, i]); });
+    hs.forEach((b, i) => { dm.position.set(b.cx, b.h / 2, b.cz); dm.rotation.set(0, -b.ang, 0); dm.scale.set(b.w, b.h, b.d); dm.updateMatrix(); walls.setMatrixAt(i, dm.matrix); walls.setColorAt(i, new THREE.Color(WC[b.tone % WC.length])); });
+    const roofMeshes = [];
+    for (const [name, geo] of types) { const L2 = lists[name]; if (!L2.length) continue; const im = new THREE.InstancedMesh(geo, name === 'flat' ? new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9 }) : roofMat(0.8), L2.length);
+      L2.forEach(([b], j) => { const long = b.w >= b.d; const w = long ? b.w : b.d; const d = long ? b.d : b.w; const rot = -b.ang + (long ? 0 : Math.PI / 2); const hr = name === 'flat' ? 0.4 : name === 'mono' ? Math.min(1.9, Math.max(1.1, d * 0.22)) : Math.min(3.4, Math.max(1.7, d * 0.4)); const ov = name === 'flat' ? 0.5 : 0.9;
+        dm.position.set(b.cx, b.h - (name === 'flat' ? 0 : 0.05), b.cz); dm.rotation.set(0, rot + (name === 'mono' && (Math.floor(b.cx) % 2) ? Math.PI : 0), 0); dm.scale.set(w + ov * 2, hr, d + ov * 2); dm.updateMatrix(); im.setMatrixAt(j, dm.matrix);
+        const col = name === 'flat' ? new THREE.Color(['#8a8a90', '#6a6e76', '#b0aca0'][Math.abs(Math.floor(b.cx + b.cz)) % 3]) : new THREE.Color(RC[Math.abs(Math.floor(b.cx * 3 + b.cz)) % RC.length]); im.setColorAt(j, col); });
+      im.instanceColor.needsUpdate = true; im.castShadow = shadowsOn; im.receiveShadow = shadowsOn; roofMeshes.push(im); }
+    walls.instanceColor.needsUpdate = true; walls.castShadow = shadowsOn; walls.receiveShadow = shadowsOn; scene.add(walls, ...roofMeshes); }
   // ---- こうかせん(えきと でんしゃ) ----
   const trains = []; const pathCache = {};
   const pathInfo = (name) => { if (pathCache[name]) return pathCache[name]; const P = RAILS[name]; const cum = [0]; for (let i = 1; i < P.length; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1])); return (pathCache[name] = { P, cum, L: cum[cum.length - 1] }); };
@@ -256,9 +283,11 @@ export async function startCity3D(o) {
     pts.forEach(([x, z], i) => { dm.position.set(x, 2.5, z); dm.scale.setScalar(1); dm.updateMatrix(); tr.setMatrixAt(i, dm.matrix); dm.position.set(x, 7.5, z); dm.scale.set(1, 0.8, 1); dm.updateMatrix(); cr.setMatrixAt(i, dm.matrix); }); tr.castShadow = shadowsOn; scene.add(tr, cr); }
   // はし(ちずの はしの どうろ)
   for (const r of roadsOf()) { if (!r.br) continue; for (let i = 1; i < r.pts.length; i++) { const A = r.pts[i - 1]; const Bp = r.pts[i]; const L = Math.hypot(Bp[0] - A[0], Bp[1] - A[1]); const ang = Math.atan2(Bp[1] - A[1], Bp[0] - A[0]); const g = new THREE.Group(); g.position.set((A[0] + Bp[0]) / 2, 0, (A[1] + Bp[1]) / 2); g.rotation.y = -ang;
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(L + 1.5, 0.8, r.hw * 2), new THREE.MeshStandardMaterial({ color: '#3a3e46', roughness: 0.9 })); deck.position.y = -0.36; g.add(deck);
-      for (const sx of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(L + 1.5, 1.2, 0.3), new THREE.MeshStandardMaterial({ color: '#b8bcc6', metalness: 0.5, roughness: 0.5 })); rail.position.set(0, 0.6, sx * (r.hw - 0.2)); g.add(rail); }
-      if (L > 12) { const pier = new THREE.Mesh(new THREE.BoxGeometry(4, 4, r.hw * 2 - 1), new THREE.MeshStandardMaterial({ color: '#8a8d92' })); pier.position.set(0, -2.4, 0); g.add(pier); } scene.add(g); } }
+      const conc = new THREE.MeshStandardMaterial({ color: '#9a9ca0', roughness: 0.85 }); const steel = new THREE.MeshStandardMaterial({ color: '#5a606a', roughness: 0.5, metalness: 0.6 });
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(L + 1.5, 1.0, r.hw * 2 + 0.8), conc); deck.position.y = -0.5; g.add(deck);
+      const gird = new THREE.Mesh(new THREE.BoxGeometry(L + 1, 1.6, r.hw * 2 - 1.4), steel); gird.position.y = -1.8; g.add(gird);
+      for (const sx of [-1, 1]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(L + 1.5, 0.9, 0.5), conc); wall.position.set(0, 0.45, sx * (r.hw + 0.1)); g.add(wall); const bar = new THREE.Mesh(new THREE.BoxGeometry(L + 1.5, 0.08, 0.12), steel); bar.position.set(0, 1.5, sx * (r.hw + 0.1)); g.add(bar); for (let k = 0; k <= Math.floor(L / 6); k++) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.65, 0.1), steel); post.position.set(-L / 2 + k * (L / Math.max(1, Math.floor(L / 6))), 1.2, sx * (r.hw + 0.1)); g.add(post); } }
+      if (L > 10) { const np = Math.max(1, Math.floor(L / 20)); for (let k = 0; k < np; k++) { const pier = new THREE.Mesh(new THREE.BoxGeometry(2.6, 9.5, r.hw * 2 - 2.2), conc); pier.position.set(-L / 2 + (k + 0.5) * (L / np), -5.9, 0); pier.castShadow = shadowsOn; g.add(pier); } } scene.add(g); } }
   // きのこ・き
   // パラシュートの かさ(おりている あいだ だけ)
   const chuteM = (() => { const g = new THREE.Group(); const dome = new THREE.Mesh(new THREE.SphereGeometry(2.5, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ff5a4a', roughness: 0.8, side: THREE.DoubleSide, transparent: true, opacity: 0.6, depthWrite: false })); dome.scale.y = 0.65; dome.position.y = 0.4; g.add(dome); for (let i = 0; i < 4; i++) { const a = (i / 4) * 6.283; const ln = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 3.6, 4), new THREE.MeshBasicMaterial({ color: '#f0f0f0' })); ln.position.set(Math.cos(a) * 1.1, -1.6, Math.sin(a) * 1.1); ln.rotation.z = Math.cos(a) * 0.3; ln.rotation.x = -Math.sin(a) * 0.3; g.add(ln); } const stripe = new THREE.Mesh(new THREE.SphereGeometry(2.52, 18, 4, 0, Math.PI / 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ffffff', side: THREE.DoubleSide, transparent: true, opacity: 0.6, depthWrite: false })); stripe.scale.y = 0.65; stripe.position.y = 0.4; g.add(stripe); g.visible = false; scene.add(g); return g; })();
@@ -510,6 +539,19 @@ export async function startCity3D(o) {
     sneaker: { tint: { Shoes: '#f2f2f2' } }, runner: { tint: { Shoes: '#ff8a3a' } }, spike: { tint: { Shoes: '#2a9a4a' } }, turbo: { tint: { Shoes: '#f0c420' }, ring: '#ffd23f' }, rocket: { tint: { Shoes: '#d62a2a' }, ring: '#ff6a3a' }, lightning: { tint: { Shoes: '#2a3a6a' }, ring: '#40e0ff' }, u_boots: { tint: { Shoes: '#d8b020' }, ring: '#ffffff' },
   };
   const attachTo = (bone, obj, px, py, pz) => { const tv = new THREE.Vector3(); bone.getWorldScale(tv); const sc = 1 / (tv.x || 1); obj.scale.setScalar(sc); obj.position.set(px * sc, py * sc, pz * sc); bone.add(obj); costume.extra.push(obj); };
+  // ぬの(Higgsfieldで つくった ぬのの テクスチャ)を ふくに ぬる(ほうこうを えらばない 3めんマッピング)
+  const ALIAS = look.body === 'casual' ? { Shirt: 'LightBrown', Pants: 'LightBlue', Shoes: 'Red_Dark' } : {}; const rm = (mp) => { const o2 = {}; for (const [k, v] of Object.entries(mp || {})) o2[ALIAS[k] || k] = v; return o2; };
+  const fabTex = {}; const fabLoad = (nm) => { if (fabTex[nm]) return fabTex[nm]; const t = new THREE.TextureLoader().load(`./textures/outfit/${nm}.jpg`); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; fabTex[nm] = t; return t; };
+  const fabInit = () => {
+    if (costume.fab) return; costume.fab = {}; const tp0 = THREE.Material.prototype.onBeforeCompile; let hh = 1;
+    me.traverse((x) => { if (!x.isMesh || !x.material) return; if (x.geometry && !x.geometry.boundingBox) x.geometry.computeBoundingBox(); const bb = x.geometry.boundingBox; if (bb) hh = Math.max(hh, bb.max.y - bb.min.y);
+      const ms = Array.isArray(x.material) ? x.material : [x.material]; for (const m of ms) { if (![ALIAS.Shirt || 'Shirt', ALIAS.Pants || 'Pants', 'Dress'].includes(m.name) || m.userData.fabU) continue; const U = { uFab: { value: fabLoad('camo') }, uFabOn: { value: 0 }, uFabS: { value: 1.3 }, uFabC: { value: new THREE.Color('#ffffff') } }; m.userData.fabU = U;
+        m.onBeforeCompile = (shader, rr) => { if (tp0) tp0.call(m, shader, rr); Object.assign(shader.uniforms, U); shader.vertexShader = 'varying vec3 vOP; varying vec3 vON;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOP = position; vON = normal;'); shader.fragmentShader = 'uniform sampler2D uFab; uniform float uFabOn; uniform float uFabS; uniform vec3 uFabC; varying vec3 vOP; varying vec3 vON;\n' + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+          if (uFabOn > 0.5) { vec3 b_ = pow(abs(normalize(vON)), vec3(4.0)); b_ /= (b_.x + b_.y + b_.z); vec3 fa_ = texture2D(uFab, vOP.zy * uFabS).rgb * b_.x + texture2D(uFab, vOP.xz * uFabS).rgb * b_.y + texture2D(uFab, vOP.xy * uFabS).rgb * b_.z; diffuseColor.rgb = fa_ * uFabC; }`); };
+        m.customProgramCacheKey = () => 'outfit-fab'; m.needsUpdate = true; costume.fab[m.name + '#' + m.uuid] = { m, U }; } });
+    for (const { U } of Object.values(costume.fab)) U.uFabS.value = 2.2 / hh;
+  };
+  const setFab = (kind, name, color) => { fabInit(); for (const { m, U } of Object.values(costume.fab)) { const isPants = m.name === (ALIAS.Pants || 'Pants'); if ((kind === 'pants') !== isPants) continue; U.uFabOn.value = name ? 1 : 0; if (name) { U.uFab.value = fabLoad(name); U.uFabC.value.set(color || '#ffffff'); } } };
   const applyCostume = () => {
     if (!me.userData.glb) return; const J = JOBS[S.job] || JOBS.none;
     if (!costume.orig) { costume.orig = []; me.traverse((x) => { if (x.isMesh && x.material) { const ms = Array.isArray(x.material) ? x.material : [x.material]; for (const m of ms) if (m.color) costume.orig.push([m, m.color.getHex()]); } }); }
@@ -517,11 +559,12 @@ export async function startCity3D(o) {
     for (const x of costume.extra) if (x.parent) x.parent.remove(x); costume.extra = [];
     if (costume.hat && costume.hat.parent) costume.hat.parent.remove(costume.hat); costume.hat = null;
     // からだの いろ(キャラクリエイト)
-    const body = { Skin: look.skin, Skin_Darker: look.skin, Hair: look.hair, HairBase: look.hair }; for (const k of Object.keys(body)) if (!body[k]) delete body[k]; if (look.shoes) body.Shoes = look.shoes; A.retint(me, body);
+    const body = { Skin: look.skin, Skin_Darker: look.skin, Hair: look.hair, HairBase: look.hair }; for (const k of Object.keys(body)) if (!body[k]) delete body[k]; if (look.shoes) body.Shoes = look.shoes; A.retint(me, rm(body));
     const eqv = (id) => (id && EQ_VIS[id]) || {}; const eb = eqv(S.equip.body); const ef = eqv(S.equip.feet); const eh = eqv(S.equip.head);
     const ot = OUTFITS.find((x) => x.id === look.outfit); const lookTint = look.outfit === 'custom' ? { Shirt: look.shirt, Pants: look.pants } : ot && ot.shirt ? { Shirt: ot.shirt, Pants: ot.pants } : null;
-    let shirtTint = J.tint || eb.tint || lookTint; if (shirtTint) { const t2 = look.body === 'dress' ? { Dress: shirtTint.Shirt || shirtTint.Dress } : shirtTint; A.retint(me, t2); }
-    if (ef.tint) A.retint(me, ef.tint);
+    let shirtTint = J.tint || eb.tint || lookTint; if (shirtTint) { const t2 = look.body === 'dress' ? { Dress: shirtTint.Shirt || shirtTint.Dress } : shirtTint; A.retint(me, rm(t2)); }
+    if (ef.tint) A.retint(me, rm(ef.tint));
+    { const ob = OUTFITS.find((x) => x.id === look.outfit); const src = J.shirtTex ? J : eb.tex ? eb : look.outfit !== 'custom' && ob && ob.shirtTex ? ob : null; setFab('shirt', src ? src.shirtTex || src.tex : null, src ? src.texTint : null); const srcP = J.pantsTex ? J : look.outfit !== 'custom' && ob && ob.pantsTex ? ob : null; setFab('pants', srcP ? srcP.pantsTex : null, srcP ? srcP.texTintP || srcP.texTint : null); }
     const head = me.getObjectByName('Head'); const torso = me.getObjectByName('Torso') || me.getObjectByName('Abdomen');
     const hatDef = eh.head ? { kind: eh.head[0], color: eh.head[1], accent: eh.head[2] } : J.hat ? { kind: J.hat.kind, color: J.hat.color } : look.hat !== 'none' ? HATS.find((x) => x.id === look.hat) : null;
     if (hatDef && head) { const hg = eqMesh(hatDef.kind, hatDef.color, hatDef.accent); hg.traverse((o2) => { if (o2.isMesh) o2.castShadow = shadowsOn; }); attachTo(head, hg, 0, 0.1, 0.02); costume.hat = hg; }
@@ -785,6 +828,12 @@ export async function startCity3D(o) {
   const flashTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,230,1)'); gr.addColorStop(0.35, 'rgba(255,190,70,.85)'); gr.addColorStop(1, 'rgba(255,120,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
   const muzzle = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); muzzle.visible = false; muzzle.renderOrder = 8; scene.add(muzzle); const muzzleL = new THREE.PointLight(0xffb050, 0, 22); scene.add(muzzleL);
   let hudT = 0; let shotSeen = 0; let shakeT = 0; let shakeA = 0; let flashT = 0; let hitSeen = -1; let hitmT = 0;
+  // ---- らせん かいだん(そとかいだん) ----
+  { let total = 0; for (const u of STAIRS) total += Math.ceil(u.h / 0.22) + 1;
+    if (total) { const stepM = new THREE.MeshStandardMaterial({ color: '#8a8f98', roughness: 0.5, metalness: 0.55 }); const steps = new THREE.InstancedMesh(new THREE.BoxGeometry(1.25, 0.1, 0.55), stepM, total); const poles = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.1, 0.1, 1, 8), stepM, STAIRS.length); const dm = new THREE.Object3D(); let n = 0;
+      STAIRS.forEach((u, k) => { const cnt = Math.ceil(u.h / 0.22); for (let i = 0; i < cnt; i++) { const a = i * 0.3; dm.position.set(u.x + Math.cos(a) * 1.5, 0.15 + i * 0.22, u.z + Math.sin(a) * 1.5); dm.rotation.set(0, -a, 0); dm.scale.set(1, 1, 1); dm.updateMatrix(); steps.setMatrixAt(n++, dm.matrix); }
+        dm.position.set(u.x, u.h / 2, u.z); dm.rotation.set(0, 0, 0); dm.scale.set(1, u.h, 1); dm.updateMatrix(); poles.setMatrixAt(k, dm.matrix); });
+      steps.count = n; steps.instanceMatrix.needsUpdate = true; poles.instanceMatrix.needsUpdate = true; steps.castShadow = shadowsOn; poles.castShadow = shadowsOn; steps.frustumCulled = false; poles.frustumCulled = false; scene.add(steps, poles); } }
   // おみせの なか(うえの そらに うかぶ ヘやに はいる しくみ)
   const rooms = new Map();
   const buildRoom = (pl) => {

@@ -90,6 +90,8 @@ function pushOut(p, r, ys = 0) {
   }
   return hit;
 }
+// そとかいだん(らせん)で おくじょうへ いける たてもの(スナイパーの ねらいうちポイント)
+export const STAIRS = LAYOUT.buildings.map((b, bi) => ({ b, bi })).filter(({ b, bi }) => b.h >= 10 && ['apt', 'office', 'shop', 'warehouse', 'supermarket'].includes(b.kind) && bi % 6 === 0).map(({ b, bi }) => { const lx = b.w / 2 + 2.3; const lz = b.d * 0.2; return { bi, x: b.cx + lx * b.c - lz * b.s, z: b.cz + lx * b.s + lz * b.c, h: b.h }; });
 export const insideBuilding = (x, z, ys = 0) => nearB(x, z).some((b) => { if (ys > b.h) return false; if (x < b.x0 || x > b.x1 || z < b.z0 || z > b.z1) return false; const dx = x - b.cx; const dz = z - b.cz; return Math.abs(dx * b.c + dz * b.s) <= b.w / 2 && Math.abs(-dx * b.s + dz * b.c) <= b.d / 2; });
 { const jp = freeAround(CM.POI.school ? CM.POI.school.c[0] : SCHOOL.cx, CM.POI.school ? CM.POI.school.c[1] : SCHOOL.cz); JOB.x = jp.x; JOB.z = jp.z; }
 { const fo = CM.greens.filter((g) => g.kind === 'forest').map((g) => ({ g, q: CM.polyAABB(g.poly) })).sort((a, b) => (b.q.x1 - b.q.x0) * (b.q.z1 - b.q.z0) - (a.q.x1 - a.q.x0) * (a.q.z1 - a.q.z0))[0]; const cx = fo ? fo.q.cx : -666; const cz = fo ? fo.q.cz : 290; const p = freeAround(cx, cz); SECRET.x = p.x; SECRET.z = p.z; SECRET.arena = freeAround(cx + 70, cz + 40); }
@@ -556,10 +558,11 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
       for (const c of S.civs) if (c.state === 'need') cand('civ', c.id, c.x, c.z, 9, '🆘 ひとを たすける');
     } else cand('exit', 'exit', px, pz, 999, cur() && isAir(cur().kind) && P.y > 12 ? '🪂 パラシュートで おりる' : '🚪 おりる');
     if (P.mode === 'foot' && P.plat) {
-      const pl = P.plat; if (pl.kind !== 'shop') cand('leave', 'leave', pl.cx, pl.cz, 9999, '🛗 エレベーターで 1かいへ おりる');
+      const pl = P.plat; if (pl.kind !== 'shop') cand('leave', 'leave', pl.cx, pl.cz, 9999, pl.via === 'stair' ? 'かいだんで 1かいへ おりる' : 'エレベーターで 1かいへ おりる');
       if (pl.kind === 'shop') { const st = STORES.find((x) => x.id === pl.id); if (st) cand('store', st.id, pl.cx, pl.cz - 4, 7, `${st.icon} てんいんさんに はなす(${st.name})`); cand('leave', 'leave', pl.cx, pl.cz + 6, 5, '🚪 おみせを でる'); }
     } else {
       for (const st of STORES) { if (P.mode === 'foot') cand('enter', st.id, st.x, st.z, 11, `🚪 ${st.icon} ${st.name}に はいる(${st.sub})`); else cand('store', st.id, st.x, st.z, 11, `${st.icon} ${st.name}(${st.sub})`); }
+      if (P.mode === 'foot') for (const u of STAIRS) { if (Math.abs(u.x - px) > 6 || Math.abs(u.z - pz) > 6) continue; cand('roof', u.bi, u.x, u.z, 4.5, `かいだんで おくじょうへ(たかさ ${Math.round(u.h)}m・スナイパーポイント)`, { via: 'stair' }); }
       if (P.mode === 'foot') for (const b of nearB(px, pz)) { if (b.h < 10) continue; const dx = px - b.cx; const dz = pz - b.cz; const lx = dx * b.c + dz * b.s; const lz = -dx * b.s + dz * b.c; const ex = Math.max(0, Math.abs(lx) - b.w / 2); const ez = Math.max(0, Math.abs(lz) - b.d / 2); const ed = hyp(ex, ez); if (ed < 3.2) cand('roof', LAYOUT.buildings.indexOf(b), px + ed + 1.5, pz, 6, `🏢 エレベーターで おくじょうへ(たかさ ${Math.round(b.h)}m)`); }
     }
     cand('soccer', 'soccer', SOCCER.x, SOCCER.z, 18, '⚽ サッカーじょうへ いく');
@@ -706,7 +709,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   };
   const shotSnd = (W) => (W.cat === 'ハンドガン' ? (W.snd === 'boom' ? 'shot_rifle' : 'shot_pistol') : W.cat === 'SMG' ? 'shot_smg' : W.cat === 'ショットガン' ? 'shot_sg' : W.cat === 'スナイパー' ? 'shot_sniper' : (W.cat === 'ライフル' || W.cat === 'マシンガン') ? 'shot_rifle' : (W.snd || 'gun'));
   const fireFoot = () => {
-    const W = weaponOf(P.weapon) || weaponOf('fist'); if (P.wCd > 0) return; const sho = (1 + ks.SHO / 500) * (P.buff.dmg > 0 ? 1.4 : 1); const yaw0 = P.camYaw;
+    const W0 = weaponOf(P.weapon) || weaponOf('fist'); const W = P.plat && P.plat.kind === 'roof' && !W0.melee && !W0.expl ? { ...W0, range: W0.range * 1.4 } : W0; if (P.wCd > 0) return; const sho = (1 + ks.SHO / 500) * (P.buff.dmg > 0 ? 1.4 : 1); const yaw0 = P.camYaw;
     if (!W.melee && input.autoAim && P.noAim > 0.35) { const t = nearestCrook(W.range + AUTOAIM_EXTRA, 0.7, yaw0); if (t) { P.camYaw += clamp(angDiff(Math.atan2(t.x - P.x, t.z - P.z), yaw0) * 0.45, -0.2, 0.2); P.aimPitch = clamp(Math.atan2((t.y != null ? t.y : 2.5) - 1.6, hyp(t.x - P.x, t.z - P.z)), -0.2, t.y != null ? 1.1 : 0.4); } }
     const asp = ammoSpec(W); if (asp) { const A = am(W.id); if (P.reload > 0) return; if (A.mag <= 0) { if (A.reserve > 0) startReload(); else if (S.t - (P.dryT || -9) > 1.2) { P.dryT = S.t; snd('dry'); msg('たまが ない! 「おみせ」で たまを かおう(🔫)', 2.2); } return; } A.mag--; }
     P.wCd = 1 / W.rate; const d = aimDir();
@@ -945,7 +948,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     }
     else if (n.kind === 'roof') {
       const b = LAYOUT.buildings[n.id]; if (!b) return true; if (S.lv > 0) { msg('🚨 てはい ちゅうは のぼれないよ!', 2.6); return true; }
-      const hw = Math.max(2, Math.min(b.w, b.d) / 2 - 1.2); P.plat = { kind: 'roof', bi: n.id, y: b.h, cx: b.cx, cz: b.cz, x0: b.cx - hw, x1: b.cx + hw, z0: b.cz - hw, z1: b.cz + hw, ex: P.x, ez: P.z }; P.x = b.cx; P.z = b.cz; snd('door'); msg('🏢 おくじょうに ついた! たかい…!', 2.4); return true;
+      const hw = Math.max(2, Math.min(b.w, b.d) / 2 - 1.2); P.plat = { kind: 'roof', bi: n.id, y: b.h, cx: b.cx, cz: b.cz, x0: b.cx - hw, x1: b.cx + hw, z0: b.cz - hw, z1: b.cz + hw, ex: P.x, ez: P.z, via: n.via || 'lift' }; P.x = b.cx; P.z = b.cz; snd('door'); msg('おくじょうに ついた! スナイパーに ぴったり(しゃていが ながく なるよ)', 3); return true;
     }
     else if (n.kind === 'leave') { if (P.plat) { const pl = P.plat; const f = freeAround(pl.ex, pl.ez); P.plat = null; P.x = f.x; P.z = f.z; P.speed = 0; snd('door'); msg('🚪 そとに でた', 1.6); } return true; }
     else if (n.kind === 'collect') { const [cat, si] = String(n.id).split(':'); const i = +si; if (cat === 'run') { const pt = cpts().run[i]; if (pt && !S.run && !S.coll.run.includes(i)) { S.run = { i, t: pt.limit, gx: pt.gx, gz: pt.gz }; msg(`⏱️ スタート! ${pt.limit}びょうで ゴールへ!`, 3); snd('warn'); } } else collectItem(cat, i); return true; }
