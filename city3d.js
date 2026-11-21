@@ -370,7 +370,7 @@ export async function startCity3D(o) {
   pad.addEventListener('pointerup', endPtr); pad.addEventListener('pointercancel', endPtr);
   root.querySelector('.c3d-wbar').addEventListener('pointerdown', (e) => { const b = e.target.closest('[data-w]'); if (!b) return; sim.equip(b.dataset.w); saveNow(); root.querySelector('.c3d-wbar').dataset.sig = ''; e.preventDefault(); e.stopPropagation(); });
   const doAct = () => { const had = !!S.nearby; if (!sim.interact() && !had) return; };
-  const bp = (b) => { if (b === 'gun') sim.input.gun = true; else if (b === 'boost') sim.input.boost = true; else if (b === 'weapon') { sim.cycleWeapon(1); saveNow(); } else if (b === 'reload') sim.reload(); else if (b === 'jump') { if (sim.jump) sim.jump(); else sim.input.jump = true; } else if (b === 'missile') sim.fireMissile(); else if (b === 'act') doAct(); else if (b === 'target') { sim.input.aimLock = true; sim.aimAt(P.target || null); } else if (b === 'auto') { sim.input.autoAim = !sim.input.autoAim; try { localStorage.setItem('hibiyui.autoaim', sim.input.autoAim ? '1' : '0'); } catch { /* ok */ } setAutoBtn(); } };
+  const bp = (b) => { if (b === 'gun') sim.input.gun = true; else if (b === 'boost') sim.input.boost = true; else if (b === 'weapon') { const ids = loadout.filter(Boolean); if (ids.length) { const k = (ids.indexOf(P.weapon) + 1) % ids.length; sim.equip(ids[k]); saveNow(); } } else if (b === 'reload') sim.reload(); else if (b === 'jump') { if (sim.jump) sim.jump(); else sim.input.jump = true; } else if (b === 'missile') sim.fireMissile(); else if (b === 'act') doAct(); else if (b === 'target') { sim.input.aimLock = true; sim.aimAt(P.target || null); } else if (b === 'auto') { sim.input.autoAim = !sim.input.autoAim; try { localStorage.setItem('hibiyui.autoaim', sim.input.autoAim ? '1' : '0'); } catch { /* ok */ } setAutoBtn(); } };
   try { if (localStorage.getItem('hibiyui.autoaim') === '0') sim.input.autoAim = false; } catch { /* ok */ }
   const setAutoBtn = () => { const ab = root.querySelector('.ab-auto'); if (ab) { ab.querySelector('b').textContent = sim.input.autoAim ? 'ON' : 'OFF'; ab.classList.toggle('off', !sim.input.autoAim); } }; setAutoBtn();
   const br = (b) => { if (b === 'gun') sim.input.gun = false; else if (b === 'boost') sim.input.boost = false; else if (b === 'target') sim.input.aimLock = false; };
@@ -383,7 +383,15 @@ export async function startCity3D(o) {
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let bgmCur = null;
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu'); const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const snap = () => ({ look, collect: S.coll, quest: S.qs, rpgXp: S.rpgXp, job: S.job, defLevel: S.defLevel, jobXp: S.jobXp, home: S.home, phone: S.hasPhone, coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned.filter((id) => !S.loaned.includes(id)), weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (isGuest) return; if (o.onSave) o.onSave(snap()); };
+  // ぶきスロット(5こ): 1=ちかくの ぶき・2〜4=じゆう・5=なげる ぶき(てりゅうだん/かえんびん)
+  const SLOT_T = ['m', 'g', 'g', 'g', 't']; const SLOT_N = ['ちかく', 'じゆう', 'じゆう', 'じゆう', 'なげる'];
+  const slotOk = (w, i) => (SLOT_T[i] === 'm' ? !!w.melee : SLOT_T[i] === 't' ? w.cat === 'とうてき' : !w.melee && w.cat !== 'とうてき');
+  const loadout = Array.isArray(o.loadout) ? o.loadout.slice(0, 5) : []; while (loadout.length < 5) loadout.push(null);
+  const fillLoadout = () => { const own = WEAPONS.filter((w) => S.wOwned.includes(w.id)); for (let i = 0; i < 5; i++) { const w0 = loadout[i] && WEAPONS.find((w) => w.id === loadout[i]); if (!w0 || !S.wOwned.includes(w0.id) || !slotOk(w0, i)) loadout[i] = null; }
+    for (let i = 0; i < 5; i++) { if (loadout[i]) continue; const used = new Set(loadout); let c = own.find((w) => slotOk(w, i) && !used.has(w.id) && w.id !== 'fist'); if (!c && i === 0) c = own.find((w) => w.id === 'fist'); loadout[i] = c ? c.id : null; } };
+  const ensureCurrent = () => { if (!P.weapon || loadout.includes(P.weapon)) return; const w = WEAPONS.find((x) => x.id === P.weapon); if (!w || w.id === 'fist') return; const order = SLOT_T.map((t, i) => i).filter((i) => slotOk(w, i)); if (!order.length) return; const idx = order[order.length - 1]; loadout[idx] = w.id; };
+  fillLoadout();
+  const snap = () => ({ loadout: loadout.slice(), look, collect: S.coll, quest: S.qs, rpgXp: S.rpgXp, job: S.job, defLevel: S.defLevel, jobXp: S.jobXp, home: S.home, phone: S.hasPhone, coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned.filter((id) => !S.loaned.includes(id)), weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (isGuest) return; if (o.onSave) o.onSave(snap()); };
   menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   const showHelp = () => { openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>❓ シティの あそびかた</h3><div class="hp">
@@ -684,9 +692,25 @@ export async function startCity3D(o) {
     openModal(draw);
     shopEl.onclick = (e) => {
       if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
-      if (a === 'phone') openPhone(); else if (a === 'equip') openEquip(); else if (a === 'weapons') openWeapons(); else if (a === 'job') { if (P.dead <= 0) openJob(); else closeModal(); } else if (a === 'help') showHelp();
+      if (a === 'phone') openPhone(); else if (a === 'equip') openEquip(); else if (a === 'weapons') openLoadout(); else if (a === 'job') { if (P.dead <= 0) openJob(); else closeModal(); } else if (a === 'help') showHelp();
       else if (a === 'story') openStory(); else if (a === 'look') openLook(); else if (a === 'autoaim') { sim.input.autoAim = !sim.input.autoAim; try { localStorage.setItem('hibiyui.autoaim', sim.input.autoAim ? '1' : '0'); } catch { /* ok */ } openMenu(); }
       else if (a === 'warp') openWarp(); else if (a === 'map') { closeModal(); bigmap.hidden = false; }
+    };
+  };
+  // ---- ぶきスロットの へんしゅう ----
+  const openLoadout = (sel0 = 0) => {
+    let sel = sel0;
+    const draw = (note = '') => {
+      const tiles = loadout.map((id, i) => { const w = id && WEAPONS.find((x) => x.id === id); return `<button class="ls ${sel === i ? 'on' : ''}" data-s="${i}">${w ? `<img src="${weaponIconURL(w)}" alt="" draggable="false">` : '<span class="ls-plus">＋</span>'}<small>${i + 1} ${SLOT_N[i]}</small></button>`; }).join('');
+      const list = WEAPONS.filter((w) => S.wOwned.includes(w.id) && slotOk(w, sel) && !(w.id === 'fist' && sel !== 0));
+      shopEl.innerHTML = `<div class="sh-box"><h3>ぶきスロット</h3><div class="ls-row">${tiles}</div><div class="sh-note">スロット${sel + 1}(${SLOT_N[sel]})に セットする ぶきを えらぼう</div><div class="sh-scroll">${list.map((w) => `<button class="sh-item ${loadout[sel] === w.id ? 'trk' : ''}" data-set="${w.id}"><span class="wi-s">${iconImg(weaponIconURL(w))}</span><div><b>${esc(w.name)}</b><small>${esc(w.cat)}</small></div><em>${loadout[sel] === w.id ? 'セット中' : 'セット'}</em></button>`).join('') || '<p class="jb-p">このスロットに いれられる ぶきが ないよ</p>'}${loadout[sel] && !(sel === 0 && loadout[sel] === 'fist') ? '<button class="sh-item" data-clear="1"><div><b>スロットを あける</b></div></button>' : ''}</div><div class="sh-note">${esc(note)}</div><button class="btn gray sh-x">とじる</button></div>`;
+    };
+    openModal(draw);
+    shopEl.onclick = (e) => {
+      if (e.target.closest('.sh-x')) { closeModal(); return; }
+      const sb = e.target.closest('[data-s]'); if (sb) { sel = +sb.dataset.s; draw(); return; }
+      if (e.target.closest('[data-clear]')) { loadout[sel] = null; fillLoadout(); loadout[sel] = loadout[sel]; saveNow(); root.querySelector('.c3d-wbar').dataset.sig = ''; draw('スロットを あけたよ'); return; }
+      const b = e.target.closest('[data-set]'); if (!b) return; const id = b.dataset.set; const prev = loadout.indexOf(id); if (prev >= 0 && prev !== sel) loadout[prev] = loadout[sel] && slotOk(WEAPONS.find((x) => x.id === loadout[sel]), prev) ? loadout[sel] : null; loadout[sel] = id; fillLoadout(); sim.equip(id); saveNow(); root.querySelector('.c3d-wbar').dataset.sig = ''; draw('セットしたよ');
     };
   };
   // ---- キャラクリエイト(からだ・かお・ふく・ぼうし) ----
@@ -848,9 +872,10 @@ export async function startCity3D(o) {
       let near = 0; for (const c of S.crooks) { if (c.state === 'down') continue; if (!(c.wid || c.qtag || c.hunter || c.alert || c.task)) continue; const dd = Math.hypot(c.x - P.x, c.z - P.z); if (dd < 320) near++; } for (const c of S.traffic) if (c.cop && !(c.dead > 0) && Math.hypot(c.x - P.x, c.z - P.z) < 300) near++; if (S.jets.length || S.helis.length) near++; if (S.goal && Math.hypot(S.goal.x - P.x, S.goal.z - P.z) < 320) near++;
       const tr = near ? 165 : 240; mmR += (tr - mmR) * 0.05; }
     { const jt = root.querySelector('.c3d-jobtag'); const Jx = JOBS[S.job] || JOBS.none; const jh = S.job === 'none' ? 'しょくぎょうなし' : `${Jx.name}  Lv.${jobLevel(S.jobXp[S.job])}`; if (jt.dataset.h !== jh) { jt.dataset.h = jh; jt.textContent = jh; } }
-    { const wb = root.querySelector('.c3d-wbar'); const own = WEAPONS.filter((w) => S.wOwned.includes(w.id)); const A = (S.ammo || {})[P.weapon]; const W0 = weaponOf(P.weapon) || {}; const sig = `${own.map((w) => w.id).join()}|${P.weapon}|${A ? A.mag + '/' + A.reserve : ''}|${P.reload > 0 ? 1 : 0}`;
-      if (wb.dataset.sig !== sig) { wb.dataset.sig = sig; const ci = Math.max(0, own.findIndex((w) => w.id === P.weapon)); let a0 = Math.max(0, Math.min(own.length - 5, ci - 2)); if (own.length <= 5) a0 = 0; const view = own.slice(a0, a0 + 5);
-        wb.innerHTML = view.map((w) => `<button class="wb ${w.id === P.weapon ? 'cur' : ''}" data-w="${w.id}" aria-label="${w.name}"><img src="${weaponIconURL(w)}" alt="" draggable="false"></button>`).join('') + `<div class="wb-ammo">${P.reload > 0 ? 'リロード…' : A ? `${A.mag} / ${A.reserve}` : W0.melee ? '' : '∞'}</div>`; }
+    { const wb = root.querySelector('.c3d-wbar'); const A = (S.ammo || {})[P.weapon]; const W0 = weaponOf(P.weapon) || {}; const owsig = S.wOwned.join(); if (wb.dataset.ow !== owsig) { wb.dataset.ow = owsig; fillLoadout(); } ensureCurrent();
+      const sig = `${loadout.join()}|${P.weapon}|${A ? A.mag + '/' + A.reserve : ''}|${P.reload > 0 ? 1 : 0}`;
+      if (wb.dataset.sig !== sig) { wb.dataset.sig = sig;
+        wb.innerHTML = loadout.map((id, i) => { const w = id && WEAPONS.find((x) => x.id === id); return w ? `<button class="wb ${w.id === P.weapon ? 'cur' : ''}" data-w="${w.id}" data-i="${i}" aria-label="${w.name}"><img src="${weaponIconURL(w)}" alt="" draggable="false"><i>${i + 1}</i></button>` : `<button class="wb empty" data-i="${i}" aria-label="からの スロット"><i>${i + 1}</i></button>`; }).join('') + `<div class="wb-ammo">${P.reload > 0 ? 'リロード…' : A ? `${A.mag} / ${A.reserve}` : W0.melee ? '' : '∞'}</div>`; }
       const jb = root.querySelector('.ab-jump'); if (jb) jb.style.display = P.mode === 'foot' ? '' : 'none'; }
     { const sg = costumeSig(); if (sg !== costume.sig) { costume.sig = sg; applyCostume(); } }
     { const nowH = performance.now(); const dt = Math.min(0.05, (nowH - (hudT || nowH)) / 1000); hudT = nowH; const sh = S.shot; if (sh && sh.n !== shotSeen) { shotSeen = sh.n; flashT = 0.06; shakeT = 0.1; shakeA = Math.min(0.09, 0.012 + (sh.pw || 0.03) * 0.5) * (sh.cat === 'ショットガン' || sh.cat === 'スナイパー' ? 1.8 : 1); const dd0 = { x: Math.sin(P.camYaw != null ? P.camYaw : P.yaw), z: Math.cos(P.camYaw != null ? P.camYaw : P.yaw) }; muzzle.position.set(sh.x + dd0.x * 0.9, sh.y, sh.z + dd0.z * 0.9); const ms = (sh.cat === 'ショットガン' ? 1.8 : sh.cat === 'スナイパー' ? 2.1 : sh.cat === 'SMG' ? 0.9 : 1.3) * (0.85 + Math.random() * 0.3); muzzle.scale.set(ms, ms, 1); muzzle.material.rotation = Math.random() * 6.28; muzzleL.position.copy(muzzle.position); try { if (navigator.vibrate) navigator.vibrate(sh.cat === 'ショットガン' || sh.cat === 'スナイパー' ? 22 : 9); } catch { /* ignore */ } }
