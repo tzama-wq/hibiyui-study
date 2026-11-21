@@ -272,7 +272,7 @@ const $app = document.getElementById('app');
 
 function toast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
+  t.textContent = String(msg).replace(/\p{Extended_Pictographic}|️|‍/gu, '').replace(/ {2,}/g, ' ').trim(); t.classList.add('show');
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2600);
 }
 // 読みあげ: HTMLタグと【】を とる。読み問題は 答えを 読んでしまわないよう、【】の中は「まる まる」と 読む
