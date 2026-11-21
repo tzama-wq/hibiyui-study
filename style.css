@@ -876,3 +876,10 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 @media (max-width:559px){.sh-box.room .rm-wrap{flex-direction:column;align-items:stretch}}
 @media (min-width:560px){.sh-box.room .sh-list{overflow:hidden;display:flex;flex-direction:column}.sh-box.room .rm-wrap{flex:1;min-height:0}.sh-box.room .rm-right{max-height:100%;overflow-y:auto;overscroll-behavior:contain}.sh-box.room .rm-left{max-height:100%;overflow:auto}}
 .gmode button{white-space:nowrap;font-size:12px}.netcard.main{border:2px solid #ffd23f;background:linear-gradient(135deg,rgba(255,210,63,.18),rgba(255,79,163,.12))}.netcard.main .btn{font-size:16px;padding:12px 18px}.netcard.def{border:2px solid #6aa86a;background:rgba(80,120,60,.14)}.netcard.def em{font-style:normal;color:#ffd23f}
+
+.c3d-goal{position:absolute;top:calc(env(safe-area-inset-top,0px) + 60px);left:50%;transform:translateX(-50%);z-index:3;pointer-events:none;background:rgba(40,28,0,.82);border:2px solid #ffd23f;color:#fff;font-size:13px;font-weight:900;padding:5px 12px;border-radius:12px;max-width:92vw;text-align:center;text-wrap:balance}
+.c3d-goal b{color:#ffd23f}.jc-bar{font-size:9px;letter-spacing:1px;color:#ffd23f}
+.q-rank{font-weight:900;margin:4px 0}.q-rank em{font-style:normal;color:#ffd23f}.q-bar{height:9px;background:rgba(255,255,255,.18);border-radius:6px;overflow:hidden;margin:4px 0}.q-bar i{display:block;height:100%;background:linear-gradient(90deg,#ffb300,#ffe14a)}
+.q-sub{display:block;opacity:.75;font-size:11px;margin:4px 0;line-height:1.5}.q-title{font-weight:900;font-size:15px;margin:8px 0 4px;color:#ffe14a}.q-say{font-size:13px;line-height:1.6;margin:4px 0}
+.q-steps{list-style:none;padding:0;margin:6px 0}.q-steps li{padding:4px 6px;font-size:13px;font-weight:700;opacity:.6}.q-steps li.cur{opacity:1;background:rgba(255,210,63,.18);border-radius:8px}.q-steps li.done{opacity:.8}
+.q-lock{background:rgba(255,255,255,.1);border-radius:8px;padding:6px 8px;font-size:12px;font-weight:800;margin:6px 0}.q-lock.ok{background:rgba(80,200,120,.25)}.q-rpg{margin-top:8px;font-weight:900;font-size:13px}

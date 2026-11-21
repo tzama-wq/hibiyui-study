@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as HM from '../cityhome.js';
+import { KOBAN } from '../citysim.js';
 import { JOBS as JOBS_, SYMPTOMS as SYM_, JSDF, COMMANDER, defenseMission } from '../citysim.js';
 import { EQUIP, weaponOf, ammoSpec, WEAPONS, ARMS, JOB, STORES, SOCCER, ITEMS, needText, createCity, LAYOUT, isWater, isRoad, insideBuilding, SECRET, HQ, BASE, SHOP, SPAWN, BOARD, GARAGE, CITY_MISSIONS, WANTED, riverZ, BRIDGES, RIVER, roadPoint, SCHOOL, HOME, AIRFIELD, MAPDATA, VCAT, catalogOf, catalogV, DEFAULT_OWNED, isAir } from '../citysim.js';
 import { buildVehicle, partOf, autoLoadout } from '../airsim.js';
@@ -361,5 +362,17 @@ for (const planeId of ['plane', 'hawk']) {
   const s3 = mk(); tele(s3, BASE.x, BASE.z); assert.ok(s3.setJob('jmsdf').ok); tele(s3, COMMANDER.x, COMMANDER.z); s3.step(0.05); assert.equal(s3.state.nearby && s3.state.nearby.kind, 'commander'); s3.interact(); const evs = s3.takeEvents(); const d = evs.find((e) => e.t === 'defense'); assert.ok(d && d.branch === 'ship' && d.level === 1, 'ちょうかんに はなしかけると ぼうえい にんむへ');
   const s2 = mk(); tele(s2, COMMANDER.x, COMMANDER.z); s2.step(0.05); s2.interact(); assert.ok(!s2.takeEvents().some((e) => e.t === 'defense'), 'じえいたい いがいは はじまらない');
   let prevHp = 0; for (let L = 1; L <= 40; L++) { const m = defenseMission(L); assert.ok(m.waves.length >= 4 && m.hpMul >= prevHp && m.baseHp >= 280, `Lv.${L}`); prevHp = m.hpMul; assert.ok(m.waves.every((w) => w.n >= 1)); } assert.ok(defenseMission(10).waves.length > defenseMission(1).waves.length && defenseMission(5).boss && !defenseMission(6).boss && defenseMission(30).hpMul > 2.5, 'どんどん むずかしく');
+}
+// ---- ストーリー・ランク・もくてき ひょうじ ----
+{
+  const q0 = mk(); assert.ok(q0.setJob('police').ok); q0.step(0.05); let v = q0.questView(); assert.equal(v.lv, 1); assert.ok(!v.locked && v.steps.length === 2 && v.title.startsWith('1.'), 'だい1しょう');
+  assert.ok(q0.state.goal && Math.hypot(q0.state.goal.x - KOBAN.x, q0.state.goal.z - (KOBAN.z + 8)) < 2, 'つぎの もくてき=こうばん');
+  assert.ok(q0.takeEvents().some((e) => e.t === 'story' && e.kind === 'chapter'), 'しょうの はじまり');
+  tele(q0, KOBAN.x, KOBAN.z + 8); q0.step(0.05); v = q0.questView(); assert.ok(v.steps[0].done && v.xp >= 1, 'goto を クリア→けいけんち');
+  const q1 = mk(); q1.setJob('police'); Object.assign(q1.state.qs.police, { c: 1, s: 0 }); q1.step(0.05); v = q1.questView(); assert.ok(v.locked && v.need === 2 && v.left === 6, 'Lvが たりないと ロック');
+  q1.state.jobXp.police = 6; q1.step(0.05); assert.ok(!q1.questView().locked, 'Lv2で ひらく');
+  for (const j of ['police', 'swat', 'fire', 'ems', 'jgsdf', 'jmsdf', 'jasdf']) { const qq = mk(); assert.ok(qq.setJob(j).ok); const vv = qq.questView(); assert.equal(vv.total, 5, j); }
+  const q2 = mk(); q2.setJob('police'); q2.state.fireT = 0; q2.step(0.05); assert.ok(!/かじだ/.test(q2.state.msg || ''), 'しょくぎょうに かんけいない かじの メッセージは なし');
+  const q3 = mk(); q3.setJob('fire'); q3.state.fireT = 0; q3.step(0.05); assert.ok(q3.state.fires.length > 0, 'かじは おこる'); assert.ok(q3.state.goal && q3.state.goal.icon, 'もくてきが でる');
 }
 console.log('OK: city');

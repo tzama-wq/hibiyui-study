@@ -18,6 +18,7 @@ import { nearestRoadPoint } from './citymap.js';
 import { JOBS, JOB_LIST, SYMPTOMS } from './citysim.js';
 import { buildHouse } from './home3d.js';
 import * as HM from './cityhome.js';
+import { rankOf, jobLevel, jobNext, JOB_HOWTO, XP_PER_LV } from './cityquest.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = (s) => String(s).replace(/[<>&"]/g, '');
 let ACTIVE = null;
@@ -82,6 +83,8 @@ function windowTex(THREE, base, seed) {
   const t = mk(c); t.userData.em = mk(e); return t;
 }
 const bmat = (THREE, tex, o = {}) => new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex.userData.em, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.8, metalness: 0.08, ...o });
+let THREAT_TEX = null;
+function threatTex(THREE) { if (THREAT_TEX) return THREAT_TEX; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#ff2a2a'; g.strokeStyle = '#fff'; g.lineWidth = 5; g.lineJoin = 'round'; g.beginPath(); g.moveTo(8, 10); g.lineTo(56, 10); g.lineTo(32, 56); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#fff'; g.font = '900 24px sans-serif'; g.textAlign = 'center'; g.fillText('!', 32, 36); THREAT_TEX = new THREE.CanvasTexture(c); return THREAT_TEX; }
 function iconSprite(THREE, text, color = '#ffd23f') {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = 'rgba(8,20,44,.75)'; g.beginPath(); g.arc(64, 64, 58, 0, 6.283); g.fill(); g.strokeStyle = color; g.lineWidth = 8; g.stroke(); g.font = '64px CityLatin, CityJP, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 64, 70);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.renderOrder = 20; return s;
@@ -99,7 +102,7 @@ export async function startCity3D(o) {
     <div class="a3d-hud">
       <div class="a3d-bars"><div class="ab hp"><span>HP</span><i><u></u></i></div><div class="ab boost"><span>ダッシュ</span><i><u></u></i></div><div class="ab ms"><span>ミサイル</span><b></b></div><div class="c3d-coin">🪙 <b>0</b></div><div class="c3d-hits" hidden></div></div>
       <div class="a3d-top c3d-mis" hidden><div class="a3d-name"></div><div class="a3d-obj"></div></div>
-      <div class="c3d-track" hidden></div><div class="c3d-pinhud" hidden></div><div class="c3d-stars"></div><button class="c3d-help" aria-label="やりかた">？</button><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
+      <div class="c3d-track" hidden></div><div class="c3d-pinhud" hidden></div><div class="c3d-goal" hidden></div><div class="c3d-stars"></div><button class="c3d-help" aria-label="やりかた">？</button><div class="a3d-banner"></div><div class="a3d-msg"></div><div class="a3d-warn"></div><div class="a3d-ret"><i></i></div>
       <canvas class="c3d-map" width="150" height="150"></canvas>
       <button class="a3d-pausebtn" aria-label="ポーズ">⏸</button><button class="c3d-bigmapbtn" aria-label="ちず">🗺</button><button class="c3d-menubtn" aria-label="メニュー">☰</button><button class="c3d-wep" aria-label="ぶき"></button><div class="c3d-jobchip" hidden></div><button class="c3d-cancel" hidden>✖ ミッションを やめる</button>
     </div>
@@ -301,6 +304,7 @@ export async function startCity3D(o) {
   const markers = []; const startMarkers = CITY_MISSIONS.map((m) => { const g = mkMarker('#ffd23f'); g.position.set(m.start.x, 0, m.start.z); const sp = iconSprite(THREE, m.icon); sp.scale.set(9, 9, 1); sp.position.y = 24; g.add(sp); scene.add(g); return { m, g }; });
   for (const [pt, ic, col] of [[GARAGE, '🏠', '#ff9f43'], [BOARD, '📋', '#e8d9a0'], [KOBAN, '🚓', '#6aa8ff'], [JOB, '📚', '#7fe7ff'], [SOCCER, '⚽', '#9fe29f'], ...STORES.map((st) => [st, st.icon, '#ffb35a'])]) { const g = mkMarker(col, 40); g.position.set(pt.x, 0, pt.z); const sp = iconSprite(THREE, ic, col); sp.scale.set(8, 8, 1); sp.position.y = 26; g.add(sp); scene.add(g); markers.push(g); }
   let pin = null; const pinMarker = mkMarker('#ff4d6a', 140); pinMarker.visible = false; { const sp = iconSprite(THREE, '📍', '#ff4d6a'); sp.scale.set(10, 10, 1); sp.position.y = 34; pinMarker.add(sp); } scene.add(pinMarker);
+  const goalMarker = mkMarker('#ffd23f', 160); goalMarker.visible = false; { const sp = iconSprite(THREE, '🎯', '#ffb300'); sp.scale.set(11, 11, 1); sp.position.y = 40; goalMarker.add(sp); } scene.add(goalMarker);
   const setPin = (x, z) => { pin = x == null ? null : { x, z }; pinMarker.visible = !!pin; if (pin) pinMarker.position.set(x, 0, z); };
   const targetMarker = mkMarker('#27d8ff', 110); targetMarker.visible = false; scene.add(targetMarker); const hqMarker = mkMarker('#7dffa0', 60); hqMarker.position.set(BASE.x, 0, BASE.z); hqMarker.scale.set(4.5, 1, 4.5); hqMarker.visible = false; scene.add(hqMarker);
   const ringM = new THREE.Mesh(new THREE.TorusGeometry(24, 2.2, 10, 36), new THREE.MeshBasicMaterial({ color: '#27d8ff', transparent: true, opacity: 0.9 })); ringM.visible = false; scene.add(ringM);
@@ -331,7 +335,7 @@ export async function startCity3D(o) {
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
   let bgmCur = null;
   let paused = false; let dead = false; let portrait = false; const menu = root.querySelector('.a3d-menu'); const setPause = (v) => { paused = v; menu.hidden = !v; if (v) { sim.input.gun = false; sim.input.boost = false; } };
-  const snap = () => ({ job: S.job, defLevel: S.defLevel, jobXp: S.jobXp, home: S.home, phone: S.hasPhone, coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned.filter((id) => !S.loaned.includes(id)), weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
+  const snap = () => ({ quest: S.qs, rpgXp: S.rpgXp, job: S.job, defLevel: S.defLevel, jobXp: S.jobXp, home: S.home, phone: S.hasPhone, coins: P.coins, done: S.done, stats: S.stats, owned: S.owned, weapons: S.wOwned.filter((id) => !S.loaned.includes(id)), weapon: P.weapon, ammo: S.ammo, jobOk: S.jobOk, warps: S.warps, eqOwned: S.eqOwned, equip: S.equip, arrests: S.arrests }); const saveNow = () => { if (o.onSave) o.onSave(snap()); };
   menu.addEventListener('click', (e) => { const m = e.target.closest('[data-m]'); if (!m) return; if (m.dataset.m === 'resume') setPause(false); else if (m.dataset.m === 'quit') { saveNow(); destroy(); if (o.onQuit) o.onQuit(snap()); } });
   root.querySelector('.a3d-pausebtn').addEventListener('click', () => setPause(!paused));
   const showHelp = () => { openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>❓ シティの あそびかた</h3><div class="hp">
@@ -468,8 +472,8 @@ export async function startCity3D(o) {
     openModal(draw);
     shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act; if (a === 'job') openJobSelect(); else if (a === 'room') openRoom(); else if (a === 'ext') openExterior(); else if (a === 'rest') { P.hp = P.hpMax; S.msg = '🛌 ぐっすり ねて ぜんかいふく!'; S.msgT = 2.4; closeModal(); } };
   };
-  const openJobSelect = (note = 'しょくぎょうを えらぶと いしょうが かわって、のりものと しごとが もらえるよ。しごとを こなすと コインと かぐが もらえる!') => {
-    const draw = (n2 = note) => { const rows = ['none', ...JOB_LIST].map((id) => { const J = JOBS[id]; const lv = 1 + Math.floor((S.jobXp[id] || 0) / 6); return `<button class="sh-item ${S.job === id ? 'trk' : ''}" data-job="${id}"><span>${J.icon}</span><div><b>${esc(J.name)}${id !== 'none' ? ` <small style="display:inline">Lv.${lv}</small>` : ''}</b><small>${esc(J.desc)}</small></div><em>${S.job === id ? '✔ いま' : 'なる'}</em></button>`; }).join('');
+  const openJobSelect = (note = `しょくぎょうを えらぶと いしょうが かわって、のりものと しごとが もらえるよ。${JOB_HOWTO}`) => {
+    const draw = (n2 = note) => { const rows = ['none', ...JOB_LIST].map((id) => { const J = JOBS[id]; const lv = jobLevel(S.jobXp[id]); return `<button class="sh-item ${S.job === id ? 'trk' : ''}" data-job="${id}"><span>${J.icon}</span><div><b>${esc(J.name)}${id !== 'none' ? ` <small style="display:inline">Lv.${lv} 「${esc(rankOf(id, S.jobXp[id]))}」</small>` : ''}</b><small>${esc(J.desc)}${id !== 'none' ? ` ・ つぎの Lvまで あと${jobNext(S.jobXp[id])}` : ''}</small></div><em>${S.job === id ? '✔ いま' : 'なる'}</em></button>`; }).join('');
       shopEl.innerHTML = `<div class="sh-box"><h3>🎽 しょくぎょう</h3><div class="sh-coin">いま: ${(JOBS[S.job] || JOBS.none).icon} ${(JOBS[S.job] || JOBS.none).name}</div>${rows}<div class="sh-note">${n2}</div><button class="btn gray sh-x">もどる</button></div>`; };
     openModal(draw);
     shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) { openHouse(); return; } const b = e.target.closest('[data-job]'); if (!b) return; const r = sim.setJob(b.dataset.job); if (!r.ok) { draw(r.why || ''); return; } for (const ev2 of sim.takeEvents()) handleEvent(ev2); saveNow(); draw(`${(JOBS[S.job] || JOBS.none).name}に なったよ! ${JOBS[S.job] && JOBS[S.job].vehicle ? 'のりものは じたくの ガレージに あるよ' : ''}`); };
@@ -535,13 +539,41 @@ export async function startCity3D(o) {
   };
   const openMenu = () => {
     const lv = S.lv || 0;
-    const draw = () => { const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`; shopEl.innerHTML = `<div class="sh-box menu"><h3>☰ メニュー</h3><div class="sh-coin">🪙 ${P.coins}${lv ? `・🚨 ${'★'.repeat(lv)} ばっきん 🪙${S.fine}` : ''}</div>${S.hasPhone ? it('phone', '📱', 'スマートフォン', 'もっている のりものを その場で よびだす') : ''}${it('equip', '👕', 'そうび', EQUIP_SLOTS.map(([k]) => { const e = equipOf(S.equip[k]); return e ? e.icon : '➖'; }).join(' ') + '・' + eqSummary())}${it('weapons', '🎒', 'ぶき', 'もっている ぶきを かえる')}${it('job', '📚', 'おべんきょう', 'もんだいに こたえて コインを かせぐ')}${it('warp', '🏁', 'ファストトラベル', 'じたく・トレッサ・こうばん・とうろく(3かしょ)')}${it('map', '🗺', 'ちず', 'ピンを さして めざす')}${it('help', '❓', 'あそびかた', 'そうさの せつめい')}<button class="btn gray sh-x">とじる</button></div>`; };
+    const draw = () => { const it = (act, ic, t, sub) => `<button class="sh-item" data-act="${act}"><span>${ic}</span><div><b>${t}</b><small>${sub}</small></div></button>`; shopEl.innerHTML = `<div class="sh-box menu"><h3>☰ メニュー</h3><div class="sh-coin">🪙 ${P.coins}${lv ? `・🚨 ${'★'.repeat(lv)} ばっきん 🪙${S.fine}` : ''}</div>${S.hasPhone ? it('phone', '📱', 'スマートフォン', 'もっている のりものを その場で よびだす') : ''}${it('equip', '👕', 'そうび', EQUIP_SLOTS.map(([k]) => { const e = equipOf(S.equip[k]); return e ? e.icon : '➖'; }).join(' ') + '・' + eqSummary())}${it('weapons', '🎒', 'ぶき', 'もっている ぶきを かえる')}${it('story', '📖', 'ストーリー・ランク', S.job === 'none' ? 'じたくで しょくぎょうを えらぶと はじまるよ' : `${(JOBS[S.job] || JOBS.none).name} Lv.${jobLevel(S.jobXp[S.job])} 「${rankOf(S.job, S.jobXp[S.job])}」`)}${it('job', '📚', 'おべんきょう', 'もんだいに こたえて コインを かせぐ')}${it('warp', '🏁', 'ファストトラベル', 'じたく・トレッサ・こうばん・とうろく(3かしょ)')}${it('map', '🗺', 'ちず', 'ピンを さして めざす')}${it('help', '❓', 'あそびかた', 'そうさの せつめい')}<button class="btn gray sh-x">とじる</button></div>`; };
     openModal(draw);
     shopEl.onclick = (e) => {
       if (e.target.closest('.sh-x')) { closeModal(); return; } const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
       if (a === 'phone') openPhone(); else if (a === 'equip') openEquip(); else if (a === 'weapons') openWeapons(); else if (a === 'job') { if (P.dead <= 0) openJob(); else closeModal(); } else if (a === 'help') showHelp();
+      else if (a === 'story') openStory();
       else if (a === 'warp') openWarp(); else if (a === 'map') { closeModal(); bigmap.hidden = false; }
     };
+  };
+  // ---- ストーリー・ランク ----
+  const openStory = (job = S.job) => {
+    const J = JOBS[job] || JOBS.none;
+    const draw = () => {
+      const v = sim.questView(job); let body = '';
+      if (job === 'none' || v.none) body = '<p class="jb-p">じたくで しょくぎょうを えらぶと、その しごとの ストーリーが はじまるよ!</p>';
+      else {
+        const pc = Math.round(((XP_PER_LV - v.next) / XP_PER_LV) * 100);
+        body += `<div class="q-rank"><b>${J.icon} ${esc(J.name)}</b> ランク「${esc(v.rank)}」 <em>Lv.${v.lv}</em></div><div class="q-bar"><i style="width:${pc}%"></i></div><small class="q-sub">つぎの Lv.${v.lv + 1}まで あと ${v.next}</small>`;
+        if (v.done) body += '<div class="q-title">🏆 ストーリー ぜんぶ クリア!</div><p class="jb-p">これからも しごとで ランクを あげよう。</p>';
+        else {
+          body += `<div class="q-title">${esc(v.title)}  <small>(${v.c + 1}/${v.total})</small></div><p class="q-say">${esc(v.say)}</p>`;
+          if (v.locked) body += `<div class="q-lock">🔒 しょくぎょう Lv.${v.need} で ひらくよ! あと けいけんち ${v.left}(しごとを クリアしよう)</div>`;
+          else body += '<ul class="q-steps">' + v.steps.map((st) => `<li class="${st.done ? 'done' : st.cur ? 'cur' : ''}">${st.done ? '✅' : st.cur ? '▶' : '・'} ${esc(st.label)}${st.cur && st.n > 1 ? ` (${st.p}/${st.n})` : ''}</li>`).join('') + '</ul>';
+        }
+        body += `<small class="q-sub">${esc(JOB_HOWTO)}</small>`;
+      }
+      const rl = sim.questView('none'); body += `<div class="q-rpg">⭐ プレイヤー Lv.${rl.rpgLv} <small>つぎの Lvまで あと ${rl.rpgNext}(HPが ふえるよ)</small></div>`;
+      shopEl.innerHTML = `<div class="sh-box"><h3>📖 ストーリー・ランク</h3>${body}<button class="btn gray sh-x">もどる</button></div>`;
+    };
+    openModal(draw); shopEl.onclick = (e) => { if (e.target.closest('.sh-x')) openMenu(); };
+  };
+  const openStoryNote = (e) => {
+    if (S.ui === 'modal') return;
+    openModal(() => { shopEl.innerHTML = `<div class="sh-box"><h3>${e.kind === 'clear' ? '🎉 しょう クリア!' : '📖 あたらしい しょう'}</h3><div class="q-title">${esc(e.title)}</div><p class="q-say">${esc(e.kind === 'clear' ? e.text : e.text)}</p>${e.kind === 'clear' ? `<div class="q-lock ok">🪙 +${e.coins}${e.rare ? '  🎁 レアな かぐ' : ''}${e.last ? '  🏆 ストーリー ぜんぶ クリア!' : ''}</div>` : '<small class="q-sub">もくてきちは がめんの 📍 と ちずの 🎯 に でるよ</small>'}<button class="btn gold sh-x">${e.kind === 'clear' ? 'やったね!' : 'いってくる!'}</button></div>`; });
+    shopEl.onclick = (e2) => { if (e2.target.closest('.sh-x')) closeModal(); };
   };
   root.querySelector('.c3d-menubtn').addEventListener('click', () => { if (!paused && P.dead <= 0) openMenu(); });
   // ---- おべんきょう(もんだいに こたえて コイン) ----
@@ -578,7 +610,7 @@ export async function startCity3D(o) {
   };
   const handleEvent = (e) => {
     if (e.t === 'reward' && o.onReward) { o.onReward(e); saveNow(); } else if (e.t === 'bounty') { if (o.onBounty) o.onBounty(e); saveNow(); } else if (e.t === 'arrest') saveNow();
-    else if (e.t === 'buy' && o.onBuy) o.onBuy(e.id); else if (e.t === 'buyveh') { if (o.onBuyVeh) o.onBuyVeh(e.id); } else if (e.t === 'store') openStore(e.id); else if (e.t === 'garage') openGarage(); else if (e.t === 'house') openHouse(); else if (e.t === 'patient') openPatient(e.id); else if (e.t === 'defense') { saveNow(); if (o.onDefense) { destroy(); o.onDefense({ level: e.level, branch: e.branch, job: e.job }); } } else if (e.t === 'jobdone') saveNow(); else if (e.t === 'jobset') { applyCostume(); saveNow(); } else if (e.t === 'board') openBoard(); else if (e.t === 'job') openJob(); else if (e.t === 'soccer') { saveNow(); if (o.onSoccer) { destroy(); o.onSoccer(); } } else if (e.t === 'buywep' && o.onBuyWeapon) o.onBuyWeapon(e.id);
+    else if (e.t === 'buy' && o.onBuy) o.onBuy(e.id); else if (e.t === 'buyveh') { if (o.onBuyVeh) o.onBuyVeh(e.id); } else if (e.t === 'store') openStore(e.id); else if (e.t === 'garage') openGarage(); else if (e.t === 'house') openHouse(); else if (e.t === 'patient') openPatient(e.id); else if (e.t === 'defense') { saveNow(); if (o.onDefense) { destroy(); o.onDefense({ level: e.level, branch: e.branch, job: e.job }); } } else if (e.t === 'jobdone' || e.t === 'jobsave') saveNow(); else if (e.t === 'story') { saveNow(); openStoryNote(e); } else if (e.t === 'jobset') { applyCostume(); saveNow(); } else if (e.t === 'board') openBoard(); else if (e.t === 'job') openJob(); else if (e.t === 'soccer') { saveNow(); if (o.onSoccer) { destroy(); o.onSoccer(); } } else if (e.t === 'buywep' && o.onBuyWeapon) o.onBuyWeapon(e.id);
   };
 
   // ---- HUD ----
@@ -598,12 +630,12 @@ export async function startCity3D(o) {
       for (const [k, x, z] of SYMBOLS) { const d = SYM[k]; if (!d) continue; if (rot && Math.hypot(x - P.x, z - P.z) > R * 1.1) continue; if (!rot && (x < ccx - R * 1.1 || x > ccx + R * 1.1 || z < ccz - R * 1.1 || z > ccz + R * 1.1)) continue; g.save(); g.translate(x, z); g.rotate(rot ? -(P.yaw + Math.PI) : Math.PI); g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(0, 0, fs * 0.62, 0, 6.283); g.fill(); g.fillStyle = d[1]; g.fillText(d[0], 0, fs * 0.04); g.restore(); }
     }
     { g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; const fs2 = rot ? R / 5 : R / 14; g.font = `${fs2}px sans-serif`; const mark = (x, z, ic, ring) => { if (rot && Math.hypot(x - P.x, z - P.z) > R * 1.4) return; g.save(); g.translate(x, z); g.rotate(rot ? -(P.yaw + Math.PI) : Math.PI); g.fillStyle = ring; g.globalAlpha = 0.85; g.beginPath(); g.arc(0, 0, fs2 * 0.72, 0, 6.283); g.fill(); g.globalAlpha = 1; g.fillStyle = '#fff'; g.fillText(ic, 0, fs2 * 0.06); g.restore(); };
-      for (const f of S.fires) mark(f.x, f.z, '🔥', '#c2410c'); for (const t of S.tasks) mark(t.x, t.z, t.icon, '#1d4ed8'); g.restore(); }
+      if (S.job === 'fire') for (const f of S.fires) mark(f.x, f.z, '🔥', '#c2410c'); for (const t of S.tasks) mark(t.x, t.z, t.icon, '#1d4ed8'); if (S.goal) mark(S.goal.x, S.goal.z, '🎯', '#d99a00'); g.restore(); }
     const rr = rot ? R / 26 : 7 * zk; for (const { m } of startMarkers) if (!S.mission) { dot(m.start.x, m.start.z, '#ffd23f', rr * 1.1); }
     if (S.mission && S.mission.targets && S.mission.targets[S.mission.stage]) { const t = S.mission.targets[S.mission.stage]; dot(t.x, t.z, '#27d8ff', rr * 1.3); }
     if (S.mission && (S.mission.id === 'rescue' || (S.mission.id === 'delivery' && S.mission.stage === 1))) dot(BASE.x, BASE.z, '#7dffa0', rr * 1.3);
     for (const c of S.civs) if (c.state === 'need') dot(c.x, c.z, '#ff9ad0', rr);
-    for (const c of S.crooks) { if (c.state === 'down') dot(c.x, c.z, '#27d8ff', rr * 1.1); else if (c.wid) dot(c.x, c.z, '#ff2a3a', rr * 1.5); else if (c.minor) dot(c.x, c.z, '#ff9f43', rr * 1.1); else dot(c.x, c.z, '#a83a46', rr * 0.8); }
+    for (const c of S.crooks) { if (c.state === 'down') dot(c.x, c.z, '#27d8ff', rr * 1.1); else if (c.wid || c.qtag) dot(c.x, c.z, '#ff2a3a', rr * 1.5); else if (c.minor) dot(c.x, c.z, '#ff9f43', rr * 1.1); else dot(c.x, c.z, '#a83a46', rr * 0.8); }
     for (const j of S.jets) dot(j.x, j.z, '#ff4d4d', rr * 1.3, true); for (const h of S.helis) dot(h.x, h.z, '#ff8a4d', rr * 1.2, true);
     if (S.tracked) { const w = S.wanted.find((x) => x.id === S.tracked); if (w && w.alive) { g.strokeStyle = '#fff'; g.lineWidth = rr * 0.5; g.beginPath(); g.arc(w.x, w.z, rr * (2.2 + Math.sin(tt * 6) * 0.5), 0, 6.283); g.stroke(); } }
     dot(GARAGE.x, GARAGE.z, '#ff9f43', rr * 1.1, true); dot(BOARD.x, BOARD.z, '#e8d9a0', rr * 1.0, true); dot(KOBAN.x, KOBAN.z, '#6aa8ff', rr * 1.0, true); dot(JOB.x, JOB.z, '#7fe7ff', rr, true); dot(SOCCER.x, SOCCER.z, '#9fe29f', rr * 1.1, true); for (const st of STORES) dot(st.x, st.z, '#ffb35a', rr * (st.id === 'tresa' || st.id === 'apita' ? 1.6 : 0.95), true);
@@ -629,7 +661,7 @@ export async function startCity3D(o) {
     const kind = v ? v.kind : 'foot'; const air = isAir(kind); const ay = air ? v.yaw : kind === 'foot' ? P.camYaw : P.yaw + P.aimRel; const ap = air ? v.pitch : P.aimPitch; const o0 = air ? { x: v.x, y: v.y, z: v.z } : { x: P.x, y: 2, z: P.z }; const rp = project(o0.x + Math.sin(ay) * Math.cos(ap) * 200, o0.y + Math.sin(ap) * 200, o0.z + Math.cos(ay) * Math.cos(ap) * 200); hud.ret.style.left = `${rp.x}px`; hud.ret.style.top = `${rp.y}px`; hud.ret.style.display = rp.z < 1 && P.dead <= 0 ? '' : 'none'; { const Wr = weaponOf(P.weapon) || {}; const tin = !!P.target && (sim.input.autoAim || sim.input.aimLock) && (air || (kind === 'foot' && Math.hypot(P.target.x - P.x, P.target.z - P.z) <= (Wr.range || 3) + 5)); hud.ret.classList.toggle('lock', tin); }
     { let st = 0; for (const c of S.crooks) { if (!c.wid || c.state === 'down') continue; const d = Math.hypot(c.x - P.x, c.z - P.z); if (c.alert || d < 70) { const w = S.wanted.find((x) => x.id === c.wid); if (w && w.stars > st) st = w.stars; } } const hl = S.lv || 0; if (hl) { const tm = Math.max(0, Math.ceil(S.heatT)); hud.stars.innerHTML = hl >= 5 ? `<b class="hot">🚨 ★★★★★</b><small>のこり ${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}<br>(ばっきん・ワープは できない! にげきれ)</small>` : `<b class="hot">🚨 ${'★'.repeat(hl)}${'☆'.repeat(5 - hl)}</b><small>のこり ${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}・ばっきん 🪙${S.fine}<br>(えきまえの 🚓こうばんで はらう)</small>`; hud.stars.classList.toggle('on', true); hud.stars.classList.toggle('heat', true); } else { hud.stars.textContent = st ? '⭐'.repeat(st) : ''; hud.stars.classList.toggle('on', !!st); hud.stars.classList.toggle('heat', false); } }
     { const W = weaponOf(P.weapon) || {}; const asp = ammoSpec(W); const AM = asp ? sim.ammoOf(W.id) : null; hud.wep.hidden = kind !== 'foot'; hud.wep.textContent = AM ? `${W.icon || ''} ${W.name}  ${P.reload > 0 ? '🔄 リロードちゅう…' : `🔸${AM.mag}/${AM.reserve}`} 📏${W.range}m` : `${W.icon || ''} ${W.name || ''}`; hud.wep.classList.toggle('empty', !!AM && AM.mag <= 0 && AM.reserve <= 0); hud.wpb.style.display = kind === 'foot' && asp ? '' : 'none'; hud.wpb.classList.toggle('need', !!AM && (AM.mag <= Math.max(1, asp.mag * 0.25)) && AM.reserve > 0); }
-    { const jc = root.querySelector('.c3d-jobchip'); const J = JOBS[S.job] || JOBS.none; const lines = []; if (S.job !== 'none') lines.push(`<b>${J.icon} ${J.name}</b> Lv${1 + Math.floor((S.jobXp[S.job] || 0) / 6)}`); const dist = (x, z) => Math.round(Math.hypot(x - P.x, z - P.z)); for (const t of S.tasks.slice(0, 2)) lines.push(`${t.icon} ${t.label} <i>${dist(t.x, t.z)}m</i>`); for (const f of S.fires.slice(0, 2)) lines.push(`🔥 かじ <i>${dist(f.x, f.z)}m</i>${S.job === 'fire' ? ` ${Math.max(0, Math.round(f.hp))}%` : ''}`);
+    { const jc = root.querySelector('.c3d-jobchip'); const J = JOBS[S.job] || JOBS.none; const lines = []; if (S.job !== 'none') { const nx = jobNext(S.jobXp[S.job]); lines.push(`<b>${J.icon} ${J.name}</b> Lv${jobLevel(S.jobXp[S.job])} <span class="jc-bar">${'■'.repeat(XP_PER_LV - nx)}${'□'.repeat(nx)}</span>`); } const dist = (x, z) => Math.round(Math.hypot(x - P.x, z - P.z)); for (const t of S.tasks.slice(0, 2)) lines.push(`${t.icon} ${t.label} <i>${dist(t.x, t.z)}m</i>`); if (S.job === 'fire') for (const f of S.fires.slice(0, 2)) lines.push(`🔥 かじ <i>${dist(f.x, f.z)}m</i>${S.job === 'fire' ? ` ${Math.max(0, Math.round(f.hp))}%` : ''}`);
       const html = lines.join('<br>'); if (jc.dataset.h !== html) { jc.dataset.h = html; jc.innerHTML = html; } jc.hidden = !lines.length || kind === 'foot' && false; }
     { const hv = v && !air && v.kind !== 'ship' && v.kind !== 'tank'; hud.hits.hidden = !hv; if (hv) { hud.hits.textContent = `🔧 ${v.hits || 0}/${v.hitMax}`; hud.hits.classList.toggle('bad', (v.hits || 0) >= v.hitMax - 2); } }
     root.classList.toggle('air', air);
@@ -637,6 +669,8 @@ export async function startCity3D(o) {
     root.querySelector('.ab-boost').style.display = kind === 'foot' ? 'none' : '';
     hud.gun.textContent = kind === 'foot' ? (weaponOf(P.weapon) && weaponOf(P.weapon).melee ? 'なぐる' : 'うつ') : kind === 'car' || kind === 'bike' ? 'ビーム' : 'こうげき'; root.querySelector('.ab-tg').style.display = air ? 'none' : '';
     if (pin) { const dd = Math.hypot(pin.x - P.x, pin.z - P.z); if (dd < 14) { setPin(null); S.msg = '🎉 もくてきちに ついたよ!'; S.msgT = 2.5; if (o.onSfx) o.onSfx('win'); } else { const ang = Math.atan2(pin.x - P.x, pin.z - P.z) - (P.yaw + 0); let dA = ang; while (dA > Math.PI) dA -= 2 * Math.PI; while (dA < -Math.PI) dA += 2 * Math.PI; const arrow = Math.abs(dA) < 0.35 ? '⬆' : dA > 0 ? (Math.abs(dA) > 2.4 ? '⬇' : '⬅') : (Math.abs(dA) > 2.4 ? '⬇' : '➡'); hud.pinhud.hidden = false; hud.pinhud.textContent = `📍 ${arrow} ${dd >= 1000 ? (dd / 1000).toFixed(1) + 'km' : Math.round(dd) + 'm'}`; } } else hud.pinhud.hidden = true;
+    { const gl = root.querySelector('.c3d-goal'); const G = S.goal; let ghtml = ''; if (G) { const dd = Math.hypot(G.x - P.x, G.z - P.z); let dA = Math.atan2(G.x - P.x, G.z - P.z) - P.yaw; while (dA > Math.PI) dA -= 2 * Math.PI; while (dA < -Math.PI) dA += 2 * Math.PI; const ar = Math.abs(dA) < 0.35 ? '⬆' : dA > 0 ? (Math.abs(dA) > 2.4 ? '⬇' : '⬅') : (Math.abs(dA) > 2.4 ? '⬇' : '➡'); ghtml = `🎯 つぎは: <b>${esc(G.label)}</b> ${ar} ${dd >= 1000 ? (dd / 1000).toFixed(1) + 'km' : Math.round(dd) + 'm'}`; goalMarker.visible = true; goalMarker.position.set(G.x, 0, G.z); } else { goalMarker.visible = false; if (S.qLock) ghtml = `🔒 しょくぎょう Lv.${S.qLock.need} で つぎの しょう(あと ${S.qLock.left})`; }
+      if (gl.dataset.h !== ghtml) { gl.dataset.h = ghtml; gl.innerHTML = ghtml; gl.hidden = !ghtml; } }
     { const w = S.tracked ? S.wanted.find((x) => x.id === S.tracked) : null; hud.track.hidden = !w; if (w) hud.track.textContent = w.alive ? `🎯 ${w.name} 🪙${w.bounty} ・ ${Math.round(Math.hypot(w.x - P.x, w.z - P.z))}m` : `🎯 ${w.name}(いまは いないよ)`; }
     drawMap(hud.map, 240, 150, true); if (!bigmap.hidden) drawMap(hud.big, bmv.R, 640, false, bmv.cx, bmv.cz);
   }
@@ -692,6 +726,9 @@ export async function startCity3D(o) {
       if (!e) { if (crookM.size >= 28) continue; let m = null; if (glbOn) { const sw0 = c.type === 'gunman' || c.type === 'bounty' || c.type === 'elite' || c.type === 'legend'; const key = sw0 ? 'swat' : 'man'; const tint = c.type === 'elite' ? { Shirt: '#5a2a8a', Pants: '#1a1230' } : c.type === 'legend' ? { Shirt: '#111114', Pants: '#3a0a10' } : c.type === 'cop' ? { Shirt: '#1d3f9a', Pants: '#142447' } : c.type === 'bounty' ? { Shirt: '#6b4a22', Pants: '#2b2118' } : c.type === 'thug' ? { Shirt: '#262a33', Pants: '#2f3a2a' } : c.type === 'boss' ? { Shirt: '#8a1f2a', Pants: '#14161a' } : c.type === 'runner' ? { Shirt: '#c9843a', Pants: '#2a2e38' } : null; m = A.person(key, { height: c.type === 'legend' ? 2.25 : c.type === 'elite' ? 2.0 : c.type === 'boss' ? 1.95 : 1.82, tint }); if (m) { const wid = { thug: 'pistol', gunman: 'smg', boss: 'pump', cop: 'pistol', bounty: 'smg', elite: 'smg', legend: 'smg' }[c.type]; if (wid) { const wm = makeWeaponModel(THREE, wid); m.userData.hand.add(wm); m.userData.gun = wm; } m.userData.rig = sw0; } } if (!m) m = crookPerson(THREE, c.type, c.id); m.traverse((x) => { if (x.isMesh) x.castShadow = shadowsOn; }); scene.add(m); e = { m, label: null, cuff: null, lx: c.x, lz: c.z, sub: '' }; const cf = iconSprite(THREE, '🚔', '#27d8ff'); cf.scale.set(3.4, 3.4, 1); cf.visible = false; scene.add(cf); e.cuff = cf; crookM.set(c.id, e); }
       rseen.add(c.id); const m = e.m; const u = m.userData; const w = c.wid ? S.wanted.find((x) => x.id === c.wid) : null; const sub = c.wid ? `${'⭐'.repeat(w ? w.stars : 1)} 🪙${w ? w.bounty : 0}` : c.minor ? '🪙40' : c.hunter ? '🚨 おってくる' : ''; const nm = c.wid ? (w ? (w.rname ? `【${w.rname}】` : '') + w.name : '') : c.minor ? 'ひったくり' : c.hunter === 'cop' ? 'おまわりさん' : c.hunter === 'bounty' ? '賞金かせぎ' : '';
       if (nm && (sub !== e.sub || !e.label)) { if (e.label) { scene.remove(e.label); e.label.material.map.dispose(); e.label.material.dispose(); } e.label = labelSprite(THREE, nm, sub, c.wid ? '#ff5a5a' : '#ffb35a', 300); scene.add(e.label); e.sub = sub; }
+      // てきは あかい ▼ マークと あかい リングで しみんと みわけられる
+      if (!e.mark) { e.mark = new THREE.Sprite(new THREE.SpriteMaterial({ map: threatTex(THREE), transparent: true, depthTest: false, toneMapped: false })); e.mark.renderOrder = 9; scene.add(e.mark); const ring = new THREE.Mesh(new THREE.RingGeometry(0.75, 1.0, 28), new THREE.MeshBasicMaterial({ color: 0xff2a2a, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; ring.name = 'threatRing'; m.add(ring); e.ring = ring; }
+      { const dn = c.state === 'down'; e.mark.visible = !dn; if (e.ring) e.ring.visible = !dn; const sc = Math.min(2.6, 0.9 + d * 0.012); e.mark.scale.set(sc, sc, 1); e.mark.position.set(c.x, (c.type === 'legend' ? 3.0 : 2.5) + sc * 0.5 + Math.sin(tt * 5) * 0.12, c.z); }
       const down = c.state === 'down'; const mv = Math.hypot(c.x - e.lx, c.z - e.lz) / Math.max(dt, 0.001); e.lx = c.x; e.lz = c.z; const sw = down ? 0 : Math.sin(tt * (mv > 4 ? 12 : 8) + c.ph) * Math.min(0.8, mv / 4);
       if (u.glb) { m.position.set(c.x, 0, c.z); m.rotation.y = c.yaw; const aim = (c.alert || d < 80) && c.type !== 'runner'; const spd = mv; u.play(down ? 'Death' : spd > 4 ? 'Run' : spd > 0.8 ? 'Walk' : aim && u.rig ? 'Idle_Gun_Pointing' : 'Idle', 0.18, down); u.mixer.update(dt); }
       else { m.position.set(c.x, down ? -0.42 : 0, c.z); m.rotation.y = c.yaw; u.legL.rotation.x = down ? 1.35 : sw; u.legR.rotation.x = down ? 1.35 : -sw;
@@ -700,7 +737,7 @@ export async function startCity3D(o) {
       if (e.label) { e.label.visible = d < 160 && P.dead <= 0; e.label.position.set(c.x, (c.type === 'boss' ? 3.9 : 3.5) + (down ? -0.6 : 0), c.z); }
       e.cuff.visible = down && d < 60; e.cuff.position.set(c.x, 3.2, c.z); e.cuff.scale.setScalar(3.4 + Math.sin(tt * 6) * 0.4);
     }
-    for (const [id, e] of crookM) if (!rseen.has(id)) { scene.remove(e.m); if (e.label) scene.remove(e.label); scene.remove(e.cuff); crookM.delete(id); }
+    for (const [id, e] of crookM) if (!rseen.has(id)) { scene.remove(e.m); if (e.label) scene.remove(e.label); if (e.mark) scene.remove(e.mark); scene.remove(e.cuff); crookM.delete(id); }
     // ひろいもの
     const pseen = new Set(); for (const p of S.pickups) { if (Math.hypot(p.x - P.x, p.z - P.z) > 300) continue; pseen.add(p.id); let m = pickM.get(p.id); if (!m) { m = p.kind === 'drop' ? (() => { const g = new THREE.Group(); const sp = iconSprite(THREE, p.icon, p.col); sp.scale.set(3.6, 3.6, 1); g.add(sp); const bm = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 30, 8, 1, true), new THREE.MeshBasicMaterial({ color: p.col, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })); bm.position.y = 13; g.add(bm); return g; })() : p.kind === 'gem' ? new THREE.Mesh(new THREE.OctahedronGeometry(1.4), new THREE.MeshBasicMaterial({ color: '#7ff3ff' })) : new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.3, 16), new THREE.MeshBasicMaterial({ color: '#ffd23f' })); if (p.kind !== 'gem' && p.kind !== 'drop') m.rotation.x = Math.PI / 2; scene.add(m); pickM.set(p.id, m); } m.position.set(p.x, 1.8 + Math.sin(tt * 3 + p.id) * 0.3, p.z); if (p.kind !== 'drop') m.rotation.y = tt * 3; }
     for (const [id, m] of pickM) if (!pseen.has(id)) { scene.remove(m); pickM.delete(id); }
