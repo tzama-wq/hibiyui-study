@@ -826,7 +826,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     for (const b of S.bullets) {
       b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
       if (insideBuilding(b.x, b.z, b.y)) { b.t = 99; continue; }
-      for (const pl of players) { P = pl; if (b.t >= 99) break; if (P.dead <= 0) { const v = cur(); const py = v ? (isAir(v.kind) ? P.y : 1.8) : 1.2 + (P.jh || 0); const rad = v ? (v.kind === 'ship' ? 14 : v.kind === 'tank' ? 7 : isAir(v.kind) ? 8 : v.kind === 'bike' ? 2.2 : 3.2) : 1.4; if (hyp(b.x - P.x, b.z - P.z) < rad && Math.abs(b.y - py) < rad + 2) { hurtPlayer(b.dmg); b.t = 99; fx('spark', b.x, b.y, b.z, 3); } } } P = HOST;
+      for (const pl of players) { P = pl; if (b.t >= 99) break; const svb = swapIn(pl); if (P.dead <= 0) { const v = cur(); const py = v ? (isAir(v.kind) ? P.y : 1.8) : 1.2 + (P.jh || 0); const rad = v ? (v.kind === 'ship' ? 14 : v.kind === 'tank' ? 7 : isAir(v.kind) ? 8 : v.kind === 'bike' ? 2.2 : 3.2) : 1.4; if (hyp(b.x - P.x, b.z - P.z) < rad && Math.abs(b.y - py) < rad + 2) { hurtPlayer(b.dmg); b.t = 99; fx('spark', b.x, b.y, b.z, 3); } } swapOut(svb, pl); } P = HOST;
     }
     S.bullets = S.bullets.filter((b) => b.t < 3.5);
   }
@@ -1034,12 +1034,13 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   // ---- きょうりょく(3にん): ホストが せかいを うごかし、ゲストは そうさを おくる ----
   const GUEST_OK = ['veh', 'tcar', 'exit', 'arrest', 'collect'];
   // ゲストは じぶんの ぶき・たまを つかう(ホストの もちものを つかわない)
-  const swapIn = (pl) => { if (pl === HOST) return null; const sv = { o: S.wOwned, a: S.ammo }; S.wOwned = pl.wOwned || ['pistol']; S.ammo = pl.ammo || {}; return sv; };
-  const swapOut = (sv, pl) => { if (!sv) return; pl.wOwned = S.wOwned; pl.ammo = S.ammo; S.wOwned = sv.o; S.ammo = sv.a; };
+  const swapIn = (pl) => { if (pl === HOST) return null; const sv = { o: S.wOwned, a: S.ammo, e: S.equip, eo: S.eqOwned, q: S.eq }; S.wOwned = pl.wOwned || ['pistol']; S.ammo = pl.ammo || {}; S.equip = pl.equip || {}; S.eqOwned = pl.eqOwned || []; S.eq = pl.eqs || { hp: 0, def: 0, spd: 0, aim: 0, acc: 0 }; return sv; };
+  const swapOut = (sv, pl) => { if (!sv) return; pl.wOwned = S.wOwned; pl.ammo = S.ammo; pl.equip = S.equip; pl.eqOwned = S.eqOwned; pl.eqs = S.eq; S.wOwned = sv.o; S.ammo = sv.a; S.equip = sv.e; S.eqOwned = sv.eo; S.eq = sv.q; };
   const as = (pl, fn) => { if (!players.includes(pl)) return undefined; const k = players.indexOf(pl); P = pl; input = inputs[k]; const sv = swapIn(pl); try { return fn(); } finally { swapOut(sv, pl); P = HOST; input = HOST_IN; } };
   const addPlayer = (name = 'ゲスト', inv = null) => {
     if (players.length >= 3) return null; const g = JSON.parse(JSON.stringify(HOST)); g.name = name; g.mode = 'foot'; g.veh = null; g.dead = 0; g.hp = g.hpMax; g.invuln = 3; g.x = SPAWN.x + players.length * 3; g.z = SPAWN.z; g.y = 0; g.yaw = 0; g.camYaw = 0; g.speed = 0; g.plat = null; g.coins = 0; g.target = null; g.nearby = null; g.reload = 0; g.wCd = 0; const gw = inv && Array.isArray(inv.w) ? inv.w.filter((id) => typeof id === 'string' && weaponOf(id)).slice(0, 60) : []; g.wOwned = [...new Set(['pistol', ...gw])]; g.ammo = {}; if (inv && inv.am && typeof inv.am === 'object') for (const id of g.wOwned) { const a = inv.am[id]; const sp = ammoSpec(weaponOf(id)); if (a && sp) g.ammo[id] = { mag: Math.min(sp.mag, a.mag | 0), reserve: Math.min(sp.cap, a.reserve | 0) }; } g.weapon = inv && g.wOwned.includes(inv.wp) ? inv.wp : 'pistol';
-    players.push(g); inputs.push({ turn: 0, climb: 0, moveX: 0, moveY: 0, autoAim: true, aimLock: false, gun: false, boost: false, aimX: 0, aimY: 0 }); msg(`${name} が さんかしたよ!`, 3); return g;
+    g.equip = {}; g.eqOwned = []; if (inv && inv.eo && Array.isArray(inv.eo)) g.eqOwned = inv.eo.filter((id) => typeof id === 'string' && equipOf(id) && !(equipOf(id).need && equipOf(id).need.secret)).slice(0, 40); if (inv && inv.eq && typeof inv.eq === 'object') for (const [sl, id] of Object.entries(inv.eq)) { const e = equipOf(id); if (e && e.slot === sl && g.eqOwned.includes(id)) g.equip[sl] = id; } g.eqs = { hp: 0, def: 0, spd: 0, aim: 0, acc: 0 };
+    players.push(g); as(g, () => { applyEq(); g.hp = g.hpMax; }); inputs.push({ turn: 0, climb: 0, moveX: 0, moveY: 0, autoAim: true, aimLock: false, gun: false, boost: false, aimX: 0, aimY: 0 }); msg(`${name} が さんかしたよ!`, 3); return g;
   };
   const removePlayer = (pl) => { const k = players.indexOf(pl); if (k <= 0) return; if (pl.veh) as(pl, () => leave()); players.splice(k, 1); inputs.splice(k, 1); };
   const inputOf = (pl) => inputs[players.indexOf(pl)];

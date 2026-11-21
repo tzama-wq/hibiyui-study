@@ -42,7 +42,7 @@ export function hostBindCity(sim, conn, onEvent) {
     if (m.t === 'hello') { if (!pl) { pl = sim.addPlayer(String(m.n || 'ゲスト').slice(0, 8), m.inv || null); if (!pl) { conn.send({ t: 'full' }); return; } if (m.pr) { bestOf.pr = m.pr; recalc(); } conn.send({ t: 'hi', me: sim.state.players.indexOf(pl) }); if (onEvent) onEvent({ e: 'join', pl }); } return; }
     if (!pl) return; const I = sim.inputOf(pl); if (!I) return;
     if (m.t === 'in' && m.i) { I.moveX = +m.i[0] || 0; I.moveY = +m.i[1] || 0; I.aimX = +m.i[2] || 0; I.aimY = +m.i[3] || 0; I.gun = !!m.i[4]; I.boost = !!m.i[5]; I.aimLock = !!m.i[6]; I.autoAim = m.i[7] !== 0; I.camYaw = typeof m.cy === 'number' ? m.cy : null; I.aimPitch = typeof m.ap === 'number' ? m.ap : null; I.turn = +m.i[8] || 0; I.climb = +m.i[9] || 0; }
-    else if (m.t === 'ev') { if (m.e === 'jump') I.jump = true; else if (m.e === 'interact') sim.interactFor(pl); else if (m.e === 'reload') sim.as(pl, () => sim.reload && sim.reload()); else if (m.e === 'cycle') sim.as(pl, () => sim.cycleWeapon && sim.cycleWeapon(1)); else if (m.e === 'equip') sim.as(pl, () => sim.equip && sim.equip(String(m.id))); }
+    else if (m.t === 'ev') { if (m.e === 'jump') I.jump = true; else if (m.e === 'interact') sim.interactFor(pl); else if (m.e === 'reload') sim.as(pl, () => sim.reload && sim.reload()); else if (m.e === 'cycle') sim.as(pl, () => sim.cycleWeapon && sim.cycleWeapon(1)); else if (m.e === 'equip') sim.as(pl, () => sim.equip && sim.equip(String(m.id))); else if (m.e === 'wear') sim.as(pl, () => sim.wear && sim.wear(String(m.id))); }
   });
   const recalc = () => { let b = null; if (bestOf.pr) b = bestOf.pr; sim.setCoopBest(b); };
   conn.onClose(() => { alive = false; if (pl) { sim.removePlayer(pl); if (onEvent) onEvent({ e: 'leave', pl }); pl = null; } });
@@ -53,7 +53,7 @@ export function hostBindCity(sim, conn, onEvent) {
 }
 
 export function guestBindCity(sim, conn, name, progress) {
-  const inv = { w: sim.state.wOwned.slice(), am: JSON.parse(JSON.stringify(sim.state.ammo || {})), wp: sim.state.player.weapon };
+  const inv = { w: sim.state.wOwned.slice(), am: JSON.parse(JSON.stringify(sim.state.ammo || {})), wp: sim.state.player.weapon, eq: { ...sim.state.equip }, eo: sim.state.eqOwned.slice() };
   const S = sim.state; const P = S.player; let me = 0; let got = false; let lastRx = 0; const store = {}; const smooth = {};
   const objs = { crooks: new Map(), traffic: new Map(), walkers: new Map(), civs: new Map(), vehicles: new Map(), jets: new Map(), helis: new Map() };
   const adopt = (k, rows) => { const keys = KEYS[k]; const list = dec(rows, keys); const mp = objs[k]; if (!mp) return list; const out = []; const seen = new Set(); for (const n of list) { let o = mp.get(n.id); seen.add(n.id); if (!o) { o = { ...n }; o.tx = n.x; o.tz = n.z; o.tyaw = n.yaw; mp.set(n.id, o); } else { const keep = { x: o.x, z: o.z, yaw: o.yaw }; Object.assign(o, n); o.tx = n.x; o.tz = n.z; o.tyaw = n.yaw; o.x = keep.x; o.z = keep.z; o.yaw = keep.yaw; if (Math.hypot(o.tx - o.x, o.tz - o.z) > 40) { o.x = o.tx; o.z = o.tz; o.yaw = o.tyaw; } } out.push(o); } for (const id of [...mp.keys()]) if (!seen.has(id)) mp.delete(id); return out; };
@@ -91,6 +91,7 @@ export function guestBindCity(sim, conn, name, progress) {
   sim.jump = () => { conn.send({ t: 'ev', e: 'jump' }); return true; };
   sim.reload = () => { conn.send({ t: 'ev', e: 'reload' }); return true; };
   sim.cycleWeapon = () => { conn.send({ t: 'ev', e: 'cycle' }); return true; };
+  const origWear = sim.wear; sim.wear = (id) => { conn.send({ t: 'ev', e: 'wear', id }); return origWear ? origWear(id) : true; };
   sim.equip = (id) => { conn.send({ t: 'ev', e: 'equip', id }); return { ok: true }; };
   void store; void smooth;
   return { me: () => me, lost: () => !conn.isOpen(), silent: () => got && Date.now() - lastRx > 2500, got: () => got, close: () => { try { conn.close(); } catch { /* ok */ } } };
