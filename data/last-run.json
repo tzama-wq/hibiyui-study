@@ -1,5 +1,5 @@
 {
- "date": "2026-11-21",
+ "date": "2026-11-23",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -9,12 +9,115 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 9,
-   "rejected": {},
-   "unverified": 1,
+   "returned": 12,
+   "rejected": {
+    "wrong-shape": 4
+   },
+   "unverified": 0,
    "accepted": 8,
    "rounds": 2,
-   "samples": [],
+   "samples": [
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "七",
+      "target": "七日",
+      "reading": "なのか",
+      "sentence": "しがつ 七日に がっこうが はじまる。",
+      "explain": "「なのか」は かんじで「七日」と かきます。",
+      "wrong": [
+       {
+        "text": "九日",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "三日",
+        "tag": "similar_word"
+       },
+       {
+        "text": "八日",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "上",
+      "target": "上",
+      "reading": "うえ",
+      "sentence": "つくえの 上に ほんが ある。",
+      "explain": "「うえ」は かんじで「上」と かきます。",
+      "wrong": [
+       {
+        "text": "下",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "中",
+        "tag": "similar_word"
+       },
+       {
+        "text": "右",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "下",
+      "target": "下",
+      "reading": "した",
+      "sentence": "きの下で やすみましょう。",
+      "explain": "「した」は かんじで「下」と かきます。",
+      "wrong": [
+       {
+        "text": "上",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "土",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "中",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "kaki",
+      "kanji": "二",
+      "target": "二人",
+      "reading": "ふたり",
+      "sentence": "ともだちと 二人で あそぶ。",
+      "explain": "「ふたり」は かんじで「二人」と かきます。",
+      "wrong": [
+       {
+        "text": "一人",
+        "tag": "similar_word"
+       },
+       {
+        "text": "三人",
+        "tag": "similar_word"
+       },
+       {
+        "text": "二日",
+        "tag": "similar_kanji"
+       }
+      ]
+     }
+    }
+   ],
    "missing": 0
   },
   "2": {
@@ -29,104 +132,102 @@
   },
   "3": {
    "asked": 8,
-   "returned": 9,
+   "returned": 11,
    "rejected": {
-    "wrong-shape": 1
-   },
-   "unverified": 1,
-   "accepted": 7,
-   "rounds": 2,
-   "samples": [
-    {
-     "reason": "wrong-shape",
-     "item": {
-      "type": "yomi",
-      "kanji": "局",
-      "target": "薬局",
-      "reading": "やっきょく",
-      "sentence": "近くの 薬局で くすりを 買う。",
-      "explain": "「局」は おん読みで「きょく」と 読みます。",
-      "wrong": [
-       {
-        "text": "やくきょく",
-        "tag": "small_kana"
-       },
-       {
-        "text": "やっぎょく",
-        "tag": "dakuten"
-       },
-       {
-        "text": "やっこう",
-        "tag": "similar_sound"
-       }
-      ]
-     }
-    }
-   ],
-   "missing": 1
-  },
-  "4": {
-   "asked": 8,
-   "returned": 10,
-   "rejected": {
-    "sentence-kanji-out-of-grade": 1,
-    "target-not-once": 1
+    "wrong-shape": 1,
+    "explain-kanji-out-of-grade": 1,
+    "sentence-kanji-out-of-grade": 1
    },
    "unverified": 0,
    "accepted": 8,
    "rounds": 2,
    "samples": [
     {
-     "reason": "sentence-kanji-out-of-grade",
+     "reason": "wrong-shape",
      "item": {
-      "type": "kaki",
-      "kanji": "喜",
-      "target": "喜劇",
-      "reading": "きげき",
-      "sentence": "おもしろい喜劇を見て大わらいした。",
-      "explain": "「きげき」は「喜劇」と書きます。",
+      "type": "yomi",
+      "kanji": "族",
+      "target": "家族",
+      "reading": "かぞく",
+      "sentence": "家族で ごはんを たべる。",
+      "explain": "「族」は 「ぞく」と よみます。",
       "wrong": [
        {
-        "text": "希劇",
-        "tag": "similar_sound"
+        "text": "かそく",
+        "tag": "dakuten"
        },
        {
-        "text": "紀劇",
-        "tag": "similar_sound"
+        "text": "かりょく",
+        "tag": "similar_kanji"
        },
        {
-        "text": "汽劇",
-        "tag": "similar_sound"
+        "text": "かぞう",
+        "tag": "other"
        }
       ]
      }
     },
     {
-     "reason": "target-not-once",
+     "reason": "explain-kanji-out-of-grade",
      "item": {
       "type": "kaki",
-      "kanji": "囲",
-      "target": "囲む",
-      "reading": "かこむ",
-      "sentence": "みんなでつくえを囲んで話し合う。",
-      "explain": "「かこむ」は「囲む」と書きます。",
+      "kanji": "昔",
+      "target": "昔話",
+      "reading": "むかしばなし",
+      "sentence": "昔話を 本で 読む。",
+      "explain": "「むかし」は 上が 井の「昔」です。",
       "wrong": [
        {
-        "text": "園む",
+        "text": "草話",
         "tag": "similar_kanji"
        },
        {
-        "text": "固む",
+        "text": "黄話",
         "tag": "similar_kanji"
        },
        {
-        "text": "国む",
+        "text": "昔語",
+        "tag": "similar_word"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "sentence-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "暑",
+      "target": "暑中",
+      "reading": "しょちゅう",
+      "sentence": "暑中 お見舞いを おくる。",
+      "explain": "「しょ」は 日に 者の「暑」です。",
+      "wrong": [
+       {
+        "text": "者中",
         "tag": "similar_kanji"
+       },
+       {
+        "text": "都中",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "書中",
+        "tag": "similar_sound"
        }
       ]
      }
     }
    ],
+   "missing": 0
+  },
+  "4": {
+   "asked": 8,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
    "missing": 0
   }
  }
