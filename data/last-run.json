@@ -1,5 +1,5 @@
 {
- "date": "2026-11-23",
+ "date": "2026-11-24",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -9,109 +9,109 @@
  "grades": {
   "1": {
    "asked": 8,
-   "returned": 12,
+   "returned": 13,
    "rejected": {
-    "wrong-shape": 4
+    "explain-kanji-out-of-grade": 4
    },
-   "unverified": 0,
+   "unverified": 1,
    "accepted": 8,
    "rounds": 2,
    "samples": [
     {
-     "reason": "wrong-shape",
+     "reason": "explain-kanji-out-of-grade",
      "item": {
       "type": "kaki",
-      "kanji": "七",
-      "target": "七日",
-      "reading": "なのか",
-      "sentence": "しがつ 七日に がっこうが はじまる。",
-      "explain": "「なのか」は かんじで「七日」と かきます。",
+      "kanji": "力",
+      "target": "力",
+      "reading": "ちから",
+      "sentence": "男の 子は 力が つよい。",
+      "explain": "「ちから」は かん字で「力」と 書きます。",
       "wrong": [
        {
-        "text": "九日",
+        "text": "九",
         "tag": "similar_kanji"
        },
        {
-        "text": "三日",
-        "tag": "similar_word"
+        "text": "人",
+        "tag": "similar_kanji"
        },
        {
-        "text": "八日",
+        "text": "入",
         "tag": "similar_kanji"
        }
       ]
      }
     },
     {
-     "reason": "wrong-shape",
+     "reason": "explain-kanji-out-of-grade",
      "item": {
       "type": "kaki",
-      "kanji": "上",
-      "target": "上",
-      "reading": "うえ",
-      "sentence": "つくえの 上に ほんが ある。",
-      "explain": "「うえ」は かんじで「上」と かきます。",
+      "kanji": "千",
+      "target": "千円",
+      "reading": "せんえん",
+      "sentence": "千円で 本を かう。",
+      "explain": "「せんえん」は かん字で「千円」と 書きます。",
       "wrong": [
        {
-        "text": "下",
+        "text": "十円",
         "tag": "similar_kanji"
        },
        {
-        "text": "中",
-        "tag": "similar_word"
+        "text": "手円",
+        "tag": "similar_kanji"
        },
        {
-        "text": "右",
-        "tag": "similar_word"
+        "text": "子円",
+        "tag": "similar_kanji"
        }
       ]
      }
     },
     {
-     "reason": "wrong-shape",
+     "reason": "explain-kanji-out-of-grade",
      "item": {
       "type": "kaki",
-      "kanji": "下",
-      "target": "下",
-      "reading": "した",
-      "sentence": "きの下で やすみましょう。",
-      "explain": "「した」は かんじで「下」と かきます。",
+      "kanji": "右",
+      "target": "右手",
+      "reading": "みぎて",
+      "sentence": "右手で えんぴつを もつ。",
+      "explain": "「みぎて」は かん字で「右手」と 書きます。",
       "wrong": [
        {
-        "text": "上",
+        "text": "左手",
         "tag": "similar_kanji"
        },
        {
-        "text": "土",
+        "text": "石手",
         "tag": "similar_kanji"
        },
        {
-        "text": "中",
-        "tag": "similar_word"
+        "text": "名手",
+        "tag": "similar_kanji"
        }
       ]
      }
     },
     {
-     "reason": "wrong-shape",
+     "reason": "explain-kanji-out-of-grade",
      "item": {
       "type": "kaki",
-      "kanji": "二",
-      "target": "二人",
-      "reading": "ふたり",
-      "sentence": "ともだちと 二人で あそぶ。",
-      "explain": "「ふたり」は かんじで「二人」と かきます。",
+      "kanji": "四",
+      "target": "四人",
+      "reading": "よにん",
+      "sentence": "四人で たのしく あそぶ。",
+      "explain": "「よにん」は かん字で「四人」と 書きます。",
       "wrong": [
        {
-        "text": "一人",
-        "tag": "similar_word"
+        "text": "田人",
+        "tag": "similar_kanji"
        },
        {
-        "text": "三人",
-        "tag": "similar_word"
+        "text": "口人",
+        "tag": "similar_kanji"
        },
        {
-        "text": "二日",
+        "text": "目人",
         "tag": "similar_kanji"
        }
       ]
@@ -122,21 +122,9 @@
   },
   "2": {
    "asked": 8,
-   "returned": 8,
-   "rejected": {},
-   "unverified": 0,
-   "accepted": 8,
-   "rounds": 1,
-   "samples": [],
-   "missing": 0
-  },
-  "3": {
-   "asked": 8,
-   "returned": 11,
+   "returned": 9,
    "rejected": {
-    "wrong-shape": 1,
-    "explain-kanji-out-of-grade": 1,
-    "sentence-kanji-out-of-grade": 1
+    "wrong-shape": 1
    },
    "unverified": 0,
    "accepted": 8,
@@ -146,78 +134,38 @@
      "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "族",
-      "target": "家族",
-      "reading": "かぞく",
-      "sentence": "家族で ごはんを たべる。",
-      "explain": "「族」は 「ぞく」と よみます。",
+      "kanji": "南",
+      "target": "南",
+      "reading": "みなみ",
+      "sentence": "南の くには あたたかい。",
+      "explain": "「南」は「みなみ」と よみます。",
       "wrong": [
        {
-        "text": "かそく",
-        "tag": "dakuten"
+        "text": "なん",
+        "tag": "onkun_mix"
        },
        {
-        "text": "かりょく",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "かぞう",
+        "text": "みなむ",
         "tag": "other"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "explain-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "昔",
-      "target": "昔話",
-      "reading": "むかしばなし",
-      "sentence": "昔話を 本で 読む。",
-      "explain": "「むかし」は 上が 井の「昔」です。",
-      "wrong": [
-       {
-        "text": "草話",
-        "tag": "similar_kanji"
        },
        {
-        "text": "黄話",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "昔語",
-        "tag": "similar_word"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "sentence-kanji-out-of-grade",
-     "item": {
-      "type": "kaki",
-      "kanji": "暑",
-      "target": "暑中",
-      "reading": "しょちゅう",
-      "sentence": "暑中 お見舞いを おくる。",
-      "explain": "「しょ」は 日に 者の「暑」です。",
-      "wrong": [
-       {
-        "text": "者中",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "都中",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "書中",
+        "text": "みない",
         "tag": "similar_sound"
        }
       ]
      }
     }
    ],
+   "missing": 0
+  },
+  "3": {
+   "asked": 8,
+   "returned": 8,
+   "rejected": {},
+   "unverified": 0,
+   "accepted": 8,
+   "rounds": 1,
+   "samples": [],
    "missing": 0
   },
   "4": {
