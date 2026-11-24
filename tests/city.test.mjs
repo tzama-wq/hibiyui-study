@@ -371,8 +371,9 @@ for (const planeId of ['plane', 'hawk']) {
   assert.ok(q0.state.goal && Math.hypot(q0.state.goal.x - KOBAN.x, q0.state.goal.z - (KOBAN.z + 8)) < 2, 'つぎの もくてき=こうばん');
   assert.ok(q0.takeEvents().some((e) => e.t === 'story' && e.kind === 'chapter'), 'しょうの はじまり');
   tele(q0, KOBAN.x, KOBAN.z + 8); q0.step(0.05); v = q0.questView(); assert.ok(v.steps[0].done && v.xp >= 1, 'goto を クリア→けいけんち');
-  const q1 = mk(); q1.setJob('police'); Object.assign(q1.state.qs.police, { c: 1, s: 0 }); q1.step(0.05); v = q1.questView(); assert.ok(v.locked && v.need === 2 && v.left === 6, 'Lvが たりないと ロック');
-  q1.state.jobXp.police = 6; q1.step(0.05); assert.ok(!q1.questView().locked, 'Lv2で ひらく');
+  const q1 = mk(); q1.setJob('police'); Object.assign(q1.state.qs.police, { c: 1, s: 0 }); q1.step(0.05); v = q1.questView(); assert.ok(!v.locked && v.need === 2, 'しょうは じゆうに ちょうせんできる(おすすめ Lvだけ ひょうじ)');
+  q1.state.jobXp.police = 6; q1.step(0.05); assert.ok(!q1.questView().locked, 'Lv2でも ひらいている');
+  { const q4 = mk(); q4.setJob('police'); q4.step(0.05); assert.ok(q4.selectChapter(3).ok, 'しょうを えらべる'); const vv = q4.questView(); assert.equal(vv.c, 3); assert.ok(vv.chapters.length === 10 && vv.chapters[3].cur, 'いちらん'); const qq = q4.state.qs.police; qq.cl.push(3); q4.state.qs.police.c = 3; assert.ok(!q4.selectChapter(3).ok, 'クリアずみは えらべない'); }
   for (const j of ['police', 'swat', 'fire', 'ems', 'jgsdf', 'jmsdf', 'jasdf']) { const qq = mk(); assert.ok(qq.setJob(j).ok); const vv = qq.questView(); assert.equal(vv.total, 10, j); }
   const q2 = mk(); q2.setJob('police'); q2.state.fireT = 0; q2.step(0.05); assert.ok(!/かじだ/.test(q2.state.msg || ''), 'しょくぎょうに かんけいない かじの メッセージは なし');
   const q3 = mk(); q3.setJob('fire'); q3.state.fireT = 0; q3.step(0.05); assert.ok(q3.state.fires.length > 0, 'かじは おこる'); assert.ok(q3.state.goal && q3.state.goal.icon, 'もくてきが でる');
@@ -464,4 +465,22 @@ for (const planeId of ['plane', 'hawk']) {
   assert.ok(P.swim || Math.abs(P.z - (rz + RIVER.hw + 3)) > 2, 'かわに はいれる(およぐ)');
   const t = mk(); const w = t.state.walkers.find((q) => !q.idle && !(q.dead > 0)); const Pt = t.state.player; Pt.x = w.x + 1.5; Pt.z = w.z; t.step(0.05); t.step(0.05); assert.equal(t.state.nearby && t.state.nearby.kind, 'talk', 'ひとに はなしかけられる'); t.interact(); assert.ok(t.state.msg && /🗣|🪙/.test(t.state.msg), 'へんじが ある');
 }
+// ---- じゆうど2: なかま・ペット・のりもの・あそびば ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player;
+  // なかま
+  const w = S.walkers.find((q) => !q.idle && !(q.dead > 0)); P.x = w.x + 1.5; P.z = w.z; P.coins = 5000; sim.step(0.05); sim.step(0.05); assert.equal(S.nearby && S.nearby.kind, 'talk'); sim.interact(); sim.step(0.05); sim.step(0.05);
+  if (S.nearby && S.nearby.kind === 'recruit') { sim.interact(); assert.equal(S.allies.length, 1, 'なかまに なる'); }
+  else { S.allies.push({ id: 70001, x: P.x + 2, z: P.z, yaw: 0, cd: 0, mv: 0 }); }
+  const c = S.crooks.find((q) => q.wid === 'joe'); c.state = 'idle'; S.crooks.forEach((x) => { if (x !== c) { x.x = 9999; x.z = 9999; } }); const hp0 = c.hp; P.x = c.x - 20; P.z = c.z; S.allies[0].x = c.x - 22; S.allies[0].z = c.z; for (let i = 0; i < 60; i++) { P.invuln = 9; sim.step(0.05); } assert.ok(c.hp < hp0 || c.state === 'down', 'なかまが こうげき');
+  // ペット
+  const s2 = mk(); s2.state.pet = { kind: 'dog', x: s2.state.player.x + 30, z: s2.state.player.z, yaw: 0, dig: 0.1, mv: 0 }; const n0 = s2.state.pickups.length; for (let i = 0; i < 80; i++) s2.step(0.05); assert.ok(hyp2(s2.state.pet, s2.state.player) < 8, 'ペットが ついてくる'); assert.ok(s2.state.pickups.length > n0, 'ペットが ほりだす');
+  // のりもの
+  const v = mk(); const vs = v.state; const car = vs.vehicles.find((q) => q.kind === 'car'); assert.equal(car.fuel, 100, 'まんたんで スタート');
+  assert.ok(v.setVehColor('sedan', '#ff0000').ok && vs.vcol.sedan === '#ff0000', 'いろを かえる'); assert.ok(!v.setVehColor('sedan', 'red').ok);
+  // あそびば
+  const g = mk(); g.state.player.coins = 1000; assert.ok(g.playPay('bowl').ok && g.state.player.coins === 900, 'さんかひ'); assert.equal(g.playReward('bowl', 99999), 600, 'じょうげんが ある'); assert.equal(g.playReward('arcade', 300), 300);
+  const g2 = mk(); const sp = g2.state.playSpots[0]; tele(g2, sp.x, sp.z); g2.step(0.05); g2.step(0.05); assert.equal(g2.state.nearby && g2.state.nearby.kind, 'play', 'あそびばで あそべる');
+}
+function hyp2(a, b) { return Math.hypot(a.x - b.x, a.z - b.z); }
 console.log('OK: city');
