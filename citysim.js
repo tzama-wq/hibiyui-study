@@ -911,7 +911,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
       else { P.yaw += input.turn * 0.6 * dt; P.x += Math.sin(P.yaw) * input.climb * 8 * dt; P.z += Math.cos(P.yaw) * input.climb * 8 * dt; }
       if (isWater(P.x, P.z)) { P.x = HQ.x; P.z = HQ.z - 40; } pushOut(P, 1.2); if (P.y <= 0.01) { P.chute = false; P.speed = 0; } return; }
     if (!v) {
-      const mx = input.moveX || 0; const my = input.moveY || 0; const mag = Math.min(1, Math.hypot(mx, my)); if (P.tired && P.boost >= 30) P.tired = false; P.swim = isWater(P.x, P.z); const dash = (boost || mag >= 0.85) && !P.tired && P.boost > 0 && !P.swim; const sp = (dash ? FS.run : FS.speed) * (P.buff.speed > 0 ? 1.3 : 1) * (1 + S.eq.spd) * (P.swim ? 0.5 : 1); // スティックを ふかく たおすと ダッシュ
+      const mx = input.moveX || 0; const my = input.moveY || 0; const mag = Math.min(1, Math.hypot(mx, my)); if (P.tired && P.boost >= 30) P.tired = false; P.swim = isWater(P.x, P.z); const dash = (boost || mag >= 0.85) && !P.tired && (P.boost > 0 || P.swim); const sp = (dash ? FS.run : FS.speed) * (P.buff.speed > 0 ? 1.3 : 1) * (1 + S.eq.spd) * (P.swim ? 0.8 : 1); // スティックを ふかく たおすと ダッシュ
       if (mag > 0.08) { // スマホ ふうの そうさ: スティックの むきに カメラを きじゅんに あるく
         P.camFree = true; // カメラ(レティクル)は からだの むきに ひきずられない
         const cy = P.camYaw; let dx = Math.sin(cy) * my - Math.cos(cy) * mx; let dz = Math.cos(cy) * my + Math.sin(cy) * mx; const L = hyp(dx, dz) || 1; dx /= L; dz /= L;
