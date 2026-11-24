@@ -36,7 +36,7 @@ export function pairUI({ title, onConn, onCancel, role: forceRole }) {
       <div class="netst muted"></div><button class="btn gray" data-n="cancel">やめる</button>`;
     bindCancel(box); const st = box.querySelector('.netst');
     box.querySelector('[data-n=copy]').addEventListener('click', async () => { st.textContent = (await copy(h.code)) ? 'コピーしたよ' : 'コピーできなかったよ'; });
-    const go = async (code) => { st.textContent = 'つないでいるよ…'; try { const conn = await h.finish(code); connected(conn, 'host'); } catch (e) { st.textContent = `つながらなかったよ: ${e.message}`; } };
+    let goBusy = false; const go = async (code) => { if (goBusy) return; goBusy = true; st.textContent = 'つないでいるよ…'; try { const conn = await h.finish(code); connected(conn, 'host'); } catch (e) { goBusy = false; st.textContent = `つながらなかったよ: ${e.message}`; } };
     box.querySelector('[data-n=go]').addEventListener('click', () => go(box.querySelector('.codein').value));
     box.querySelector('[data-n=scan]').addEventListener('click', () => { const v = box.querySelector('.scanv'); v.hidden = false; scanStop = scanQr(v, (t, err) => { v.hidden = true; if (t) go(t); else st.textContent = `カメラが つかえなかったよ(${err ? esc(err.message) : ''})`; }); });
   }

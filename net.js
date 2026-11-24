@@ -53,13 +53,21 @@ const opened = (ch, ms = 20000) => new Promise((res, rej) => { if (ch.readyState
 export async function hostOffer() {
   const pc = new RTCPeerConnection(RTC);
   const rel = pc.createDataChannel('r'); const fast = pc.createDataChannel('f', { ordered: false, maxRetransmits: 0 });
+  let fin = null;
   await pc.setLocalDescription(await pc.createOffer()); await waitIce(pc);
   const code = await packCode({ t: 'o', s: pc.localDescription.sdp });
   return {
     code,
-    async finish(answerCode) {
-      const a = await unpackCode(answerCode); if (a.t !== 'a') throw new Error('これは へんじの コードじゃ ないよ');
-      await pc.setRemoteDescription({ type: 'answer', sdp: a.s }); await Promise.all([opened(rel), opened(fast)]); return wrap(pc, [rel, fast]);
+    // 同じ へんじを 2かい よみとっても(QRの にじ よみこみ・ボタンの れんだ)、1かいだけ てきようして おなじ けっかを かえす
+    finish(answerCode) {
+      if (fin) return fin;
+      fin = (async () => {
+        const a = await unpackCode(answerCode); if (a.t !== 'a') throw new Error('これは へんじの コードじゃ ないよ');
+        if (pc.signalingState === 'have-local-offer') await pc.setRemoteDescription({ type: 'answer', sdp: a.s });
+        await Promise.all([opened(rel), opened(fast)]); return wrap(pc, [rel, fast]);
+      })();
+      fin.catch(() => { if (pc.signalingState === 'have-local-offer') fin = null; });
+      return fin;
     },
     cancel() { try { pc.close(); } catch { /* ok */ } },
   };
