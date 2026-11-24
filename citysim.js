@@ -350,7 +350,7 @@ const AIR_SLOTS = [[AIRFIELD.x0 + 20, ACZ - 28], [AIRFIELD.x0 + 20, ACZ + 28], [
 const FIXED = { tank: { kind: 'tank', x: PLAZA.cx + 50, z: PLAZA.cz + 4, yaw: Math.PI / 2 }, ship: { kind: 'ship', x: DOCK.x, z: DOCK.z, yaw: Math.PI / 2 }, plane: { kind: 'plane', x: AIRFIELD.x0 + 24, z: ACZ, yaw: Math.PI / 2 } };
 const slotOf = (it, idx) => { if (it.kind === 'bike') { const s = BIKE_SLOTS[idx % BIKE_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; } if (isAir(it.kind)) { const s = AIR_SLOTS[idx % AIR_SLOTS.length]; return { x: s[0], z: s[1], yaw: Math.PI / 2 }; } const s = CAR_SLOTS[idx % CAR_SLOTS.length]; return { x: s[0], z: s[1], yaw: 0 }; };
 
-export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = DEFAULT_WEAPONS, weapon = 'pistol', rnd = mulberry(5), gentle = false, coins = 0, arrests = {}, ammo = {}, eqOwned = [], equip: eqWorn = {}, jobOk = 0, warps = [], job: jobId = 'none', jobXp = {}, home = null, phone = false, defLevel = 1, quest = {}, rpgXp = 0, collect = {} }) {
+export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = DEFAULT_WEAPONS, weapon = 'pistol', rnd = mulberry(5), gentle = false, coins = 0, arrests = {}, ammo = {}, eqOwned = [], equip: eqWorn = {}, jobOk = 0, warps = [], job: jobId = 'none', jobXp = {}, home = null, phone = false, defLevel = 1, quest = {}, rpgXp = 0, collect = {}, witness = true }) {
   const ks = stats; const FS = footStats(ks);
   let input = { turn: 0, climb: 0, moveX: 0, moveY: 0, autoAim: true, aimLock: false, gun: false, boost: false, aimX: 0, aimY: 0 };
   const S = {
@@ -361,18 +361,36 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   };
   const spaceOf = (pl) => (pl && pl.plat && pl.plat.kind === 'hideout' ? pl.plat.id : null);
   const GHOST = { x: 1e7, z: 1e7, y: 0, dead: 999, hp: 1, hpMax: 1, mode: 'foot', veh: null, plat: null, coins: 0, invuln: 0, speed: 0, yaw: 0, camYaw: 0, jh: 0 };
-  let P = S.player; const HOST = P; const HOST_IN = input; const players = [P]; const inputs = [input]; S.players = players; S.coopBest = null; S.hideouts = hideoutSites().map((h) => ({ ...h, cover: hideCover(h), spawned: false, cleared: false, cd: 0 })); let nid = 100; P.weapon = weapon && S.wOwned.includes(weapon) ? weapon : 'pistol';
+  let P = S.player; const HOST = P; const HOST_IN = input; const players = [P]; const inputs = [input]; S.players = players; S.noWitness = !witness; S.coopBest = null; S.hideouts = hideoutSites().map((h) => ({ ...h, cover: hideCover(h), spawned: false, cleared: false, cd: 0 })); let nid = 100; P.weapon = weapon && S.wOwned.includes(weapon) ? weapon : 'pistol';
   for (const [sl] of EQUIP_SLOTS) { const id = eqWorn[sl]; if (id && S.eqOwned.includes(id) && equipOf(id).slot === sl) S.equip[sl] = id; }
   const eqStat = () => { const q = { hp: 0, def: 0, spd: 0, aim: 0, acc: 0, aimLv: 0 }; for (const id of Object.values(S.equip)) { const e = equipOf(id); if (e) for (const k of Object.keys(q)) q[k] += e[k] || 0; } return q; };
   const applyEq = () => { const q = eqStat(); const hm = FS.hpMax + q.hp + 3 * (rpgLevel(S.rpgXp) - 1); const r = P.hp / (P.hpMax || hm); P.hpMax = hm; P.hp = Math.min(hm, Math.max(1, Math.round(hm * r))); S.eq = q; };
   applyEq(); P.hp = P.hpMax;
   // ---- てはい ----
   // 指名手配(ゆるめ): 1ぷんで 10にん ひくと★1・なぐる5かいで★1・いっぱんの ひとを うつと ★2・そのあと 2かい あてるごとに ★+1(けいさつは 3かい・のりものは 4かい)(★5が さいだい)
-  const raise = (to, why) => { const l0 = S.lv; S.lv = Math.min(5, Math.max(S.lv, to)); S.heat = S.lv; S.fine = HEAT_FINE[S.lv]; if (S.lv > 0) S.heatT = Math.max(S.heatT, HEAT_DUR[S.lv]); if (S.lv > l0) { banner(S.lv >= 5 ? '🚨 ★5 ながい あいだ にげきれ!!' : `🚨 指名手配 ${'⭐'.repeat(S.lv)}!`, 2.6); snd('warn'); ev({ t: 'wanted', lv: S.lv }); } else if (why && S.lv > 0) msg(why, 1.4); };
+  const raiseNow = (to, why) => { const l0 = S.lv; if (l0 === 0) { const vv = cur(); S.heatVeh = vv ? vv.id : null; } S.lv = Math.min(5, Math.max(S.lv, to)); S.heat = S.lv; S.fine = HEAT_FINE[S.lv]; if (S.lv > 0) S.heatT = Math.max(S.heatT, HEAT_DUR[S.lv]); if (S.lv > l0) { banner(S.lv >= 5 ? '🚨 ★5 ながい あいだ にげきれ!!' : `🚨 指名手配 ${'⭐'.repeat(S.lv)}!`, 2.6); snd('warn'); ev({ t: 'wanted', lv: S.lv }); } else if (why && S.lv > 0) msg(why, 1.4); };
+  // GTA6 ふう: はんざいは「だれかに みられた」ときだけ つうほうされる(もくげきしゃが でんわ→3.5びょうごに 指名手配)。
+  // もくげきしゃを たおす・とおくへ にげる と つうほうは きえる。もう 指名手配 ちゅうなら すぐ あがる。
+  const raise = (to, why) => {
+    if (S.lv > 0 || S.noWitness) return raiseNow(to, why);
+    if (S.rep) { S.rep.to = Math.max(S.rep.to, to); return; }
+    let best = null; let bd = 46; for (const w of S.walkers) { if (w.dead > 0) continue; const d = hyp(w.x - P.x, w.z - P.z); if (d < bd) { bd = d; best = w; } }
+    for (const c of S.traffic) if (c.cop && !(c.dead > 0) && hyp(c.x - P.x, c.z - P.z) < 70) return raiseNow(to, why);
+    if (!best) { if (S.t - (S.noseeT || -9) > 5) { S.noseeT = S.t; msg('👀 だれも みていない… つうほうは されなかった', 2.4); } return; }
+    S.rep = { w: best, to, why, t: 3.5 }; best.calling = true; best.scared = Math.max(best.scared || 0, 4); if (best.idle) { best.idle = false; best.spd = 1.8; }
+    msg('📱 だれかに みられた! つうほうされる まえに たおすか にげよう!', 3); snd('warn');
+  };
+  const stepWitness = (dt) => {
+    const rp = S.rep; if (!rp) return; rp.t -= dt; const w = rp.w;
+    if (S.lv > 0) { w.calling = false; S.rep = null; return; }
+    if (w.dead > 0) { w.calling = false; S.rep = null; msg('📵 もくげきしゃが いなくなった… つうほうは とまった', 2.6); return; }
+    if (hyp(w.x - P.x, w.z - P.z) > 85) { w.calling = false; S.rep = null; msg('📵 もくげきしゃを ふりきった!', 2.6); return; }
+    if (rp.t <= 0) { w.calling = false; S.rep = null; msg('📞 つうほうされた!', 1.6); raiseNow(rp.to, rp.why); }
+  };
   const addStar = (why) => raise(S.lv + 1, why);
   const gunHit = (why, per = 2) => { if (S.lv < 2) { S.gunCnt = 0; raise(2, why); } else if (S.t - (S.cntT || -9) > 0.3) { S.cntT = S.t; S.gunCnt = (S.gunCnt || 0) + 1; if (S.gunCnt >= per) { S.gunCnt = 0; addStar(why); } } };
   const meleeHit = (why) => { S.melee++; if (S.melee >= 5) { S.melee = 0; raise(1, why); } else msg(`🚨 なぐった(${S.melee}/5)`, 1.2); };
-  const clearHeat = (why) => { S.heat = 0; S.lv = 0; S.heatT = 0; S.fine = 0; S.melee = 0; S.gunCnt = 0; S.runs = []; S.jets = []; S.helis = []; S.missiles = S.missiles.filter((m) => !m.enemy); S.crooks = S.crooks.filter((c) => !c.hunter); S.traffic = S.traffic.filter((c) => !c.cop); if (why) msg(why, 3); };
+  const clearHeat = (why) => { if (S.rep) { S.rep.w.calling = false; S.rep = null; } S.heat = 0; S.lv = 0; S.heatT = 0; S.fine = 0; S.melee = 0; S.gunCnt = 0; S.runs = []; S.jets = []; S.helis = []; S.missiles = S.missiles.filter((m) => !m.enemy); S.crooks = S.crooks.filter((c) => !c.hunter); S.traffic = S.traffic.filter((c) => !c.cop); if (why) msg(why, 3); };
   const hurtWalker = (w, dmg, how) => { if (w.dead > 0) return; w.hp = (w.hp == null ? 40 : w.hp) - dmg; w.scared = 8; if (w.idle) { w.idle = false; w.spd = 1.8; if (S.relocWalker) S.relocWalker(w); } fx('spark', w.x, 1.2, w.z, 4); if (how === 'melee') meleeHit('🚨 いっぱんの ひとを なぐった!'); else if (how === 'run') { S.runs = (S.runs || []).filter((t) => S.t - t < 60); S.runs.push(S.t); if (S.runs.length >= 10) raise(1, '🚨 たくさんの ひとを ひいた!'); else if (S.runs.length >= 5 && S.lv < 1) msg(`⚠️ ひとを ひきすぎ ちゅうい!(${S.runs.length}/10)`, 1.4); } else gunHit('🚨 いっぱんの ひとを やった!'); if (w.hp <= 0) { w.dead = 14; snd('down'); fx('spark', w.x, 1.5, w.z, 8); } };
   const rayWalker = (from, dv, range, wall) => { let best = null; let ba = 9; for (const w of S.walkers) { if (w.dead > 0) continue; const vx = w.x - from.x; const vy = 1.1 - from.y; const vz = w.z - from.z; const dist = hyp(vx, vy, vz); if (dist > range || dist > wall || dist < 1) continue; const a = Math.acos(clamp((vx * dv.x + vy * dv.y + vz * dv.z) / dist, -1, 1)); if (a < 0.9 / dist + 0.04 && a < ba) { ba = a; best = w; } } return best; };
   const nearestWalker = (maxD, cone, yaw) => { let best = null; let bd = maxD; for (const w of S.walkers) { if (w.dead > 0) continue; const d = hyp(w.x - P.x, w.z - P.z); if (d > bd || Math.abs(angDiff(Math.atan2(w.x - P.x, w.z - P.z), yaw)) > cone) continue; bd = d; best = w; } return best; };
@@ -613,6 +631,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const canRide = (v) => { const it = catalogOf(v.id); if (it && it.job && S.job !== it.job) return false; if (!specialOf(v.id)) return true; return S.owned.includes(v.id) || (v.id === 'tank' && S.job === 'jgsdf') || (v.id === 'plane' && S.job === 'jasdf'); };
   const enter = (v) => {
     if (!canRide(v)) { msg('🔒 まだ かっていないよ(トレッサで かおう)', 2.4); return; }
+    if (S.lv > 0 && S.heatVeh && S.heatVeh !== v.id && !isAir(v.kind) && !S.traffic.some((c) => c.cop && !(c.dead > 0) && hyp(c.x - P.x, c.z - P.z) < 55)) { S.heatT = Math.max(2, S.heatT * 0.5); S.heatVeh = v.id; msg('🚗 のりものを かえた! けいさつの てがかりが へった', 2.8); }
     P.mode = 'veh'; P.veh = v.id; v.occ = true; v.away = 0; P.aimRel = 0; P.aimPitch = 0.05; P.noAim = 0; P.boost = 100;
     if (isAir(v.kind)) { v.y = 60; v.speed = v.V.speed; v.pitch = 0; v.yaw = v.home.yaw; msg(`${VNAME[v.kind]} ${v.name}に のったよ! そらへ!`); }
     else msg(`${VNAME[v.kind] || ''} ${v.name}に のったよ`);
@@ -924,7 +943,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
     S.missiles = S.missiles.filter((m) => m.t < m.life);
   }
   function stepWorld(dt) {
-    stepJobs(dt); stepQuest(); stepCollect(dt); stepHideouts(dt); stepEvents(dt);
+    stepJobs(dt); stepQuest(); stepCollect(dt); stepHideouts(dt); stepEvents(dt); stepWitness(dt);
     if (S.pickups.some((p) => p.life != null)) S.pickups = S.pickups.filter((p) => p.life == null || (p.life -= dt) > 0);
     for (const pl of players) { P = pl; const svp = swapIn(pl); for (const p of S.pickups.slice()) if (P.dead <= 0 && S.pickups.includes(p) && hyp(p.x - P.x, p.z - P.z) < (P.mode === 'veh' ? 7 : p.kind === 'drop' ? 4.5 : 3) && (P.y < 12 || P.mode === 'foot')) { S.pickups = S.pickups.filter((x) => x !== p); if (p.kind === 'drop') applyDrop(p.drop); else if (p.kind === 'gem') { ev({ t: 'gem', v: 1 }); snd('gem'); msg('💎 ほうせきを みつけた!', 2); P.coins += p.v; S.stats.coins += p.v; } else { P.coins += p.v; S.stats.coins += p.v; snd('coin'); } } swapOut(svp, pl); } P = HOST;
     S.relocT = (S.relocT || 0) + dt; const fire = P.mode === 'foot' && (input.gun || P.wCd > 0.1) && (weaponOf(P.weapon) || {}).range > 5;
@@ -1124,7 +1143,7 @@ export function createCity({ stats, vehicles, owned = DEFAULT_OWNED, weapons = D
   const interactFor = (pl) => { const n = pl.nearby; if (!n || !GUEST_OK.includes(n.kind)) return false; return !!as(pl, () => { S.nearby = n; const r = interact(); S.nearby = HOST.nearby; return r; }); };
   const setCoopBest = (b) => { S.coopBest = b ? { a: b.a | 0, m: b.m | 0, j: b.j | 0 } : null; };
   return {
-    state: S, input: HOST_IN, step, addPlayer, removePlayer, inputOf, interactFor, setCoopBest, as, players, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, buyEquip, wear, ultimateProgress, warpPlaces, registerWarp, removeWarp, spend(n) { if (P.coins < n) return false; P.coins -= n; return true; }, setJob, treat, callVehicle, questView, collectView, hospitals: HOSPITALS, addJobOk(n) { S.jobOk += n | 0; return S.jobOk; }, payFine, raise, gunHit, meleeHit, equip, cycleWeapon, reload: startReload, ammoOf: am, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
+    state: S, input: HOST_IN, step, addPlayer, removePlayer, inputOf, interactFor, setCoopBest, as, players, interact, fireMissile, startMission, cancelMission, buy, buyVehicle, buyWeapon, buyEquip, wear, ultimateProgress, warpPlaces, registerWarp, removeWarp, spend(n) { if (P.coins < n) return false; P.coins -= n; return true; }, setJob, treat, callVehicle, questView, collectView, hospitals: HOSPITALS, addJobOk(n) { S.jobOk += n | 0; return S.jobOk; }, payFine, raise: raiseNow, gunHit, meleeHit, equip, cycleWeapon, reload: startReload, ammoOf: am, addCoins, fastTravel, summon, meets, progress, vehicleOf: cur, footStats: FS,
     takeEvents() { const e = S.events; S.events = []; return e; },
     aimAt(r) { if (!r) return; if (!cur()) { P.camYaw = Math.atan2(r.x - P.x, r.z - P.z); P.camFree = true; P.aimPitch = clamp(r.y != null ? Math.atan2(r.y - 1.6 - roofY(P), hyp(r.x - P.x, r.z - P.z)) : Math.atan2(1.6 - 2.5 - roofY(P), hyp(r.x - P.x, r.z - P.z)), roofY(P) ? -1.25 : -0.2, r.y != null ? 1.1 : 0.4); return; } P.aimRel = clamp(angDiff(Math.atan2(r.x - P.x, r.z - P.z), cur() ? cur().yaw : P.yaw), -2.4, 2.4); P.aimPitch = clamp(Math.atan2(2 - 4, Math.hypot(r.x - P.x, r.z - P.z)), -0.2, 1.2); },
     look(dx, dy) { P.noAim = 0; const v = cur(); if (!v) { const am2 = 1 + S.eq.aim; P.camYaw -= dx * 0.0034 * am2; P.camFree = true; P.aimPitch = clamp(P.aimPitch - dy * 0.0024 * am2, roofY(P) ? -1.25 : -0.35, 1.1); } else if (!isAir(v.kind)) { P.aimRel = clamp(P.aimRel - dx * 0.0036, -2.4, 2.4); P.aimPitch = clamp(P.aimPitch - dy * 0.0026, -0.2, 1.2); } },

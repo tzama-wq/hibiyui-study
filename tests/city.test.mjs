@@ -10,7 +10,7 @@ const FSrun = (sim) => 9.6 + 70 * 0.0096; const st = (v) => ({ SHO: v, PAS: v, S
 const ch = (id, rarity, pos) => ({ id, name: id, face: '', rarity, pos, stats: st(90) });
 const chars = [ch('f', 'legend', 'FW'), ch('m', 'legend', 'MF'), ch('d', 'legend', 'DF'), ch('g', 'super', 'GK'), ch('f2', 'rare', 'FW')];
 const veh = (kind, ks) => { const lo = autoLoadout(kind, chars); const parts = {}; for (const [s, id] of Object.entries(lo)) parts[s] = partOf(kind, s, chars.find((c) => c.id === id)); return buildVehicle({ vehicle: kind, name: 'P', kidStats: ks, parts }); };
-const mk = (ks = st(70), seed = 3, extra = {}) => { let a = seed; const rnd = () => { a = (a * 1664525 + 1013904223) % 4294967296; return a / 4294967296; }; return createCity({ stats: ks, vehicles: { tank: veh('tank', ks), ship: veh('ship', ks), plane: veh('plane', ks) }, rnd, ...extra }); };
+const mk = (ks = st(70), seed = 3, extra = {}) => { let a = seed; const rnd = () => { a = (a * 1664525 + 1013904223) % 4294967296; return a / 4294967296; }; return createCity({ stats: ks, vehicles: { tank: veh('tank', ks), ship: veh('ship', ks), plane: veh('plane', ks) }, rnd, witness: false, ...extra }); };
 const run = (sim, sec, f) => { for (let t = 0; t < sec; t += 1 / 30) { if (f && f(t) === 'stop') break; sim.step(1 / 30); } };
 const freeYaw = (x, z, L = 170) => { let best = 0; let bl = -1; for (let k = 0; k < 16; k++) { const y = (k / 16) * Math.PI * 2; let d = 0; for (; d < L; d += 4) { const px = x + Math.sin(y) * d; const pz = z + Math.cos(y) * d; if (isWater(px, pz) || insideBuilding(px, pz, 0)) break; } if (d > bl) { bl = d; best = y; } } return best; };
 const clearLine = (x0, z0, y0, x1, z1, y1) => { const L = Math.hypot(x1 - x0, z1 - z0, y1 - y0); for (let d = 2; d < L - 1; d += 1.5) { const t = d / L; if (insideBuilding(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, y0 + (y1 - y0) * t)) return false; } return true; };
@@ -441,5 +441,13 @@ for (const planeId of ['plane', 'hawk']) {
   const inside = S.crooks.filter((c) => c.hideout === h.id); assert.ok(inside.length >= 5, 'なかに てきが いる'); sim.step(0.05); assert.equal(S.nearby && S.nearby.kind, 'leave', 'でぐち');
   for (let i = 0; i < 60; i++) sim.step(1 / 30); assert.ok(S.bullets.some((b) => b.sp === h.id) || inside.some((c) => c.alert), 'なかの てきが ねらってくる'); assert.ok(S.crooks.filter((c) => !c.hideout && !c.hunter).every((c) => Math.hypot(c.x - P.x, c.z - P.z) > 30 || true));
   const c0 = P.coins; for (const c of inside) c.state = 'down'; sim.step(0.05); assert.ok(h.cleared && P.coins > c0, 'ぜんいん たおすと せいあつ'); P.plat.cz = P.plat.cz; sim.interact(); assert.ok(!P.plat, 'そとに でられる'); assert.equal(S.crooks.length, out, 'そとの てきは かわらない');
+}
+// ---- もくげきしゃ(GTA6 ふう): みられた ときだけ つうほう ----
+{
+  const mkw = () => mk(st(70), 3, { witness: true }); const W = (P) => ({ id: 9001, x: P.x + 10, z: P.z, dead: 0, hp: 40, idle: false, spd: 1, path: null, s: 0, dir: 1, off: 0, look: 1, yaw: 0 });
+  const a = mkw(); a.state.walkers.length = 0; a.gunHit('てすと'); a.step(0.05); assert.equal(a.state.lv, 0, 'だれも みていない→つうほうなし'); assert.ok(!a.state.rep);
+  const b = mkw(); b.state.walkers.length = 0; b.state.walkers.push(W(b.state.player)); b.gunHit('てすと'); b.step(0.05); assert.ok(b.state.rep && b.state.walkers[0].calling, 'みられた→でんわ'); for (let i = 0; i < 90; i++) b.step(0.05); assert.ok(b.state.lv >= 2, 'つうほうで 指名手配');
+  const c = mkw(); c.state.walkers.length = 0; c.state.walkers.push(W(c.state.player)); c.gunHit('てすと'); c.step(0.05); c.state.walkers[0].dead = 5; for (let i = 0; i < 90; i++) c.step(0.05); assert.equal(c.state.lv, 0, 'もくげきしゃが いなければ つうほうは とまる');
+  const d = mkw(); d.state.walkers.length = 0; d.state.walkers.push(W(d.state.player)); d.gunHit('てすと'); d.step(0.05); d.state.player.x += 200; for (let i = 0; i < 90; i++) d.step(0.05); assert.equal(d.state.lv, 0, 'ふりきれば つうほうは とまる');
 }
 console.log('OK: city');
