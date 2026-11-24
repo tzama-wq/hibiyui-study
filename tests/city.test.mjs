@@ -450,4 +450,11 @@ for (const planeId of ['plane', 'hawk']) {
   const c = mkw(); c.state.walkers.length = 0; c.state.walkers.push(W(c.state.player)); c.gunHit('てすと'); c.step(0.05); c.state.walkers[0].dead = 5; for (let i = 0; i < 90; i++) c.step(0.05); assert.equal(c.state.lv, 0, 'もくげきしゃが いなければ つうほうは とまる');
   const d = mkw(); d.state.walkers.length = 0; d.state.walkers.push(W(d.state.player)); d.gunHit('てすと'); d.step(0.05); d.state.player.x += 200; for (let i = 0; i < 90; i++) d.step(0.05); assert.equal(d.state.lv, 0, 'ふりきれば つうほうは とまる');
 }
+// ---- ストリート イベント・つり ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; assert.ok(S.fishSpots.length >= 1, 'つりスポット');
+  const f = S.fishSpots[0]; tele(sim, f.x, f.z); sim.step(0.05); sim.step(0.05); assert.equal(S.nearby && S.nearby.kind, 'fish', 'つりが できる'); sim.interact(); assert.ok(P.fish, 'つりが はじまる'); const c0 = P.coins; for (let i = 0; i < 140; i++) sim.step(0.05); assert.ok(!P.fish && P.coins > c0 - 1, 'つれた'); 
+  const sim2 = mk(); const S2 = sim2.state; const P2 = S2.player; S2.event = { type: 'rescue', icon: '🧳', label: 'てすと', n: 0, coins: 500, reach: true, tag: 'evT', x: P2.x + 60, z: P2.z, spawned: false, life: 300, left: 0, wid: 99991 }; sim2.step(0.05); assert.ok(S2.walkers.some((w) => w.evt === 'evT'), 'ひとが でる'); P2.x = S2.event.x + 3; P2.z = S2.event.z; const c1 = P2.coins; sim2.step(0.05); assert.ok(P2.coins >= c1 + 500 && !S2.event, 'ちかくへ いくと かいけつ');
+  const sim3 = mk(); const S3 = sim3.state; const tc = S3.traffic.find((c) => !c.hostile && !c.cop && !c.bike); tc.cashVan = true; S3.event = { type: 'van', icon: '💰', label: 'てすと', n: 0, coins: 1400, van: true, tag: 'evV', tid: tc.id, x: tc.x, z: tc.z, spawned: true, life: 100, left: 0, wid: 99992 }; tc.dead = 5; const c2 = S3.player.coins; sim3.step(0.05); assert.ok(S3.player.coins >= c2 + 1400, 'げんきんゆそうしゃを とめると ほうしゅう');
+}
 console.log('OK: city');
