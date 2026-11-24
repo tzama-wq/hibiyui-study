@@ -457,4 +457,11 @@ for (const planeId of ['plane', 'hawk']) {
   const sim2 = mk(); const S2 = sim2.state; const P2 = S2.player; S2.event = { type: 'rescue', icon: '🧳', label: 'てすと', n: 0, coins: 500, reach: true, tag: 'evT', x: P2.x + 60, z: P2.z, spawned: false, life: 300, left: 0, wid: 99991 }; sim2.step(0.05); assert.ok(S2.walkers.some((w) => w.evt === 'evT'), 'ひとが でる'); P2.x = S2.event.x + 3; P2.z = S2.event.z; const c1 = P2.coins; sim2.step(0.05); assert.ok(P2.coins >= c1 + 500 && !S2.event, 'ちかくへ いくと かいけつ');
   const sim3 = mk(); const S3 = sim3.state; const tc = S3.traffic.find((c) => !c.hostile && !c.cop && !c.bike); tc.cashVan = true; S3.event = { type: 'van', icon: '💰', label: 'てすと', n: 0, coins: 1400, van: true, tag: 'evV', tid: tc.id, x: tc.x, z: tc.z, spawned: true, life: 100, left: 0, wid: 99992 }; tc.dead = 5; const c2 = S3.player.coins; sim3.step(0.05); assert.ok(S3.player.coins >= c2 + 1400, 'げんきんゆそうしゃを とめると ほうしゅう');
 }
+// ---- じゆうど: およぐ・はなす ----
+{
+  const sim = mk(); const S = sim.state; const P = S.player; const rz = riverZ(0); tele(sim, 0, rz + RIVER.hw + 3); sim.step(0.05);
+  sim.input.moveY = 1; sim.input.moveX = 0; P.camYaw = P.yaw = rz > 0 ? Math.PI : 0; for (let i = 0; i < 80; i++) sim.step(0.05); sim.input.moveY = 0;
+  assert.ok(P.swim || Math.abs(P.z - (rz + RIVER.hw + 3)) > 2, 'かわに はいれる(およぐ)');
+  const t = mk(); const w = t.state.walkers.find((q) => !q.idle && !(q.dead > 0)); const Pt = t.state.player; Pt.x = w.x + 1.5; Pt.z = w.z; t.step(0.05); t.step(0.05); assert.equal(t.state.nearby && t.state.nearby.kind, 'talk', 'ひとに はなしかけられる'); t.interact(); assert.ok(t.state.msg && /🗣|🪙/.test(t.state.msg), 'へんじが ある');
+}
 console.log('OK: city');
