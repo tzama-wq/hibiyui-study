@@ -986,3 +986,7 @@ button.skill-card{cursor:pointer}.skill-card.math{background:linear-gradient(135
 .pg-mark{position:absolute;top:-4px;width:8px;height:30px;margin-left:-4px;border-radius:4px;background:#ffd23f;box-shadow:0 0 8px #ffd23f}
 .pg-prizes{position:relative;height:56px;margin:6px 4px;background:rgba(255,255,255,.06);border-radius:10px}.pg-prizes span{position:absolute;top:2px;transform:translateX(-50%);font-size:26px;text-align:center}.pg-prizes small{display:block;font-size:11px}
 .pg-log{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;min-height:22px;margin:4px 0}.pg-log span{background:rgba(255,255,255,.12);border-radius:8px;padding:1px 8px;font-size:12px}
+
+.st-board{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:150px;margin:6px auto}.st-board i{font-style:normal;display:grid;place-items:center;height:38px;border-radius:6px;background:#e8e0cc;color:#3a2a14;font-size:16px;font-weight:900;border:2px solid #8a7a52}.st-board i.hit{background:#7a1f1f;color:#fff;border-color:#c33}
+.tt-cv{display:block;margin:4px auto;border:2px solid rgba(255,255,255,.4);border-radius:6px;background:#0c1226;touch-action:none}
+.tt-pad{display:flex;gap:6px;justify-content:center;margin:6px 0}.tt-pad button{width:48px;height:44px;border-radius:10px;border:1.5px solid rgba(255,255,255,.4);background:rgba(40,56,96,.9);color:#fff;font-size:18px;touch-action:manipulation}
