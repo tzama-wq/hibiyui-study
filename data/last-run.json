@@ -1,5 +1,5 @@
 {
- "date": "2026-11-27",
+ "date": "2026-11-28",
  "part": 0,
  "models": [
   "gemini-3.8-flash",
@@ -19,11 +19,11 @@
   },
   "2": {
    "asked": 8,
-   "returned": 9,
+   "returned": 8,
    "rejected": {},
-   "unverified": 1,
+   "unverified": 0,
    "accepted": 8,
-   "rounds": 2,
+   "rounds": 1,
    "samples": [],
    "missing": 0
   },
@@ -39,118 +39,118 @@
   },
   "4": {
    "asked": 8,
-   "returned": 16,
+   "returned": 12,
    "rejected": {
-    "target-kanji": 9,
-    "target-not-once": 1,
-    "wrong-shape": 1
+    "wrong-shape": 3,
+    "explain-kanji-out-of-grade": 1,
+    "sentence-kanji-out-of-grade": 1
    },
-   "unverified": 0,
-   "accepted": 5,
+   "unverified": 1,
+   "accepted": 6,
    "rounds": 2,
    "samples": [
     {
-     "reason": "target-kanji",
+     "reason": "wrong-shape",
      "item": {
       "type": "yomi",
-      "kanji": "節",
-      "target": "せつぶん",
-      "reading": "せつぶん",
-      "sentence": "きょうはせつぶんでまめをまく。",
-      "explain": "「せつぶん」の「節」は、きせつの変わり目を意味するよ。",
+      "kanji": "芽",
+      "target": "新芽",
+      "reading": "しんめ",
+      "sentence": "木に新芽がでてきた。",
+      "explain": "「新芽」は「しんめ」と よみます。",
       "wrong": [
        {
-        "text": "ふしぶん",
+        "text": "しんが",
         "tag": "onkun_mix"
        },
        {
-        "text": "せつふん",
-        "tag": "dakuten"
-       },
-       {
-        "text": "せっぶん",
-        "tag": "small_kana"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "target-kanji",
-     "item": {
-      "type": "kaki",
-      "kanji": "粉",
-      "target": "こな",
-      "reading": "こな",
-      "sentence": "パンのこなでパンをつくる。",
-      "explain": "こめやむぎなどを細かくしたものを「粉（こな）」と言うよ。",
-      "wrong": [
-       {
-        "text": "糸",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "料",
-        "tag": "similar_kanji"
-       },
-       {
-        "text": "納",
-        "tag": "similar_kanji"
-       }
-      ]
-     }
-    },
-    {
-     "reason": "target-kanji",
-     "item": {
-      "type": "yomi",
-      "kanji": "紀",
-      "target": "せいき",
-      "reading": "せいき",
-      "sentence": "いまはあたらしいせいきだ。",
-      "explain": "「世紀（せいき）」の「紀」は「き」と読むよ。",
-      "wrong": [
-       {
-        "text": "せいきい",
-        "tag": "other"
-       },
-       {
-        "text": "せき",
+        "text": "しんめい",
         "tag": "long_vowel"
        },
        {
-        "text": "せいきん",
-        "tag": "other"
+        "text": "しんば",
+        "tag": "similar_sound"
        }
       ]
      }
     },
     {
-     "reason": "target-kanji",
+     "reason": "wrong-shape",
      "item": {
       "type": "kaki",
-      "kanji": "約",
-      "target": "やくそく",
-      "reading": "やくそく",
-      "sentence": "ともだちとやくそくをする。",
-      "explain": "「やくそく」の漢字は「約束」と書くよ。",
+      "kanji": "街",
+      "target": "商店街",
+      "reading": "しょうてんがい",
+      "sentence": "商店街をあるく。",
+      "explain": "「しょうてんがい」は「商店街」と かきます。",
       "wrong": [
        {
-        "text": "納そく",
+        "text": "商店行",
         "tag": "similar_kanji"
        },
        {
-        "text": "細そく",
+        "text": "商店町",
+        "tag": "similar_word"
+       },
+       {
+        "text": "商店海",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "wrong-shape",
+     "item": {
+      "type": "yomi",
+      "kanji": "覚",
+      "target": "感覚",
+      "reading": "かんかく",
+      "sentence": "手の感覚がなくなる。",
+      "explain": "「感覚」は「かんかく」と よみます。",
+      "wrong": [
+       {
+        "text": "かんがく",
+        "tag": "dakuten"
+       },
+       {
+        "text": "かんかくう",
+        "tag": "long_vowel"
+       },
+       {
+        "text": "かんさく",
+        "tag": "similar_sound"
+       }
+      ]
+     }
+    },
+    {
+     "reason": "explain-kanji-out-of-grade",
+     "item": {
+      "type": "kaki",
+      "kanji": "街",
+      "target": "町街",
+      "reading": "まち",
+      "sentence": "きれいな 町街を あるく。",
+      "explain": "「まち」は「街」という漢字を使います。左が「行」のつくりに似ています。",
+      "wrong": [
+       {
+        "text": "町待",
         "tag": "similar_kanji"
        },
        {
-        "text": "緒そく",
+        "text": "町行",
+        "tag": "similar_kanji"
+       },
+       {
+        "text": "町術",
         "tag": "similar_kanji"
        }
       ]
      }
     }
    ],
-   "missing": 3
+   "missing": 2
   }
  }
 }
